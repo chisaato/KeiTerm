@@ -238,13 +238,18 @@ public class SshNetSession : ISshSession
             return;
         }
 
+        // 1) 先发出取消信号
         _readCts?.Cancel();
-        if (_readLoopTask != null)
-        {
-            try { await _readLoopTask; } catch { }
-        }
 
-        _shellStream?.Dispose();
+        // 2) 立即释放 ShellStream 与断开底层连接，打断阻塞在 ReadAsync 上的底层网络读取
+        try
+        {
+            _shellStream?.Dispose();
+        }
+        catch
+        {
+            // 释放路径防御：忽略流关闭异常
+        }
 
         // 释放路径的防御：SSH.NET 的 BaseClient 属性访问器会 CheckDisposed，
         // 已释放后再查询/断开会抛 ObjectDisposedException，这里全部吞掉保证 Dispose 不抛
@@ -272,6 +277,19 @@ public class SshNetSession : ISshSession
             catch
             {
                 // 释放路径的防御：断开连接时的网络异常吞掉，不影响释放
+            }
+        }
+
+        // 3) 等待读取循环任务退出，设置 500ms 超时保护避免极端情况下死等挂起
+        if (_readLoopTask != null)
+        {
+            try
+            {
+                await Task.WhenAny(_readLoopTask, Task.Delay(500));
+            }
+            catch
+            {
+                // 忽略等待退出时的异常
             }
         }
 

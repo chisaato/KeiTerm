@@ -7,6 +7,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Kei.Term.App.Helpers;
 using Kei.Term.App.Logging;
@@ -62,8 +63,9 @@ public partial class MainWindow : Window
         SessionTree.AddHandler(TreeViewItem.ExpandedEvent, Tree_ItemExpanded);
         SessionTree.AddHandler(TreeViewItem.CollapsedEvent, Tree_ItemCollapsed);
 
-        // 标签栏拖拽：在 TabsItemsControl 容器上附加事件
+        // 标签栏拖拽与点击处理：在 TabsItemsControl 容器上附加事件
         TabsItemsControl.AddHandler(PointerPressedEvent, Tab_PointerPressed, RoutingStrategies.Tunnel | RoutingStrategies.Bubble, handledEventsToo: true);
+        TabsItemsControl.AddHandler(Button.ClickEvent, Tab_ButtonClicked, RoutingStrategies.Bubble, handledEventsToo: true);
         TabsItemsControl.AddHandler(PointerMovedEvent, Tab_PointerMoved, RoutingStrategies.Tunnel | RoutingStrategies.Bubble, handledEventsToo: true);
         TabsItemsControl.AddHandler(DragDrop.DragOverEvent, Tab_DragOver);
         TabsItemsControl.AddHandler(DragDrop.DropEvent, Tab_Drop);
@@ -571,6 +573,23 @@ public partial class MainWindow : Window
         }
     }
 
+    private void Tab_ButtonClicked(object? sender, RoutedEventArgs e)
+    {
+        // 显式拦截 ✕ 关闭按钮点击，阻止事件冒泡到外层 tabItem 切换标签，并直接触发关闭
+        if (e.Source is Visual visual)
+        {
+            var btn = visual.FindAncestorOfType<Button>(includeSelf: true);
+            if (btn != null && btn.Classes.Contains("closeBtn"))
+            {
+                e.Handled = true;
+                if (DataContext is MainViewModel vm && btn.DataContext is TerminalTabViewModel tab)
+                {
+                    _ = vm.CloseTabCommand.ExecuteAsync(tab);
+                }
+            }
+        }
+    }
+
     private static TerminalTabViewModel? FindTabViewModelFromVisual(Visual? visual)
     {
         while (visual != null)
@@ -749,6 +768,10 @@ public partial class MainWindow : Window
             newVm.PropertyChanged += OnMainViewModelPropertyChanged;
             UpdateSidebarColumn(newVm.IsSessionManagerVisible);
             UpdateTabPlacement(newVm.TabPlacement);
+            if (newVm.SelectedTab != null)
+            {
+                Dispatcher.UIThread.Post(() => newVm.SelectedTab?.Terminal.Focus());
+            }
         }
     }
 
@@ -764,23 +787,38 @@ public partial class MainWindow : Window
         {
             UpdateTabPlacement(vm.TabPlacement);
         }
+        else if (e.PropertyName == nameof(MainViewModel.SelectedTab))
+        {
+            if (vm.SelectedTab != null)
+            {
+                Dispatcher.UIThread.Post(() => vm.SelectedTab?.Terminal.Focus());
+            }
+        }
     }
 
     /// <summary>
-    /// Konsole 风格标签条上下切换：仅调整 Grid.Row，绝不重新实例化终端控件！
+    /// Konsole 风格标签条上下切换：调整 Grid.Row 及 RowDefinition 高度，绝不重新实例化终端控件！
     /// </summary>
     public void UpdateTabPlacement(Kei.Term.Core.Models.Profiles.TabPlacement placement)
     {
-        if (TabsBarBorder == null || TerminalContainer == null) return;
+        if (TabsBarBorder == null || TerminalContainer == null || RightContentGrid == null) return;
 
         if (placement == Kei.Term.Core.Models.Profiles.TabPlacement.Bottom)
         {
+            // 终端占 Row 0 (*)，标签栏占 Row 1 (Auto)
+            RightContentGrid.RowDefinitions[0].Height = new GridLength(1, GridUnitType.Star);
+            RightContentGrid.RowDefinitions[1].Height = GridLength.Auto;
+
             Grid.SetRow(TerminalContainer, 0);
             Grid.SetRow(TabsBarBorder, 1);
             TabsBarBorder.BorderThickness = new Thickness(0, 1, 0, 0);
         }
         else
         {
+            // 标签栏占 Row 0 (Auto)，终端占 Row 1 (*)
+            RightContentGrid.RowDefinitions[0].Height = GridLength.Auto;
+            RightContentGrid.RowDefinitions[1].Height = new GridLength(1, GridUnitType.Star);
+
             Grid.SetRow(TabsBarBorder, 0);
             Grid.SetRow(TerminalContainer, 1);
             TabsBarBorder.BorderThickness = new Thickness(0, 0, 0, 1);

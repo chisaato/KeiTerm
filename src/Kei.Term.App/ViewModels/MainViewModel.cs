@@ -25,6 +25,12 @@ using Kei.Term.Ssh.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
+public enum ComposeMode
+{
+    SingleLine,
+    MultiLine
+}
+
 public partial class MainViewModel : ViewModelBase
 {
     // 认证失败后单次弹窗重试的最大次数（总弹窗上限）
@@ -74,6 +80,35 @@ public partial class MainViewModel : ViewModelBase
 
     [ObservableProperty]
     private bool _isComposeBarVisible = true;
+
+    // 预输入模式：单行快捷栏 / 多行脚本台
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSingleLineCompose))]
+    [NotifyPropertyChangedFor(nameof(IsMultiLineCompose))]
+    [NotifyPropertyChangedFor(nameof(ComposePlaceholder))]
+    private ComposeMode _composeMode = ComposeMode.SingleLine;
+
+    public bool IsSingleLineCompose
+    {
+        get => ComposeMode == ComposeMode.SingleLine;
+        set
+        {
+            if (value) ComposeMode = ComposeMode.SingleLine;
+        }
+    }
+
+    public bool IsMultiLineCompose
+    {
+        get => ComposeMode == ComposeMode.MultiLine;
+        set
+        {
+            if (value) ComposeMode = ComposeMode.MultiLine;
+        }
+    }
+
+    public string ComposePlaceholder => ComposeMode == ComposeMode.MultiLine
+        ? Strings.Get("Main.Compose.PlaceholderMultiLine")
+        : Strings.Get("Main.Compose.Placeholder");
 
     // 左侧连接管理器面板显隐
     [ObservableProperty]
@@ -181,6 +216,12 @@ public partial class MainViewModel : ViewModelBase
 
     public async Task InitializeAsync()
     {
+        // 同步配置中的标签栏停靠位置（Top/Bottom）
+        if (Enum.TryParse<TabPlacement>(_settingsService.Current.TabPlacement, true, out var placement))
+        {
+            TabPlacement = placement;
+        }
+
         await ReloadTreeAsync();
 
         // 自动锁定计时：每分钟 tick，按设置的空闲阈值判断是否 Lock
@@ -954,6 +995,7 @@ public partial class MainViewModel : ViewModelBase
         // 5. 先建标签（Connecting），后台线程完成创建与连接
         var tab = new TerminalTabViewModel(resolved.SessionName, settings.FontFamily, settings.FontSize, _logger);
         Tabs.Add(tab);
+        tab.CloseRequested += OnTabCloseRequested;
         SelectedTab = tab;
 
         var timeout = TimeSpan.FromSeconds(Math.Max(1, settings.ConnectTimeoutSeconds));
@@ -1475,20 +1517,51 @@ public partial class MainViewModel : ViewModelBase
         }
     }
 
+    private void OnTabCloseRequested(TerminalTabViewModel tab) => _ = CloseTabCommand.ExecuteAsync(tab);
+
     [RelayCommand]
-    private Task CloseTabAsync(TerminalTabViewModel? tab) => Safe.RunAsync(_logger, "关闭标签", async () =>
+    private Task CloseTabAsync(TerminalTabViewModel? tab) => Safe.RunAsync(_logger, "关闭标签", () =>
     {
         if (tab == null)
         {
-            return;
+            return Task.CompletedTask;
         }
 
+        tab.CloseRequested -= OnTabCloseRequested;
+        var isCurrentSelected = SelectedTab == tab;
+        var tabIndex = Tabs.IndexOf(tab);
+
+        // 先从集合中移除并立即更新选中态，确保 UI 响应无阻塞
         Tabs.Remove(tab);
-        await tab.DisposeAsync();
-        if (SelectedTab == tab)
+
+        if (isCurrentSelected)
         {
-            SelectedTab = Tabs.LastOrDefault();
+            // 优先切到同位置或前一个标签，若均无则切至末尾或 null
+            if (Tabs.Count > 0)
+            {
+                var nextIndex = Math.Clamp(tabIndex - 1, 0, Tabs.Count - 1);
+                SelectedTab = Tabs[nextIndex];
+            }
+            else
+            {
+                SelectedTab = null;
+            }
         }
+
+        // 后台异步清理底层会话与网络资源，避免任何网络读取阻塞导致 UI 卡顿
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await tab.DisposeAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "后台释放终端标签异常 标题={Title}", tab.Title);
+            }
+        });
+
+        return Task.CompletedTask;
     });
 
     [RelayCommand]
@@ -1507,5 +1580,11 @@ public partial class MainViewModel : ViewModelBase
     private void ToggleComposeBar()
     {
         IsComposeBarVisible = !IsComposeBarVisible;
+    }
+
+    [RelayCommand]
+    private void SetComposeMode(ComposeMode mode)
+    {
+        ComposeMode = mode;
     }
 }

@@ -16,6 +16,12 @@
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="VerticalContentAlignment" Value="Center"/>
     </Style>
+    <!-- 多行文本框：取消固定 28px 高度限制，内容靠顶对齐，舒适编辑内边距 -->
+    <Style Selector="TextBox.multiline, TextBox[AcceptsReturn=True]">
+        <Setter Property="Height" Value="NaN"/>
+        <Setter Property="VerticalContentAlignment" Value="Top"/>
+        <Setter Property="Padding" Value="8,6"/>
+    </Style>
     <Style Selector="TextBox:pointerover /template/ Border#PART_BorderElement">
         <Setter Property="BorderBrush" Value="{DynamicResource Kei.Text.Muted}"/>
         <Setter Property="Background" Value="{DynamicResource Kei.Bg.Input}"/>

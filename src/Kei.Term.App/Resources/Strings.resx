@@ -112,6 +112,9 @@
   <data name="Main.Compose.Placeholder" xml:space="preserve">
     <value>输入要执行的命令（回车或点击发送）...</value>
   </data>
+  <data name="Main.Compose.PlaceholderMultiLine" xml:space="preserve">
+    <value>Ctrl+Enter 或点击发送，Enter 换行...</value>
+  </data>
   <data name="Main.Compose.Send" xml:space="preserve">
     <value>发送</value>
   </data>
@@ -243,6 +246,18 @@
   </data>
   <data name="Menu.View.SessionManager" xml:space="preserve">
     <value>连接管理器</value>
+  </data>
+  <data name="Menu.View.Compose" xml:space="preserve">
+    <value>命令预输入</value>
+  </data>
+  <data name="Menu.View.Compose.Show" xml:space="preserve">
+    <value>显示预输入栏</value>
+  </data>
+  <data name="Menu.View.Compose.SingleLine" xml:space="preserve">
+    <value>单行快捷栏</value>
+  </data>
+  <data name="Menu.View.Compose.MultiLine" xml:space="preserve">
+    <value>多行脚本台</value>
   </data>
   <data name="Menu.View.ComposeBar" xml:space="preserve">
     <value>撰写栏</value>

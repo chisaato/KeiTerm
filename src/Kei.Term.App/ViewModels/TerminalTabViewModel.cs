@@ -33,6 +33,9 @@ public enum TabStatus
 
 public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
 {
+    // 请求关闭此标签页（如会话正常退出时触发）
+    public event Action<TerminalTabViewModel>? CloseRequested;
+
     [ObservableProperty]
     private string _title = Strings.Get("Main.Tab.DefaultTitle");
 
@@ -84,6 +87,28 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
             FontFamilyName = NormalizeFontFamilyName(fontFamily),
             TerminalFontSize = fontSize
         };
+
+        Terminal.Loaded += OnTerminalLoaded;
+        Terminal.SizeChanged += OnTerminalSizeChanged;
+    }
+
+    private void OnTerminalLoaded(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        TrySyncTerminalSize();
+    }
+
+    private void OnTerminalSizeChanged(object? sender, Avalonia.Controls.SizeChangedEventArgs e)
+    {
+        TrySyncTerminalSize();
+    }
+
+    // 尝试同步终端尺寸至后台 SSH 会话
+    public void TrySyncTerminalSize()
+    {
+        if (Terminal.Bounds.Width > 0 && Terminal.Bounds.Height > 0 && Terminal.Columns > 0 && Terminal.Rows > 0)
+        {
+            _endpoint?.SetSize((int)Terminal.Bounds.Width, (int)Terminal.Bounds.Height);
+        }
     }
 
     // 归一化字体族名：兼容旧配置里的逗号分隔候选列表，取第一段首选名；空值回退默认等宽字体
@@ -119,6 +144,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         State = ConnectionState.Connecting;
         StatusMessage = null;
         _logger.LogInformation("终端标签挂载会话 标题={Title} SessionId={SessionId}", Title, session.SessionId);
+        TrySyncTerminalSize();
     }
 
     // 连接成功（UI 线程）
@@ -127,6 +153,11 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         State = ConnectionState.Connected;
         StatusMessage = null;
         _logger.LogInformation("终端标签已连接 标题={Title}", Title);
+        TrySyncTerminalSize();
+        if (IsSelected)
+        {
+            Terminal.Focus();
+        }
     }
 
     // 连接失败：状态置错并在终端输出红字（UI 线程）
@@ -169,6 +200,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
             else
             {
                 _logger.LogInformation("终端标签会话断开 标题={Title}", Title);
+                CloseRequested?.Invoke(this);
             }
         });
     }
@@ -198,6 +230,9 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         {
             return;
         }
+
+        Terminal.Loaded -= OnTerminalLoaded;
+        Terminal.SizeChanged -= OnTerminalSizeChanged;
 
         await DetachSessionAsync();
         _logger.LogInformation("终端标签已释放 标题={Title}", Title);

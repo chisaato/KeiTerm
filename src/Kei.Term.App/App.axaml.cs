@@ -123,6 +123,7 @@ public partial class App : Application
 
             // 异步初始化：树加载 + 自动锁定计时器（均在 InitializeAsync 内），此时窗口已进入消息循环
             await mainVm.InitializeAsync();
+            mainWindow.UpdateTabPlacement(mainVm.TabPlacement);
             logger.LogInformation("启动步骤: 异步初始化全部完成");
         }
 

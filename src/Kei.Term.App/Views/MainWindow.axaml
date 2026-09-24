@@ -112,7 +112,12 @@
             </MenuItem>
             <MenuItem Header="{loc:KeiString Menu.View}">
                 <MenuItem Header="{loc:KeiString Menu.View.SessionManager}" ToggleType="CheckBox" IsChecked="{Binding IsSessionManagerVisible, Mode=TwoWay}"/>
-                <MenuItem Header="{loc:KeiString Menu.View.ComposeBar}" ToggleType="CheckBox" IsChecked="{Binding IsComposeBarVisible, Mode=TwoWay}"/>
+                <MenuItem Header="{loc:KeiString Menu.View.Compose}">
+                    <MenuItem Header="{loc:KeiString Menu.View.Compose.Show}" ToggleType="CheckBox" IsChecked="{Binding IsComposeBarVisible, Mode=TwoWay}"/>
+                    <Separator/>
+                    <MenuItem Header="{loc:KeiString Menu.View.Compose.SingleLine}" ToggleType="CheckBox" IsChecked="{Binding IsSingleLineCompose, Mode=TwoWay}"/>
+                    <MenuItem Header="{loc:KeiString Menu.View.Compose.MultiLine}" ToggleType="CheckBox" IsChecked="{Binding IsMultiLineCompose, Mode=TwoWay}"/>
+                </MenuItem>
             </MenuItem>
             <MenuItem Header="{loc:KeiString Menu.Tools}">
                 <MenuItem Header="{loc:KeiString Menu.Tools.IdentityManager}" Command="{Binding OpenIdentityManagerCommand}"/>
@@ -365,7 +370,7 @@
                           IsVisible="{Binding IsSessionManagerVisible}"/>
 
             <!-- 右：主内容区（标签条 → 终端区 → 撰写栏） -->
-            <Grid Grid.Column="2" RowDefinitions="Auto,*,Auto">
+            <Grid x:Name="RightContentGrid" Grid.Column="2" RowDefinitions="Auto,*,Auto">
 
                 <!-- 标签条：状态指示竖条 + 标题 + 关闭；无标签时整行隐藏 -->
                 <Border x:Name="TabsBarBorder"
@@ -412,9 +417,21 @@
                 <Panel x:Name="TerminalContainer" Grid.Row="1">
                     <Border Background="{DynamicResource Kei.Bg.Window}"
                             IsVisible="{Binding SelectedTab, Converter={x:Static ObjectConverters.IsNull}}"/>
-                    <ContentControl Content="{Binding SelectedTab.Terminal}"
-                                    Background="{DynamicResource Kei.Bg.Window}"
-                                    IsVisible="{Binding SelectedTab, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                    <!-- 终端区：无标签时纯色填充，有标签时通过 ItemsControl 单独承载每个标签的 Terminal 实例，避免 ContentControl 切换带来的卸载与焦点失效 -->
+                    <ItemsControl ItemsSource="{Binding Tabs}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <Panel/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="vm:TerminalTabViewModel">
+                                <ContentControl Content="{Binding Terminal}"
+                                                Background="{DynamicResource Kei.Bg.Window}"
+                                                IsVisible="{Binding IsSelected}"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                 </Panel>
 
                 <!-- Row2 撰写栏：显示条件 = 撰写栏开关打开且有选中标签 -->
@@ -429,11 +446,30 @@
                             <Binding Path="SelectedTab" Converter="{x:Static ObjectConverters.IsNotNull}"/>
                         </MultiBinding>
                     </Border.IsVisible>
-                    <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
-                        <TextBlock Grid.Column="0" Text="{loc:KeiString Main.Compose.PreInput}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Muted}" Margin="0,0,8,0"/>
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <TextBlock Grid.Column="0"
+                                   Text="{loc:KeiString Main.Compose.PreInput}"
+                                   Classes.multiline="{Binding IsMultiLineCompose}"
+                                   Foreground="{DynamicResource Kei.Text.Muted}"
+                                   Margin="0,0,8,0">
+                            <!-- 多行模式贴顶，单行模式居中 -->
+                            <TextBlock.Styles>
+                                <Style Selector="TextBlock">
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                </Style>
+                                <Style Selector="TextBlock.multiline">
+                                    <Setter Property="VerticalAlignment" Value="Top"/>
+                                    <Setter Property="Margin" Value="0,6,8,0"/>
+                                </Style>
+                            </TextBlock.Styles>
+                        </TextBlock>
+                        
+                        <!-- 单行模式输入框：回车发送 -->
                         <TextBox Grid.Column="1"
+                                 IsVisible="{Binding IsSingleLineCompose}"
                                  Text="{Binding ComposeText}"
-                                 PlaceholderText="{loc:KeiString Main.Compose.Placeholder}"
+                                 PlaceholderText="{Binding ComposePlaceholder}"
+                                 AcceptsReturn="False"
                                  Background="{DynamicResource Kei.Bg.Panel}"
                                  Foreground="{DynamicResource Kei.Text.Primary}"
                                  BorderBrush="{DynamicResource Kei.Border}"
@@ -443,14 +479,48 @@
                                 <KeyBinding Gesture="Enter" Command="{Binding SendComposeCommand}"/>
                             </TextBox.KeyBindings>
                         </TextBox>
+
+                        <!-- 多行模式输入框：Ctrl+Enter 发送，Enter 换行 -->
+                        <TextBox Grid.Column="1"
+                                 Classes="multiline"
+                                 IsVisible="{Binding IsMultiLineCompose}"
+                                 Text="{Binding ComposeText}"
+                                 PlaceholderText="{Binding ComposePlaceholder}"
+                                 AcceptsReturn="True"
+                                 VerticalContentAlignment="Top"
+                                 MinHeight="70"
+                                 MaxHeight="180"
+                                 TextWrapping="Wrap"
+                                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                 Background="{DynamicResource Kei.Bg.Panel}"
+                                 Foreground="{DynamicResource Kei.Text.Primary}"
+                                 BorderBrush="{DynamicResource Kei.Border}"
+                                 CornerRadius="3"
+                                 Padding="8,6">
+                            <TextBox.KeyBindings>
+                                <KeyBinding Gesture="Ctrl+Enter" Command="{Binding SendComposeCommand}"/>
+                            </TextBox.KeyBindings>
+                        </TextBox>
+
+                        <!-- 发送按钮：多行贴顶，单行居中 -->
                         <Button Grid.Column="2"
                                 Content="{loc:KeiString Main.Compose.Send}"
                                 Command="{Binding SendComposeCommand}"
+                                Classes.multiline="{Binding IsMultiLineCompose}"
                                 Background="{DynamicResource Kei.Accent}"
                                 Foreground="White"
                                 Margin="8,0,0,0"
                                 Padding="12,5"
-                                CornerRadius="3"/>
+                                CornerRadius="3">
+                            <Button.Styles>
+                                <Style Selector="Button">
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                </Style>
+                                <Style Selector="Button.multiline">
+                                    <Setter Property="VerticalAlignment" Value="Top"/>
+                                </Style>
+                            </Button.Styles>
+                        </Button>
                     </Grid>
                 </Border>
             </Grid>
