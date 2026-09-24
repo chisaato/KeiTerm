@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Kei.Term.App/Kei.Term.App.csproj" />
+    <Project Path="src/Kei.Term.Core/Kei.Term.Core.csproj" />
+    <Project Path="src/Kei.Term.Infrastructure/Kei.Term.Infrastructure.csproj" />
+    <Project Path="src/Kei.Term.Ssh/Kei.Term.Ssh.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Kei.Term.Tests/Kei.Term.Tests.csproj" />
+  </Folder>
+</Solution>

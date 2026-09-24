@@ -1,0 +1,77 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Kei 专属桌面工具设计系统（现代高密度终端工具调性，沉稳、清爽、微对比） -->
+
+    <!-- 背景层级色 -->
+    <Color x:Key="Kei.Color.Bg.Window">#FF1E1E22</Color>
+    <Color x:Key="Kei.Color.Bg.Panel">#FF25252A</Color>
+    <Color x:Key="Kei.Color.Bg.PanelAlt">#FF2A2A30</Color>
+    <Color x:Key="Kei.Color.Bg.Card">#FF222227</Color>
+    <Color x:Key="Kei.Color.Bg.Input">#FF18181B</Color>
+    <Color x:Key="Kei.Color.Bg.Hover">#FF323238</Color>
+    <Color x:Key="Kei.Color.Bg.Pressed">#FF3A3A42</Color>
+    <Color x:Key="Kei.Color.Bg.TabInactive">#FF1E1E22</Color>
+
+    <!-- 描边与分隔线 -->
+    <Color x:Key="Kei.Color.Border">#FF3A3A42</Color>
+    <Color x:Key="Kei.Color.Border.Subtle">#FF2E2E35</Color>
+    <Color x:Key="Kei.Color.Border.Focus">#FF3574F0</Color>
+
+    <!-- 文字层级 -->
+    <Color x:Key="Kei.Color.Text.Primary">#FFE8E8EC</Color>
+    <Color x:Key="Kei.Color.Text.Secondary">#FFB8B8C2</Color>
+    <Color x:Key="Kei.Color.Text.Muted">#FF7E7E8A</Color>
+
+    <!-- 品牌与强调色（JetBrains 蓝） -->
+    <Color x:Key="Kei.Color.Accent">#FF3574F0</Color>
+    <Color x:Key="Kei.Color.Accent.Hover">#FF4B84F5</Color>
+    <Color x:Key="Kei.Color.Accent.Pressed">#FF2860D4</Color>
+    <Color x:Key="Kei.Color.Session.Foreground">#FF4EC9B0</Color>
+
+    <!-- 状态指示色 -->
+    <Color x:Key="Kei.Color.Status.Connecting">#FFD7BA7D</Color>
+    <Color x:Key="Kei.Color.Status.Connected">#FF4EC9B0</Color>
+    <Color x:Key="Kei.Color.Status.Disconnected">#FF7E7E8A</Color>
+    <Color x:Key="Kei.Color.Status.Error">#FFF48771</Color>
+
+    <!-- 笔刷定义 -->
+    <SolidColorBrush x:Key="Kei.Bg.Window" Color="{StaticResource Kei.Color.Bg.Window}"/>
+    <SolidColorBrush x:Key="Kei.Bg.Panel" Color="{StaticResource Kei.Color.Bg.Panel}"/>
+    <SolidColorBrush x:Key="Kei.Bg.PanelAlt" Color="{StaticResource Kei.Color.Bg.PanelAlt}"/>
+    <SolidColorBrush x:Key="Kei.Bg.Card" Color="{StaticResource Kei.Color.Bg.Card}"/>
+    <SolidColorBrush x:Key="Kei.Bg.Input" Color="{StaticResource Kei.Color.Bg.Input}"/>
+    <SolidColorBrush x:Key="Kei.Bg.Hover" Color="{StaticResource Kei.Color.Bg.Hover}"/>
+    <SolidColorBrush x:Key="Kei.Bg.Pressed" Color="{StaticResource Kei.Color.Bg.Pressed}"/>
+    <SolidColorBrush x:Key="Kei.Bg.TabInactive" Color="{StaticResource Kei.Color.Bg.TabInactive}"/>
+
+    <SolidColorBrush x:Key="Kei.Border" Color="{StaticResource Kei.Color.Border}"/>
+    <SolidColorBrush x:Key="Kei.Border.Subtle" Color="{StaticResource Kei.Color.Border.Subtle}"/>
+    <SolidColorBrush x:Key="Kei.Border.Focus" Color="{StaticResource Kei.Color.Border.Focus}"/>
+
+    <SolidColorBrush x:Key="Kei.Text.Primary" Color="{StaticResource Kei.Color.Text.Primary}"/>
+    <SolidColorBrush x:Key="Kei.Text.Secondary" Color="{StaticResource Kei.Color.Text.Secondary}"/>
+    <SolidColorBrush x:Key="Kei.Text.Muted" Color="{StaticResource Kei.Color.Text.Muted}"/>
+
+    <SolidColorBrush x:Key="Kei.Accent" Color="{StaticResource Kei.Color.Accent}"/>
+    <SolidColorBrush x:Key="Kei.Accent.Hover" Color="{StaticResource Kei.Color.Accent.Hover}"/>
+    <SolidColorBrush x:Key="Kei.Accent.Pressed" Color="{StaticResource Kei.Color.Accent.Pressed}"/>
+    <SolidColorBrush x:Key="Kei.Session.Foreground" Color="{StaticResource Kei.Color.Session.Foreground}"/>
+
+    <SolidColorBrush x:Key="Kei.Status.Connecting" Color="{StaticResource Kei.Color.Status.Connecting}"/>
+    <SolidColorBrush x:Key="Kei.Status.Connected" Color="{StaticResource Kei.Color.Status.Connected}"/>
+    <SolidColorBrush x:Key="Kei.Status.Disconnected" Color="{StaticResource Kei.Color.Status.Disconnected}"/>
+    <SolidColorBrush x:Key="Kei.Status.Error" Color="{StaticResource Kei.Color.Status.Error}"/>
+
+    <!-- 尺寸与几何令牌 -->
+    <CornerRadius x:Key="Kei.Radius.Control">3</CornerRadius>
+    <CornerRadius x:Key="Kei.Radius.Card">4</CornerRadius>
+    <x:Double x:Key="Kei.Height.Control">28</x:Double>
+    <x:Double x:Key="Kei.Height.ControlCompact">24</x:Double>
+
+    <!-- 会话树几何令牌（默认紧凑） -->
+    <x:Double x:Key="Kei.Tree.ItemHeight">22</x:Double>
+    <x:Double x:Key="Kei.Tree.FontSize">12</x:Double>
+    <x:Double x:Key="Kei.Tree.IconSize">14</x:Double>
+    <x:Double x:Key="Kei.Tree.Indent">12</x:Double>
+</ResourceDictionary>

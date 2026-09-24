@@ -1,0 +1,38 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="using:Kei.Term.App.Helpers"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="440" d:DesignHeight="250"
+        x:Class="Kei.Term.App.Views.PassphrasePromptWindow"
+        Title="{loc:KeiString PassphrasePrompt.Title}"
+        Width="450" Height="270"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        ShowInTaskbar="False"
+        Background="#1E1E1E">
+
+    <Grid RowDefinitions="*, Auto" Margin="20">
+        <StackPanel Grid.Row="0" Spacing="12">
+            <TextBlock Text="{loc:KeiString PassphrasePrompt.Header}" FontWeight="Bold" Foreground="#4EC9B0" FontSize="14"/>
+
+            <TextBlock x:Name="KeyPathText" Foreground="#CCCCCC" FontSize="11"
+                       TextWrapping="Wrap" TextTrimming="CharacterEllipsis"/>
+
+            <TextBox x:Name="PasswordBox" PasswordChar="•" PlaceholderText="{loc:KeiString PassphrasePrompt.Placeholder}"/>
+
+            <CheckBox x:Name="RememberCheck" Content="{loc:KeiString PassphrasePrompt.RememberSession}" IsChecked="True" IsVisible="False"/>
+
+            <TextBlock x:Name="ModeHintText" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/>
+
+            <TextBlock x:Name="ErrorText" Foreground="#FF6B6B" FontSize="11"
+                       TextWrapping="Wrap" IsVisible="False"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12" Margin="0,14,0,0">
+            <Button Content="{loc:KeiString Common.Cancel}" Click="OnCancel" Width="85" HorizontalContentAlignment="Center"/>
+            <Button Content="{loc:KeiString Common.Confirm}" Click="OnConfirm" Width="85" HorizontalContentAlignment="Center"
+                    Background="#0E639C" Foreground="White"/>
+        </StackPanel>
+    </Grid>
+</Window>

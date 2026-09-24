@@ -1,0 +1,34 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Kei.Term.App.ViewModels"
+        xmlns:loc="using:Kei.Term.App.Helpers"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="450" d:DesignHeight="350"
+        x:Class="Kei.Term.App.Views.FolderEditWindow"
+        x:DataType="vm:FolderEditViewModel"
+        Title="{Binding Title}"
+        Width="460" Height="360"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="#1E1E1E">
+
+    <Grid RowDefinitions="*, Auto" Margin="20">
+        <StackPanel Grid.Row="0" Spacing="14">
+            <TextBlock Text="{loc:KeiString FolderEdit.Header}" FontWeight="Bold" Foreground="#4EC9B0" FontSize="14"/>
+
+            <Grid ColumnDefinitions="100, *" RowDefinitions="Auto, Auto" Margin="0,4,0,10">
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString FolderEdit.Name}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Name}" PlaceholderText="{loc:KeiString FolderEdit.Name.Placeholder}" Margin="0,4"/>
+
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="{loc:KeiString FolderEdit.Description}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Description}" PlaceholderText="{loc:KeiString FolderEdit.Description.Placeholder}" Margin="0,4"/>
+            </Grid>
+        </StackPanel>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12">
+            <Button Content="{loc:KeiString Common.Cancel}" Command="{Binding CancelCommand}" Width="85" HorizontalContentAlignment="Center"/>
+            <Button Content="{loc:KeiString Common.Save}" Command="{Binding SaveCommand}" Width="85" HorizontalContentAlignment="Center" Background="#0E639C" Foreground="White"/>
+        </StackPanel>
+    </Grid>
+</Window>

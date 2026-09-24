@@ -1,0 +1,516 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Kei.Term.App.ViewModels"
+        xmlns:settings="using:Kei.Term.App.ViewModels.Settings"
+        xmlns:loc="using:Kei.Term.App.Helpers"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="760" d:DesignHeight="560"
+        x:Class="Kei.Term.App.Views.SettingsWindow"
+        x:DataType="vm:SettingsViewModel"
+        Title="{loc:KeiString Settings.Title}"
+        Width="760" Height="560" MinWidth="680" MinHeight="480"
+        WindowStartupLocation="CenterOwner"
+        CanResize="True"
+        FontFamily="Noto Sans CJK SC, Source Han Sans SC, Microsoft YaHei UI, Segoe UI, sans-serif"
+        RequestedThemeVariant="Dark"
+        Background="{DynamicResource Kei.Bg.Window}">
+
+    <Window.Styles>
+        <!-- 保存按钮：常态 Accent，悬停 AccentHover，按下回落 -->
+        <Style Selector="Button.save /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource Kei.Accent}"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style Selector="Button.save:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource Kei.Accent.Hover}"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style Selector="Button.save:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource Kei.Accent}"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="*, Auto">
+        <Grid Grid.Row="0" ColumnDefinitions="190, *">
+            <!-- 左侧：分类导航 -->
+            <Border Grid.Column="0"
+                    Background="{DynamicResource Kei.Bg.Panel}"
+                    BorderBrush="{DynamicResource Kei.Border}"
+                    BorderThickness="0,0,1,0">
+                <ListBox ItemsSource="{Binding Categories}"
+                         SelectedItem="{Binding SelectedCategory}"
+                         Margin="0,8" Padding="0"
+                         Background="Transparent" BorderThickness="0">
+                    <ListBox.Styles>
+                        <Style Selector="ListBoxItem">
+                            <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Secondary}"/>
+                            <Setter Property="Background" Value="Transparent"/>
+                            <Setter Property="MinHeight" Value="48"/>
+                            <Setter Property="Padding" Value="14,0"/>
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                            <Setter Property="Template">
+                                <ControlTemplate>
+                                    <Border Name="root" Background="{TemplateBinding Background}">
+                                        <Grid>
+                                            <!-- 选中态左侧 Accent 竖条 -->
+                                            <Rectangle Name="accentBar" Width="3" HorizontalAlignment="Left"
+                                                       Fill="{DynamicResource Kei.Accent}"
+                                                       IsHitTestVisible="False" Opacity="0"/>
+                                            <ContentPresenter ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                              Content="{TemplateBinding Content}"
+                                                              Margin="{TemplateBinding Padding}"
+                                                              HorizontalAlignment="Stretch"
+                                                              VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Border>
+                                </ControlTemplate>
+                            </Setter>
+                        </Style>
+                        <Style Selector="ListBoxItem:pointerover /template/ Border#root">
+                            <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}"/>
+                        </Style>
+                        <Style Selector="ListBoxItem:selected /template/ Border#root">
+                            <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}"/>
+                        </Style>
+                        <Style Selector="ListBoxItem:selected /template/ Rectangle#accentBar">
+                            <Setter Property="Opacity" Value="1"/>
+                        </Style>
+                        <Style Selector="ListBoxItem:selected">
+                            <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}"/>
+                        </Style>
+                    </ListBox.Styles>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="settings:SettingsCategoryItem">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <!-- 单色几何图标：描边色跟随条目前景 -->
+                                <Path Width="16" Height="16"
+                                      Data="{Binding Icon}"
+                                      Stroke="{Binding $parent[ListBoxItem].Foreground}"
+                                      StrokeThickness="1.4" StrokeLineCap="Round" StrokeJoin="Round"/>
+                                <StackPanel VerticalAlignment="Center" Spacing="1">
+                                    <TextBlock Text="{Binding Title}" FontSize="13"/>
+                                    <TextBlock Text="{Binding Description}" FontSize="10.5"
+                                               Foreground="{DynamicResource Kei.Text.Muted}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Border>
+
+            <!-- 右侧：分类内容区，按页面 VM 类型分发模板 -->
+            <Border Grid.Column="1" Background="{DynamicResource Kei.Bg.Window}">
+                <ScrollViewer>
+                    <ContentControl Content="{Binding SelectedCategory.Page}" Margin="26,22">
+                        <ContentControl.DataTemplates>
+
+                            <!-- 常规页 -->
+                            <DataTemplate DataType="settings:GeneralSettingsPage"
+                                          x:DataType="settings:GeneralSettingsPage">
+                                <StackPanel MaxWidth="560" HorizontalAlignment="Left" Spacing="14">
+                                    <TextBlock Text="{loc:KeiString Settings.General.WindowBehavior}" FontSize="13" FontWeight="Bold"
+                                               Foreground="{DynamicResource Kei.Session.Foreground}"/>
+                                    <CheckBox IsChecked="{Binding ConfirmBeforeClose}" Content="{loc:KeiString Settings.General.ConfirmBeforeClose}"
+                                              ToolTip.Tip="{loc:KeiString Settings.General.ConfirmBeforeCloseTip}"/>
+
+                                    <!-- 树排序模式 -->
+                                    <TextBlock Text="{loc:KeiString Settings.General.TreeSortSection}" FontSize="13" FontWeight="Bold" Margin="0,10,0,0"
+                                               Foreground="{DynamicResource Kei.Session.Foreground}"/>
+                                    <Grid ColumnDefinitions="150, *" ColumnSpacing="12">
+                                        <TextBlock Grid.Column="0" Text="{loc:KeiString Settings.General.TreeSortMode}" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                        <ComboBox Grid.Column="1" MinWidth="260" HorizontalAlignment="Left"
+                                                  ItemsSource="{Binding TreeSortOptions}" SelectedItem="{Binding SelectedTreeSort}"
+                                                  ToolTip.Tip="{loc:KeiString Settings.General.TreeSortModeTip}">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate x:DataType="settings:TreeSortOption">
+                                                    <TextBlock Text="{Binding Label}"/>
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+                                    </Grid>
+
+                                    <TextBlock Text="{loc:KeiString Settings.General.DataDirectory}" FontSize="13" FontWeight="Bold" Margin="0,10,0,0"
+                                               Foreground="{DynamicResource Kei.Session.Foreground}"/>
+                                    <Grid ColumnDefinitions="*, Auto" ColumnSpacing="10">
+                                        <TextBox Text="{Binding DataDirectory}" IsReadOnly="True" VerticalAlignment="Center"
+                                                 ToolTip.Tip="{loc:KeiString Settings.General.DataDirectoryTip}"/>
+                                        <Button Grid.Column="1" Content="{loc:KeiString Settings.General.OpenDirectory}" MinWidth="88"
+                                                HorizontalContentAlignment="Center" VerticalAlignment="Center"
+                                                Command="{Binding OpenDataDirectoryCommand}"
+                                                ToolTip.Tip="{loc:KeiString Settings.General.OpenDirectoryTip}"/>
+                                    </Grid>
+                                </StackPanel>
+                            </DataTemplate>
+
+                            <!-- 外观配色页 -->
+                            <DataTemplate DataType="settings:AppearanceSettingsPage"
+                                          x:DataType="settings:AppearanceSettingsPage">
+                                <StackPanel MaxWidth="560" HorizontalAlignment="Left" Spacing="14">
+                                    <TextBlock Text="{loc:KeiString Settings.Appearance.ThemeSection}" FontSize="13" FontWeight="Bold"
+                                               Foreground="{DynamicResource Kei.Session.Foreground}"/>
+                                    <Grid ColumnDefinitions="150, *" RowDefinitions="Auto, Auto" RowSpacing="12" ColumnSpacing="12">
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString Settings.Appearance.ThemeMode}" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                        <ComboBox Grid.Row="0" Grid.Column="1" MinWidth="220" HorizontalAlignment="Left"
+                                                  ItemsSource="{Binding ThemeOptions}" SelectedItem="{Binding SelectedTheme}"
+                                                  ToolTip.Tip="{loc:KeiString Settings.Appearance.ThemeModeTip}">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate x:DataType="settings:ThemeOption">
+                                                    <TextBlock Text="{Binding Label}"/>
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="{loc:KeiString Settings.Appearance.GuiProfile}" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                        <ComboBox Grid.Row="1" Grid.Column="1" MinWidth="220" HorizontalAlignment="Left"
+                                                  ItemsSource="{Binding GuiProfiles}" SelectedItem="{Binding SelectedGuiProfile}"
+                                                  ToolTip.Tip="{loc:KeiString Settings.Appearance.GuiProfileTip}">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding Name}"/>
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+                                    </Grid>
+
+                                    <!-- 界面字体 (UI Font) -->
+                                    <TextBlock Text="{loc:KeiString Settings.Appearance.UiFontSection}" FontSize="13" FontWeight="Bold" Margin="0,10,0,0"
+                                               Foreground="{DynamicResource Kei.Session.Foreground}"/>
+                                    <Grid ColumnDefinitions="150, *" ColumnSpacing="12">
+                                        <TextBlock Grid.Column="0" Text="{loc:KeiString Settings.Appearance.UiFontFamily}" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                        <ComboBox Grid.Column="1" HorizontalAlignment="Stretch"
+                                                  ItemsSource="{Binding AvailableFonts}"
+                                                  SelectedItem="{Binding SelectedUiFont}"
+                                                  ToolTip.Tip="{loc:KeiString Settings.Appearance.UiFontFamilyTip}">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding DisplayName}"/>
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+                                    </Grid>
+
+                                    <!-- 界面回退字体有序列表 -->
+                                    <TextBlock Text="{loc:KeiString Settings.Appearance.FallbackFontsSection}" FontSize="12"
+                                               Foreground="{DynamicResource Kei.Text.Secondary}" Margin="0,4,0,0"/>
+                                    <Grid ColumnDefinitions="*, Auto" ColumnSpacing="8">
+                                        <ComboBox Grid.Column="0" HorizontalAlignment="Stretch"
+                                                  ItemsSource="{Binding AvailableFonts}"
+                                                  SelectedItem="{Binding UiFallbackFontCandidate}"
+                                                  PlaceholderText="{loc:KeiString Settings.Appearance.SelectFallbackFontToAdd}">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding DisplayName}"/>
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+                                        <Button Grid.Column="1" Content="{loc:KeiString Settings.Appearance.AddFallbackFont}"
+                                                Command="{Binding AddUiFallbackFont}"/>
+                                    </Grid>
+                                    <Grid ColumnDefinitions="*, Auto" ColumnSpacing="8">
+                                        <ListBox Grid.Column="0" MinHeight="80" MaxHeight="120"
+                                                 ItemsSource="{Binding UiFallbackFonts}"
+                                                 SelectedItem="{Binding SelectedUiFallbackFont}"/>
+                                        <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
+                                            <Button Content="{loc:KeiString Settings.Appearance.MoveUp}" MinWidth="60"
+                                                    Command="{Binding MoveUpUiFallbackFont}"/>
+                                            <Button Content="{loc:KeiString Settings.Appearance.MoveDown}" MinWidth="60"
+                                                    Command="{Binding MoveDownUiFallbackFont}"/>
+                                            <Button Content="{loc:KeiString Settings.Appearance.RemoveFallbackFont}" MinWidth="60"
+                                                    Command="{Binding RemoveUiFallbackFont}"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </StackPanel>
+                            </DataTemplate>
+
+                            <!-- 会话树设置页 -->
+                            <DataTemplate DataType="settings:TreeSettingsProxyPage"
+                                          x:DataType="settings:TreeSettingsProxyPage">
+                                <StackPanel MaxWidth="560" HorizontalAlignment="Left" Spacing="14" DataContext="{Binding Appearance}">
+                                    <TextBlock Text="{loc:KeiString Settings.Appearance.TreeDensitySection}" FontSize="13" FontWeight="Bold"
+                                               Foreground="{DynamicResource Kei.Session.Foreground}"/>
+                                    <Grid ColumnDefinitions="150, *" ColumnSpacing="12">
+                                        <TextBlock Grid.Column="0" Text="{loc:KeiString Settings.Appearance.TreeDensityPreset}" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                        <ComboBox Grid.Column="1" MinWidth="260" HorizontalAlignment="Left"
+                                                  ItemsSource="{Binding DensityPresetOptions}" SelectedItem="{Binding SelectedDensityPreset}"
+                                                  ToolTip.Tip="{loc:KeiString Settings.Appearance.TreeDensityPresetTip}">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate x:DataType="settings:TreeDensityPresetOption">
+                                                    <TextBlock Text="{Binding Label}"/>
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+                                    </Grid>
+
+                                    <!-- 树尺寸微调面板 -->
+                                    <Border Background="{DynamicResource Kei.Bg.Card}"
+                                            BorderBrush="{DynamicResource Kei.Border.Subtle}"
+                                            BorderThickness="1" CornerRadius="4" Padding="12,10" Margin="0,4,0,0">
+                                        <Grid ColumnDefinitions="138, *" RowDefinitions="Auto, Auto, Auto, Auto" RowSpacing="10" ColumnSpacing="12">
+                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString Settings.Appearance.TreeItemHeight}" VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                            <NumericUpDown Grid.Row="0" Grid.Column="1" HorizontalAlignment="Left" MinWidth="160"
+                                                           Value="{Binding TreeItemHeight}" Minimum="16" Maximum="40" Increment="1" FormatString="0"/>
+
+                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="{loc:KeiString Settings.Appearance.TreeFontSize}" VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                            <NumericUpDown Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" MinWidth="160"
+                                                           Value="{Binding TreeFontSize}" Minimum="9" Maximum="18" Increment="0.5" FormatString="0.0"/>
+
+                                            <TextBlock Grid.Row="2" Grid.Column="0" Text="{loc:KeiString Settings.Appearance.TreeIconSize}" VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                            <NumericUpDown Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" MinWidth="160"
+                                                           Value="{Binding TreeIconSize}" Minimum="10" Maximum="24" Increment="1" FormatString="0"/>
+
+                                            <TextBlock Grid.Row="3" Grid.Column="0" Text="{loc:KeiString Settings.Appearance.TreeIndent}" VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                            <NumericUpDown Grid.Row="3" Grid.Column="1" HorizontalAlignment="Left" MinWidth="160"
+                                                           Value="{Binding TreeIndent}" Minimum="6" Maximum="32" Increment="1" FormatString="0"/>
+                                        </Grid>
+                                    </Border>
+                                </StackPanel>
+                            </DataTemplate>
+
+                            <!-- 终端设置页（综合终端仿真与终端字体/配色） -->
+                            <DataTemplate DataType="settings:TerminalSettingsCombinedPage"
+                                          x:DataType="settings:TerminalSettingsCombinedPage">
+                                <StackPanel MaxWidth="560" HorizontalAlignment="Left" Spacing="14">
+                                    <!-- 终端仿真与回滚 -->
+                                    <TextBlock Text="{loc:KeiString Settings.Terminal.ScrollbackSection}" FontSize="13" FontWeight="Bold"
+                                               Foreground="{DynamicResource Kei.Session.Foreground}"/>
+                                    <Grid ColumnDefinitions="150, *" ColumnSpacing="12">
+                                        <TextBlock Grid.Column="0" Text="{loc:KeiString Settings.Terminal.ScrollbackLines}" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                        <NumericUpDown Grid.Column="1" HorizontalAlignment="Left" MinWidth="220"
+                                                       Value="{Binding Terminal.ScrollbackLines}" Minimum="500" Maximum="50000" FormatString="0"
+                                                       ToolTip.Tip="{loc:KeiString Settings.Terminal.ScrollbackLinesTip}"/>
+                                    </Grid>
+
+                                    <TextBlock Text="{loc:KeiString Settings.Terminal.EmulationSection}" FontSize="13" FontWeight="Bold" Margin="0,10,0,0"
+                                               Foreground="{DynamicResource Kei.Session.Foreground}"/>
+                                    <Grid ColumnDefinitions="150, *" ColumnSpacing="12">
+                                        <TextBlock Grid.Column="0" Text="{loc:KeiString Settings.Terminal.DefaultTerminalType}" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                        <TextBox Grid.Column="1" Text="{Binding Terminal.DefaultTerminalType}"
+                                                 PlaceholderText="{loc:KeiString Settings.Terminal.DefaultTerminalTypePlaceholder}"
+                                                 ToolTip.Tip="{loc:KeiString Settings.Terminal.DefaultTerminalTypeTip}"/>
+                                    </Grid>
+
+                                    <!-- 终端字体与配色 -->
+                                    <TextBlock Text="{loc:KeiString Settings.Appearance.FontSection}" FontSize="13" FontWeight="Bold" Margin="0,10,0,0"
+                                               Foreground="{DynamicResource Kei.Session.Foreground}"/>
+                                    <Grid ColumnDefinitions="150, *" ColumnSpacing="12" RowDefinitions="Auto, Auto, Auto" RowSpacing="12"
+                                          DataContext="{Binding Appearance}">
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString Settings.Appearance.TerminalProfile}" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                        <ComboBox Grid.Row="0" Grid.Column="1" HorizontalAlignment="Left" MinWidth="220"
+                                                  ItemsSource="{Binding TerminalProfiles}"
+                                                  SelectedItem="{Binding SelectedTerminalProfile}"
+                                                  ToolTip.Tip="{loc:KeiString Settings.Appearance.TerminalProfileTip}">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding Name}"/>
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="{loc:KeiString Settings.Appearance.FontFamily}" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                        <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch"
+                                                  ItemsSource="{Binding AvailableFonts}"
+                                                  SelectedItem="{Binding SelectedFont}"
+                                                  ToolTip.Tip="{loc:KeiString Settings.Appearance.FontFamilyTip}">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding DisplayName}"/>
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+
+                                        <TextBlock Grid.Row="2" Grid.Column="0" Text="{loc:KeiString Settings.Appearance.FontSize}" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                        <NumericUpDown Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" MinWidth="220"
+                                                       Value="{Binding FontSize}" Minimum="8" Maximum="36" FormatString="0.0"
+                                                       ToolTip.Tip="{loc:KeiString Settings.Appearance.FontSizeTip}"/>
+                                    </Grid>
+
+                                    <!-- 终端回退字体有序列表 -->
+                                    <TextBlock Text="{loc:KeiString Settings.Appearance.FallbackFontsSection}" FontSize="12"
+                                               Foreground="{DynamicResource Kei.Text.Secondary}" Margin="0,4,0,0"/>
+                                    <Grid ColumnDefinitions="*, Auto" ColumnSpacing="8" DataContext="{Binding Appearance}">
+                                        <ComboBox Grid.Column="0" HorizontalAlignment="Stretch"
+                                                  ItemsSource="{Binding AvailableFonts}"
+                                                  SelectedItem="{Binding TerminalFallbackFontCandidate}"
+                                                  PlaceholderText="{loc:KeiString Settings.Appearance.SelectFallbackFontToAdd}">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding DisplayName}"/>
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+                                        <Button Grid.Column="1" Content="{loc:KeiString Settings.Appearance.AddFallbackFont}"
+                                                Command="{Binding AddTerminalFallbackFont}"/>
+                                    </Grid>
+                                    <Grid ColumnDefinitions="*, Auto" ColumnSpacing="8" DataContext="{Binding Appearance}">
+                                        <ListBox Grid.Column="0" MinHeight="80" MaxHeight="120"
+                                                 ItemsSource="{Binding TerminalFallbackFonts}"
+                                                 SelectedItem="{Binding SelectedTerminalFallbackFont}"/>
+                                        <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
+                                            <Button Content="{loc:KeiString Settings.Appearance.MoveUp}" MinWidth="60"
+                                                    Command="{Binding MoveUpTerminalFallbackFont}"/>
+                                            <Button Content="{loc:KeiString Settings.Appearance.MoveDown}" MinWidth="60"
+                                                    Command="{Binding MoveDownTerminalFallbackFont}"/>
+                                            <Button Content="{loc:KeiString Settings.Appearance.RemoveFallbackFont}" MinWidth="60"
+                                                    Command="{Binding RemoveTerminalFallbackFont}"/>
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <StackPanel Orientation="Horizontal" Spacing="24" DataContext="{Binding Appearance}">
+                                        <CheckBox IsChecked="{Binding CursorBlink}" Content="{loc:KeiString Settings.Appearance.CursorBlink}"
+                                                  ToolTip.Tip="{loc:KeiString Settings.Appearance.CursorBlinkTip}"/>
+                                        <CheckBox IsChecked="{Binding IsItalic}" Content="{loc:KeiString Settings.Appearance.FontItalic}"
+                                                  ToolTip.Tip="{loc:KeiString Settings.Appearance.FontItalicTip}"/>
+                                    </StackPanel>
+
+                                    <!-- 实时预览区域 (Font Preview) -->
+                                    <TextBlock Text="{loc:KeiString Settings.Appearance.FontPreviewSection}" FontSize="13" FontWeight="Bold" Margin="0,10,0,0"
+                                               Foreground="{DynamicResource Kei.Session.Foreground}"/>
+                                    <Border Background="{DynamicResource Kei.Bg.PanelAlt}"
+                                            BorderBrush="{DynamicResource Kei.Border}"
+                                            BorderThickness="1"
+                                            CornerRadius="4"
+                                            Padding="14,10"
+                                            DataContext="{Binding Appearance}">
+                                        <TextBlock Text="{Binding PreviewSampleText}"
+                                                   FontFamily="{Binding PreviewFontFamily}"
+                                                   FontSize="{Binding FontSize}"
+                                                   FontWeight="{Binding PreviewFontWeight}"
+                                                   FontStyle="{Binding PreviewFontStyle}"
+                                                   Foreground="{DynamicResource Kei.Text.Primary}"
+                                                   TextWrapping="Wrap"/>
+                                    </Border>
+                                </StackPanel>
+                            </DataTemplate>
+
+                            <!-- 标签栏设置页 -->
+                            <DataTemplate DataType="settings:TabBarSettingsProxyPage"
+                                          x:DataType="settings:TabBarSettingsProxyPage">
+                                <StackPanel MaxWidth="560" HorizontalAlignment="Left" Spacing="14" DataContext="{Binding Appearance}">
+                                    <TextBlock Text="{loc:KeiString Settings.Appearance.TabBarSection}" FontSize="13" FontWeight="Bold"
+                                               Foreground="{DynamicResource Kei.Session.Foreground}"/>
+                                    <Grid ColumnDefinitions="150, *" ColumnSpacing="12">
+                                        <TextBlock Grid.Column="0" Text="{loc:KeiString Settings.Appearance.TabPlacement}" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                        <ComboBox Grid.Column="1" HorizontalAlignment="Left" MinWidth="220"
+                                                  ItemsSource="{Binding TabPlacementOptions}"
+                                                  SelectedItem="{Binding SelectedTabPlacement}"
+                                                  ToolTip.Tip="{loc:KeiString Settings.Appearance.TabPlacementTip}">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding Label}"/>
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+                                    </Grid>
+
+                                    <!-- 配置导入与导出 (Profile Bundle) -->
+                                    <TextBlock Text="{loc:KeiString Settings.Appearance.ProfileBackupSection}" FontSize="13" FontWeight="Bold" Margin="0,10,0,0"
+                                               Foreground="{DynamicResource Kei.Session.Foreground}"/>
+                                    <StackPanel Orientation="Horizontal" Spacing="12">
+                                        <Button Content="{loc:KeiString Settings.Appearance.ExportBundle}"
+                                                Command="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).ExportBundleCommand}"
+                                                ToolTip.Tip="{loc:KeiString Settings.Appearance.ExportBundleTip}"/>
+                                        <Button Content="{loc:KeiString Settings.Appearance.ImportBundle}"
+                                                Command="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).ImportBundleCommand}"
+                                                ToolTip.Tip="{loc:KeiString Settings.Appearance.ImportBundleTip}"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </DataTemplate>
+
+                            <!-- SSH 页 -->
+                            <DataTemplate DataType="settings:SshSettingsPage"
+                                          x:DataType="settings:SshSettingsPage">
+                                <StackPanel MaxWidth="560" HorizontalAlignment="Left" Spacing="14">
+                                    <TextBlock Text="{loc:KeiString Settings.Ssh.ConnectionSection}" FontSize="13" FontWeight="Bold"
+                                               Foreground="{DynamicResource Kei.Session.Foreground}"/>
+                                    <Grid ColumnDefinitions="150, *" ColumnSpacing="12" RowDefinitions="Auto, Auto, Auto, Auto, Auto, Auto" RowSpacing="12">
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString Settings.Ssh.DefaultPort}" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                        <NumericUpDown Grid.Row="0" Grid.Column="1" HorizontalAlignment="Left" MinWidth="220"
+                                                       Value="{Binding DefaultPort}" Minimum="1" Maximum="65535" FormatString="0"
+                                                       ToolTip.Tip="{loc:KeiString Settings.Ssh.DefaultPortTip}"/>
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="{loc:KeiString Settings.Ssh.DefaultUsername}" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                        <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding DefaultUsername}"
+                                                 PlaceholderText="{loc:KeiString Settings.Ssh.DefaultUsernamePlaceholder}"
+                                                 ToolTip.Tip="{loc:KeiString Settings.Ssh.DefaultUsernameTip}"/>
+                                        <TextBlock Grid.Row="2" Grid.Column="0" Text="{loc:KeiString Settings.Ssh.DefaultIdentity}" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                        <ComboBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" MinWidth="220"
+                                                  ItemsSource="{Binding Identities}" SelectedItem="{Binding SelectedIdentity}"
+                                                  ToolTip.Tip="{loc:KeiString Settings.Ssh.DefaultIdentityTip}">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding DisplayName}"/>
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+                                        <TextBlock Grid.Row="3" Grid.Column="0" Text="{loc:KeiString Settings.Ssh.ConnectTimeout}" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                        <NumericUpDown Grid.Row="3" Grid.Column="1" HorizontalAlignment="Left" MinWidth="220"
+                                                       Value="{Binding ConnectTimeoutSeconds}" Minimum="3" Maximum="120" FormatString="0"
+                                                       ToolTip.Tip="{loc:KeiString Settings.Ssh.ConnectTimeoutTip}"/>
+                                        <TextBlock Grid.Row="4" Grid.Column="0" Text="{loc:KeiString Settings.Ssh.KeepAliveInterval}" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                        <NumericUpDown Grid.Row="4" Grid.Column="1" HorizontalAlignment="Left" MinWidth="220"
+                                                       Value="{Binding KeepAliveIntervalSeconds}" Minimum="0" Maximum="300" FormatString="0"
+                                                       ToolTip.Tip="{loc:KeiString Settings.Ssh.KeepAliveIntervalTip}"/>
+                                        <TextBlock Grid.Row="5" Grid.Column="0" Text="{loc:KeiString Settings.Ssh.LockTimeout}" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                        <NumericUpDown Grid.Row="5" Grid.Column="1" HorizontalAlignment="Left" MinWidth="220"
+                                                       Value="{Binding LockTimeoutMinutes}" Minimum="0" Maximum="120" FormatString="0"
+                                                       ToolTip.Tip="{loc:KeiString Settings.Ssh.LockTimeoutTip}"/>
+                                    </Grid>
+                                    <TextBlock Text="Agent" FontSize="13" FontWeight="Bold" Margin="0,10,0,0"
+                                               Foreground="{DynamicResource Kei.Session.Foreground}"/>
+                                    <CheckBox IsChecked="{Binding PreferSystemAgent}" Content="{loc:KeiString Settings.Ssh.PreferSystemAgent}"
+                                              ToolTip.Tip="{loc:KeiString Settings.Ssh.PreferSystemAgentTip}"/>
+                                    <CheckBox IsChecked="{Binding EnableAgentForwarding}" Content="{loc:KeiString Settings.Ssh.EnableAgentForwarding}"
+                                              ToolTip.Tip="{loc:KeiString Settings.Ssh.EnableAgentForwardingTip}"/>
+                                    <Grid ColumnDefinitions="150, *" ColumnSpacing="12">
+                                        <TextBlock Grid.Column="0" Text="{loc:KeiString Settings.Ssh.CustomAgentPath}" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                        <TextBox Grid.Column="1" Text="{Binding CustomAgentSocketPath}"
+                                                 PlaceholderText="{loc:KeiString Settings.Ssh.CustomAgentPathPlaceholder}"
+                                                 ToolTip.Tip="{loc:KeiString Settings.Ssh.CustomAgentPathTip}"/>
+                                    </Grid>
+                                </StackPanel>
+                            </DataTemplate>
+
+                        </ContentControl.DataTemplates>
+                    </ContentControl>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+
+        <!-- 底部：操作按钮行（取消 / 应用 / 确定 三态分家） -->
+        <Border Grid.Row="1"
+                Background="{DynamicResource Kei.Bg.Panel}"
+                BorderBrush="{DynamicResource Kei.Border}"
+                BorderThickness="0,1,0,0"
+                Padding="20,12">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12">
+                <Button Content="{loc:KeiString Common.Cancel}" MinWidth="88" HorizontalContentAlignment="Center" Command="{Binding CancelCommand}"/>
+                <Button Content="{loc:KeiString Common.Apply}" MinWidth="88" HorizontalContentAlignment="Center" Command="{Binding ApplyCommand}"/>
+                <Button Content="{loc:KeiString Common.Confirm}" MinWidth="88" HorizontalContentAlignment="Center"
+                        Classes="save" Foreground="White" Command="{Binding SaveCommand}"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

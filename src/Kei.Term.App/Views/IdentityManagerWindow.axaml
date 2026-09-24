@@ -1,0 +1,78 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Kei.Term.App.ViewModels"
+        xmlns:vault="using:Kei.Term.Core.Vault"
+        xmlns:loc="using:Kei.Term.App.Helpers"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="680" d:DesignHeight="480"
+        x:Class="Kei.Term.App.Views.IdentityManagerWindow"
+        x:DataType="vm:IdentityManagerViewModel"
+        Title="{loc:KeiString IdentityManager.Title}"
+        Width="700" Height="500"
+        WindowStartupLocation="CenterOwner"
+        Background="#1E1E1E">
+
+    <Grid RowDefinitions="Auto, Auto, *, Auto" Margin="16">
+
+        <!-- 明文写入警示横幅：条件 = Vault 当前为明文模式（未初始化或已选明文） -->
+        <Border Grid.Row="0" IsVisible="{Binding IsPlainMode}"
+                Background="#3A2E12" BorderBrush="#6B5316" BorderThickness="1"
+                CornerRadius="4" Padding="10,6" Margin="0,0,0,10">
+            <Grid ColumnDefinitions="*, Auto" ColumnSpacing="10">
+                <TextBlock Grid.Column="0" Text="{loc:KeiString IdentityManager.PlainWarning}"
+                           Foreground="#E0A030" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                <Button Grid.Column="1" Content="{loc:KeiString IdentityManager.SetMasterPassword}" Command="{Binding SetMasterPasswordCommand}"
+                        Background="#0E639C" Foreground="White"/>
+            </Grid>
+        </Border>
+
+        <!-- 顶部操作栏 -->
+        <Border Grid.Row="1" Margin="0,0,0,12">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Content="{loc:KeiString IdentityManager.NewIdentity}" Command="{Binding AddIdentityCommand}"
+                        Background="#2D2D2D" Foreground="#E1E1E1"/>
+                <Button Content="{loc:KeiString IdentityManager.EditIdentity}" Command="{Binding EditIdentityCommand}"
+                        IsEnabled="{Binding SelectedIdentity, Converter={x:Static ObjectConverters.IsNotNull}}"
+                        Background="#2D2D2D" Foreground="#E1E1E1"/>
+                <Button Content="{loc:KeiString IdentityManager.DeleteIdentity}" Command="{Binding DeleteIdentityCommand}"
+                        IsEnabled="{Binding SelectedIdentity, Converter={x:Static ObjectConverters.IsNotNull}}"
+                        Background="#5A1D1D" Foreground="#FF8888"/>
+                <Button Content="{loc:KeiString IdentityManager.LockVault}" Command="{Binding LockVaultCommand}"
+                        IsVisible="{Binding CanLockVault}"
+                        Background="#2D2D2D" Foreground="#E1E1E1"/>
+            </StackPanel>
+        </Border>
+
+        <!-- 身份列表 -->
+        <Border Grid.Row="2" Background="#252526" BorderBrush="#333333" BorderThickness="1" CornerRadius="4">
+            <ListBox ItemsSource="{Binding Identities}" SelectedItem="{Binding SelectedIdentity}" Background="Transparent">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="vault:Identity">
+                        <Grid ColumnDefinitions="*, 180, 90" Margin="4">
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="#4EC9B0"/>
+                                <TextBlock Text="{Binding Description}" Foreground="#888888" FontSize="11"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="{loc:KeiString IdentityManager.UserLabel}" Foreground="#CCCCCC"/>
+                                <TextBlock Text="{Binding Username}" Foreground="#CCCCCC" Margin="4,0,0,0"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="{loc:KeiString IdentityManager.MethodLabel}" Foreground="#9CDCFE" FontSize="11"/>
+                                <TextBlock Text="{Binding Methods.Count}" Foreground="#9CDCFE" FontSize="11" Margin="4,0,0,0"/>
+                            </StackPanel>
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Border>
+
+        <!-- 底部说明 -->
+        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,12,0,0" HorizontalAlignment="Right">
+            <TextBlock Text="{loc:KeiString IdentityManager.OrderHint}" Foreground="#888888" FontSize="11"
+                       VerticalAlignment="Center" Margin="0,0,12,0"/>
+            <Button Content="{loc:KeiString Common.Close}" Click="CloseButton_Click" Width="80" HorizontalContentAlignment="Center"/>
+        </StackPanel>
+    </Grid>
+</Window>

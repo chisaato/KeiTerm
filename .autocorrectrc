@@ -1,0 +1,8 @@
+# yaml-language-server: $schema=https://huacnlee.github.io/autocorrect/schema.json
+
+rules:
+  fullwidth: 0 # 标点转全角 —— 但只在"临近 CJK 字符"时触发
+  halfwidth: 1 # 标点转半角 —— 在"纯英文内容"里触发
+  halfwidth-word: 1
+  # Fullwidth punctuations to halfwidth in english.
+  halfwidth-punctuation: 1

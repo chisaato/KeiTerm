@@ -1,0 +1,74 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Kei.Term.App.ViewModels"
+        xmlns:loc="using:Kei.Term.App.Helpers"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="550"
+        x:Class="Kei.Term.App.Views.SessionEditWindow"
+        x:DataType="vm:SessionEditViewModel"
+        Title="{Binding Title}"
+        Width="520" Height="560"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="#1E1E1E">
+
+    <Grid RowDefinitions="*, Auto" Margin="20">
+        <ScrollViewer Grid.Row="0">
+            <StackPanel Spacing="14">
+                <!-- 基本信息 -->
+                <TextBlock Text="{loc:KeiString SessionEdit.BasicSection}" FontWeight="Bold" Foreground="#4EC9B0" FontSize="14"/>
+
+                <Grid ColumnDefinitions="100, *" RowDefinitions="Auto, Auto, Auto, Auto, Auto" Margin="0,4,0,10">
+                    <!-- 显示名称 -->
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString SessionEdit.Name}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                    <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Name}" PlaceholderText="{loc:KeiString SessionEdit.Name.Placeholder}" Margin="0,4"/>
+
+                    <!-- 主机地址 -->
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{loc:KeiString SessionEdit.Host}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Host}" PlaceholderText="{loc:KeiString SessionEdit.Host.Placeholder}" Margin="0,4"/>
+
+                    <!-- 端口 -->
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="{loc:KeiString SessionEdit.Port}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                    <NumericUpDown Grid.Row="2" Grid.Column="1" Value="{Binding Port}" Minimum="1" Maximum="65535" FormatString="0" Margin="0,4"/>
+
+                    <!-- 用户名 -->
+                    <TextBlock Grid.Row="3" Grid.Column="0" Text="{loc:KeiString SessionEdit.Username}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                    <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding Username}" PlaceholderText="{loc:KeiString SessionEdit.Username.Placeholder}" Margin="0,4"/>
+
+                    <!-- 身份绑定 -->
+                    <TextBlock Grid.Row="4" Grid.Column="0" Text="{loc:KeiString SessionEdit.Identity}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                    <ComboBox Grid.Row="4" Grid.Column="1" ItemsSource="{Binding Identities}" SelectedItem="{Binding SelectedIdentity}" Margin="0,4" HorizontalAlignment="Stretch">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding DisplayName}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </Grid>
+
+                <Separator Background="#333333"/>
+
+                <!-- 高级设置 -->
+                <TextBlock Text="{loc:KeiString SessionEdit.AdvancedSection}" FontWeight="Bold" Foreground="#4EC9B0" FontSize="14"/>
+
+                <Grid ColumnDefinitions="100, *" RowDefinitions="Auto, Auto, Auto" Margin="0,4,0,10">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString SessionEdit.TerminalType}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                    <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding TerminalType}" PlaceholderText="{loc:KeiString SessionEdit.TerminalType.Placeholder}" Margin="0,4"/>
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{loc:KeiString SessionEdit.StartupScript}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding StartupScript}" PlaceholderText="{loc:KeiString SessionEdit.StartupScript.Placeholder}" Margin="0,4"/>
+
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="{loc:KeiString SessionEdit.Description}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                    <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding Description}" PlaceholderText="{loc:KeiString SessionEdit.Description.Placeholder}" Margin="0,4"/>
+                </Grid>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- 底部确定/取消按钮 -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12" Margin="0,16,0,0">
+            <Button Content="{loc:KeiString Common.Cancel}" Command="{Binding CancelCommand}" Width="85" HorizontalContentAlignment="Center"/>
+            <Button Content="{loc:KeiString Common.Save}" Command="{Binding SaveCommand}" Width="85" HorizontalContentAlignment="Center" Background="#0E639C" Foreground="White"/>
+        </StackPanel>
+    </Grid>
+</Window>

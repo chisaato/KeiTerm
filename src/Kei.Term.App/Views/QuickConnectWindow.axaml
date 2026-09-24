@@ -1,0 +1,54 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Kei.Term.App.ViewModels"
+        xmlns:loc="using:Kei.Term.App.Helpers"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="440" d:DesignHeight="330"
+        x:Class="Kei.Term.App.Views.QuickConnectWindow"
+        x:DataType="vm:QuickConnectViewModel"
+        Title="{loc:KeiString QuickConnect.Title}"
+        Width="440" Height="330"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        ShowInTaskbar="False"
+        Background="#1E1E1E">
+
+    <Grid RowDefinitions="*, Auto" Margin="20">
+        <StackPanel Grid.Row="0" Spacing="12">
+            <TextBlock Text="{loc:KeiString QuickConnect.Title}" FontWeight="Bold" Foreground="#4EC9B0" FontSize="14"/>
+
+            <Grid ColumnDefinitions="80, *" RowDefinitions="Auto, Auto, Auto, Auto" Margin="0,4,0,0">
+                <!-- 主机：必填 -->
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString QuickConnect.Host}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Host}" PlaceholderText="{loc:KeiString QuickConnect.Host.Placeholder}" Margin="0,4"/>
+
+                <!-- 端口：默认取全局设置 -->
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="{loc:KeiString QuickConnect.Port}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                <NumericUpDown Grid.Row="1" Grid.Column="1" Value="{Binding Port}" Minimum="1" Maximum="65535" FormatString="0" Margin="0,4"/>
+
+                <!-- 用户名：可留空走默认 -->
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="{loc:KeiString QuickConnect.Username}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding Username}" PlaceholderText="{loc:KeiString QuickConnect.Username.Placeholder}" Margin="0,4"/>
+
+                <!-- 密码：可选，仅本次 -->
+                <TextBlock Grid.Row="3" Grid.Column="0" Text="{loc:KeiString QuickConnect.Password}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding Password}" PasswordChar="•"
+                         PlaceholderText="{loc:KeiString QuickConnect.Password.Placeholder}" Margin="0,4"
+                         ToolTip.Tip="{loc:KeiString QuickConnect.Password.Tip}"/>
+            </Grid>
+
+            <!-- 保存为会话：默认不勾，密码不参与保存 -->
+            <CheckBox IsChecked="{Binding SaveAsSession}" Content="{loc:KeiString QuickConnect.SaveAsSession}" Foreground="#CCCCCC"/>
+
+            <!-- 校验失败提示 -->
+            <TextBlock Text="{Binding ErrorMessage}" FontSize="11" Foreground="#F48771"
+                       IsVisible="{Binding ErrorMessage, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12" Margin="0,14,0,0">
+            <Button Content="{loc:KeiString Common.Cancel}" Command="{Binding CancelCommand}" Width="85" HorizontalContentAlignment="Center"/>
+            <Button Content="{loc:KeiString QuickConnect.Connect}" Command="{Binding ConnectCommand}" Width="85" HorizontalContentAlignment="Center" Background="#0E639C" Foreground="White"/>
+        </StackPanel>
+    </Grid>
+</Window>

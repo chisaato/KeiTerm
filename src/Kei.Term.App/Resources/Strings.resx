@@ -1,0 +1,1134 @@
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <!-- Common / Buttons -->
+  <data name="Common.Cancel" xml:space="preserve">
+    <value>取消</value>
+  </data>
+  <data name="Common.Save" xml:space="preserve">
+    <value>保存</value>
+  </data>
+  <data name="Common.Confirm" xml:space="preserve">
+    <value>确定</value>
+  </data>
+  <data name="Common.Close" xml:space="preserve">
+    <value>关闭</value>
+  </data>
+  <data name="Common.Apply" xml:space="preserve">
+    <value>应用</value>
+  </data>
+  <data name="Common.Delete" xml:space="preserve">
+    <value>删除</value>
+  </data>
+  <data name="Common.Browse" xml:space="preserve">
+    <value>浏览…</value>
+  </data>
+  <data name="Common.MoveUp" xml:space="preserve">
+    <value>上移</value>
+  </data>
+  <data name="Common.MoveDown" xml:space="preserve">
+    <value>下移</value>
+  </data>
+  <data name="Common.SelectPrivateKeyFile" xml:space="preserve">
+    <value>选择私钥文件</value>
+  </data>
+  <data name="Common.CopySuffix" xml:space="preserve">
+    <value>{0} 副本</value>
+  </data>
+
+  <!-- Main Window -->
+  <data name="Main.Title" xml:space="preserve">
+    <value>Kei.Term - SSH 终端</value>
+  </data>
+  <data name="Main.Filter.Placeholder" xml:space="preserve">
+    <value>按文件夹/会话名过滤</value>
+  </data>
+  <data name="Main.SessionManager.CollapseTip" xml:space="preserve">
+    <value>收起连接管理器</value>
+  </data>
+  <data name="Main.SessionManager.ToggleTip" xml:space="preserve">
+    <value>显示/隐藏连接管理器</value>
+  </data>
+  <data name="Main.Compose.PreInput" xml:space="preserve">
+    <value>预输入:</value>
+  </data>
+  <data name="Main.Compose.Placeholder" xml:space="preserve">
+    <value>输入要执行的命令（回车或点击发送）...</value>
+  </data>
+  <data name="Main.Compose.Send" xml:space="preserve">
+    <value>发送</value>
+  </data>
+  <data name="Main.Compose.ToggleTip" xml:space="preserve">
+    <value>显示/隐藏撰写栏</value>
+  </data>
+  <data name="Main.Tab.CloseTip" xml:space="preserve">
+    <value>关闭标签</value>
+  </data>
+  <data name="Main.Tab.DefaultTitle" xml:space="preserve">
+    <value>新终端</value>
+  </data>
+  <data name="Main.Tab.Disconnected" xml:space="preserve">
+    <value>已断开连接</value>
+  </data>
+  <data name="Main.Tab.ConnectionDropped" xml:space="preserve">
+    <value>连接已断开</value>
+  </data>
+  <data name="Main.Tab.ConnectErrorPrefix" xml:space="preserve">
+    <value>[连接错误]: </value>
+  </data>
+
+  <!-- Main Window - Toolbar Tips -->
+  <data name="Toolbar.ConnectSelected" xml:space="preserve">
+    <value>连接选中的会话</value>
+  </data>
+  <data name="Toolbar.NewFolder" xml:space="preserve">
+    <value>新建文件夹</value>
+  </data>
+  <data name="Toolbar.NewSession" xml:space="preserve">
+    <value>新建会话</value>
+  </data>
+  <data name="Toolbar.Cut" xml:space="preserve">
+    <value>剪切</value>
+  </data>
+  <data name="Toolbar.Copy" xml:space="preserve">
+    <value>复制</value>
+  </data>
+  <data name="Toolbar.Paste" xml:space="preserve">
+    <value>粘贴</value>
+  </data>
+  <data name="Toolbar.CollapseAll" xml:space="preserve">
+    <value>全部折叠</value>
+  </data>
+  <data name="Toolbar.QuickConnectTip" xml:space="preserve">
+    <value>快速连接 (Ctrl+Q)</value>
+  </data>
+  <data name="Toolbar.DisconnectTab" xml:space="preserve">
+    <value>断开当前标签</value>
+  </data>
+  <data name="Toolbar.IdentityManager" xml:space="preserve">
+    <value>身份与密钥管理</value>
+  </data>
+  <data name="Toolbar.Settings" xml:space="preserve">
+    <value>偏好设置</value>
+  </data>
+
+  <!-- Tree & Context Menus -->
+  <data name="Tree.EmptyGuide" xml:space="preserve">
+    <value>尚未添加任何主机</value>
+  </data>
+  <data name="Tree.AddFirstSession" xml:space="preserve">
+    <value>添加第一个 SSH 会话</value>
+  </data>
+  <data name="Tree.Menu.NewSession" xml:space="preserve">
+    <value>新建会话</value>
+  </data>
+  <data name="Tree.Menu.NewFolder" xml:space="preserve">
+    <value>新建文件夹</value>
+  </data>
+  <data name="Tree.Menu.EditSelected" xml:space="preserve">
+    <value>编辑选中项</value>
+  </data>
+  <data name="Tree.Menu.DeleteSelected" xml:space="preserve">
+    <value>删除选中项</value>
+  </data>
+  <data name="Tree.Menu.Connect" xml:space="preserve">
+    <value>连接</value>
+  </data>
+  <data name="Tree.Menu.Edit" xml:space="preserve">
+    <value>编辑</value>
+  </data>
+  <data name="Tree.Menu.Delete" xml:space="preserve">
+    <value>删除</value>
+  </data>
+
+  <!-- Main Menu Bar -->
+  <data name="Menu.File" xml:space="preserve">
+    <value>文件</value>
+  </data>
+  <data name="Menu.File.NewSession" xml:space="preserve">
+    <value>新建会话</value>
+  </data>
+  <data name="Menu.File.NewFolder" xml:space="preserve">
+    <value>新建文件夹</value>
+  </data>
+  <data name="Menu.File.QuickConnect" xml:space="preserve">
+    <value>快速连接</value>
+  </data>
+  <data name="Menu.File.ImportSecureCrt" xml:space="preserve">
+    <value>导入 SecureCRT 会话...</value>
+  </data>
+  <data name="Menu.File.Connect" xml:space="preserve">
+    <value>连接</value>
+  </data>
+  <data name="Menu.File.DisconnectTab" xml:space="preserve">
+    <value>断开当前标签</value>
+  </data>
+  <data name="Menu.File.Exit" xml:space="preserve">
+    <value>退出</value>
+  </data>
+  <data name="Menu.Edit" xml:space="preserve">
+    <value>编辑</value>
+  </data>
+  <data name="Menu.Edit.Cut" xml:space="preserve">
+    <value>剪切</value>
+  </data>
+  <data name="Menu.Edit.Copy" xml:space="preserve">
+    <value>复制</value>
+  </data>
+  <data name="Menu.Edit.Paste" xml:space="preserve">
+    <value>粘贴</value>
+  </data>
+  <data name="Menu.Edit.DeleteSelected" xml:space="preserve">
+    <value>删除选中项</value>
+  </data>
+  <data name="Menu.View" xml:space="preserve">
+    <value>查看</value>
+  </data>
+  <data name="Menu.View.SessionManager" xml:space="preserve">
+    <value>连接管理器</value>
+  </data>
+  <data name="Menu.View.ComposeBar" xml:space="preserve">
+    <value>撰写栏</value>
+  </data>
+  <data name="Menu.Tools" xml:space="preserve">
+    <value>工具</value>
+  </data>
+  <data name="Menu.Tools.IdentityManager" xml:space="preserve">
+    <value>身份与密钥管理</value>
+  </data>
+  <data name="Menu.Tools.Settings" xml:space="preserve">
+    <value>偏好设置</value>
+  </data>
+  <data name="Menu.Help" xml:space="preserve">
+    <value>帮助</value>
+  </data>
+  <data name="Menu.Help.About" xml:space="preserve">
+    <value>关于 Kei.Term</value>
+  </data>
+
+  <!-- About Dialog & Close Confirm Dialog -->
+  <data name="About.Title" xml:space="preserve">
+    <value>关于 Kei.Term</value>
+  </data>
+  <data name="About.AppName" xml:space="preserve">
+    <value>Kei.Term</value>
+  </data>
+  <data name="About.VersionFormat" xml:space="preserve">
+    <value>版本 {0}</value>
+  </data>
+  <data name="About.Description" xml:space="preserve">
+    <value>SSH 终端模拟器</value>
+  </data>
+  <data name="Dialog.CloseConfirm.Title" xml:space="preserve">
+    <value>关闭确认</value>
+  </data>
+  <data name="Dialog.CloseConfirm.Message" xml:space="preserve">
+    <value>有打开的终端标签，确定要关闭 Kei.Term 吗？</value>
+  </data>
+  <data name="Dialog.CloseConfirm.CloseButton" xml:space="preserve">
+    <value>关闭</value>
+  </data>
+
+  <!-- Status / Operation Messages -->
+  <data name="Status.Paste.InvalidTarget" xml:space="preserve">
+    <value>无法粘贴：目标文件夹位于源节点的子树内。</value>
+  </data>
+  <data name="Status.Auth.Failed" xml:space="preserve">
+    <value>认证失败</value>
+  </data>
+  <data name="Status.Vault.UnlockPrompt" xml:space="preserve">
+    <value>请输入主密码以解锁保管库</value>
+  </data>
+  <data name="Status.Vault.PasswordIncorrect" xml:space="preserve">
+    <value>主密码错误，请重试</value>
+  </data>
+  <data name="Status.Vault.KeyOptionFormat" xml:space="preserve">
+    <value>保管库密钥：{0} #{1}</value>
+  </data>
+
+  <!-- Settings Window -->
+  <data name="Settings.Title" xml:space="preserve">
+    <value>设置</value>
+  </data>
+  <data name="Settings.Categories.General" xml:space="preserve">
+    <value>常规</value>
+  </data>
+  <data name="Settings.Categories.GeneralDesc" xml:space="preserve">
+    <value>应用行为与数据存储</value>
+  </data>
+  <data name="Settings.Categories.Appearance" xml:space="preserve">
+    <value>外观配色</value>
+  </data>
+  <data name="Settings.Categories.AppearanceDesc" xml:space="preserve">
+    <value>界面主题、配色方案与全局字体</value>
+  </data>
+  <data name="Settings.Categories.Tree" xml:space="preserve">
+    <value>会话树</value>
+  </data>
+  <data name="Settings.Categories.TreeDesc" xml:space="preserve">
+    <value>会话树显示密度与尺寸微调</value>
+  </data>
+  <data name="Settings.Categories.Terminal" xml:space="preserve">
+    <value>终端</value>
+  </data>
+  <data name="Settings.Categories.TerminalDesc" xml:space="preserve">
+    <value>终端字体、配色方案与仿真</value>
+  </data>
+  <data name="Settings.Categories.TabBar" xml:space="preserve">
+    <value>标签栏</value>
+  </data>
+  <data name="Settings.Categories.TabBarDesc" xml:space="preserve">
+    <value>标签栏停靠位置与指示设置</value>
+  </data>
+  <data name="Settings.Categories.Ssh" xml:space="preserve">
+    <value>SSH</value>
+  </data>
+  <data name="Settings.Categories.SshDesc" xml:space="preserve">
+    <value>连接、保活与 Agent</value>
+  </data>
+
+  <!-- Settings: General -->
+  <data name="Settings.General.WindowBehavior" xml:space="preserve">
+    <value>窗口行为</value>
+  </data>
+  <data name="Settings.General.ConfirmBeforeClose" xml:space="preserve">
+    <value>关闭窗口前需要确认</value>
+  </data>
+  <data name="Settings.General.ConfirmBeforeCloseTip" xml:space="preserve">
+    <value>启用后关闭主窗口时会要求确认，防止误触</value>
+  </data>
+  <data name="Settings.General.TreeSortSection" xml:space="preserve">
+    <value>会话树排序规则</value>
+  </data>
+  <data name="Settings.General.TreeSortMode" xml:space="preserve">
+    <value>同级排序顺序:</value>
+  </data>
+  <data name="Settings.General.TreeSortModeTip" xml:space="preserve">
+    <value>设置同级节点排序规则。无论何种模式，目录均优先排在会话前方</value>
+  </data>
+  <data name="Settings.General.TreeSortAsciiFirst" xml:space="preserve">
+    <value>英文优先 (A-Z 数字在前，中文在后)</value>
+  </data>
+  <data name="Settings.General.TreeSortPinyin" xml:space="preserve">
+    <value>中文拼音优先 (跟随当前区域文化)</value>
+  </data>
+  <data name="Settings.General.DataDirectory" xml:space="preserve">
+    <value>数据目录</value>
+  </data>
+  <data name="Settings.General.DataDirectoryTip" xml:space="preserve">
+    <value>配置文件与会话数据库所在目录</value>
+  </data>
+  <data name="Settings.General.OpenDirectory" xml:space="preserve">
+    <value>打开目录</value>
+  </data>
+  <data name="Settings.General.OpenDirectoryTip" xml:space="preserve">
+    <value>在系统文件管理器中打开数据目录</value>
+  </data>
+
+  <!-- Settings: Appearance -->
+  <data name="Settings.Appearance.ThemeSection" xml:space="preserve">
+    <value>界面主题</value>
+  </data>
+  <data name="Settings.Appearance.ThemeMode" xml:space="preserve">
+    <value>主题模式:</value>
+  </data>
+  <data name="Settings.Appearance.ThemeModeTip" xml:space="preserve">
+    <value>「深色」为固定深色配色，「跟随系统」随操作系统外观切换</value>
+  </data>
+  <data name="Settings.Appearance.ThemeDark" xml:space="preserve">
+    <value>深色</value>
+  </data>
+  <data name="Settings.Appearance.ThemeSystem" xml:space="preserve">
+    <value>跟随系统</value>
+  </data>
+  <data name="Settings.Appearance.GuiProfile" xml:space="preserve">
+    <value>界面配色方案:</value>
+  </data>
+  <data name="Settings.Appearance.GuiProfileTip" xml:space="preserve">
+    <value>应用于主窗体、面板与控件的 GUI 配色方案（支持内置与自定义主题）</value>
+  </data>
+  <data name="Settings.Appearance.TerminalProfile" xml:space="preserve">
+    <value>终端配色方案:</value>
+  </data>
+  <data name="Settings.Appearance.TerminalProfileTip" xml:space="preserve">
+    <value>默认终端会话使用的 ANSI 调色板与前后景色方案</value>
+  </data>
+  <data name="Settings.Appearance.TreeDensitySection" xml:space="preserve">
+    <value>会话树显示密度与尺寸</value>
+  </data>
+  <data name="Settings.Appearance.TreeDensityPreset" xml:space="preserve">
+    <value>密度档位:</value>
+  </data>
+  <data name="Settings.Appearance.TreeDensityPresetTip" xml:space="preserve">
+    <value>预设档位快速设置会话树紧凑度，选择「自定义微调」可自主调节行高与字号</value>
+  </data>
+  <data name="Settings.Appearance.TreeDensityUltraCompact" xml:space="preserve">
+    <value>极度紧凑 (Ultra Compact，类似 SecureCRT)</value>
+  </data>
+  <data name="Settings.Appearance.TreeDensityCompact" xml:space="preserve">
+    <value>紧凑桌面 (Compact，默认)</value>
+  </data>
+  <data name="Settings.Appearance.TreeDensityNormal" xml:space="preserve">
+    <value>舒适标准 (Comfortable)</value>
+  </data>
+  <data name="Settings.Appearance.TreeDensityCustom" xml:space="preserve">
+    <value>自定义微调 (Custom)</value>
+  </data>
+  <data name="Settings.Appearance.TreeItemHeight" xml:space="preserve">
+    <value>节点行高 (px):</value>
+  </data>
+  <data name="Settings.Appearance.TreeFontSize" xml:space="preserve">
+    <value>节点字号 (pt):</value>
+  </data>
+  <data name="Settings.Appearance.TreeIconSize" xml:space="preserve">
+    <value>图标尺寸 (px):</value>
+  </data>
+  <data name="Settings.Appearance.TreeIndent" xml:space="preserve">
+    <value>层级缩进 (px):</value>
+  </data>
+  <data name="Settings.Appearance.ControlLibrarySection" xml:space="preserve">
+    <value>控件库主题</value>
+  </data>
+  <data name="Settings.Appearance.ControlLibrary" xml:space="preserve">
+    <value>控件库:</value>
+  </data>
+  <data name="Settings.Appearance.ControlLibraryTip" xml:space="preserve">
+    <value>Semi/Material 为第三方控件主题，与 Kei 经典互斥生效</value>
+  </data>
+  <data name="Settings.Appearance.ControlLibraryKeiClassic" xml:space="preserve">
+    <value>Kei 经典</value>
+  </data>
+  <data name="Settings.Appearance.ControlLibrarySemi" xml:space="preserve">
+    <value>Semi Design</value>
+  </data>
+  <data name="Settings.Appearance.ControlLibraryMaterial" xml:space="preserve">
+    <value>Material</value>
+  </data>
+  <data name="Settings.Appearance.UiFontSection" xml:space="preserve">
+    <value>界面字体 (UI Font)</value>
+  </data>
+  <data name="Settings.Appearance.UiFontFamily" xml:space="preserve">
+    <value>界面字体族:</value>
+  </data>
+  <data name="Settings.Appearance.UiFontFamilyPlaceholder" xml:space="preserve">
+    <value>如 Noto Sans CJK SC, Microsoft YaHei UI, Segoe UI</value>
+  </data>
+  <data name="Settings.Appearance.UiFontFamilyTip" xml:space="preserve">
+    <value>应用于主界面、设置与侧边栏的文字字体</value>
+  </data>
+  <data name="Settings.Appearance.AddFallbackFont" xml:space="preserve">
+    <value>添加回退字体</value>
+  </data>
+  <data name="Settings.Appearance.FallbackFontsSection" xml:space="preserve">
+    <value>回退字体列表 (优先级从上至下):</value>
+  </data>
+  <data name="Settings.Appearance.SelectFallbackFontToAdd" xml:space="preserve">
+    <value>选择要添加的回退字体…</value>
+  </data>
+  <data name="Settings.Appearance.RemoveFallbackFont" xml:space="preserve">
+    <value>移除</value>
+  </data>
+  <data name="Settings.Appearance.MoveUp" xml:space="preserve">
+    <value>上移</value>
+  </data>
+  <data name="Settings.Appearance.MoveDown" xml:space="preserve">
+    <value>下移</value>
+  </data>
+  <data name="Settings.Appearance.FontSection" xml:space="preserve">
+    <value>终端字体 (Terminal Font)</value>
+  </data>
+  <data name="Settings.Appearance.FontFamily" xml:space="preserve">
+    <value>主等宽字体:</value>
+  </data>
+  <data name="Settings.Appearance.FontFamilyPlaceholder" xml:space="preserve">
+    <value>如 JetBrainsMono Nerd Font Mono</value>
+  </data>
+  <data name="Settings.Appearance.FontFamilyTip" xml:space="preserve">
+    <value>终端使用的核心等宽字体（优先渲染英文、符号与 Nerd 图标）</value>
+  </data>
+  <data name="Settings.Appearance.FallbackFontFamily" xml:space="preserve">
+    <value>回退/中文补充:</value>
+  </data>
+  <data name="Settings.Appearance.FallbackFontFamilyPlaceholder" xml:space="preserve">
+    <value>如 Source Han Sans HW SC, Microsoft YaHei</value>
+  </data>
+  <data name="Settings.Appearance.FallbackFontFamilyTip" xml:space="preserve">
+    <value>主字体缺少中文字形或全角字符时的备用补充字体</value>
+  </data>
+  <data name="Settings.Appearance.FontSize" xml:space="preserve">
+    <value>字号:</value>
+  </data>
+  <data name="Settings.Appearance.FontSizeTip" xml:space="preserve">
+    <value>终端字体大小，范围 8–36</value>
+  </data>
+  <data name="Settings.Appearance.CursorBlink" xml:space="preserve">
+    <value>开启光标闪烁动画</value>
+  </data>
+  <data name="Settings.Appearance.CursorBlinkTip" xml:space="preserve">
+    <value>关闭后终端光标保持常亮</value>
+  </data>
+  <data name="Settings.Appearance.FontWeight" xml:space="preserve">
+    <value>字重:</value>
+  </data>
+  <data name="Settings.Appearance.FontWeightTip" xml:space="preserve">
+    <value>终端字体粗细程度</value>
+  </data>
+  <data name="Settings.Appearance.FontWeightLight" xml:space="preserve">
+    <value>细体 (Light)</value>
+  </data>
+  <data name="Settings.Appearance.FontWeightRegular" xml:space="preserve">
+    <value>常规 (Regular)</value>
+  </data>
+  <data name="Settings.Appearance.FontWeightMedium" xml:space="preserve">
+    <value>中等 (Medium)</value>
+  </data>
+  <data name="Settings.Appearance.FontWeightSemiBold" xml:space="preserve">
+    <value>半粗 (SemiBold)</value>
+  </data>
+  <data name="Settings.Appearance.FontWeightBold" xml:space="preserve">
+    <value>粗体 (Bold)</value>
+  </data>
+  <data name="Settings.Appearance.FontItalic" xml:space="preserve">
+    <value>斜体样式 (Italic)</value>
+  </data>
+  <data name="Settings.Appearance.FontItalicTip" xml:space="preserve">
+    <value>启用字体斜体倾斜渲染</value>
+  </data>
+  <data name="Settings.Appearance.FontPreviewSection" xml:space="preserve">
+    <value>字体实时预览</value>
+  </data>
+  <data name="Settings.Appearance.TabBarSection" xml:space="preserve">
+    <value>标签栏 (Tab Bar)</value>
+  </data>
+  <data name="Settings.Appearance.TabPlacement" xml:space="preserve">
+    <value>标签栏位置:</value>
+  </data>
+  <data name="Settings.Appearance.TabPlacementTip" xml:space="preserve">
+    <value>标签栏在窗口中显示的位置（置顶或置底）</value>
+  </data>
+  <data name="Settings.Appearance.TabPlacementTop" xml:space="preserve">
+    <value>置顶 (Top)</value>
+  </data>
+  <data name="Settings.Appearance.TabPlacementBottom" xml:space="preserve">
+    <value>置底 (Bottom)</value>
+  </data>
+  <data name="Settings.Appearance.ProfileBackupSection" xml:space="preserve">
+    <value>外观与主题配置备份 (Profile Bundle)</value>
+  </data>
+  <data name="Settings.Appearance.ExportBundle" xml:space="preserve">
+    <value>导出配置...</value>
+  </data>
+  <data name="Settings.Appearance.ExportBundleTip" xml:space="preserve">
+    <value>将所有 GUI Profile、终端主题和标签栏配置导出为 JSON 备份文件</value>
+  </data>
+  <data name="Settings.Appearance.ImportBundle" xml:space="preserve">
+    <value>导入配置...</value>
+  </data>
+  <data name="Settings.Appearance.ImportBundleTip" xml:space="preserve">
+    <value>从 JSON 备份文件导入 Profile 并合并至当前配置</value>
+  </data>
+  <data name="Settings.Appearance.BundleExportSuccess" xml:space="preserve">
+    <value>配置已成功导出至：{0}</value>
+  </data>
+  <data name="Settings.Appearance.BundleImportSuccess" xml:space="preserve">
+    <value>配置已成功导入！</value>
+  </data>
+  <data name="Settings.Appearance.BundleImportError" xml:space="preserve">
+    <value>导入配置文件失败：{0}</value>
+  </data>
+
+  <!-- Settings: Terminal -->
+  <data name="Settings.Terminal.ScrollbackSection" xml:space="preserve">
+    <value>回滚缓冲</value>
+  </data>
+  <data name="Settings.Terminal.ScrollbackLines" xml:space="preserve">
+    <value>回滚行数:</value>
+  </data>
+  <data name="Settings.Terminal.ScrollbackLinesTip" xml:space="preserve">
+    <value>可向上回滚查看的最大行数，范围 500–50000</value>
+  </data>
+  <data name="Settings.Terminal.EmulationSection" xml:space="preserve">
+    <value>终端仿真</value>
+  </data>
+  <data name="Settings.Terminal.DefaultTerminalType" xml:space="preserve">
+    <value>默认终端类型:</value>
+  </data>
+  <data name="Settings.Terminal.DefaultTerminalTypePlaceholder" xml:space="preserve">
+    <value>如 xterm-256color</value>
+  </data>
+  <data name="Settings.Terminal.DefaultTerminalTypeTip" xml:space="preserve">
+    <value>新会话上报的 TERM 值</value>
+  </data>
+
+  <!-- Settings: SSH -->
+  <data name="Settings.Ssh.ConnectionSection" xml:space="preserve">
+    <value>连接</value>
+  </data>
+  <data name="Settings.Ssh.DefaultPort" xml:space="preserve">
+    <value>默认端口:</value>
+  </data>
+  <data name="Settings.Ssh.DefaultPortTip" xml:space="preserve">
+    <value>新会话默认 SSH 端口，范围 1–65535</value>
+  </data>
+  <data name="Settings.Ssh.DefaultUsername" xml:space="preserve">
+    <value>默认用户名:</value>
+  </data>
+  <data name="Settings.Ssh.DefaultUsernamePlaceholder" xml:space="preserve">
+    <value>留空则使用当前系统用户</value>
+  </data>
+  <data name="Settings.Ssh.DefaultUsernameTip" xml:space="preserve">
+    <value>会话未填写用户名时使用的全局默认用户名</value>
+  </data>
+  <data name="Settings.Ssh.DefaultIdentity" xml:space="preserve">
+    <value>默认身份:</value>
+  </data>
+  <data name="Settings.Ssh.DefaultIdentityTip" xml:space="preserve">
+    <value>会话未绑定身份时使用的全局默认身份</value>
+  </data>
+  <data name="Settings.Ssh.IdentityNone" xml:space="preserve">
+    <value>无（连接时提示）</value>
+  </data>
+  <data name="Settings.Ssh.ConnectTimeout" xml:space="preserve">
+    <value>连接超时 (秒):</value>
+  </data>
+  <data name="Settings.Ssh.ConnectTimeoutTip" xml:space="preserve">
+    <value>建立 SSH 连接的最长等待时间，范围 3–120 秒</value>
+  </data>
+  <data name="Settings.Ssh.KeepAliveInterval" xml:space="preserve">
+    <value>心跳间隔 (秒):</value>
+  </data>
+  <data name="Settings.Ssh.KeepAliveIntervalTip" xml:space="preserve">
+    <value>SSH 保活心跳间隔，0 表示禁用，范围 0–300 秒</value>
+  </data>
+  <data name="Settings.Ssh.LockTimeout" xml:space="preserve">
+    <value>自动锁定 (分钟):</value>
+  </data>
+  <data name="Settings.Ssh.LockTimeoutTip" xml:space="preserve">
+    <value>保管库空闲多久后自动锁定，0 表示不自动锁定，范围 0–120 分钟</value>
+  </data>
+  <data name="Settings.Ssh.PreferSystemAgent" xml:space="preserve">
+    <value>优先尝试系统 ssh-agent</value>
+  </data>
+  <data name="Settings.Ssh.PreferSystemAgentTip" xml:space="preserve">
+    <value>仅在会话未绑定身份时生效：先尝试用系统 ssh-agent 的密钥认证，失败再回退单次弹窗</value>
+  </data>
+  <data name="Settings.Ssh.EnableAgentForwarding" xml:space="preserve">
+    <value>启用 Agent 转发</value>
+  </data>
+  <data name="Settings.Ssh.EnableAgentForwardingTip" xml:space="preserve">
+    <value>在远端会话中转发本地 SSH-Agent，便于跳板登录</value>
+  </data>
+  <data name="Settings.Ssh.CustomAgentPath" xml:space="preserve">
+    <value>自定义 Agent 路径:</value>
+  </data>
+  <data name="Settings.Ssh.CustomAgentPathPlaceholder" xml:space="preserve">
+    <value>留空则自动检测</value>
+  </data>
+  <data name="Settings.Ssh.CustomAgentPathTip" xml:space="preserve">
+    <value>自定义 SSH-Agent Socket/Pipe 路径，留空时自动检测系统默认值</value>
+  </data>
+
+  <!-- Folder Edit Window -->
+  <data name="FolderEdit.Title.New" xml:space="preserve">
+    <value>新建目录</value>
+  </data>
+  <data name="FolderEdit.Title.Edit" xml:space="preserve">
+    <value>编辑目录</value>
+  </data>
+  <data name="FolderEdit.Header" xml:space="preserve">
+    <value>目录属性</value>
+  </data>
+  <data name="FolderEdit.Name" xml:space="preserve">
+    <value>目录名称 (*):</value>
+  </data>
+  <data name="FolderEdit.Name.Placeholder" xml:space="preserve">
+    <value>例如: 生产环境集群</value>
+  </data>
+  <data name="FolderEdit.Description" xml:space="preserve">
+    <value>描述说明:</value>
+  </data>
+  <data name="FolderEdit.Description.Placeholder" xml:space="preserve">
+    <value>可选描述</value>
+  </data>
+  <data name="FolderEdit.DefaultName" xml:space="preserve">
+    <value>未命名文件夹</value>
+  </data>
+
+  <!-- Session Edit Window -->
+  <data name="SessionEdit.Title.New" xml:space="preserve">
+    <value>新建 SSH 会话</value>
+  </data>
+  <data name="SessionEdit.Title.Edit" xml:space="preserve">
+    <value>编辑 SSH 会话</value>
+  </data>
+  <data name="SessionEdit.BasicSection" xml:space="preserve">
+    <value>基本连接参数</value>
+  </data>
+  <data name="SessionEdit.Name" xml:space="preserve">
+    <value>会话名称:</value>
+  </data>
+  <data name="SessionEdit.Name.Placeholder" xml:space="preserve">
+    <value>例如: Web-Production-01</value>
+  </data>
+  <data name="SessionEdit.Host" xml:space="preserve">
+    <value>主机地址 (*):</value>
+  </data>
+  <data name="SessionEdit.Host.Placeholder" xml:space="preserve">
+    <value>IP 或 域名 (如 192.168.1.100)</value>
+  </data>
+  <data name="SessionEdit.Port" xml:space="preserve">
+    <value>SSH 端口:</value>
+  </data>
+  <data name="SessionEdit.Username" xml:space="preserve">
+    <value>用户名:</value>
+  </data>
+  <data name="SessionEdit.Username.Placeholder" xml:space="preserve">
+    <value>为空则使用全局默认用户名或当前系统用户</value>
+  </data>
+  <data name="SessionEdit.Identity" xml:space="preserve">
+    <value>绑定身份:</value>
+  </data>
+  <data name="SessionEdit.IdentityNone" xml:space="preserve">
+    <value>不绑定（使用默认身份或连接时提示）</value>
+  </data>
+  <data name="SessionEdit.AdvancedSection" xml:space="preserve">
+    <value>终端与脚本</value>
+  </data>
+  <data name="SessionEdit.TerminalType" xml:space="preserve">
+    <value>终端类型:</value>
+  </data>
+  <data name="SessionEdit.TerminalType.Placeholder" xml:space="preserve">
+    <value>默认 xterm-256color</value>
+  </data>
+  <data name="SessionEdit.StartupScript" xml:space="preserve">
+    <value>启动脚本:</value>
+  </data>
+  <data name="SessionEdit.StartupScript.Placeholder" xml:space="preserve">
+    <value>登录成功后自动执行的命令</value>
+  </data>
+  <data name="SessionEdit.Description" xml:space="preserve">
+    <value>描述说明:</value>
+  </data>
+  <data name="SessionEdit.Description.Placeholder" xml:space="preserve">
+    <value>可选备注说明</value>
+  </data>
+  <data name="SessionEdit.DefaultName" xml:space="preserve">
+    <value>未命名会话</value>
+  </data>
+
+  <!-- Quick Connect Window -->
+  <data name="QuickConnect.Title" xml:space="preserve">
+    <value>快速连接</value>
+  </data>
+  <data name="QuickConnect.Host" xml:space="preserve">
+    <value>主机 (*):</value>
+  </data>
+  <data name="QuickConnect.Host.Placeholder" xml:space="preserve">
+    <value>IP 或 域名 (如 192.168.1.100)</value>
+  </data>
+  <data name="QuickConnect.Port" xml:space="preserve">
+    <value>端口:</value>
+  </data>
+  <data name="QuickConnect.Username" xml:space="preserve">
+    <value>用户名:</value>
+  </data>
+  <data name="QuickConnect.Username.Placeholder" xml:space="preserve">
+    <value>留空则使用全局默认用户名</value>
+  </data>
+  <data name="QuickConnect.Password" xml:space="preserve">
+    <value>密码:</value>
+  </data>
+  <data name="QuickConnect.Password.Placeholder" xml:space="preserve">
+    <value>可选，仅本次</value>
+  </data>
+  <data name="QuickConnect.Password.Tip" xml:space="preserve">
+    <value>密码仅用于本次连接，不会保存</value>
+  </data>
+  <data name="QuickConnect.SaveAsSession" xml:space="preserve">
+    <value>保存为会话（不保存密码）</value>
+  </data>
+  <data name="QuickConnect.Connect" xml:space="preserve">
+    <value>连接</value>
+  </data>
+  <data name="QuickConnect.Error.HostRequired" xml:space="preserve">
+    <value>请输入主机地址</value>
+  </data>
+
+  <!-- Identity Manager Window -->
+  <data name="IdentityManager.Title" xml:space="preserve">
+    <value>身份管理器</value>
+  </data>
+  <data name="IdentityManager.PlainWarning" xml:space="preserve">
+    <value>⚠ 当前凭据未加密保存到本地数据库</value>
+  </data>
+  <data name="IdentityManager.SetMasterPassword" xml:space="preserve">
+    <value>设置主密码</value>
+  </data>
+  <data name="IdentityManager.NewIdentity" xml:space="preserve">
+    <value>➕ 新建身份</value>
+  </data>
+  <data name="IdentityManager.EditIdentity" xml:space="preserve">
+    <value>✏️ 编辑</value>
+  </data>
+  <data name="IdentityManager.DeleteIdentity" xml:space="preserve">
+    <value>🗑️ 删除</value>
+  </data>
+  <data name="IdentityManager.LockVault" xml:space="preserve">
+    <value>🔒 锁定保管库</value>
+  </data>
+  <data name="IdentityManager.UserLabel" xml:space="preserve">
+    <value>用户:</value>
+  </data>
+  <data name="IdentityManager.MethodLabel" xml:space="preserve">
+    <value>方法:</value>
+  </data>
+  <data name="IdentityManager.OrderHint" xml:space="preserve">
+    <value>身份内的方法按顺序依次尝试</value>
+  </data>
+
+  <!-- Identity Edit Window -->
+  <data name="IdentityEdit.Title.New" xml:space="preserve">
+    <value>新建身份</value>
+  </data>
+  <data name="IdentityEdit.Title.Edit" xml:space="preserve">
+    <value>编辑身份</value>
+  </data>
+  <data name="IdentityEdit.InfoSection" xml:space="preserve">
+    <value>身份信息</value>
+  </data>
+  <data name="IdentityEdit.Name" xml:space="preserve">
+    <value>名称 (*):</value>
+  </data>
+  <data name="IdentityEdit.Name.Placeholder" xml:space="preserve">
+    <value>例如: 生产环境运维</value>
+  </data>
+  <data name="IdentityEdit.Username" xml:space="preserve">
+    <value>用户名:</value>
+  </data>
+  <data name="IdentityEdit.Username.Placeholder" xml:space="preserve">
+    <value>预填用户名（交互式/兜底弹窗使用）</value>
+  </data>
+  <data name="IdentityEdit.Description" xml:space="preserve">
+    <value>描述:</value>
+  </data>
+  <data name="IdentityEdit.Description.Placeholder" xml:space="preserve">
+    <value>可选备注</value>
+  </data>
+  <data name="IdentityEdit.MethodsSection" xml:space="preserve">
+    <value>认证方法（按顺序依次尝试）</value>
+  </data>
+  <data name="IdentityEdit.AddMethod" xml:space="preserve">
+    <value>添加方法</value>
+  </data>
+  <data name="IdentityEdit.KeyFilePath" xml:space="preserve">
+    <value>私钥路径:</value>
+  </data>
+  <data name="IdentityEdit.KeyFilePath.Placeholder" xml:space="preserve">
+    <value>例如 /home/user/.ssh/id_ed25519</value>
+  </data>
+  <data name="IdentityEdit.PassphraseMode" xml:space="preserve">
+    <value>口令保存:</value>
+  </data>
+  <data name="IdentityEdit.VaultKeyMaterial" xml:space="preserve">
+    <value>私钥材料:</value>
+  </data>
+  <data name="IdentityEdit.ImportVaultKey" xml:space="preserve">
+    <value>导入私钥…</value>
+  </data>
+  <data name="IdentityEdit.RemoveVaultKey" xml:space="preserve">
+    <value>移除</value>
+  </data>
+  <data name="IdentityEdit.ApplyHint" xml:space="preserve">
+    <value>「应用」不关窗立即保存；取消不会回滚已应用的改动。</value>
+  </data>
+  <data name="IdentityEdit.Method.VaultPassword" xml:space="preserve">
+    <value>Vault 密码</value>
+  </data>
+  <data name="IdentityEdit.Method.VaultPasswordHint" xml:space="preserve">
+    <value>密码加密保存于保管库，连接时自动取用。</value>
+  </data>
+  <data name="IdentityEdit.Method.VaultKey" xml:space="preserve">
+    <value>Vault 私钥</value>
+  </data>
+  <data name="IdentityEdit.Method.VaultKeyHint" xml:space="preserve">
+    <value>私钥加密保存于保管库。</value>
+  </data>
+  <data name="IdentityEdit.Method.FileKey" xml:space="preserve">
+    <value>文件私钥</value>
+  </data>
+  <data name="IdentityEdit.Method.FileKeyHint" xml:space="preserve">
+    <value>仅保存私钥文件路径，连接时读取文件。</value>
+  </data>
+  <data name="IdentityEdit.Method.Agent" xml:space="preserve">
+    <value>SSH-Agent</value>
+  </data>
+  <data name="IdentityEdit.Method.AgentHint" xml:space="preserve">
+    <value>使用系统 ssh-agent 中的身份（含硬件 SK 密钥）。</value>
+  </data>
+  <data name="IdentityEdit.Method.Interactive" xml:space="preserve">
+    <value>交互式</value>
+  </data>
+  <data name="IdentityEdit.Method.InteractiveHint" xml:space="preserve">
+    <value>每次连接时弹窗输入用户名与密码（支持 2FA）。</value>
+  </data>
+  <data name="IdentityEdit.PassphraseMode.AlwaysAsk" xml:space="preserve">
+    <value>每次询问</value>
+  </data>
+  <data name="IdentityEdit.PassphraseMode.SessionOnly" xml:space="preserve">
+    <value>本次运行记住</value>
+  </data>
+  <data name="IdentityEdit.PassphraseMode.Persistent" xml:space="preserve">
+    <value>永久保存</value>
+  </data>
+  <data name="IdentityEdit.Error.MethodRequired" xml:space="preserve">
+    <value>身份至少需要一个认证方法。</value>
+  </data>
+  <data name="IdentityEdit.Error.SaveNotWired" xml:space="preserve">
+    <value>保存未接线，无法应用。</value>
+  </data>
+  <data name="IdentityEdit.Error.VaultLocked" xml:space="preserve">
+    <value>保管库未解锁，私钥材料未保存。</value>
+  </data>
+  <data name="IdentityEdit.Error.SaveFailedFormat" xml:space="preserve">
+    <value>保存失败：{0}</value>
+  </data>
+  <data name="IdentityEdit.DefaultName" xml:space="preserve">
+    <value>未命名身份</value>
+  </data>
+  <data name="IdentityEdit.DefaultNameForUserFormat" xml:space="preserve">
+    <value>{0} 的身份</value>
+  </data>
+  <data name="IdentityEdit.VaultKey.NotImported" xml:space="preserve">
+    <value>未导入</value>
+  </data>
+  <data name="IdentityEdit.VaultKey.Imported" xml:space="preserve">
+    <value>已导入</value>
+  </data>
+  <data name="IdentityEdit.VaultKey.PendingSave" xml:space="preserve">
+    <value>待保存</value>
+  </data>
+  <data name="IdentityEdit.VaultKey.PendingRemove" xml:space="preserve">
+    <value>待移除</value>
+  </data>
+  <data name="IdentityEdit.VaultKey.ReadFailed" xml:space="preserve">
+    <value>读取失败</value>
+  </data>
+  <data name="IdentityEdit.VaultKey.PassphrasePromptUnavailable" xml:space="preserve">
+    <value>需要口令（无法弹出输入框）</value>
+  </data>
+  <data name="IdentityEdit.FingerprintFormat" xml:space="preserve">
+    <value>指纹 {0}</value>
+  </data>
+  <data name="IdentityEdit.BytesFormat" xml:space="preserve">
+    <value>{0} 字节</value>
+  </data>
+
+  <!-- Master Password Window -->
+  <data name="MasterPassword.Title" xml:space="preserve">
+    <value>解锁保管库</value>
+  </data>
+  <data name="MasterPassword.Header" xml:space="preserve">
+    <value>请输入主密码</value>
+  </data>
+  <data name="MasterPassword.Placeholder" xml:space="preserve">
+    <value>主密码</value>
+  </data>
+  <data name="MasterPassword.Hint" xml:space="preserve">
+    <value>密钥材料受主密码保护，解锁后本次运行内有效。</value>
+  </data>
+  <data name="MasterPassword.Unlock" xml:space="preserve">
+    <value>解锁</value>
+  </data>
+  <data name="MasterPassword.Error.Required" xml:space="preserve">
+    <value>请输入主密码</value>
+  </data>
+
+  <!-- Passphrase Prompt Window -->
+  <data name="PassphrasePrompt.Title" xml:space="preserve">
+    <value>私钥口令</value>
+  </data>
+  <data name="PassphrasePrompt.Header" xml:space="preserve">
+    <value>请输入私钥口令</value>
+  </data>
+  <data name="PassphrasePrompt.Placeholder" xml:space="preserve">
+    <value>口令</value>
+  </data>
+  <data name="PassphrasePrompt.RememberSession" xml:space="preserve">
+    <value>本次运行内记住</value>
+  </data>
+  <data name="PassphrasePrompt.Hint.SessionOnly" xml:space="preserve">
+    <value>勾选后本次运行内有效，锁定保管库或退出程序即失效。</value>
+  </data>
+  <data name="PassphrasePrompt.Hint.Persistent" xml:space="preserve">
+    <value>该口令将永久保存到保管库，供后续连接自动使用。</value>
+  </data>
+  <data name="PassphrasePrompt.Hint.AlwaysAsk" xml:space="preserve">
+    <value>每次连接都会询问该口令。</value>
+  </data>
+  <data name="PassphrasePrompt.Hint.VaultImport" xml:space="preserve">
+    <value>该口令将与私钥一并加密保存到保管库，之后取用无需再次输入。</value>
+  </data>
+  <data name="PassphrasePrompt.KeyPathEmpty" xml:space="preserve">
+    <value>私钥文件未指定路径</value>
+  </data>
+  <data name="PassphrasePrompt.KeyPathFormat" xml:space="preserve">
+    <value>私钥文件: {0}</value>
+  </data>
+  <data name="PassphrasePrompt.Error.Required" xml:space="preserve">
+    <value>请输入口令（留空请选择取消）</value>
+  </data>
+
+  <!-- Vault Setup Window -->
+  <data name="VaultSetup.Title" xml:space="preserve">
+    <value>初始化保管库</value>
+  </data>
+  <data name="VaultSetup.Header" xml:space="preserve">
+    <value>保管库尚未初始化</value>
+  </data>
+  <data name="VaultSetup.Desc" xml:space="preserve">
+    <value>保管库用于保存身份密码、私钥材料与口令。请选择保护方式（后续可无损升级）。</value>
+  </data>
+  <data name="VaultSetup.MasterRadio" xml:space="preserve">
+    <value>设置主密码（推荐）</value>
+  </data>
+  <data name="VaultSetup.MasterDesc" xml:space="preserve">
+    <value>使用主密码加密全部材料，首次用到材料时需要解锁。</value>
+  </data>
+  <data name="VaultSetup.MasterPasswordPlaceholder" xml:space="preserve">
+    <value>主密码</value>
+  </data>
+  <data name="VaultSetup.ConfirmPasswordPlaceholder" xml:space="preserve">
+    <value>确认主密码</value>
+  </data>
+  <data name="VaultSetup.PlainRadio" xml:space="preserve">
+    <value>不加密存储（明文警示）</value>
+  </data>
+  <data name="VaultSetup.PlainDesc" xml:space="preserve">
+    <value>材料将以明文写入本地数据库，任何能读取该文件的人都能获取密钥，请谨慎选择。</value>
+  </data>
+  <data name="VaultSetup.Error.PasswordRequired" xml:space="preserve">
+    <value>请输入主密码</value>
+  </data>
+  <data name="VaultSetup.Error.PasswordMismatch" xml:space="preserve">
+    <value>两次输入的主密码不一致</value>
+  </data>
+
+  <!-- Auth Prompt Window -->
+  <data name="AuthPrompt.Title" xml:space="preserve">
+    <value>SSH 用户认证</value>
+  </data>
+  <data name="AuthPrompt.PromptHeader" xml:space="preserve">
+    <value>服务器认证请求</value>
+  </data>
+  <data name="AuthPrompt.PromptDesc" xml:space="preserve">
+    <value>输入内容将作为该提示的应答回传服务器</value>
+  </data>
+  <data name="AuthPrompt.FullHeader" xml:space="preserve">
+    <value>SSH 用户认证</value>
+  </data>
+  <data name="AuthPrompt.Username" xml:space="preserve">
+    <value>用户名:</value>
+  </data>
+  <data name="AuthPrompt.Method" xml:space="preserve">
+    <value>认证方法:</value>
+  </data>
+  <data name="AuthPrompt.Method.Password" xml:space="preserve">
+    <value>密码</value>
+  </data>
+  <data name="AuthPrompt.Method.PublicKey" xml:space="preserve">
+    <value>公钥</value>
+  </data>
+  <data name="AuthPrompt.Method.Interactive" xml:space="preserve">
+    <value>交互式</value>
+  </data>
+  <data name="AuthPrompt.Password" xml:space="preserve">
+    <value>密码:</value>
+  </data>
+  <data name="AuthPrompt.KeySource" xml:space="preserve">
+    <value>密钥来源:</value>
+  </data>
+  <data name="AuthPrompt.KeySource.FromFile" xml:space="preserve">
+    <value>从文件选择…</value>
+  </data>
+  <data name="AuthPrompt.PrivateKeyFile" xml:space="preserve">
+    <value>私钥文件:</value>
+  </data>
+  <data name="AuthPrompt.PrivateKeyFile.Placeholder" xml:space="preserve">
+    <value>选择或手输私钥文件路径</value>
+  </data>
+  <data name="AuthPrompt.Passphrase" xml:space="preserve">
+    <value>口令:</value>
+  </data>
+  <data name="AuthPrompt.Passphrase.Placeholder" xml:space="preserve">
+    <value>无口令可留空</value>
+  </data>
+  <data name="AuthPrompt.VaultKeyHint" xml:space="preserve">
+    <value>将使用保管库中已导入的私钥，无需再次输入口令。</value>
+  </data>
+  <data name="AuthPrompt.InteractiveHint" xml:space="preserve">
+    <value>连接后由服务器的认证提示逐条询问（支持 2FA）。</value>
+  </data>
+  <data name="AuthPrompt.EphemeralHint" xml:space="preserve">
+    <value>凭据仅用于本次连接，不会保存</value>
+  </data>
+  <data name="AuthPrompt.Error.PathRequired" xml:space="preserve">
+    <value>请选择或输入私钥文件路径</value>
+  </data>
+</root>

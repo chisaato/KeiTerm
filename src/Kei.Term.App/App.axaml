@@ -1,0 +1,20 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Kei.Term.App.App"
+             xmlns:local="using:Kei.Term.App"
+             RequestedThemeVariant="Default">
+             <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
+
+    <Application.DataTemplates>
+        <local:ViewLocator />
+    </Application.DataTemplates>
+
+    <Application.Styles>
+        <FluentTheme />
+    </Application.Styles>
+
+    <Application.Resources>
+        <!-- Kei.* 画刷与桌面工具设计系统令牌由 UiThemeService 在运行时挂载（KeiBrush-KeiClassic.axaml） -->
+        <ResourceDictionary />
+    </Application.Resources>
+</Application>

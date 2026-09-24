@@ -1,0 +1,90 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="using:Kei.Term.App.Helpers"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="460" d:DesignHeight="360"
+        x:Class="Kei.Term.App.Views.AuthPromptWindow"
+        Title="{loc:KeiString AuthPrompt.Title}"
+        Width="470"
+        SizeToContent="Height"
+        MinHeight="200"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        ShowInTaskbar="False"
+        Background="#1E1E1E">
+
+    <Grid RowDefinitions="*, Auto" Margin="20">
+        <StackPanel Grid.Row="0" Spacing="12">
+
+            <!-- 提示模式：KI 真交互，仅服务器提示 + 单行输入 -->
+            <StackPanel x:Name="PromptPanel" Spacing="10" IsVisible="False">
+                <TextBlock Text="{loc:KeiString AuthPrompt.PromptHeader}" FontWeight="Bold" Foreground="#4EC9B0" FontSize="14"/>
+                <TextBlock x:Name="PromptTextBlock" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                <TextBox x:Name="PromptInputBox" PasswordChar="•"/>
+                <TextBlock Text="{loc:KeiString AuthPrompt.PromptDesc}" FontSize="11" Foreground="#888888"/>
+            </StackPanel>
+
+            <!-- 完整模式：方法选择 + 各自字段 -->
+            <StackPanel x:Name="FullPanel" Spacing="12">
+                <TextBlock Text="{loc:KeiString AuthPrompt.FullHeader}" FontWeight="Bold" Foreground="#4EC9B0" FontSize="14"/>
+
+                <Grid ColumnDefinitions="90, *" RowDefinitions="Auto, Auto" RowSpacing="8">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString AuthPrompt.Username}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                    <TextBox Grid.Row="0" Grid.Column="1" x:Name="UsernameBox"/>
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{loc:KeiString AuthPrompt.Method}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                    <ComboBox Grid.Row="1" Grid.Column="1" x:Name="MethodCombo"
+                              HorizontalAlignment="Stretch" SelectionChanged="OnMethodChanged"/>
+                </Grid>
+
+                <!-- 密码 -->
+                <Grid x:Name="PasswordPanel" ColumnDefinitions="90, *" RowSpacing="8">
+                    <TextBlock Grid.Column="0" Text="{loc:KeiString AuthPrompt.Password}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                    <TextBox Grid.Column="1" x:Name="PasswordBox" PasswordChar="•"/>
+                </Grid>
+
+                <!-- 公钥 -->
+                <StackPanel x:Name="PublicKeyPanel" Spacing="8" IsVisible="False">
+                    <Grid ColumnDefinitions="90, *">
+                        <TextBlock Grid.Column="0" Text="{loc:KeiString AuthPrompt.KeySource}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                        <ComboBox Grid.Column="1" x:Name="KeySourceCombo"
+                                  HorizontalAlignment="Stretch" SelectionChanged="OnKeySourceChanged"/>
+                    </Grid>
+
+                    <Grid x:Name="KeyFilePanel" ColumnDefinitions="90, *, Auto" ColumnSpacing="8">
+                        <TextBlock Grid.Column="0" Text="{loc:KeiString AuthPrompt.PrivateKeyFile}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                        <TextBox Grid.Column="1" x:Name="KeyPathBox" PlaceholderText="{loc:KeiString AuthPrompt.PrivateKeyFile.Placeholder}"/>
+                        <Button Grid.Column="2" Content="{loc:KeiString Common.Browse}" Click="OnBrowseKey"/>
+                    </Grid>
+
+                    <Grid x:Name="PassphrasePanel" ColumnDefinitions="90, *">
+                        <TextBlock Grid.Column="0" Text="{loc:KeiString AuthPrompt.Passphrase}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                        <TextBox Grid.Column="1" x:Name="PassphraseBox" PasswordChar="•"
+                                 PlaceholderText="{loc:KeiString AuthPrompt.Passphrase.Placeholder}"/>
+                    </Grid>
+
+                    <TextBlock x:Name="VaultKeyHint" IsVisible="False"
+                               Text="{loc:KeiString AuthPrompt.VaultKeyHint}"
+                               FontSize="11" Foreground="#888888" TextWrapping="Wrap"/>
+                </StackPanel>
+
+                <!-- 交互式 -->
+                <TextBlock x:Name="InteractiveHint" IsVisible="False"
+                           Text="{loc:KeiString AuthPrompt.InteractiveHint}"
+                           FontSize="11" Foreground="#888888" TextWrapping="Wrap"/>
+
+                <TextBlock Text="{loc:KeiString AuthPrompt.EphemeralHint}" FontSize="11" Foreground="#888888"/>
+            </StackPanel>
+
+            <TextBlock x:Name="ErrorText" Foreground="#FF6B6B" FontSize="11"
+                       TextWrapping="Wrap" IsVisible="False"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12" Margin="0,16,0,0">
+            <Button Content="{loc:KeiString Common.Cancel}" Click="OnCancel" IsCancel="True" Width="85" HorizontalContentAlignment="Center"/>
+            <Button Content="{loc:KeiString Common.Confirm}" Click="OnConfirm" IsDefault="True" Width="85"
+                    HorizontalContentAlignment="Center" Background="#0E639C" Foreground="White"/>
+        </StackPanel>
+    </Grid>
+</Window>

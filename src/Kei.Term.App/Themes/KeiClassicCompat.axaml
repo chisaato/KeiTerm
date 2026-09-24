@@ -1,0 +1,190 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Kei 桌面工具紧凑控件外观样式（基于 FluentTheme，覆盖紧凑度、小圆角与沉稳边框） -->
+
+    <!-- 通用输入框：封闭实体框、28px 紧凑高度、3px 圆角、细腻微弱描边、聚焦高亮 -->
+    <Style Selector="TextBox">
+        <Setter Property="MinHeight" Value="28"/>
+        <Setter Property="Height" Value="28"/>
+        <Setter Property="Padding" Value="8,3"/>
+        <Setter Property="FontSize" Value="12.5"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource Kei.Radius.Control}"/>
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Input}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Border}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="TextBox:pointerover /template/ Border#PART_BorderElement">
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Text.Muted}"/>
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Input}"/>
+    </Style>
+    <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Border.Focus}"/>
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Input}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+    </Style>
+
+    <!-- 通用下拉框：28px 紧凑高度、3px 圆角、实体背景 -->
+    <Style Selector="ComboBox">
+        <Setter Property="MinHeight" Value="28"/>
+        <Setter Property="Height" Value="28"/>
+        <Setter Property="Padding" Value="8,2"/>
+        <Setter Property="FontSize" Value="12.5"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource Kei.Radius.Control}"/>
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Input}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Border}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="ComboBox:pointerover /template/ Border#Background">
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Text.Muted}"/>
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}"/>
+    </Style>
+    <Style Selector="ComboBox:focus /template/ Border#Background">
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Border.Focus}"/>
+    </Style>
+
+    <!-- 数字微调框：28px 紧凑高度 -->
+    <Style Selector="NumericUpDown">
+        <Setter Property="MinHeight" Value="28"/>
+        <Setter Property="Height" Value="28"/>
+        <Setter Property="FontSize" Value="12.5"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource Kei.Radius.Control}"/>
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Input}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Border}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+    </Style>
+
+    <!-- 通用标准按钮：32px 舒适高度、3px 圆角、13px 字号、舒适内边距 -->
+    <Style Selector="Button">
+        <Setter Property="MinHeight" Value="32"/>
+        <Setter Property="Height" Value="32"/>
+        <Setter Property="Padding" Value="14,4"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource Kei.Radius.Control}"/>
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.PanelAlt}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Border}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Button:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Text.Muted}"/>
+    </Style>
+    <Style Selector="Button:pressed /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Pressed}"/>
+    </Style>
+
+    <!-- 主要操作按钮（Accent） -->
+    <Style Selector="Button.accent">
+        <Setter Property="Background" Value="{DynamicResource Kei.Accent}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Accent}"/>
+        <Setter Property="Foreground" Value="White"/>
+    </Style>
+    <Style Selector="Button.accent:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource Kei.Accent.Hover}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Accent.Hover}"/>
+        <Setter Property="Foreground" Value="White"/>
+    </Style>
+    <Style Selector="Button.accent:pressed /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource Kei.Accent.Pressed}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Accent.Pressed}"/>
+        <Setter Property="Foreground" Value="White"/>
+    </Style>
+
+    <!-- 工具栏图标按钮：30×30 易点尺寸，hover 高亮，圆角 3px -->
+    <Style Selector="Button.iconBtn">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Width" Value="30"/>
+        <Setter Property="Height" Value="30"/>
+        <Setter Property="MinHeight" Value="30"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource Kei.Radius.Control}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Button.iconBtn:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}"/>
+    </Style>
+    <Style Selector="Button.iconBtn:disabled">
+        <Setter Property="Opacity" Value="0.35"/>
+    </Style>
+
+    <!-- 工具栏垂直分隔条 -->
+    <Style Selector="Separator.toolSep">
+        <Setter Property="Width" Value="1"/>
+        <Setter Property="Height" Value="18"/>
+        <Setter Property="Margin" Value="4,0"/>
+        <Setter Property="Background" Value="{DynamicResource Kei.Border}"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <!-- 标签条按钮：选中态面板底 + 顶部 2px 强调条 -->
+    <Style Selector="Button.tabItem">
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.TabInactive}"/>
+        <Setter Property="Padding" Value="8,2"/>
+        <Setter Property="Height" Value="28"/>
+        <Setter Property="Margin" Value="2,4,0,0"/>
+        <Setter Property="CornerRadius" Value="3,3,0,0"/>
+        <Setter Property="BorderThickness" Value="1,1,1,0"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Border.Subtle}"/>
+    </Style>
+    <Style Selector="Button.tabItem.selected">
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Panel}"/>
+        <Setter Property="BorderThickness" Value="1,2,1,0"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Accent}"/>
+    </Style>
+    <Style Selector="Button.tabItem:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}"/>
+    </Style>
+
+    <!-- 会话树与目录树：紧凑高密度样式（支持通过 Kei.Tree.* 动态设置调节尺寸） -->
+    <Style Selector="TreeViewItem">
+        <Setter Property="MinHeight" Value="{DynamicResource Kei.Tree.ItemHeight}"/>
+        <Setter Property="Padding" Value="0"/>
+    </Style>
+    <Style Selector="TreeViewItem /template/ Border#PART_LayoutRoot">
+        <Setter Property="MinHeight" Value="{DynamicResource Kei.Tree.ItemHeight}"/>
+        <Setter Property="Padding" Value="2,1"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource Kei.Radius.Control}"/>
+    </Style>
+    <Style Selector="TreeViewItem:pointerover /template/ Border#PART_LayoutRoot">
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}"/>
+    </Style>
+    <Style Selector="TreeViewItem:selected /template/ Border#PART_LayoutRoot">
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Pressed}"/>
+    </Style>
+    <Style Selector="TreeViewItem:selected:focus /template/ Border#PART_LayoutRoot">
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Pressed}"/>
+    </Style>
+    <Style Selector="TreeViewItem:selected:pointerover /template/ Border#PART_LayoutRoot">
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}"/>
+    </Style>
+
+    <!-- 标签关闭按钮 -->
+    <Style Selector="Button.closeBtn">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Width" Value="18"/>
+        <Setter Property="Height" Value="18"/>
+        <Setter Property="CornerRadius" Value="2"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="FontSize" Value="10"/>
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Muted}"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Button.closeBtn:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}"/>
+    </Style>
+    <Style Selector="Button.closeBtn:pointerover">
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}"/>
+    </Style>
+</Styles>

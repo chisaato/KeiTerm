@@ -1,0 +1,420 @@
+namespace Kei.Term.Infrastructure.Vault;
+
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using Kei.Term.Core.Vault;
+
+// 内置 Vault：主密码可选。明文模式下字节直通；加密模式用 AES-256-GCM。
+//
+// KDF 说明：规格要求 Argon2id（m=64MB, t=3, p=4），但已查证 .NET 10 内置加密库
+// （Microsoft.NETCore.App.Ref 10.0.2 的 System.Security.Cryptography）未提供任何
+// Argon2/Kryptos 类型，故一期以 PBKDF2-Rfc2898DeriveBytes(HMAC-SHA512, 600k 迭代,
+// salt 16B, 派生 32B) 替代，差异记入实现报告；盐与密钥长度与规格一致，未来可无损切换 KDF。
+public class InternalVaultManager : IVaultManager, IVaultSecretStore
+{
+    // vault_metadata 键
+    private const string KeyPlainMode = "plain_mode";
+    private const string KeyKdfSalt = "kdf_salt";
+    private const string KeyVerifier = "verifier";
+
+    private const int Pbkdf2Iterations = 600_000;
+    private const int MekLength = 32;
+    private const int SaltLength = 16;
+    private const int NonceLength = 12;
+    private const int TagLength = 16;
+
+    private const string PlainAlgorithm = "PLAIN";
+    private const string EncryptedAlgorithm = "AES-256-GCM";
+
+    // 解锁校验用已知明文：用候选 MEK 解密后比对
+    private const string VerifierPlaintext = "keiterm-vault-verifier-v1";
+
+    private readonly string _connectionString;
+    private readonly ILogger<InternalVaultManager> _logger;
+    private readonly SemaphoreSlim _initLock = new(1, 1);
+
+    private bool _initialized;
+    private bool _hasMasterPassword;
+    private byte[]? _kdfSalt;
+    private byte[]? _mek;
+
+    public InternalVaultManager(string connectionString, ILogger<InternalVaultManager>? logger = null)
+    {
+        _connectionString = connectionString;
+        _logger = logger ?? NullLogger<InternalVaultManager>.Instance;
+    }
+
+    // 无主密码 = 明文模式；默认（未初始化）按明文处理
+    public bool IsPlainMode => !_hasMasterPassword;
+
+    // 明文模式恒解锁；加密模式需 MEK 存在
+    public bool IsUnlocked => !_hasMasterPassword || _mek != null;
+
+    private async Task<SqliteConnection> CreateConnectionAsync(CancellationToken ct)
+    {
+        var conn = new SqliteConnection(_connectionString);
+        await conn.OpenAsync(ct);
+
+        using var pragma = conn.CreateCommand();
+        pragma.CommandText = "PRAGMA foreign_keys = ON;";
+        await pragma.ExecuteNonQueryAsync(ct);
+
+        return conn;
+    }
+
+    // 惰性初始化：确保元数据表存在并加载 plain_mode/kdf_salt；不自动解锁
+    private async Task EnsureInitializedAsync(CancellationToken ct)
+    {
+        if (_initialized)
+        {
+            return;
+        }
+
+        await _initLock.WaitAsync(ct);
+        try
+        {
+            if (_initialized)
+            {
+                return;
+            }
+
+            using var conn = await CreateConnectionAsync(ct);
+            using (var cmd = conn.CreateCommand())
+            {
+                // 与 SqliteTreeRepository 的建表幂等共存
+                cmd.CommandText = "CREATE TABLE IF NOT EXISTS vault_metadata (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL);";
+                await cmd.ExecuteNonQueryAsync(ct);
+            }
+
+            var meta = await LoadMetadataAsync(conn, ct);
+            if (meta.TryGetValue(KeyPlainMode, out var plain))
+            {
+                _hasMasterPassword = plain != "1";
+            }
+
+            if (meta.TryGetValue(KeyKdfSalt, out var saltB64))
+            {
+                _kdfSalt = Convert.FromBase64String(saltB64);
+            }
+
+            _initialized = true;
+            _logger.LogInformation("Vault 初始化完成 模式={Mode}", _hasMasterPassword ? "加密" : "明文");
+        }
+        finally
+        {
+            _initLock.Release();
+        }
+    }
+
+    public async Task SetMasterPasswordAsync(string masterPassword, CancellationToken ct = default)
+    {
+        if (string.IsNullOrEmpty(masterPassword))
+        {
+            throw new ArgumentException("主密码不能为空", nameof(masterPassword));
+        }
+
+        await EnsureInitializedAsync(ct);
+
+        var salt = RandomNumberGenerator.GetBytes(SaltLength);
+        var mek = DeriveKey(masterPassword, salt);
+        var verifier = EncryptWithMek(mek, Encoding.UTF8.GetBytes(VerifierPlaintext));
+
+        using var conn = await CreateConnectionAsync(ct);
+        var reEncrypted = 0;
+        using (var tx = conn.BeginTransaction())
+        {
+            await UpsertMetadataAsync(conn, tx, KeyPlainMode, "0", ct);
+            await UpsertMetadataAsync(conn, tx, KeyKdfSalt, Convert.ToBase64String(salt), ct);
+            await UpsertMetadataAsync(conn, tx, KeyVerifier, Convert.ToBase64String(verifier), ct);
+
+            // 明文升级：把已有的明文材料块就地重新加密，保证加密模式下可读（无损升级）
+            reEncrypted = await ReEncryptPlainSecretsAsync(conn, tx, mek, ct);
+            tx.Commit();
+        }
+
+        _kdfSalt = salt;
+        _mek = mek;
+        _hasMasterPassword = true;
+        _logger.LogInformation("设置主密码完成 重加密存量明文材料={Count} 项", reEncrypted);
+    }
+
+    public async Task<bool> TryAutoUnlockAsync(CancellationToken ct = default)
+    {
+        await EnsureInitializedAsync(ct);
+        // 明文模式恒可用；加密模式一期无 OS Keyring，返回 false 走懒解锁（Keyring 二期）
+        return !_hasMasterPassword;
+    }
+
+    public async Task UnlockAsync(string masterPassword, bool rememberOnThisDevice, CancellationToken ct = default)
+    {
+        await EnsureInitializedAsync(ct);
+
+        if (!_hasMasterPassword)
+        {
+            // 明文模式无锁定语义
+            _mek = null;
+            return;
+        }
+
+        if (_kdfSalt == null)
+        {
+            _logger.LogError("Vault 解锁失败：元数据缺失 kdf_salt");
+            throw new InvalidOperationException("Vault 元数据缺失 kdf_salt");
+        }
+
+        var verifierB64 = await LoadValueAsync(KeyVerifier, ct);
+        if (verifierB64 == null)
+        {
+            _logger.LogError("Vault 解锁失败：元数据缺失 verifier");
+            throw new InvalidOperationException("Vault 元数据缺失 verifier");
+        }
+
+        var candidate = DeriveKey(masterPassword, _kdfSalt);
+        try
+        {
+            var plain = DecryptWithMek(candidate, Convert.FromBase64String(verifierB64));
+            if (!CryptographicOperations.FixedTimeEquals(plain, Encoding.UTF8.GetBytes(VerifierPlaintext)))
+            {
+                _logger.LogWarning("Vault 解锁失败：主密码错误");
+                throw new UnauthorizedAccessException("主密码错误");
+            }
+        }
+        catch (CryptographicException)
+        {
+            // GCM 校验失败即密码错误
+            _logger.LogWarning("Vault 解锁失败：主密码错误");
+            throw new UnauthorizedAccessException("主密码错误");
+        }
+
+        _mek = candidate;
+        _logger.LogInformation("Vault 解锁成功");
+        // rememberOnThisDevice 为二期 OS Keyring 预留，一期忽略
+    }
+
+    public void Lock()
+    {
+        if (_mek != null)
+        {
+            CryptographicOperations.ZeroMemory(_mek);
+        }
+
+        _mek = null;
+    }
+
+    public async Task<Dictionary<string, SecretPayload>> GetSecretsAsync(Guid identityId, CancellationToken ct = default)
+    {
+        await EnsureInitializedAsync(ct);
+
+        using var conn = await CreateConnectionAsync(ct);
+        var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT secrets_blob, encryption_algorithm FROM identity_secrets WHERE identity_id = $id;";
+        cmd.Parameters.AddWithValue("$id", identityId.ToString());
+
+        using var reader = await cmd.ExecuteReaderAsync(ct);
+        if (!await reader.ReadAsync(ct))
+        {
+            return new Dictionary<string, SecretPayload>();
+        }
+
+        var blob = (byte[])reader["secrets_blob"];
+        var algorithm = reader.GetString(1);
+
+        byte[] json;
+        if (algorithm == PlainAlgorithm)
+        {
+            json = blob;
+        }
+        else
+        {
+            EnsureUnlocked();
+            json = DecryptWithMek(_mek!, blob);
+        }
+
+        return JsonSerializer.Deserialize<Dictionary<string, SecretPayload>>(json) ?? new();
+    }
+
+    public async Task SaveSecretsAsync(Guid identityId, Dictionary<string, SecretPayload> secrets, CancellationToken ct = default)
+    {
+        await EnsureInitializedAsync(ct);
+
+        var json = JsonSerializer.SerializeToUtf8Bytes(secrets);
+
+        byte[] blob;
+        string algorithm;
+        byte[]? nonce = null;
+        byte[]? tag = null;
+
+        if (_hasMasterPassword)
+        {
+            EnsureUnlocked();
+            blob = EncryptWithMek(_mek!, json);
+            algorithm = EncryptedAlgorithm;
+            // 同步拆分出 nonce/tag 列，兼容规格表结构
+            nonce = blob.AsSpan(0, NonceLength).ToArray();
+            tag = blob.AsSpan(NonceLength, TagLength).ToArray();
+        }
+        else
+        {
+            // 明文模式：原始 JSON 字节落库（UI 已警示不加密）
+            blob = json;
+            algorithm = PlainAlgorithm;
+        }
+
+        using var conn = await CreateConnectionAsync(ct);
+        var cmd = conn.CreateCommand();
+        cmd.CommandText = @"
+            INSERT INTO identity_secrets (identity_id, secrets_blob, encryption_algorithm, nonce, tag)
+            VALUES ($id, $blob, $alg, $nonce, $tag)
+            ON CONFLICT(identity_id) DO UPDATE SET
+                secrets_blob = $blob,
+                encryption_algorithm = $alg,
+                nonce = $nonce,
+                tag = $tag;
+        ";
+        cmd.Parameters.AddWithValue("$id", identityId.ToString());
+        cmd.Parameters.Add("$blob", SqliteType.Blob).Value = blob;
+        cmd.Parameters.AddWithValue("$alg", algorithm);
+        cmd.Parameters.AddWithValue("$nonce", (object?)nonce ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$tag", (object?)tag ?? DBNull.Value);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
+    public async Task DeleteSecretsAsync(Guid identityId, CancellationToken ct = default)
+    {
+        await EnsureInitializedAsync(ct);
+
+        using var conn = await CreateConnectionAsync(ct);
+        var cmd = conn.CreateCommand();
+        cmd.CommandText = "DELETE FROM identity_secrets WHERE identity_id = $id;";
+        cmd.Parameters.AddWithValue("$id", identityId.ToString());
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
+    private void EnsureUnlocked()
+    {
+        if (_hasMasterPassword && _mek == null)
+        {
+            throw new InvalidOperationException("Vault 已锁定，请先解锁");
+        }
+    }
+
+    // 明文升级为加密：逐行把 PLAIN 材料块用新 MEK 重新加密；返回重加密行数
+    private static async Task<int> ReEncryptPlainSecretsAsync(SqliteConnection conn, SqliteTransaction tx, byte[] mek, CancellationToken ct)
+    {
+        var pending = new List<(string id, byte[] plaintext)>();
+        using (var select = conn.CreateCommand())
+        {
+            select.Transaction = tx;
+            select.CommandText = "SELECT identity_id, secrets_blob FROM identity_secrets WHERE encryption_algorithm = $alg;";
+            select.Parameters.AddWithValue("$alg", PlainAlgorithm);
+            using var reader = await select.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+            {
+                pending.Add((reader.GetString(0), (byte[])reader["secrets_blob"]));
+            }
+        }
+
+        foreach (var (id, plaintext) in pending)
+        {
+            var blob = EncryptWithMek(mek, plaintext);
+            using var update = conn.CreateCommand();
+            update.Transaction = tx;
+            update.CommandText = @"
+                UPDATE identity_secrets
+                SET secrets_blob = $blob, encryption_algorithm = $alg, nonce = $nonce, tag = $tag
+                WHERE identity_id = $id;
+            ";
+            update.Parameters.AddWithValue("$id", id);
+            update.Parameters.Add("$blob", SqliteType.Blob).Value = blob;
+            update.Parameters.AddWithValue("$alg", EncryptedAlgorithm);
+            update.Parameters.AddWithValue("$nonce", blob.AsSpan(0, NonceLength).ToArray());
+            update.Parameters.AddWithValue("$tag", blob.AsSpan(NonceLength, TagLength).ToArray());
+            await update.ExecuteNonQueryAsync(ct);
+        }
+
+        return pending.Count;
+    }
+
+    private static byte[] DeriveKey(string password, byte[] salt)
+    {
+        // PBKDF2-HMAC-SHA512：替代 Argon2id（.NET 10 无内置 Argon2）
+        return Rfc2898DeriveBytes.Pbkdf2(password, salt, Pbkdf2Iterations, HashAlgorithmName.SHA512, MekLength);
+    }
+
+    // blob = [nonce 12B][tag 16B][ciphertext]
+    private static byte[] EncryptWithMek(byte[] mek, byte[] plaintext)
+    {
+        var nonce = RandomNumberGenerator.GetBytes(NonceLength);
+        var tag = new byte[TagLength];
+        var cipher = new byte[plaintext.Length];
+
+        using (var aes = new AesGcm(mek, TagLength))
+        {
+            aes.Encrypt(nonce, plaintext, cipher, tag);
+        }
+
+        var blob = new byte[NonceLength + TagLength + cipher.Length];
+        nonce.CopyTo(blob, 0);
+        tag.CopyTo(blob, NonceLength);
+        cipher.CopyTo(blob, NonceLength + TagLength);
+        return blob;
+    }
+
+    private static byte[] DecryptWithMek(byte[] mek, byte[] blob)
+    {
+        if (blob.Length < NonceLength + TagLength)
+        {
+            throw new CryptographicException("Vault blob 长度非法");
+        }
+
+        var nonce = blob.AsSpan(0, NonceLength);
+        var tag = blob.AsSpan(NonceLength, TagLength);
+        var cipher = blob.AsSpan(NonceLength + TagLength);
+        var plain = new byte[cipher.Length];
+
+        using var aes = new AesGcm(mek, TagLength);
+        aes.Decrypt(nonce, cipher, tag, plain);
+        return plain;
+    }
+
+    private static async Task<Dictionary<string, string>> LoadMetadataAsync(SqliteConnection conn, CancellationToken ct)
+    {
+        var result = new Dictionary<string, string>(StringComparer.Ordinal);
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT key, value FROM vault_metadata;";
+        using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+        {
+            result[reader.GetString(0)] = reader.GetString(1);
+        }
+
+        return result;
+    }
+
+    private async Task<string?> LoadValueAsync(string key, CancellationToken ct)
+    {
+        using var conn = await CreateConnectionAsync(ct);
+        var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT value FROM vault_metadata WHERE key = $key;";
+        cmd.Parameters.AddWithValue("$key", key);
+        var value = await cmd.ExecuteScalarAsync(ct);
+        return value as string;
+    }
+
+    private static async Task UpsertMetadataAsync(SqliteConnection conn, SqliteTransaction tx, string key, string value, CancellationToken ct)
+    {
+        using var cmd = conn.CreateCommand();
+        cmd.Transaction = tx;
+        cmd.CommandText = @"
+            INSERT INTO vault_metadata (key, value) VALUES ($key, $value)
+            ON CONFLICT(key) DO UPDATE SET value = $value;
+        ";
+        cmd.Parameters.AddWithValue("$key", key);
+        cmd.Parameters.AddWithValue("$value", value);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+}
