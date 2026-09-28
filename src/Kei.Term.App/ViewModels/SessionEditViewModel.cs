@@ -43,6 +43,17 @@ public partial class SessionEditViewModel : ViewModelBase
     [ObservableProperty]
     private IdentityOption? _selectedIdentity;
 
+    // 文件传输协议与模式
+    public IReadOnlyList<FileTransferProtocol> AvailableProtocols { get; } = [FileTransferProtocol.Sftp, FileTransferProtocol.Scp];
+
+    [ObservableProperty]
+    private FileTransferProtocol _selectedProtocol = FileTransferProtocol.Sftp;
+
+    public IReadOnlyList<SftpChannelMode> AvailableSftpModes { get; } = [SftpChannelMode.Auto, SftpChannelMode.Subsystem, SftpChannelMode.Dedicated];
+
+    [ObservableProperty]
+    private SftpChannelMode _selectedSftpMode = SftpChannelMode.Auto;
+
     public Guid NodeId { get; }
     public Guid? ParentId { get; set; }
     public bool IsConfirmed { get; private set; }
@@ -79,6 +90,8 @@ public partial class SessionEditViewModel : ViewModelBase
             Description = existing.Description ?? string.Empty;
             TerminalType = existing.TerminalType ?? "xterm-256color";
             StartupScript = existing.StartupScript ?? string.Empty;
+            SelectedProtocol = existing.FileTransferProtocol;
+            SelectedSftpMode = existing.SftpMode;
         }
         else
         {
@@ -118,6 +131,8 @@ public partial class SessionEditViewModel : ViewModelBase
         model.TerminalType = string.IsNullOrWhiteSpace(TerminalType) ? "xterm-256color" : TerminalType.Trim();
         model.StartupScript = string.IsNullOrWhiteSpace(StartupScript) ? null : StartupScript.Trim();
         model.IdentityId = SelectedIdentity?.Id;
+        model.FileTransferProtocol = SelectedProtocol;
+        model.SftpMode = SelectedSftpMode;
         return model;
     }
 }

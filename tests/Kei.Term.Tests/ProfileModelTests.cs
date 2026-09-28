@@ -73,12 +73,16 @@ public class ProfileModelTests
         Assert.NotNull(presets);
         Assert.NotEmpty(presets);
 
-        // 必须包含 VS Code Dark (或 Kei Classic), One Dark, Nord, Solarized Dark
+        // 必须包含 VS Code Dark (或 Kei Classic), One Dark, Nord, Solarized Dark 及 Veritas 4 款主题
         var names = presets.Select(p => p.Name).ToList();
         Assert.Contains(names, n => n.Contains("VS Code Dark", StringComparison.OrdinalIgnoreCase) || n.Contains("Kei Classic", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(names, n => n.Contains("One Dark", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(names, n => n.Contains("Nord", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(names, n => n.Contains("Solarized Dark", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(names, n => n.Contains("Omagari Hare", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(names, n => n.Contains("Kagami Chihiro", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(names, n => n.Contains("Konuri Maki", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(names, n => n.Contains("Otose Kotama", StringComparison.OrdinalIgnoreCase));
 
         foreach (var profile in presets)
         {
@@ -104,7 +108,7 @@ public class ProfileModelTests
         Assert.NotNull(presets);
         Assert.NotEmpty(presets);
 
-        // 必须包含 Monokai, Dracula, Gruvbox, Solarized Dark, Solarized Light, Tomorrow Night
+        // 必须包含 Monokai, Dracula, Gruvbox, Solarized Dark, Solarized Light, Tomorrow Night 及 Veritas 4 款主题
         var names = presets.Select(p => p.Name).ToList();
         Assert.Contains(names, n => n.Contains("Monokai", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(names, n => n.Contains("Dracula", StringComparison.OrdinalIgnoreCase));
@@ -112,6 +116,10 @@ public class ProfileModelTests
         Assert.Contains(names, n => n.Contains("Solarized Dark", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(names, n => n.Contains("Solarized Light", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(names, n => n.Contains("Tomorrow Night", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(names, n => n.Contains("Omagari Hare", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(names, n => n.Contains("Kagami Chihiro", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(names, n => n.Contains("Konuri Maki", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(names, n => n.Contains("Otose Kotama", StringComparison.OrdinalIgnoreCase));
 
         foreach (var profile in presets)
         {

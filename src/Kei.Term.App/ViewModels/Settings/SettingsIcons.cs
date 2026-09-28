@@ -30,4 +30,9 @@ public static class SettingsIcons
     public const string Ssh =
         "M5.5,7 L5.5,5.2 A2.5,2.5 0 0 1 10.5,5.2 L10.5,7 " +
         "M3.8,7 L12.2,7 L12.2,12.3 L3.8,12.3 Z M8,9 L8,10.6";
+
+    // 文件传输 / 编辑器：文件夹与双向同步/编辑小箭头
+    public const string FileTransfer =
+        "M2,4 L6.5,4 L8,5.5 L14,5.5 L14,12.5 L2,12.5 Z " +
+        "M5,9 L11,9 M9.5,7.5 L11,9 L9.5,10.5";
 }

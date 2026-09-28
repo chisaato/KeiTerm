@@ -147,9 +147,9 @@ public partial class MainWindow : Window
             // 设置确认保存后立即应用控件库主题（Apply 幂等，KeiClassic 即卸载第三方主题）
             if (settingsVm.IsConfirmed)
             {
-                Services.UiThemeService.Apply(vm.CurrentSettings.ControlLibraryTheme);
+                Services.UiDesignSystemService.Apply(vm.CurrentSettings.ControlLibraryTheme);
                 // 实时热更新树显示密度与尺寸
-                Services.UiThemeService.ApplyTreeDensity(
+                Services.UiDesignSystemService.ApplyTreeDensity(
                     vm.CurrentSettings.TreeItemHeight,
                     vm.CurrentSettings.TreeFontSize,
                     vm.CurrentSettings.TreeIconSize,
@@ -240,6 +240,30 @@ public partial class MainWindow : Window
                 AllowMultiple = false
             });
             return folders.Count > 0 ? folders[0].Path.LocalPath : null;
+        };
+
+        // Konsole 导入文件选择器与调色预览弹窗
+        vm.PickKonsoleFileDialogAsync = async () =>
+        {
+            var files = await StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
+            {
+                Title = Strings.Get("Menu.File.ImportKonsole"),
+                AllowMultiple = false,
+                FileTypeFilter = new[]
+                {
+                    new Avalonia.Platform.Storage.FilePickerFileType("Konsole Color Scheme (*.colorscheme)") { Patterns = new[] { "*.colorscheme" } },
+                    new Avalonia.Platform.Storage.FilePickerFileType("All Files (*.*)") { Patterns = new[] { "*.*" } }
+                }
+            });
+            return files.Count > 0 ? files[0].Path.LocalPath : null;
+        };
+
+        vm.OpenTerminalProfileEditDialogAsync = async (sourceProfile) =>
+        {
+            var editVm = new TerminalProfileEditViewModel(sourceProfile);
+            var dialog = new TerminalProfileEditWindow(editVm);
+            var result = await dialog.ShowDialog<bool>(this);
+            return result && editVm.IsConfirmed ? editVm.ResultProfile : null;
         };
 
         // 统一消息通知：更新主窗口底部/中央状态提示栏，并在日志留痕

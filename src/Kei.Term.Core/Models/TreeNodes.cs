@@ -68,6 +68,11 @@ public class SessionNode : TreeNodeBase
     public Dictionary<string, string> EnvironmentVariables { get; set; } = new(StringComparer.Ordinal);
     // 可选指定的终端 Profile ID。若为 null 或空，则继承全局默认 TerminalProfile
     public string? TerminalProfileId { get; set; }
+
+    // 文件传输协议偏好（SFTP / SCP）
+    public FileTransferProtocol FileTransferProtocol { get; set; } = FileTransferProtocol.Sftp;
+    // SFTP 连接模式（Auto / Subsystem / Dedicated）
+    public SftpChannelMode SftpMode { get; set; } = SftpChannelMode.Auto;
 }
 
 // 展示层专用虚拟根（SecureCRT 式 "Sessions" 顶层）：不持久化，Id 固定 Empty 便于各入口守卫
@@ -95,5 +100,7 @@ public record ResolvedSessionConfig(
     string TerminalType,
     string? StartupScript,
     Guid? JumpHostSessionId,
-    IReadOnlyDictionary<string, string> EnvironmentVariables
+    IReadOnlyDictionary<string, string> EnvironmentVariables,
+    FileTransferProtocol FileTransferProtocol = FileTransferProtocol.Sftp,
+    SftpChannelMode SftpMode = SftpChannelMode.Auto
 );

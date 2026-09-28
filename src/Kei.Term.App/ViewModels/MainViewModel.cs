@@ -13,6 +13,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Kei.Term.App.Helpers;
 using Kei.Term.App.Logging;
+using Kei.Term.App.Services;
 using Kei.Term.Core.Abstractions;
 using Kei.Term.Core.Models;
 using Kei.Term.Core.Models.Profiles;
@@ -38,11 +39,14 @@ public partial class MainViewModel : ViewModelBase
 
     private readonly ITreeRepository _treeRepo;
     private readonly IIdentityRepository _identityRepo;
+    private readonly IExternalEditorRepository? _editorRepo;
     private readonly IVaultManager _vault;
     private readonly IVaultSecretStore _vaultSecretStore;
     private readonly ISettingsService _settingsService;
+    private readonly Services.ProfileManagerService? _profileManager;
     private readonly ISshSessionFactory _sshFactory;
     private readonly ILogger<MainViewModel> _logger;
+    private readonly ILoggerFactory? _loggerFactory;
 
     // 供窗口层复用同一 logger（弹窗 lambda 容错记录）
     public ILogger Logger => _logger;
@@ -165,6 +169,12 @@ public partial class MainViewModel : ViewModelBase
     // 目录选择对话框：用于导入 SecureCRT 会话目录，返回所选文件夹路径（取消 = null）
     public Func<Task<string?>>? PickFolderDialogAsync { get; set; }
 
+    // 打开 Konsole 配色方案文件对话框
+    public Func<Task<string?>>? PickKonsoleFileDialogAsync { get; set; }
+
+    // 打开 Terminal Profile 调色预览窗口委托
+    public Func<TerminalProfile?, Task<TerminalProfile?>>? OpenTerminalProfileEditDialogAsync { get; set; }
+
     // 提示通知/消息弹窗委托：参数为（标题, 内容）
     public Func<string, string, Task>? ShowNotificationAsync { get; set; }
 
@@ -178,15 +188,21 @@ public partial class MainViewModel : ViewModelBase
         IVaultSecretStore vaultSecretStore,
         ISettingsService settingsService,
         ISshSessionFactory sshFactory,
-        ILogger<MainViewModel>? logger = null)
+        IExternalEditorRepository? editorRepo = null,
+        Services.ProfileManagerService? profileManager = null,
+        ILogger<MainViewModel>? logger = null,
+        ILoggerFactory? loggerFactory = null)
     {
         _treeRepo = treeRepo;
         _identityRepo = identityRepo;
+        _editorRepo = editorRepo;
+        _profileManager = profileManager;
         _vault = vault;
         _vaultSecretStore = vaultSecretStore;
         _settingsService = settingsService;
         _sshFactory = sshFactory;
         _logger = logger ?? NullLogger<MainViewModel>.Instance;
+        _loggerFactory = loggerFactory;
 
         // 标签集合变化时同步 HasTabs，控制标签条显隐
         Tabs.CollectionChanged += (_, _) => HasTabs = Tabs.Count > 0;
@@ -216,8 +232,28 @@ public partial class MainViewModel : ViewModelBase
 
     public async Task InitializeAsync()
     {
+        var settings = _settingsService.Current;
+
+        // 初始化连接管理器显隐状态
+        IsSessionManagerVisible = settings.SessionManagerVisibilityMode switch
+        {
+            PanelVisibilityMode.AlwaysVisible => true,
+            PanelVisibilityMode.AlwaysHidden => false,
+            PanelVisibilityMode.RememberLastState => settings.LastSessionManagerVisible,
+            _ => true
+        };
+
+        // 初始化撰写栏显隐状态
+        IsComposeBarVisible = settings.ComposeBarVisibilityMode switch
+        {
+            PanelVisibilityMode.AlwaysVisible => true,
+            PanelVisibilityMode.AlwaysHidden => false,
+            PanelVisibilityMode.RememberLastState => settings.LastComposeBarVisible,
+            _ => false
+        };
+
         // 同步配置中的标签栏停靠位置（Top/Bottom）
-        if (Enum.TryParse<TabPlacement>(_settingsService.Current.TabPlacement, true, out var placement))
+        if (Enum.TryParse<TabPlacement>(settings.TabPlacement, true, out var placement))
         {
             TabPlacement = placement;
         }
@@ -728,6 +764,33 @@ public partial class MainViewModel : ViewModelBase
         }
     });
 
+    [RelayCommand]
+    private Task ImportKonsoleAsync() => Safe.RunAsync(_logger, "导入 Konsole 配色方案", async () =>
+    {
+        if (PickKonsoleFileDialogAsync == null || OpenTerminalProfileEditDialogAsync == null) return;
+        var filePath = await PickKonsoleFileDialogAsync();
+        if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath)) return;
+
+        var content = await File.ReadAllTextAsync(filePath);
+        var defaultName = Path.GetFileNameWithoutExtension(filePath);
+        var parsed = Kei.Term.Core.Services.KonsoleColorSchemeParser.Parse(content, defaultName);
+
+        var confirmed = await OpenTerminalProfileEditDialogAsync(parsed);
+        if (confirmed != null)
+        {
+            var profileManager = _profileManager ?? new Services.ProfileManagerService(_settingsService);
+            profileManager.AddCustomTerminalProfile(confirmed);
+            await profileManager.SaveProfilesAsync();
+
+            if (ShowNotificationAsync != null)
+            {
+                await ShowNotificationAsync(
+                    Strings.Get("TerminalProfileEdit.Title"),
+                    Strings.Get("Settings.Appearance.BundleImportSuccess"));
+            }
+        }
+    });
+
     // 快速连接善后：按用户输入解析配置 → 可选保存会话 → 接入统一认证管线
     public Task ConnectQuickAsync(string host, int port, string? username, string? password, bool saveAsSession)
         => Safe.RunAsync(_logger, "快速连接善后", () => ConnectQuickCoreAsync(host, port, username, password, saveAsSession));
@@ -808,6 +871,11 @@ public partial class MainViewModel : ViewModelBase
     private void ToggleSessionManager()
     {
         IsSessionManagerVisible = !IsSessionManagerVisible;
+        if (_settingsService.Current.SessionManagerVisibilityMode == PanelVisibilityMode.RememberLastState)
+        {
+            _settingsService.Current.LastSessionManagerVisible = IsSessionManagerVisible;
+            _ = _settingsService.SaveSettingsAsync(_settingsService.Current);
+        }
     }
 
     [RelayCommand]
@@ -1396,6 +1464,30 @@ public partial class MainViewModel : ViewModelBase
             {
                 _logger.LogInformation("SSH 会话连接成功 host={Host}:{Port}", resolved.Host, resolved.Port);
                 tab.MarkConnected();
+
+                // 异步预准备并挂载文件管理器
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        var fs = await _sshFactory.CreateFileSystemAsync(resolved, materialized, session);
+                        var trackerLogger = _loggerFactory?.CreateLogger<LocalFileTracker>() ?? (_logger as ILogger);
+                        var tracker = new LocalFileTracker(
+                            cacheBaseDirectory: _settingsService.Current.FileTransfer.CacheDirectory,
+                            mode: _settingsService.Current.FileTransfer.WatcherMode,
+                            pollingIntervalSeconds: _settingsService.Current.FileTransfer.PollingIntervalSeconds,
+                            writeDebounceMilliseconds: _settingsService.Current.FileTransfer.WriteDebounceMilliseconds,
+                            logger: trackerLogger);
+                        var rfmLogger = _loggerFactory?.CreateLogger<RemoteFileManagerViewModel>() ?? (_logger as ILogger);
+                        var launcherLogger = _loggerFactory?.CreateLogger<FileEditorLauncher>() ?? (_logger as ILogger);
+                        await tab.InitializeFileManagerAsync(fs, tracker, _settingsService, _editorRepo, launcherLogger ?? rfmLogger);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "初始化远程文件系统侧栏失败");
+                    }
+                });
+
                 return;
             }
 
@@ -1580,6 +1672,20 @@ public partial class MainViewModel : ViewModelBase
     private void ToggleComposeBar()
     {
         IsComposeBarVisible = !IsComposeBarVisible;
+        if (_settingsService.Current.ComposeBarVisibilityMode == PanelVisibilityMode.RememberLastState)
+        {
+            _settingsService.Current.LastComposeBarVisible = IsComposeBarVisible;
+            _ = _settingsService.SaveSettingsAsync(_settingsService.Current);
+        }
+    }
+
+    [RelayCommand]
+    private void ToggleFileManager()
+    {
+        if (SelectedTab != null)
+        {
+            SelectedTab.ToggleFileManager();
+        }
     }
 
     [RelayCommand]

@@ -1,5 +1,107 @@
 <Styles xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:converters="using:Avalonia.Controls.Converters">
+
+    <Styles.Resources>
+        <ControlTheme x:Key="KeiTreeViewItem" TargetType="TreeViewItem">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}"/>
+            <Setter Property="MinHeight" Value="{DynamicResource Kei.Tree.ItemHeight}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <StackPanel>
+                        <Border Name="PART_LayoutRoot"
+                                Classes="TreeViewItemLayoutRoot"
+                                Focusable="True"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="{DynamicResource Kei.Radius.Control}"
+                                MinHeight="{TemplateBinding MinHeight}"
+                                Padding="2,1"
+                                TemplatedControl.IsTemplateFocusTarget="True">
+                            <Grid Name="PART_Header">
+                                <Grid.Margin>
+                                    <MultiBinding Converter="{x:Static converters:TreeViewItemIndentConverter.Instance}">
+                                        <Binding Path="Level" RelativeSource="{RelativeSource TemplatedParent}"/>
+                                        <DynamicResource ResourceKey="Kei.Tree.Indent"/>
+                                    </MultiBinding>
+                                </Grid.Margin>
+                                <!-- 水平分支引导线：与父级垂直对齐线相交 -->
+                                <Rectangle Height="1"
+                                           Width="6"
+                                           HorizontalAlignment="Left"
+                                           VerticalAlignment="Center"
+                                           Margin="-6,0,0,0"
+                                           Fill="{DynamicResource Kei.Tree.Line}"
+                                           IsHitTestVisible="False"/>
+                                <Grid ColumnDefinitions="Auto, *">
+                                    <Panel Name="PART_ExpandCollapseChevronContainer" Margin="4,0,4,0">
+                                        <ToggleButton Name="PART_ExpandCollapseChevron"
+                                                      Theme="{StaticResource FluentTreeViewExpandCollapseChevron}"
+                                                      Focusable="False"
+                                                      IsChecked="{TemplateBinding IsExpanded, Mode=TwoWay}"/>
+                                    </Panel>
+                                    <ContentPresenter Name="PART_HeaderPresenter"
+                                                      Grid.Column="1"
+                                                      Focusable="False"
+                                                      Background="Transparent"
+                                                      Content="{TemplateBinding Header}"
+                                                      ContentTemplate="{TemplateBinding HeaderTemplate}"
+                                                      HorizontalAlignment="{TemplateBinding HorizontalAlignment}"
+                                                      VerticalAlignment="{TemplateBinding VerticalAlignment}"
+                                                      Margin="{TemplateBinding Padding}"/>
+                                </Grid>
+                            </Grid>
+                        </Border>
+                        <Grid IsVisible="{TemplateBinding IsExpanded}">
+                            <Rectangle Width="1"
+                                       HorizontalAlignment="Left"
+                                       Fill="{DynamicResource Kei.Tree.Line}"
+                                       IsHitTestVisible="False">
+                                <Rectangle.Margin>
+                                    <MultiBinding Converter="{x:Static converters:TreeViewItemIndentConverter.Instance}">
+                                        <Binding Path="Level" RelativeSource="{RelativeSource TemplatedParent}"/>
+                                        <DynamicResource ResourceKey="Kei.Tree.Indent"/>
+                                    </MultiBinding>
+                                </Rectangle.Margin>
+                                <Rectangle.RenderTransform>
+                                    <TranslateTransform X="10"/>
+                                </Rectangle.RenderTransform>
+                            </Rectangle>
+                            <ItemsPresenter Name="PART_ItemsPresenter"
+                                            ItemsPanel="{TemplateBinding ItemsPanel}"/>
+                        </Grid>
+                    </StackPanel>
+                </ControlTemplate>
+            </Setter>
+
+            <!-- 交互状态定义 -->
+            <Style Selector="^ /template/ Border#PART_LayoutRoot:pointerover">
+                <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}"/>
+            </Style>
+            <Style Selector="^:selected /template/ Border#PART_LayoutRoot">
+                <Setter Property="Background" Value="{DynamicResource Kei.Bg.Pressed}"/>
+            </Style>
+            <Style Selector="^:selected:focus /template/ Border#PART_LayoutRoot">
+                <Setter Property="Background" Value="{DynamicResource Kei.Bg.Pressed}"/>
+            </Style>
+            <Style Selector="^:selected:pointerover /template/ Border#PART_LayoutRoot">
+                <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}"/>
+            </Style>
+
+            <!-- 空节点时隐藏箭头，但保留占位宽度，对齐层级 -->
+            <Style Selector="^:empty /template/ ToggleButton#PART_ExpandCollapseChevron">
+                <Setter Property="IsVisible" Value="False"/>
+            </Style>
+            <Style Selector="^:empty /template/ Panel#PART_ExpandCollapseChevronContainer">
+                <Setter Property="Width" Value="12"/>
+            </Style>
+        </ControlTheme>
+    </Styles.Resources>
 
     <!-- Kei 桌面工具紧凑控件外观样式（基于 FluentTheme，覆盖紧凑度、小圆角与沉稳边框） -->
 
@@ -151,27 +253,8 @@
         <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}"/>
     </Style>
 
-    <!-- 会话树与目录树：紧凑高密度样式（支持通过 Kei.Tree.* 动态设置调节尺寸） -->
     <Style Selector="TreeViewItem">
-        <Setter Property="MinHeight" Value="{DynamicResource Kei.Tree.ItemHeight}"/>
-        <Setter Property="Padding" Value="0"/>
-    </Style>
-    <Style Selector="TreeViewItem /template/ Border#PART_LayoutRoot">
-        <Setter Property="MinHeight" Value="{DynamicResource Kei.Tree.ItemHeight}"/>
-        <Setter Property="Padding" Value="2,1"/>
-        <Setter Property="CornerRadius" Value="{DynamicResource Kei.Radius.Control}"/>
-    </Style>
-    <Style Selector="TreeViewItem:pointerover /template/ Border#PART_LayoutRoot">
-        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}"/>
-    </Style>
-    <Style Selector="TreeViewItem:selected /template/ Border#PART_LayoutRoot">
-        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Pressed}"/>
-    </Style>
-    <Style Selector="TreeViewItem:selected:focus /template/ Border#PART_LayoutRoot">
-        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Pressed}"/>
-    </Style>
-    <Style Selector="TreeViewItem:selected:pointerover /template/ Border#PART_LayoutRoot">
-        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}"/>
+        <Setter Property="Theme" Value="{StaticResource KeiTreeViewItem}"/>
     </Style>
 
     <!-- 标签关闭按钮 -->

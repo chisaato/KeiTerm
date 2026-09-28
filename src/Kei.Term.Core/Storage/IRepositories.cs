@@ -20,3 +20,15 @@ public interface IIdentityRepository
     Task SaveAsync(Identity identity, CancellationToken ct = default);
     Task DeleteAsync(Guid id, CancellationToken ct = default);
 }
+
+public interface IExternalEditorRepository
+{
+    Task<IReadOnlyList<ExternalEditor>> GetAllEditorsAsync(CancellationToken ct = default);
+    Task<ExternalEditor?> GetEditorByIdAsync(Guid id, CancellationToken ct = default);
+    Task SaveEditorAsync(ExternalEditor editor, CancellationToken ct = default);
+    Task DeleteEditorAsync(Guid id, CancellationToken ct = default);
+
+    Task<IReadOnlyList<FileAssociationRule>> GetAllAssociationsAsync(CancellationToken ct = default);
+    Task SaveAssociationAsync(FileAssociationRule association, CancellationToken ct = default);
+    Task DeleteAssociationAsync(Guid id, CancellationToken ct = default);
+}

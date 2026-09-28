@@ -1,0 +1,38 @@
+<h2>UI 与交互设计细节 (Section 2)</h2>
+<p class="subtitle">平铺工作台组件拆解与用户交互规范</p>
+
+<div style="display: flex; gap: 16px; margin-top: 16px;">
+  <!-- Left: Component Hierarchy -->
+  <div style="flex: 1; background: #18181b; border: 1px solid #27272a; border-radius: 8px; padding: 14px; font-size: 12px; font-family: monospace;">
+    <div style="color: #38bdf8; font-weight: bold; margin-bottom: 8px;">📦 RemoteFileManagerView 结构</div>
+    <div style="background: #09090b; padding: 10px; border-radius: 6px; color: #a1a1aa; line-height: 1.6;">
+      ├── <b>顶部工具栏 (Header Bar)</b><br/>
+      │   ├── 路径导航 (Breadcrumb / PathInput)<br/>
+      │   ├── 快捷操作 (上一级 ⬆, 刷新 ↻, 新建文件夹 ➕)<br/>
+      │   ├── 显示隐藏文件 (.* 切换)<br/>
+      │   └── <b>升格按钮 (↗ 在新标签页打开)</b><br/>
+      ├── <b>文件列表区 (File List View)</b><br/>
+      │   ├── 虚拟化列表 (DataGrid/TreeDataGrid)<br/>
+      │   ├── 悬浮与选中样式 (遵循 compact dark 主题)<br/>
+      │   ├── <b>拖拽上传目标区 (Drag & Drop Target)</b><br/>
+      │   └── 右键菜单 (下载, 重命名, 删除, 权限, 复制路径)<br/>
+      └── <b>传输状态栏 (Transfer Status Bar)</b><br/>
+          ├── 进度条与速度显示 (↑ 450 KB/s · 剩余 12s)<br/>
+          └── 队列详情抽屉 (展开查看完成/失败任务)
+    </div>
+  </div>
+
+  <!-- Right: Key Behaviors -->
+  <div style="flex: 1; background: #18181b; border: 1px solid #27272a; border-radius: 8px; padding: 14px; font-size: 12px;">
+    <div style="color: #22c55e; font-weight: bold; margin-bottom: 8px;">🎯 核心交互亮点</div>
+    <ul style="padding-left: 16px; margin: 0; color: #d4d4d8; line-height: 1.8;">
+      <li><b>终端与侧栏平滑联动</b>：点击终端右上角折叠按钮，侧栏展开/收起，<code>TerminalControl</code> 自动响应列数重计算，无黑边和闪烁。</li>
+      <li><b>零障碍拖拽上传</b>：直接把操作系统中的文件/文件夹拖进侧栏列表，自动触发当前工作路径的上传。</li>
+      <li><b>双击直觉操作</b>：
+        <br/>- 双击文件夹：平滑进入子目录；
+        <br/>- 双击文件：自动下载至系统安全临时目录并用操作系统默认程序打开（支持查看/只读或修改回写预留）。
+      </li>
+      <li><b>一键升格独立 Tab</b>：点击 <code>↗</code> 图标，侧栏立即在主窗口新增一个全屏 <code>FileManagerTab</code>，侧栏收起，方便大文件密集对比与整理。</li>
+    </ul>
+  </div>
+</div>

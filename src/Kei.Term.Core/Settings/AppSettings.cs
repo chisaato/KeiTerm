@@ -1,7 +1,24 @@
 namespace Kei.Term.Core.Settings;
 
+using Kei.Term.Core.Models;
+
+public enum PanelVisibilityMode
+{
+    AlwaysVisible = 0,
+    AlwaysHidden = 1,
+    RememberLastState = 2
+}
+
 public class AppSettings
 {
+    // 连接管理器显示模式与最后状态
+    public PanelVisibilityMode SessionManagerVisibilityMode { get; set; } = PanelVisibilityMode.RememberLastState;
+    public bool LastSessionManagerVisible { get; set; } = true;
+
+    // 撰写栏显示模式与最后状态
+    public PanelVisibilityMode ComposeBarVisibilityMode { get; set; } = PanelVisibilityMode.RememberLastState;
+    public bool LastComposeBarVisible { get; set; } = false;
+
     // 终端外观设置（FontFamily 必须是单一字体族名，TerminalControl 不支持逗号候选列表）
     public string FontFamily { get; set; } = "JetBrainsMono Nerd Font Mono";
     public double FontSize { get; set; } = 14.0;
@@ -67,6 +84,30 @@ public class AppSettings
     // 选中的 GUI 配色 Profile ID 与终端配色 Profile ID
     public string? ActiveGuiProfileId { get; set; }
     public string? ActiveTerminalProfileId { get; set; }
+
+    // 文件传输与本地缓存设置
+    public FileTransferSettings FileTransfer { get; set; } = new();
+}
+
+public class FileTransferSettings
+{
+    // 本地缓存基目录，为空时默认使用应用标准缓存路径
+    public string CacheDirectory { get; set; } = string.Empty;
+
+    // 文件变更监视模式（默认智能 Auto）
+    public FileWatcherMode WatcherMode { get; set; } = FileWatcherMode.Auto;
+
+    // 轮询检测周期（秒）
+    public int PollingIntervalSeconds { get; set; } = 3;
+
+    // 文件写入防抖与等待时间（毫秒）
+    public int WriteDebounceMilliseconds { get; set; } = 800;
+
+    // 自定义外部编辑器路径（为空则使用系统默认关联程序，如 xdg-open）
+    public string CustomEditorPath { get; set; } = string.Empty;
+
+    // 文件管理侧栏停靠位置（false: 停靠在右侧，true: 停靠在左侧）
+    public bool IsFileManagerOnLeft { get; set; } = false;
 }
 
 public interface ISettingsService

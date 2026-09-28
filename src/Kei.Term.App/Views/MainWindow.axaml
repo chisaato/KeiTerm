@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Kei.Term.App.ViewModels"
+        xmlns:views="using:Kei.Term.App.Views"
         xmlns:models="using:Kei.Term.Core.Models"
         xmlns:conv="using:Kei.Term.App.Converters"
         xmlns:loc="using:Kei.Term.App.Helpers"
@@ -23,6 +24,7 @@
         <StreamGeometry x:Key="Icon.Disconnect">M6,2 L6,5 M10,2 L10,5 M4,5 L12,5 L12,8 A4,4 0 0 1 4,8 Z M8,12 L8,14.5 M2.5,2.5 L13.5,13.5</StreamGeometry>
         <StreamGeometry x:Key="Icon.Key">M3,11 A3,3 0 1 0 8.5,8.5 L14,3 L15,4 L12.5,6.5 L14.5,8.5</StreamGeometry>
         <StreamGeometry x:Key="Icon.Settings">M2.5,4.5 L13.5,4.5 M2.5,8 L13.5,8 M2.5,11.5 L13.5,11.5 M5,4.5 A1.5,1.5 0 1 0 8,4.5 A1.5,1.5 0 1 0 5,4.5 M9,8 A1.5,1.5 0 1 0 12,8 A1.5,1.5 0 1 0 9,8 M4,11.5 A1.5,1.5 0 1 0 7,11.5 A1.5,1.5 0 1 0 4,11.5</StreamGeometry>
+        <StreamGeometry x:Key="Icon.FileManager">M2,3.5 L6.5,3.5 L8,5.5 L14,5.5 L14,13.5 L2,13.5 Z M2,7 L14,7</StreamGeometry>
         <StreamGeometry x:Key="Icon.Compose">M2,5 L14,5 L14,11 L2,11 Z M4,8 L8,8 M10,8 L12,8</StreamGeometry>
         <StreamGeometry x:Key="Icon.PanelRight">M5,3.5 L9.5,8 L5,12.5 M9.5,3.5 L14,8 L9.5,12.5</StreamGeometry>
 
@@ -43,37 +45,36 @@
     </Window.Resources>
 
     <Window.Styles>
-        <!-- 侧栏树：统一由基类 TreeNodeBase 绑定 IsExpanded，消除子类型强转与样式冲突 -->
-        <Style Selector="TreeViewItem" x:DataType="models:TreeNodeBase">
+        <!-- 侧栏树：统一由基类 TreeNodeBase 绑定 IsExpanded，消除子类型强转与样式冲突。
+             注意：必须用 .sessionTree 限定作用域，否则会级联命中文件管理面板的 TreeViewItem，
+             导致其 RemoteDirectoryNodeViewModel 被强转为 TreeNodeBase 而抛绑定异常。 -->
+        <Style Selector=".sessionTree TreeViewItem" x:DataType="models:TreeNodeBase">
             <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
-            <Setter Property="MinHeight" Value="22"/>
-            <Setter Property="Padding" Value="0"/>
         </Style>
 
-        <Style Selector="TreeViewItem /template/ Border#PART_LayoutRoot">
-            <Setter Property="MinHeight" Value="22"/>
+        <Style Selector=".sessionTree TreeViewItem /template/ Border#PART_LayoutRoot">
             <Setter Property="Padding" Value="2,1"/>
         </Style>
 
         <!-- 拖拽悬停视觉反馈样式：合法目标微亮强调 + 亮蓝左边线，禁止目标微红警示 -->
-        <Style Selector="TreeViewItem.drop-target-valid /template/ Border#PART_LayoutRoot">
+        <Style Selector=".sessionTree TreeViewItem.drop-target-valid /template/ Border#PART_LayoutRoot">
             <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource Kei.Accent}"/>
             <Setter Property="BorderThickness" Value="2,0,0,0"/>
         </Style>
-        <Style Selector="TreeViewItem.drop-target-valid">
+        <Style Selector=".sessionTree TreeViewItem.drop-target-valid">
             <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource Kei.Accent}"/>
             <Setter Property="BorderThickness" Value="2,0,0,0"/>
         </Style>
-        <Style Selector="TreeViewItem.drop-target-invalid /template/ Border#PART_LayoutRoot">
+        <Style Selector=".sessionTree TreeViewItem.drop-target-invalid /template/ Border#PART_LayoutRoot">
             <Setter Property="Background" Value="#33E53935"/>
         </Style>
-        <Style Selector="TreeViewItem.drop-target-invalid">
+        <Style Selector=".sessionTree TreeViewItem.drop-target-invalid">
             <Setter Property="Background" Value="#33E53935"/>
         </Style>
 
-        <!-- 控件外观类样式（iconBtn/tabItem/closeBtn）已迁至 Themes/KeiClassicCompat.axaml，
+        <!-- 控件外观类样式（iconBtn/tabItem/closeBtn）已迁至 Themes/KeiControls.axaml，
              仅 KeiClassic 档挂载，使 Semi/Material 档可由第三方库模板接管。 -->
     </Window.Styles>
 
@@ -97,6 +98,7 @@
                 <MenuItem Header="{loc:KeiString Menu.File.QuickConnect}" Command="{Binding QuickConnectCommand}" InputGesture="Ctrl+Q"/>
                 <Separator/>
                 <MenuItem Header="{loc:KeiString Menu.File.ImportSecureCrt}" Command="{Binding ImportSecureCrtCommand}"/>
+                <MenuItem Header="{loc:KeiString Menu.File.ImportKonsole}" Command="{Binding ImportKonsoleCommand}"/>
                 <Separator/>
                 <MenuItem Header="{loc:KeiString Menu.File.Connect}" Command="{Binding ConnectSelectedSessionCommand}"/>
                 <MenuItem Header="{loc:KeiString Menu.File.DisconnectTab}" Command="{Binding DisconnectCurrentTabCommand}"/>
@@ -181,15 +183,10 @@
                            Margin="8,0"
                            TextTrimming="CharacterEllipsis"/>
 
-                <!-- 视图控制区（撰写栏、会话管理器显隐） -->
+                <!-- 视图控制区（文件管理） -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
-                    <Button Classes="iconBtn" ToolTip.Tip="{loc:KeiString Main.Compose.ToggleTip}" Command="{Binding ToggleComposeBarCommand}">
-                        <Path Data="{StaticResource Icon.Compose}" Width="16" Height="16" Stretch="Uniform"
-                              Stroke="{DynamicResource Kei.Text.Secondary}" StrokeThickness="1.6"
-                              StrokeJoin="Round" StrokeLineCap="Round"/>
-                    </Button>
-                    <Button Classes="iconBtn" ToolTip.Tip="{loc:KeiString Main.SessionManager.ToggleTip}" Command="{Binding ToggleSessionManagerCommand}">
-                        <Path Data="{StaticResource Icon.PanelRight}" Width="16" Height="16" Stretch="Uniform"
+                    <Button Classes="iconBtn" ToolTip.Tip="切换文件管理侧栏" Command="{Binding ToggleFileManagerCommand}">
+                        <Path Data="{StaticResource Icon.FileManager}" Width="16" Height="16" Stretch="Uniform"
                               Stroke="{DynamicResource Kei.Text.Secondary}" StrokeThickness="1.6"
                               StrokeJoin="Round" StrokeLineCap="Round"/>
                     </Button>
@@ -275,6 +272,7 @@
                     <!-- Row2 目录树 + 空树引导态 -->
                     <Grid Grid.Row="2">
                         <TreeView x:Name="SessionTree"
+                                  Classes="sessionTree"
                                   ItemsSource="{Binding TreeNodes}"
                                   SelectedItem="{Binding SelectedTreeNode}"
                                   DoubleTapped="Tree_DoubleTapped"
@@ -426,9 +424,53 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate DataType="vm:TerminalTabViewModel">
-                                <ContentControl Content="{Binding Terminal}"
-                                                Background="{DynamicResource Kei.Bg.Window}"
-                                                IsVisible="{Binding IsSelected}"/>
+                                <Grid IsVisible="{Binding IsSelected}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition>
+                                            <ColumnDefinition.Width>
+                                                <MultiBinding Converter="{x:Static conv:FileManagerColumnWidthConverter.Instance}" ConverterParameter="Left">
+                                                    <Binding Path="IsFileManagerVisible"/>
+                                                    <Binding Path="IsFileManagerOnLeft"/>
+                                                </MultiBinding>
+                                            </ColumnDefinition.Width>
+                                        </ColumnDefinition>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition>
+                                            <ColumnDefinition.Width>
+                                                <MultiBinding Converter="{x:Static conv:FileManagerColumnWidthConverter.Instance}" ConverterParameter="Right">
+                                                    <Binding Path="IsFileManagerVisible"/>
+                                                    <Binding Path="IsFileManagerOnLeft"/>
+                                                </MultiBinding>
+                                            </ColumnDefinition.Width>
+                                        </ColumnDefinition>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- 终端控件：根据 IsFileManagerOnLeft 动态停靠在 Column 0 或 Column 2 -->
+                                    <ContentControl Grid.Column="{Binding IsFileManagerOnLeft, Converter={x:Static conv:FileManagerDockConverter.Instance}, ConverterParameter=Terminal}"
+                                                    Content="{Binding Terminal}"
+                                                    Background="{DynamicResource Kei.Bg.Window}">
+                                        <ContentControl.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="复制 (Copy)" Command="{Binding CopySelectionCommand}"/>
+                                                <MenuItem Header="粘贴 (Paste)" Command="{Binding PasteToTerminalCommand}"/>
+                                                <Separator/>
+                                                <MenuItem Header="全选 (Select All)" Command="{Binding SelectAllTerminalTextCommand}"/>
+                                                <MenuItem Header="清屏 (Clear)" Command="{Binding ClearTerminalScreenCommand}"/>
+                                            </ContextMenu>
+                                        </ContentControl.ContextMenu>
+                                    </ContentControl>
+
+                                    <!-- 分割条：固定在 Column 1，仅在文件管理器侧栏展开时呈现 -->
+                                    <GridSplitter Grid.Column="1" Width="4"
+                                                  Background="{DynamicResource Kei.Bg.PanelAlt}"
+                                                  ResizeDirection="Columns"
+                                                  IsVisible="{Binding IsFileManagerVisible}"/>
+
+                                    <!-- 文件管理器侧栏视图：根据 IsFileManagerOnLeft 动态停靠在 Column 0 或 Column 2 -->
+                                    <views:RemoteFileManagerView Grid.Column="{Binding $parent[Grid].((vm:TerminalTabViewModel)DataContext).IsFileManagerOnLeft, Converter={x:Static conv:FileManagerDockConverter.Instance}, ConverterParameter=FileManager}"
+                                                                 DataContext="{Binding FileManager}"
+                                                                 IsVisible="{Binding $parent[Grid].((vm:TerminalTabViewModel)DataContext).IsFileManagerVisible}"/>
+                                </Grid>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>

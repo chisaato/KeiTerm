@@ -1,0 +1,150 @@
+<h2>SFTP / SCP 文件管理器：UI 布局与交互形态对比</h2>
+<p class="subtitle">这是 <code>superpowers:brainstorming</code> 的 Visual Companion 功能。请在下方对比两种侧栏交互布局方案，您可以点击选项卡片或直接在终端中回复。</p>
+
+<div class="options">
+  <div class="option" data-choice="docked-sidebar">
+    <div class="option-header">
+      <span class="badge">方案 A（推荐）</span>
+      <h3>内嵌式平铺侧栏 (Docked Split Sidebar)</h3>
+    </div>
+    <p>与终端窗口共享空间，通过中间的 <code>GridSplitter</code> 自由拖拽调节宽度。侧栏展开时终端自动响应 <code>Resize</code> 调整字符列数。适合宽屏、习惯边敲命令边看文件目录的场景。</p>
+    
+    <!-- Wireframe Preview A -->
+    <div style="background: #18181b; border: 1px solid #27272a; border-radius: 8px; overflow: hidden; margin-top: 12px; font-family: monospace; font-size: 12px;">
+      <!-- Window Title Bar -->
+      <div style="background: #09090b; padding: 6px 12px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #27272a;">
+        <div style="display: flex; gap: 6px; align-items: center;">
+          <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#ef4444;"></span>
+          <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#eab308;"></span>
+          <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#22c55e;"></span>
+          <span style="margin-left: 10px; color: #a1a1aa; font-size: 11px;">KeiTerm - root@ubuntu-server: ~</span>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <span style="background: #27272a; color: #a1a1aa; padding: 2px 6px; border-radius: 4px; font-size: 10px;">SFTP [Auto: Subsystem]</span>
+        </div>
+      </div>
+      
+      <!-- Body: Split -->
+      <div style="display: flex; height: 260px;">
+        <!-- Terminal Pane (Left) -->
+        <div style="flex: 1.2; background: #0f0f11; padding: 10px; color: #38bdf8; overflow: hidden; border-right: 2px solid #3b82f6;">
+          <div style="color: #4ade80;">root@ubuntu-server:~# <span style="color: #f4f4f5;">ls -la</span></div>
+          <div style="color: #94a3b8; font-size: 11px; line-height: 1.5; margin-top: 4px;">
+            total 28<br/>
+            drwxr-xr-x 4 root root 4096 Sep 28 10:15 .<br/>
+            -rw-r--r-- 1 root root  220 Jan  7  2023 .bashrc<br/>
+            -rw-r--r-- 1 root root 8192 Sep 28 10:12 app.log
+          </div>
+          <div style="color: #4ade80; margin-top: 6px;">root@ubuntu-server:~# <span style="display:inline-block; width:7px; height:13px; background:#4ade80; vertical-align:text-bottom;"></span></div>
+        </div>
+
+        <!-- Splitter Handle -->
+        <div style="width: 4px; background: #27272a; cursor: col-resize;"></div>
+
+        <!-- Sidebar Pane (Right) -->
+        <div style="flex: 1; background: #131316; display: flex; flex-direction: column;">
+          <!-- Sidebar Header -->
+          <div style="background: #1c1c21; padding: 6px 8px; border-bottom: 1px solid #27272a; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 4px; color: #e4e4e7; font-weight: 600; font-size: 11px;">
+              <span>📁 文件管理 (SFTP)</span>
+            </div>
+            <div style="display: flex; gap: 6px;">
+              <span title="在独立标签页打开" style="cursor:pointer; background:#27272a; color:#38bdf8; padding:2px 6px; border-radius:4px; font-size:10px;">↗ 独立Tab</span>
+              <span title="刷新" style="cursor:pointer; background:#27272a; color:#a1a1aa; padding:2px 6px; border-radius:4px; font-size:10px;">↻</span>
+              <span title="收起侧栏" style="cursor:pointer; background:#27272a; color:#a1a1aa; padding:2px 6px; border-radius:4px; font-size:10px;">✕</span>
+            </div>
+          </div>
+          
+          <!-- Path Navigation Bar -->
+          <div style="padding: 4px 8px; background: #18181b; border-bottom: 1px solid #27272a; display: flex; align-items: center; gap: 4px;">
+            <span style="color:#71717a; font-size:10px;">路径:</span>
+            <span style="color:#e4e4e7; background:#09090b; padding:2px 6px; border-radius:3px; flex:1; font-size:10px; border:1px solid #27272a;">/root</span>
+            <span style="color:#a1a1aa; font-size:10px; cursor:pointer;">⬆</span>
+          </div>
+
+          <!-- File List -->
+          <div style="flex: 1; padding: 6px; overflow-y: auto; color: #d4d4d8; font-size: 11px;">
+            <div style="display:flex; justify-content:space-between; padding:3px 4px; border-radius:3px; background:#27272a;">
+              <span>📁 .config</span><span style="color:#71717a;">dir</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding:3px 4px;">
+              <span>📄 app.log</span><span style="color:#71717a;">8.0 KB</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding:3px 4px;">
+              <span>⚙️ config.yaml</span><span style="color:#71717a;">1.2 KB</span>
+            </div>
+          </div>
+
+          <!-- Mini Transfer Bar -->
+          <div style="background: #09090b; padding: 4px 8px; border-top: 1px solid #27272a; font-size: 10px; display: flex; justify-content: space-between; align-items: center;">
+            <span style="color: #22c55e;">↓ app.log (85% · 1.4 MB/s)</span>
+            <span style="color: #a1a1aa;">队列: 1</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="overlay-drawer">
+    <div class="option-header">
+      <span class="badge">方案 B</span>
+      <h3>浮层抽屉式侧栏 (Overlay Drawer)</h3>
+    </div>
+    <p>点击右上角图标后，侧栏作为浮层滑出，<strong>悬浮盖在终端右侧部分区域</strong>，点击终端空白处或按 Esc 即可自动隐去。终端列数完全不受影响，适合窗口较窄或笔记本屏幕。</p>
+    
+    <!-- Wireframe Preview B -->
+    <div style="background: #18181b; border: 1px solid #27272a; border-radius: 8px; overflow: hidden; margin-top: 12px; font-family: monospace; font-size: 12px; position: relative;">
+      <!-- Window Title Bar -->
+      <div style="background: #09090b; padding: 6px 12px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #27272a;">
+        <div style="display: flex; gap: 6px; align-items: center;">
+          <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#ef4444;"></span>
+          <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#eab308;"></span>
+          <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#22c55e;"></span>
+          <span style="margin-left: 10px; color: #a1a1aa; font-size: 11px;">KeiTerm (终端保持 120 列不变)</span>
+        </div>
+        <div>
+          <span style="background: #3b82f6; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; cursor: pointer;">📂 文件抽屉 [开启]</span>
+        </div>
+      </div>
+
+      <!-- Body: Full Terminal with Drawer on top -->
+      <div style="height: 260px; position: relative; background: #0f0f11;">
+        <!-- Full Terminal Background -->
+        <div style="padding: 10px; color: #38bdf8; width: 100%; height: 100%;">
+          <div style="color: #4ade80;">root@ubuntu-server:~# <span style="color: #f4f4f5;">top -b -n 1 | head -n 12</span></div>
+          <div style="color: #71717a; font-size: 11px; margin-top: 4px;">
+            top - 10:20:01 up 2 days, 1 user, load average: 0.05, 0.03, 0.00<br/>
+            Tasks: 112 total, 1 running, 111 sleeping...<br/>
+            %Cpu(s): 1.2 us, 0.8 sy, 0.0 ni, 97.8 id...
+          </div>
+        </div>
+
+        <!-- Overlay Drawer Floating on Right -->
+        <div style="position: absolute; right: 0; top: 0; bottom: 0; width: 280px; background: rgba(24, 24, 27, 0.96); backdrop-filter: blur(8px); border-left: 1px solid #3f3f46; box-shadow: -6px 0 20px rgba(0,0,0,0.5); display: flex; flex-direction: column;">
+          <div style="background: #1c1c21; padding: 6px 8px; border-bottom: 1px solid #27272a; display: flex; justify-content: space-between; align-items: center;">
+            <span style="color: #e4e4e7; font-weight: 600; font-size: 11px;">📁 SFTP (浮层模式)</span>
+            <div style="display:flex; gap:6px;">
+              <span style="background:#27272a; color:#38bdf8; padding:2px 6px; border-radius:4px; font-size:10px;">↗ 独立Tab</span>
+              <span style="color:#a1a1aa; cursor:pointer;">✕</span>
+            </div>
+          </div>
+          <div style="padding: 6px 8px; flex: 1; color: #d4d4d8; font-size: 11px;">
+            <div style="color: #94a3b8; margin-bottom: 6px;">/var/www/html</div>
+            <div>📁 assets/</div>
+            <div>📄 index.html</div>
+            <div>📄 favicon.ico</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top: 24px; padding: 12px; background: #1e1e24; border-left: 4px solid #38bdf8; border-radius: 4px;">
+  <strong>💡 核心交互共性：</strong>
+  <ul style="margin: 6px 0 0 16px; padding: 0; color: #a1a1aa; font-size: 13px;">
+    <li>两种方案都包含右上角 <code style="color: #38bdf8;">↗ 独立Tab</code> 按钮，任何时刻点击都会在新标签页中完整展开。</li>
+    <li>支持直接从本地文件管理器把文件拖进该文件树区域进行上传。</li>
+    <li>底部均配有轻量的传输进度与状态条。</li>
+  </ul>
+</div>

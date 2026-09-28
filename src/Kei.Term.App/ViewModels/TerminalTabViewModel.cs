@@ -4,13 +4,19 @@ using System;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia.Controls;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using RoyalTerminal.Avalonia.Controls;
 using Kei.Term.App.Helpers;
 using Kei.Term.App.Terminals;
+using Kei.Term.Core.Abstractions;
+using Kei.Term.Core.Services;
+using Kei.Term.Core.Settings;
+using Kei.Term.Core.Storage;
 using Kei.Term.Ssh.Abstractions;
 
 public enum ConnectionState
@@ -64,6 +70,17 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
     [ObservableProperty]
     private bool _isSelected;
 
+    // 文件管理侧栏显隐控制
+    [ObservableProperty]
+    private bool _isFileManagerVisible;
+
+    // 文件管理侧栏停靠在左侧（false 为右侧，true 为左侧）
+    [ObservableProperty]
+    private bool _isFileManagerOnLeft;
+
+    [ObservableProperty]
+    private RemoteFileManagerViewModel? _fileManager;
+
     public TerminalControl Terminal { get; }
 
     private ISshSession? _session;
@@ -92,6 +109,45 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         Terminal.SizeChanged += OnTerminalSizeChanged;
     }
 
+    [RelayCommand]
+    public async Task CopySelectionAsync()
+    {
+        try
+        {
+            await Terminal.CopySelectionAsync();
+        }
+        catch { }
+    }
+
+    [RelayCommand]
+    public async Task PasteToTerminalAsync()
+    {
+        try
+        {
+            await Terminal.PasteAsync();
+        }
+        catch { }
+    }
+
+    [RelayCommand]
+    public void SelectAllTerminalText()
+    {
+        try
+        {
+            Terminal.SelectAll();
+        }
+        catch { }
+    }
+
+    [RelayCommand]
+    public async Task ClearTerminalScreenAsync()
+    {
+        if (_session != null && _session.IsConnected)
+        {
+            await _session.SendInputAsync(Encoding.UTF8.GetBytes("clear\r"));
+        }
+    }
+
     private void OnTerminalLoaded(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         TrySyncTerminalSize();
@@ -105,7 +161,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
     // 尝试同步终端尺寸至后台 SSH 会话
     public void TrySyncTerminalSize()
     {
-        if (Terminal.Bounds.Width > 0 && Terminal.Bounds.Height > 0 && Terminal.Columns > 0 && Terminal.Rows > 0)
+        if (Terminal.Bounds.Width > 0 && Terminal.Bounds.Height > 0)
         {
             _endpoint?.SetSize((int)Terminal.Bounds.Width, (int)Terminal.Bounds.Height);
         }
@@ -214,7 +270,53 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         }
     }
 
-    // 主动断开：释放端点与会话，标签保留并置为已断开状态
+    [RelayCommand]
+    public void ToggleFileManager()
+    {
+        IsFileManagerVisible = !IsFileManagerVisible;
+        Dispatcher.UIThread.Post(() => TrySyncTerminalSize(), DispatcherPriority.Render);
+    }
+
+    public async Task InitializeFileManagerAsync(
+        IRemoteFileSystem fileSystem,
+        ILocalFileTracker fileTracker,
+        ISettingsService? settingsService = null,
+        IExternalEditorRepository? editorRepo = null,
+        ILogger? logger = null)
+    {
+        if (_session == null) return;
+        var vm = new RemoteFileManagerViewModel(_session.SessionId, fileSystem, fileTracker, settingsService, editorRepo, logger ?? _logger);
+        vm.CloseRequested += () =>
+        {
+            IsFileManagerVisible = false;
+            Dispatcher.UIThread.Post(() => TrySyncTerminalSize(), DispatcherPriority.Render);
+        };
+        vm.ToggleDockPositionRequested += () =>
+        {
+            ToggleDockPosition();
+        };
+
+        if (settingsService != null)
+        {
+            IsFileManagerOnLeft = settingsService.Current.FileTransfer.IsFileManagerOnLeft;
+            vm.IsOnLeft = IsFileManagerOnLeft;
+        }
+
+        await vm.InitializeAsync();
+        FileManager = vm;
+    }
+
+    [RelayCommand]
+    public void ToggleDockPosition()
+    {
+        IsFileManagerOnLeft = !IsFileManagerOnLeft;
+        if (FileManager != null)
+        {
+            FileManager.IsOnLeft = IsFileManagerOnLeft;
+        }
+        Dispatcher.UIThread.Post(() => TrySyncTerminalSize(), DispatcherPriority.Render);
+    }
+
     public async Task DisconnectAsync()
     {
         await DisposeAsync();

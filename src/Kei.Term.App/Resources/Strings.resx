@@ -609,6 +609,47 @@
     <value>导入配置文件失败：{0}</value>
   </data>
 
+  <!-- 终端调色板与配色方案编辑/导入 -->
+  <data name="TerminalProfileEdit.Title" xml:space="preserve">
+    <value>终端主题与配色方案</value>
+  </data>
+  <data name="TerminalProfileEdit.Name" xml:space="preserve">
+    <value>主题名称</value>
+  </data>
+  <data name="TerminalProfileEdit.BaseColors" xml:space="preserve">
+    <value>基础色配置</value>
+  </data>
+  <data name="TerminalProfileEdit.Background" xml:space="preserve">
+    <value>背景</value>
+  </data>
+  <data name="TerminalProfileEdit.Foreground" xml:space="preserve">
+    <value>前景</value>
+  </data>
+  <data name="TerminalProfileEdit.Cursor" xml:space="preserve">
+    <value>光标</value>
+  </data>
+  <data name="TerminalProfileEdit.Selection" xml:space="preserve">
+    <value>选区</value>
+  </data>
+  <data name="TerminalProfileEdit.NormalAnsi" xml:space="preserve">
+    <value>ANSI 标准色 (Normal 0-7)</value>
+  </data>
+  <data name="TerminalProfileEdit.BrightAnsi" xml:space="preserve">
+    <value>ANSI 高亮色 (Bright 8-15)</value>
+  </data>
+  <data name="Settings.Appearance.NewTerminalProfile" xml:space="preserve">
+    <value>新建...</value>
+  </data>
+  <data name="Settings.Appearance.EditTerminalProfile" xml:space="preserve">
+    <value>编辑 / 调色...</value>
+  </data>
+  <data name="Settings.Appearance.ImportKonsoleScheme" xml:space="preserve">
+    <value>从 Konsole 导入...</value>
+  </data>
+  <data name="Menu.File.ImportKonsole" xml:space="preserve">
+    <value>导入 Konsole 配色方案 (*.colorscheme)...</value>
+  </data>
+
   <!-- Settings: Terminal -->
   <data name="Settings.Terminal.ScrollbackSection" xml:space="preserve">
     <value>回滚缓冲</value>

@@ -132,6 +132,21 @@
                                         </ComboBox>
                                     </Grid>
 
+                                    <!-- 面板显示模式 (连接管理器 / 撰写栏) -->
+                                    <TextBlock Text="界面面板初始显隐" FontSize="13" FontWeight="Bold" Margin="0,10,0,0"
+                                               Foreground="{DynamicResource Kei.Session.Foreground}"/>
+                                    <Grid ColumnDefinitions="150, *" RowDefinitions="Auto, Auto" RowSpacing="10" ColumnSpacing="12">
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="连接管理器模式" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                        <ComboBox Grid.Row="0" Grid.Column="1" MinWidth="260" HorizontalAlignment="Left"
+                                                  ItemsSource="{Binding VisibilityModes}" SelectedItem="{Binding SelectedSessionManagerMode}"/>
+
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="撰写栏模式" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                        <ComboBox Grid.Row="1" Grid.Column="1" MinWidth="260" HorizontalAlignment="Left"
+                                                  ItemsSource="{Binding VisibilityModes}" SelectedItem="{Binding SelectedComposeBarMode}"/>
+                                    </Grid>
+
                                     <TextBlock Text="{loc:KeiString Settings.General.DataDirectory}" FontSize="13" FontWeight="Bold" Margin="0,10,0,0"
                                                Foreground="{DynamicResource Kei.Session.Foreground}"/>
                                     <Grid ColumnDefinitions="*, Auto" ColumnSpacing="10">
@@ -309,16 +324,27 @@
                                           DataContext="{Binding Appearance}">
                                         <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString Settings.Appearance.TerminalProfile}" VerticalAlignment="Center"
                                                    Foreground="{DynamicResource Kei.Text.Secondary}"/>
-                                        <ComboBox Grid.Row="0" Grid.Column="1" HorizontalAlignment="Left" MinWidth="220"
-                                                  ItemsSource="{Binding TerminalProfiles}"
-                                                  SelectedItem="{Binding SelectedTerminalProfile}"
-                                                  ToolTip.Tip="{loc:KeiString Settings.Appearance.TerminalProfileTip}">
-                                            <ComboBox.ItemTemplate>
-                                                <DataTemplate>
-                                                    <TextBlock Text="{Binding Name}"/>
-                                                </DataTemplate>
-                                            </ComboBox.ItemTemplate>
-                                        </ComboBox>
+                                        <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                                            <ComboBox HorizontalAlignment="Left" MinWidth="180"
+                                                      ItemsSource="{Binding TerminalProfiles}"
+                                                      SelectedItem="{Binding SelectedTerminalProfile}"
+                                                      ToolTip.Tip="{loc:KeiString Settings.Appearance.TerminalProfileTip}">
+                                                <ComboBox.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock Text="{Binding Name}"/>
+                                                    </DataTemplate>
+                                                </ComboBox.ItemTemplate>
+                                            </ComboBox>
+                                            <Button Content="{loc:KeiString Settings.Appearance.EditTerminalProfile}"
+                                                    Command="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).EditTerminalProfileCommand}"
+                                                    Height="28" Padding="8,0" VerticalContentAlignment="Center"/>
+                                            <Button Content="{loc:KeiString Settings.Appearance.NewTerminalProfile}"
+                                                    Command="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).NewTerminalProfileCommand}"
+                                                    Height="28" Padding="8,0" VerticalContentAlignment="Center"/>
+                                            <Button Content="{loc:KeiString Settings.Appearance.ImportKonsoleScheme}"
+                                                    Command="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).ImportKonsoleSchemeCommand}"
+                                                    Height="28" Padding="8,0" VerticalContentAlignment="Center"/>
+                                        </StackPanel>
 
                                         <TextBlock Grid.Row="1" Grid.Column="0" Text="{loc:KeiString Settings.Appearance.FontFamily}" VerticalAlignment="Center"
                                                    Foreground="{DynamicResource Kei.Text.Secondary}"/>
@@ -490,6 +516,113 @@
                                                  PlaceholderText="{loc:KeiString Settings.Ssh.CustomAgentPathPlaceholder}"
                                                  ToolTip.Tip="{loc:KeiString Settings.Ssh.CustomAgentPathTip}"/>
                                     </Grid>
+                                </StackPanel>
+                            </DataTemplate>
+
+                            <!-- 文件传输与外部编辑器页 -->
+                            <DataTemplate DataType="settings:FileTransferSettingsPage"
+                                          x:DataType="settings:FileTransferSettingsPage">
+                                <StackPanel MaxWidth="580" HorizontalAlignment="Left" Spacing="16">
+                                    <!-- 传输基础设置 -->
+                                    <TextBlock Text="文件传输与缓存" FontSize="13" FontWeight="Bold"
+                                               Foreground="{DynamicResource Kei.Session.Foreground}"/>
+                                    <Grid ColumnDefinitions="150, *" RowDefinitions="Auto, Auto" RowSpacing="10" ColumnSpacing="12">
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="本地缓存目录" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                        <Grid Grid.Row="0" Grid.Column="1" ColumnDefinitions="*, Auto" ColumnSpacing="8">
+                                            <TextBox Text="{Binding CacheDirectory}" PlaceholderText="留空使用应用标准缓存目录"/>
+                                            <Button Grid.Column="1" Content="清空缓存" Command="{Binding ClearCacheDirectoryCommand}"/>
+                                        </Grid>
+
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="文件变动监视模式" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                        <ComboBox Grid.Row="1" Grid.Column="1" MinWidth="220" HorizontalAlignment="Left"
+                                                  ItemsSource="{Binding WatcherModes}" SelectedItem="{Binding SelectedWatcherMode}"/>
+                                    </Grid>
+
+                                    <!-- 外部编辑器管理 -->
+                                    <TextBlock Text="外部编辑器配置" FontSize="13" FontWeight="Bold" Margin="0,10,0,0"
+                                               Foreground="{DynamicResource Kei.Session.Foreground}"/>
+                                    <Border Background="{DynamicResource Kei.Bg.PanelAlt}" BorderBrush="{DynamicResource Kei.Border}" BorderThickness="1" CornerRadius="4" Padding="10">
+                                        <StackPanel Spacing="10">
+                                            <ListBox ItemsSource="{Binding Editors}" SelectedItem="{Binding SelectedEditor}" MaxHeight="140" Background="Transparent">
+                                                <ListBox.ItemTemplate>
+                                                    <DataTemplate x:DataType="settings:ExternalEditorItemViewModel">
+                                                        <Grid ColumnDefinitions="*, Auto, Auto">
+                                                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12"/>
+                                                                <TextBlock Text="{Binding DisplayPath}" FontSize="11" Foreground="{DynamicResource Kei.Text.Muted}"/>
+                                                            </StackPanel>
+                                                            <Border Grid.Column="1" Background="{DynamicResource Kei.Accent}" CornerRadius="3" Padding="4,1" Margin="6,0" IsVisible="{Binding IsDefault}">
+                                                                <TextBlock Text="默认" FontSize="9.5" Foreground="White"/>
+                                                            </Border>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ListBox.ItemTemplate>
+                                            </ListBox>
+
+                                            <!-- 编辑器表单 -->
+                                            <Grid ColumnDefinitions="Auto, *, Auto, *, Auto" RowDefinitions="Auto, Auto" RowSpacing="6" ColumnSpacing="8">
+                                                <TextBlock Grid.Row="0" Grid.Column="0" Text="名称" VerticalAlignment="Center" FontSize="11.5"/>
+                                                <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding EditingEditorName}" PlaceholderText="如 VS Code"/>
+
+                                                <TextBlock Grid.Row="0" Grid.Column="2" Text="操作系统" VerticalAlignment="Center" FontSize="11.5"/>
+                                                <ComboBox Grid.Row="0" Grid.Column="3" ItemsSource="{Binding SupportedOsList}" SelectedItem="{Binding EditingEditorOs}"/>
+
+                                                <CheckBox Grid.Row="0" Grid.Column="4" Content="设为默认" IsChecked="{Binding EditingEditorIsDefault}"/>
+
+                                                <TextBlock Grid.Row="1" Grid.Column="0" Text="命令/路径" VerticalAlignment="Center" FontSize="11.5"/>
+                                                <TextBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" Text="{Binding EditingEditorPath}" PlaceholderText="如 code、/usr/bin/subl"/>
+
+                                                <StackPanel Grid.Row="1" Grid.Column="4" Orientation="Horizontal" Spacing="4">
+                                                    <Button Content="保存" Classes="save" Command="{Binding AddOrUpdateEditorCommand}"/>
+                                                    <Button Content="删除" Command="{Binding DeleteSelectedEditorCommand}"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- 文件类型关联规则 -->
+                                    <TextBlock Text="文件类型关联规则" FontSize="13" FontWeight="Bold" Margin="0,10,0,0"
+                                               Foreground="{DynamicResource Kei.Session.Foreground}"/>
+                                    <Border Background="{DynamicResource Kei.Bg.PanelAlt}" BorderBrush="{DynamicResource Kei.Border}" BorderThickness="1" CornerRadius="4" Padding="10">
+                                        <StackPanel Spacing="10">
+                                            <ListBox ItemsSource="{Binding Associations}" SelectedItem="{Binding SelectedAssociation}" MaxHeight="140" Background="Transparent">
+                                                <ListBox.ItemTemplate>
+                                                    <DataTemplate x:DataType="settings:FileAssociationItemViewModel">
+                                                        <Grid ColumnDefinitions="*, *, Auto">
+                                                            <TextBlock Grid.Column="0" Text="{Binding Pattern}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                                                            <TextBlock Grid.Column="1" Text="{Binding EditorName, StringFormat='→ {0}'}" FontSize="11.5" Foreground="{DynamicResource Kei.Text.Secondary}" VerticalAlignment="Center"/>
+                                                            <TextBlock Grid.Column="2" Text="{Binding Priority, StringFormat='优先级: {0}'}" FontSize="10.5" Foreground="{DynamicResource Kei.Text.Muted}" VerticalAlignment="Center"/>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ListBox.ItemTemplate>
+                                            </ListBox>
+
+                                            <!-- 关联规则表单 -->
+                                            <Grid ColumnDefinitions="Auto, *, Auto, *, Auto, Auto, Auto" RowSpacing="6" ColumnSpacing="8">
+                                                <TextBlock Grid.Column="0" Text="扩展名/模式" VerticalAlignment="Center" FontSize="11.5"/>
+                                                <TextBox Grid.Column="1" Text="{Binding EditingAssocPattern}" PlaceholderText="如 *.py;*.json、*.log"/>
+
+                                                <TextBlock Grid.Column="2" Text="关联编辑器" VerticalAlignment="Center" FontSize="11.5"/>
+                                                <ComboBox Grid.Column="3" ItemsSource="{Binding Editors}" SelectedItem="{Binding EditingAssocSelectedEditor}">
+                                                    <ComboBox.ItemTemplate>
+                                                        <DataTemplate x:DataType="settings:ExternalEditorItemViewModel">
+                                                            <TextBlock Text="{Binding Name}"/>
+                                                        </DataTemplate>
+                                                    </ComboBox.ItemTemplate>
+                                                </ComboBox>
+
+                                                <TextBlock Grid.Column="4" Text="优先级" VerticalAlignment="Center" FontSize="11.5"/>
+                                                <NumericUpDown Grid.Column="5" Value="{Binding EditingAssocPriority}" Width="70" FormatString="0"/>
+
+                                                <StackPanel Grid.Column="6" Orientation="Horizontal" Spacing="4">
+                                                    <Button Content="保存" Classes="save" Command="{Binding AddOrUpdateAssociationCommand}"/>
+                                                    <Button Content="删除" Command="{Binding DeleteSelectedAssociationCommand}"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
                                 </StackPanel>
                             </DataTemplate>
 

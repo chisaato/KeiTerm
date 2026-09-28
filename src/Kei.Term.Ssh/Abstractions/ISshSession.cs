@@ -14,6 +14,9 @@ public interface ISshSession : IAsyncDisposable
     Task ConnectAsync(CancellationToken ct = default);
     Task SendInputAsync(ReadOnlyMemory<byte> data, CancellationToken ct = default);
     Task ResizeTerminalAsync(int columns, int rows, int widthPx, int heightPx, CancellationToken ct = default);
+
+    // 获取底层 SshClient，供 Subsystem 多路复用通道使用
+    object? UnderlyingClient { get; }
 }
 
 public interface ISshSessionFactory
@@ -25,5 +28,13 @@ public interface ISshSessionFactory
         IReadOnlyList<MaterializedAuthMethod> methods,
         TimeSpan? connectTimeout = null,
         Func<string, Task<string?>>? interactivePrompt = null,
+        CancellationToken ct = default);
+
+    // 根据配置与认证材料构建 SFTP / SCP 远程文件系统实例
+    Task<IRemoteFileSystem> CreateFileSystemAsync(
+        ResolvedSessionConfig config,
+        IReadOnlyList<MaterializedAuthMethod> methods,
+        ISshSession? activeSession = null,
+        TimeSpan? connectTimeout = null,
         CancellationToken ct = default);
 }

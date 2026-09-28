@@ -115,6 +115,23 @@ public class SqliteTreeRepository : ITreeRepository
             await alter.ExecuteNonQueryAsync(ct);
         }
 
+        // 4.2 幂等补列：file_transfer_protocol 与 sftp_mode
+        if (await TableExistsAsync(conn, "session_details", ct))
+        {
+            if (!await ColumnExistsAsync(conn, "session_details", "file_transfer_protocol", ct))
+            {
+                var alter = conn.CreateCommand();
+                alter.CommandText = "ALTER TABLE session_details ADD COLUMN file_transfer_protocol INTEGER NOT NULL DEFAULT 0;";
+                await alter.ExecuteNonQueryAsync(ct);
+            }
+            if (!await ColumnExistsAsync(conn, "session_details", "sftp_mode", ct))
+            {
+                var alter = conn.CreateCommand();
+                alter.CommandText = "ALTER TABLE session_details ADD COLUMN sftp_mode INTEGER NOT NULL DEFAULT 0;";
+                await alter.ExecuteNonQueryAsync(ct);
+            }
+        }
+
         // 5. 迁移：目录组配置继承已废弃，旧 folder_configs 表直接清除
         var dropCmd = conn.CreateCommand();
         dropCmd.CommandText = "DROP TABLE IF EXISTS folder_configs;";
@@ -136,6 +153,8 @@ public class SqliteTreeRepository : ITreeRepository
                 jump_host_id TEXT,
                 env_vars_json TEXT,
                 terminal_profile_id TEXT,
+                file_transfer_protocol INTEGER NOT NULL DEFAULT 0,
+                sftp_mode INTEGER NOT NULL DEFAULT 0,
                 FOREIGN KEY(node_id) REFERENCES tree_nodes(id) ON DELETE CASCADE,
                 FOREIGN KEY(identity_id) REFERENCES identities(id) ON DELETE SET NULL
             );
@@ -285,7 +304,7 @@ public class SqliteTreeRepository : ITreeRepository
             SELECT t.id, t.parent_id, t.node_type, t.name, t.description, t.sort_order, t.created_at, t.updated_at,
                    t.protocol, t.is_expanded,
                    s.host, s.port, s.username, s.identity_id, s.terminal_type, s.startup_script, s.jump_host_id, s.env_vars_json,
-                   s.terminal_profile_id
+                   s.terminal_profile_id, s.file_transfer_protocol, s.sftp_mode
             FROM tree_nodes t
             LEFT JOIN session_details s ON t.id = s.node_id
             ORDER BY t.node_type ASC, t.sort_order ASC, t.name COLLATE NOCASE ASC;
@@ -346,7 +365,9 @@ public class SqliteTreeRepository : ITreeRepository
                     JumpHostSessionId = reader.IsDBNull(16) ? null : Guid.Parse(reader.GetString(16)),
                     Protocol = protocol,
                     EnvironmentVariables = envVars,
-                    TerminalProfileId = reader.IsDBNull(18) ? null : reader.GetString(18)
+                    TerminalProfileId = reader.IsDBNull(18) ? null : reader.GetString(18),
+                    FileTransferProtocol = reader.IsDBNull(19) ? FileTransferProtocol.Sftp : (FileTransferProtocol)reader.GetInt32(19),
+                    SftpMode = reader.IsDBNull(20) ? SftpChannelMode.Auto : (SftpChannelMode)reader.GetInt32(20)
                 };
                 list.Add(session);
             }
@@ -398,8 +419,8 @@ public class SqliteTreeRepository : ITreeRepository
             var sCmd = conn.CreateCommand();
             sCmd.Transaction = tx;
             sCmd.CommandText = @"
-                INSERT INTO session_details (node_id, host, port, username, identity_id, terminal_type, startup_script, jump_host_id, env_vars_json, terminal_profile_id)
-                VALUES ($nodeId, $host, $port, $username, $identityId, $terminalType, $startupScript, $jumpHostId, $envJson, $terminalProfileId)
+                INSERT INTO session_details (node_id, host, port, username, identity_id, terminal_type, startup_script, jump_host_id, env_vars_json, terminal_profile_id, file_transfer_protocol, sftp_mode)
+                VALUES ($nodeId, $host, $port, $username, $identityId, $terminalType, $startupScript, $jumpHostId, $envJson, $terminalProfileId, $fileTransferProtocol, $sftpMode)
                 ON CONFLICT(node_id) DO UPDATE SET
                     host = $host,
                     port = $port,
@@ -409,7 +430,9 @@ public class SqliteTreeRepository : ITreeRepository
                     startup_script = $startupScript,
                     jump_host_id = $jumpHostId,
                     env_vars_json = $envJson,
-                    terminal_profile_id = $terminalProfileId;
+                    terminal_profile_id = $terminalProfileId,
+                    file_transfer_protocol = $fileTransferProtocol,
+                    sftp_mode = $sftpMode;
             ";
             sCmd.Parameters.AddWithValue("$nodeId", session.Id.ToString());
             sCmd.Parameters.AddWithValue("$host", session.Host);
@@ -421,6 +444,8 @@ public class SqliteTreeRepository : ITreeRepository
             sCmd.Parameters.AddWithValue("$jumpHostId", (object?)session.JumpHostSessionId?.ToString() ?? DBNull.Value);
             sCmd.Parameters.AddWithValue("$envJson", JsonSerializer.Serialize(session.EnvironmentVariables));
             sCmd.Parameters.AddWithValue("$terminalProfileId", (object?)session.TerminalProfileId ?? DBNull.Value);
+            sCmd.Parameters.AddWithValue("$fileTransferProtocol", (int)session.FileTransferProtocol);
+            sCmd.Parameters.AddWithValue("$sftpMode", (int)session.SftpMode);
             await sCmd.ExecuteNonQueryAsync(ct);
         }
 

@@ -132,6 +132,72 @@ public class SshSessionFactory : ISshSessionFactory
         var session = new SshNetSession(config.SessionId, connectionInfo, config.TerminalType, _logger);
         return Task.FromResult<ISshSession>(session);
     }
+
+    public Task<IRemoteFileSystem> CreateFileSystemAsync(
+        ResolvedSessionConfig config,
+        IReadOnlyList<MaterializedAuthMethod> methods,
+        ISshSession? activeSession = null,
+        TimeSpan? connectTimeout = null,
+        CancellationToken ct = default)
+    {
+        var authMethods = new List<AuthenticationMethod>();
+        foreach (var material in methods ?? [])
+        {
+            switch (material.Kind)
+            {
+                case AuthMaterialKind.Password:
+                    if (!string.IsNullOrEmpty(material.Secret?.Password))
+                    {
+                        authMethods.Add(new PasswordAuthenticationMethod(config.Username, material.Secret.Password));
+                    }
+                    break;
+
+                case AuthMaterialKind.PrivateKey:
+                    if (!string.IsNullOrEmpty(material.Secret?.PrivateKeyContent))
+                    {
+                        using var keyStream = new MemoryStream(Encoding.UTF8.GetBytes(material.Secret.PrivateKeyContent));
+                        var keyFile = string.IsNullOrEmpty(material.Secret.Passphrase)
+                            ? new PrivateKeyFile(keyStream)
+                            : new PrivateKeyFile(keyStream, material.Secret.Passphrase);
+                        authMethods.Add(new PrivateKeyAuthenticationMethod(config.Username, keyFile));
+                    }
+                    break;
+
+                case AuthMaterialKind.Agent:
+                    try
+                    {
+                        var agent = new SshAgent();
+                        var identities = agent.RequestIdentities();
+                        if (identities.Any())
+                        {
+                            authMethods.Add(new PrivateKeyAuthenticationMethod(config.Username, identities.ToArray()));
+                        }
+                    }
+                    catch
+                    {
+                        // ignore
+                    }
+                    break;
+            }
+        }
+
+        var connectionInfo = new ConnectionInfo(config.Host, config.Port, config.Username, authMethods.ToArray())
+        {
+            Timeout = connectTimeout ?? TimeSpan.FromSeconds(15)
+        };
+
+        IRemoteFileSystem fileSystem;
+        if (config.FileTransferProtocol == FileTransferProtocol.Scp)
+        {
+            fileSystem = new ScpRemoteFileSystem(connectionInfo, _logger);
+        }
+        else
+        {
+            fileSystem = new SftpRemoteFileSystem(connectionInfo, config.SftpMode, activeSession, _logger);
+        }
+
+        return Task.FromResult(fileSystem);
+    }
 }
 
 public class SshNetSession : ISshSession
@@ -147,6 +213,9 @@ public class SshNetSession : ISshSession
     private int _disposed;
 
     public Guid SessionId { get; }
+
+    // 获取底层 SshClient，供 Subsystem 多路复用通道使用
+    public object? UnderlyingClient => _client;
 
     // 已释放后直接返回 false，避免 getter 访问已释放的 SshClient 抛 ObjectDisposedException
     public bool IsConnected => _disposed != 0 ? false : _client.IsConnected && _shellStream != null;

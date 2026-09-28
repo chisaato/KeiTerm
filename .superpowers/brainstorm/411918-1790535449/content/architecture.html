@@ -1,0 +1,28 @@
+<h2>架构设计：协议与分层抽象 (Section 1)</h2>
+<p class="subtitle">现代化平铺分栏设计（Wave / Warp 风格）与底层分层抽象</p>
+
+<div style="background: #18181b; border: 1px solid #27272a; border-radius: 8px; padding: 16px; font-family: monospace; font-size: 13px; color: #e4e4e7;">
+  <div style="font-weight: bold; color: #38bdf8; margin-bottom: 8px;">分层架构与模块关系：</div>
+  <pre style="background: #09090b; padding: 12px; border-radius: 6px; line-height: 1.6; color: #a1a1aa;">
+┌────────────────────────────────────────────────────────┐
+│  <b>Kei.Term.App (UI & 交互层)</b>                             │
+│  - RemoteFileManagerView (独立通用文件管理器控件)       │
+│  - TerminalTabView (平铺 Splitter 伴随侧栏 + 独立 Tab) │
+│  - SessionEditWindow (持久化传输协议与模式配置)       │
+└──────────────────────────┬─────────────────────────────┘
+                           │ 依赖注入
+┌──────────────────────────▼─────────────────────────────┐
+│  <b>Kei.Term.Core (业务抽象与纯数据模型)</b>                   │
+│  - IRemoteFileSystem (目录浏览、文件元数据、CRUD 流操作) │
+│  - FileTransferTask / ITransferManager (后台传输队列)    │
+│  - FileTransferSettings (Auto / Subsystem / Dedicated) │
+└──────────────────────────┬─────────────────────────────┘
+                           │ 接口实现
+┌──────────────────────────▼─────────────────────────────┐
+│  <b>Kei.Term.Ssh (SSH / SFTP / SCP 具体实现)</b>              │
+│  - SftpRemoteFileSystem (基于 SSH.NET SftpClient)      │
+│  - ScpRemoteFileSystem (基于 SSH.NET ScpClient)       │
+│  - SshConnectionMultiplexer (Subsystem 通道复用与降级) │
+└────────────────────────────────────────────────────────┘
+  </pre>
+</div>

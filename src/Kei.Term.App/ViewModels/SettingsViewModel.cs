@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Kei.Term.App.Helpers;
 using Kei.Term.App.ViewModels.Settings;
+using Kei.Term.Core.Models;
 using Kei.Term.Core.Models.Profiles;
 using Kei.Term.Core.Settings;
 using Kei.Term.Core.Storage;
@@ -19,6 +22,7 @@ public partial class SettingsViewModel : ViewModelBase
     private readonly AppearanceSettingsPage _appearance;
     private readonly TerminalSettingsPage _terminal;
     private readonly SshSettingsPage _ssh;
+    private readonly FileTransferSettingsPage _fileTransfer;
 
     // 左侧分类树数据源
     public IReadOnlyList<SettingsCategoryItem> Categories { get; }
@@ -33,6 +37,8 @@ public partial class SettingsViewModel : ViewModelBase
     // 弹窗与选择器委托（由 SettingsWindow 注入）
     public Func<Task<string?>>? SaveBundleFileDialogAsync { get; set; }
     public Func<Task<string?>>? OpenBundleFileDialogAsync { get; set; }
+    public Func<Task<string?>>? OpenKonsoleFileDialogAsync { get; set; }
+    public Func<TerminalProfile?, Task<TerminalProfile?>>? OpenTerminalProfileEditDialogAsync { get; set; }
     public Func<string, string, Task>? ShowNotificationAsync { get; set; }
 
     private readonly Services.ProfileManagerService _profileManager;
@@ -42,7 +48,12 @@ public partial class SettingsViewModel : ViewModelBase
     private GuiProfile? _initialGuiProfile;
 
     // dataDirectory / identityRepo 带默认值，保证并行车道的既有调用点在合入前也能编译
-    public SettingsViewModel(ISettingsService settingsService, string dataDirectory = "", IIdentityRepository? identityRepo = null, Services.ProfileManagerService? profileManager = null)
+    public SettingsViewModel(
+        ISettingsService settingsService,
+        string dataDirectory = "",
+        IIdentityRepository? identityRepo = null,
+        Services.ProfileManagerService? profileManager = null,
+        IExternalEditorRepository? editorRepo = null)
     {
         _settingsService = settingsService;
         _profileManager = profileManager ?? new Services.ProfileManagerService(settingsService, dataDirectory);
@@ -50,6 +61,7 @@ public partial class SettingsViewModel : ViewModelBase
         _appearance = new AppearanceSettingsPage();
         _terminal = new TerminalSettingsPage();
         _ssh = new SshSettingsPage(identityRepo);
+        _fileTransfer = new FileTransferSettingsPage(editorRepo);
 
         Categories = new[]
         {
@@ -83,6 +95,11 @@ public partial class SettingsViewModel : ViewModelBase
                 Strings.Get("Settings.Categories.SshDesc"),
                 _ssh,
                 SettingsIcons.Ssh),
+            new SettingsCategoryItem(
+                "文件传输",
+                "传输缓存、变动监视与外部编辑器关联",
+                _fileTransfer,
+                SettingsIcons.FileTransfer),
         };
         SelectedCategory = Categories[0];
 
@@ -95,6 +112,21 @@ public partial class SettingsViewModel : ViewModelBase
         var current = _settingsService.Current;
         _general.ConfirmBeforeClose = current.ConfirmBeforeClose;
         _general.SetTreeSortMode(current.TreeSortMode);
+        _fileTransfer.CacheDirectory = current.FileTransfer.CacheDirectory;
+        _fileTransfer.SelectedWatcherMode = current.FileTransfer.WatcherMode.ToString();
+        _ = _fileTransfer.ReloadAsync();
+        _general.SelectedSessionManagerMode = current.SessionManagerVisibilityMode switch
+        {
+            PanelVisibilityMode.AlwaysVisible => "常开 (Always Visible)",
+            PanelVisibilityMode.AlwaysHidden => "常关 (Always Hidden)",
+            _ => "保持上次状态 (Remember Last)"
+        };
+        _general.SelectedComposeBarMode = current.ComposeBarVisibilityMode switch
+        {
+            PanelVisibilityMode.AlwaysVisible => "常开 (Always Visible)",
+            PanelVisibilityMode.AlwaysHidden => "常关 (Always Hidden)",
+            _ => "保持上次状态 (Remember Last)"
+        };
 
         _appearance.SetTheme(current.UiTheme);
         _appearance.SetControlLibrary(current.ControlLibraryTheme);
@@ -187,6 +219,26 @@ public partial class SettingsViewModel : ViewModelBase
             // 常规
             ConfirmBeforeClose = _general.ConfirmBeforeClose,
             TreeSortMode = _general.SelectedTreeSort?.Mode ?? "AsciiFirst",
+            SessionManagerVisibilityMode = _general.SelectedSessionManagerMode switch
+            {
+                "常开 (Always Visible)" => PanelVisibilityMode.AlwaysVisible,
+                "常关 (Always Hidden)" => PanelVisibilityMode.AlwaysHidden,
+                _ => PanelVisibilityMode.RememberLastState
+            },
+            LastSessionManagerVisible = _settingsService.Current.LastSessionManagerVisible,
+            ComposeBarVisibilityMode = _general.SelectedComposeBarMode switch
+            {
+                "常开 (Always Visible)" => PanelVisibilityMode.AlwaysVisible,
+                "常关 (Always Hidden)" => PanelVisibilityMode.AlwaysHidden,
+                _ => PanelVisibilityMode.RememberLastState
+            },
+            LastComposeBarVisible = _settingsService.Current.LastComposeBarVisible,
+            FileTransfer = new FileTransferSettings
+            {
+                CacheDirectory = _fileTransfer.CacheDirectory,
+                CustomEditorPath = string.Empty,
+                WatcherMode = Enum.TryParse<FileWatcherMode>(_fileTransfer.SelectedWatcherMode, out var wm) ? wm : FileWatcherMode.Auto
+            },
 
             // 外观：主题值归一化，仅接受 Dark/System
             UiTheme = _appearance.NormalizedThemeKey,
@@ -330,5 +382,80 @@ public partial class SettingsViewModel : ViewModelBase
                     string.Format(Strings.Get("Settings.Appearance.BundleImportError"), ex.Message));
             }
         }
+    }
+
+    [RelayCommand]
+    private async Task NewTerminalProfileAsync()
+    {
+        if (OpenTerminalProfileEditDialogAsync == null) return;
+        var newProfile = await OpenTerminalProfileEditDialogAsync(new TerminalProfile { Name = "新建终端主题" });
+        if (newProfile != null)
+        {
+            _profileManager.AddCustomTerminalProfile(newProfile);
+            await _profileManager.SaveProfilesAsync();
+            RefreshTerminalProfiles(newProfile.Id);
+        }
+    }
+
+    [RelayCommand]
+    private async Task EditTerminalProfileAsync()
+    {
+        if (OpenTerminalProfileEditDialogAsync == null || _appearance.SelectedTerminalProfile == null) return;
+        var updated = await OpenTerminalProfileEditDialogAsync(_appearance.SelectedTerminalProfile);
+        if (updated != null)
+        {
+            _profileManager.AddCustomTerminalProfile(updated);
+            await _profileManager.SaveProfilesAsync();
+            RefreshTerminalProfiles(updated.Id);
+        }
+    }
+
+    [RelayCommand]
+    private async Task ImportKonsoleSchemeAsync()
+    {
+        if (OpenKonsoleFileDialogAsync == null || OpenTerminalProfileEditDialogAsync == null) return;
+        var filePath = await OpenKonsoleFileDialogAsync();
+        if (string.IsNullOrWhiteSpace(filePath) || !System.IO.File.Exists(filePath)) return;
+
+        try
+        {
+            var content = await System.IO.File.ReadAllTextAsync(filePath);
+            var defaultName = System.IO.Path.GetFileNameWithoutExtension(filePath);
+            var parsed = Kei.Term.Core.Services.KonsoleColorSchemeParser.Parse(content, defaultName);
+
+            var confirmed = await OpenTerminalProfileEditDialogAsync(parsed);
+            if (confirmed != null)
+            {
+                _profileManager.AddCustomTerminalProfile(confirmed);
+                await _profileManager.SaveProfilesAsync();
+                RefreshTerminalProfiles(confirmed.Id);
+                if (ShowNotificationAsync != null)
+                {
+                    await ShowNotificationAsync(
+                        Strings.Get("TerminalProfileEdit.Title"),
+                        Strings.Get("Settings.Appearance.BundleImportSuccess"));
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            if (ShowNotificationAsync != null)
+            {
+                await ShowNotificationAsync(
+                    Strings.Get("TerminalProfileEdit.Title"),
+                    ex.Message);
+            }
+        }
+    }
+
+    private void RefreshTerminalProfiles(string selectedId)
+    {
+        _appearance.TerminalProfiles.Clear();
+        foreach (var p in _profileManager.AllTerminalProfiles)
+        {
+            _appearance.TerminalProfiles.Add(p);
+        }
+        _appearance.SelectedTerminalProfile = _appearance.TerminalProfiles.FirstOrDefault(p => string.Equals(p.Id, selectedId, StringComparison.OrdinalIgnoreCase))
+            ?? _appearance.TerminalProfiles.FirstOrDefault();
     }
 }

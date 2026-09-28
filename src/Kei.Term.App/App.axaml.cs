@@ -44,7 +44,7 @@ public partial class App : Application
             // 日志目录与数据库/设置文件同源（同一 appDataDir 下的 logs/）
             var logDir = Path.Combine(appDataDir, "logs");
             _loggerFactory = new SimpleLoggerFactory(new RollingFileLoggerProvider(
-                new RollingFileLoggerOptions { LogDirectory = logDir }));
+                new RollingFileLoggerOptions { LogDirectory = logDir, MinimumLevel = LogLevel.Debug }));
             var logger = _loggerFactory.CreateLogger<App>();
 
             // 全局异常捕获：AsyncRelayCommand 之外的兜底取证
@@ -63,6 +63,7 @@ public partial class App : Application
             // 此时 MainWindow 若为 null，之后再赋值不会触发 Show → 进程存活但窗口永不出现。
             var treeRepo = new SqliteTreeRepository(connStr);
             var identityRepo = new SqliteIdentityRepository(connStr);
+            var editorRepo = new SqliteExternalEditorRepository(connStr);
             var vault = new InternalVaultManager(connStr, _loggerFactory.CreateLogger<InternalVaultManager>());
             var settingsPath = Path.Combine(appDataDir, "settings.json");
             var settingsService = new JsonSettingsService(settingsPath);
@@ -71,7 +72,7 @@ public partial class App : Application
 
             // 先在窗口创建前按默认 KeiClassic 挂载画刷与兼容样式，避免首帧无 Kei.* 资源；
             // 读取设置后（下方）再按实际档位幂等重挂。
-            UiThemeService.Apply(UiThemeService.KeiClassicKey);
+            UiDesignSystemService.Apply(UiDesignSystemService.KeiClassicKey);
 
             logger.LogInformation("启动步骤: 同步构造 ViewModel 与主窗口");
             var mainVm = new MainViewModel(
@@ -81,13 +82,16 @@ public partial class App : Application
                 vault,
                 settingsService,
                 sshFactory,
-                _loggerFactory.CreateLogger<MainViewModel>());
+                editorRepo,
+                profileManager,
+                _loggerFactory.CreateLogger<MainViewModel>(),
+                _loggerFactory);
             var identityMgrVm = new IdentityManagerViewModel(
                 identityRepo,
                 vault,
                 vault,
                 _loggerFactory.CreateLogger<IdentityManagerViewModel>());
-            var settingsVm = new SettingsViewModel(settingsService, appDataDir, identityRepo, profileManager);
+            var settingsVm = new SettingsViewModel(settingsService, appDataDir, identityRepo, profileManager, editorRepo);
 
             var mainWindow = new MainWindow
             {
@@ -100,6 +104,7 @@ public partial class App : Application
             // 异步初始化延后到窗口赋值之后：续体经 Dispatcher 回 UI 线程，安全
             await treeRepo.InitializeAsync();
             await identityRepo.InitializeAsync();
+            await editorRepo.InitializeAsync();
             // 明文模式恒解锁；加密模式等待首次用到材料时懒解锁（OS Keyring 为二期）
             await vault.TryAutoUnlockAsync();
             await settingsService.LoadSettingsAsync();
@@ -114,8 +119,8 @@ public partial class App : Application
                 : ThemeVariant.Dark;
 
             // 挂载 Kei 专属紧凑桌面主题与设计令牌
-            UiThemeService.Apply();
-            UiThemeService.ApplyTreeDensity(
+            UiDesignSystemService.Apply();
+            UiDesignSystemService.ApplyTreeDensity(
                 settingsService.Current.TreeItemHeight,
                 settingsService.Current.TreeFontSize,
                 settingsService.Current.TreeIconSize,

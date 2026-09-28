@@ -6,19 +6,19 @@ using Avalonia.Styling;
 
 namespace Kei.Term.App.Services;
 
-// 界面主题服务：以 FluentTheme 为基座，挂载 KeiTerm 专属紧凑桌面设计令牌与控件样式。
-public static class UiThemeService
+// 设计系统服务：以 FluentTheme 为基座，挂载 KeiTerm 专属紧凑桌面设计令牌与控件样式。
+public static class UiDesignSystemService
 {
     public const string KeiClassicKey = "KeiClassic";
     public const string KeiDarkKey = "Dark";
 
-    // KeiTerm 专属桌面令牌字典（深色工业桌面风格）
-    private static readonly ResourceDictionary ClassicBrushes = LoadDictionary("KeiBrush-KeiClassic.axaml");
+    // KeiTerm 专属桌面设计令牌字典（深色工业桌面风格）
+    private static readonly ResourceDictionary ClassicTokens = LoadDictionary("KeiTokens.axaml");
 
-    // Kei 紧凑控件外观样式（工具栏按钮、标签页、输入框、下拉框高密度微调等）
-    private static readonly Styles ClassicCompatStyles = LoadStyles("KeiClassicCompat.axaml");
+    // Kei 紧凑控件外观样式（树形结构引导线、工具栏按钮、标签页、输入框等）
+    private static readonly Styles ClassicControlStyles = LoadStyles("KeiControls.axaml");
 
-    private static ResourceDictionary? _activeBrushes;
+    private static ResourceDictionary? _activeTokens;
 
     public static void Apply(string? key = null)
     {
@@ -30,20 +30,20 @@ public static class UiThemeService
 
         var styles = app.Styles;
 
-        // 挂载 Kei 专属画刷字典
+        // 挂载 Kei 专属设计令牌字典
         var merged = app.Resources.MergedDictionaries;
-        if (_activeBrushes != null)
+        if (_activeTokens != null)
         {
-            merged.Remove(_activeBrushes);
+            merged.Remove(_activeTokens);
         }
 
-        _activeBrushes = ClassicBrushes;
-        merged.Add(_activeBrushes);
+        _activeTokens = ClassicTokens;
+        merged.Add(_activeTokens);
 
         // 挂载紧凑控件外观样式
-        if (!styles.Contains(ClassicCompatStyles))
+        if (!styles.Contains(ClassicControlStyles))
         {
-            styles.Add(ClassicCompatStyles);
+            styles.Add(ClassicControlStyles);
         }
     }
 

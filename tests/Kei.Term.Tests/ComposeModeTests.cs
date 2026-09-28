@@ -57,6 +57,14 @@ public class ComposeModeTests
             Func<string, Task<string?>>? interactivePrompt = null,
             CancellationToken ct = default)
             => throw new NotImplementedException();
+
+        public Task<Kei.Term.Core.Abstractions.IRemoteFileSystem> CreateFileSystemAsync(
+            ResolvedSessionConfig config,
+            IReadOnlyList<MaterializedAuthMethod> methods,
+            ISshSession? activeSession = null,
+            TimeSpan? connectTimeout = null,
+            CancellationToken ct = default)
+            => throw new NotImplementedException();
     }
 
     [Fact]

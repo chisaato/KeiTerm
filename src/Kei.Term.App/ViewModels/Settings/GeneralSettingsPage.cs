@@ -41,6 +41,48 @@ public partial class GeneralSettingsPage : ViewModelBase
     [ObservableProperty]
     private TreeSortOption _selectedTreeSort;
 
+    // 文件传输缓存目录与监视模式
+    [ObservableProperty]
+    private string _cacheDirectory = string.Empty;
+
+    [ObservableProperty]
+    private string _customEditorPath = string.Empty;
+
+    public IReadOnlyList<string> WatcherModes { get; } = ["Auto", "OSNative", "Polling"];
+
+    [ObservableProperty]
+    private string _selectedWatcherMode = "Auto";
+
+    // 界面与面板显隐配置 (常开/常关/保持上次)
+    public IReadOnlyList<string> VisibilityModes { get; } = ["常开 (Always Visible)", "常关 (Always Hidden)", "保持上次状态 (Remember Last)"];
+
+    [ObservableProperty]
+    private string _selectedSessionManagerMode = "保持上次状态 (Remember Last)";
+
+    [ObservableProperty]
+    private string _selectedComposeBarMode = "保持上次状态 (Remember Last)";
+
+    [RelayCommand]
+    private async Task ClearCacheDirectoryAsync()
+    {
+        if (string.IsNullOrWhiteSpace(CacheDirectory) || !Directory.Exists(CacheDirectory)) return;
+        try
+        {
+            await Task.Run(() =>
+            {
+                foreach (var dir in Directory.GetDirectories(CacheDirectory))
+                {
+                    try { Directory.Delete(dir, true); } catch { }
+                }
+                foreach (var file in Directory.GetFiles(CacheDirectory))
+                {
+                    try { File.Delete(file); } catch { }
+                }
+            });
+        }
+        catch { }
+    }
+
     public void SetTreeSortMode(string? mode)
     {
         var target = TreeSortOptions.FirstOrDefault(o => o.Mode.Equals(mode, StringComparison.OrdinalIgnoreCase))

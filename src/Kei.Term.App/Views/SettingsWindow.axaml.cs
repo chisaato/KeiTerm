@@ -62,6 +62,33 @@ public partial class SettingsWindow : Window
             return files.Count > 0 ? files[0].Path.LocalPath : null;
         };
 
+        vm.OpenKonsoleFileDialogAsync = async () =>
+        {
+            var topLevel = TopLevel.GetTopLevel(this);
+            if (topLevel == null) return null;
+
+            var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = Strings.Get("Menu.File.ImportKonsole"),
+                AllowMultiple = false,
+                FileTypeFilter = new[]
+                {
+                    new FilePickerFileType("Konsole Color Scheme (*.colorscheme)") { Patterns = new[] { "*.colorscheme" } },
+                    new FilePickerFileType("All Files (*.*)") { Patterns = new[] { "*.*" } }
+                }
+            });
+
+            return files.Count > 0 ? files[0].Path.LocalPath : null;
+        };
+
+        vm.OpenTerminalProfileEditDialogAsync = async (sourceProfile) =>
+        {
+            var editVm = new TerminalProfileEditViewModel(sourceProfile);
+            var dialog = new TerminalProfileEditWindow(editVm);
+            var result = await dialog.ShowDialog<bool>(this);
+            return result && editVm.IsConfirmed ? editVm.ResultProfile : null;
+        };
+
         vm.ShowNotificationAsync = async (title, message) =>
         {
             // 如果 MainWindow 可见，亦可通过日志或弹窗留痕

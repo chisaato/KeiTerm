@@ -14,7 +14,7 @@
     </Application.Styles>
 
     <Application.Resources>
-        <!-- Kei.* 画刷与桌面工具设计系统令牌由 UiThemeService 在运行时挂载（KeiBrush-KeiClassic.axaml） -->
+        <!-- Kei.* 画刷与桌面工具设计系统令牌由 UiDesignSystemService 在运行时挂载（KeiTokens.axaml） -->
         <ResourceDictionary />
     </Application.Resources>
 </Application>

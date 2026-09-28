@@ -73,5 +73,6 @@
     <x:Double x:Key="Kei.Tree.ItemHeight">22</x:Double>
     <x:Double x:Key="Kei.Tree.FontSize">12</x:Double>
     <x:Double x:Key="Kei.Tree.IconSize">14</x:Double>
-    <x:Double x:Key="Kei.Tree.Indent">12</x:Double>
+    <x:Double x:Key="Kei.Tree.Indent">16</x:Double>
+    <SolidColorBrush x:Key="Kei.Tree.Line" Color="{StaticResource Kei.Color.Border.Subtle}"/>
 </ResourceDictionary>

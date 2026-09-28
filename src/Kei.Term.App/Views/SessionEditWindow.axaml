@@ -62,6 +62,19 @@
                     <TextBlock Grid.Row="2" Grid.Column="0" Text="{loc:KeiString SessionEdit.Description}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
                     <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding Description}" PlaceholderText="{loc:KeiString SessionEdit.Description.Placeholder}" Margin="0,4"/>
                 </Grid>
+
+                <Separator Background="#333333"/>
+
+                <!-- 文件传输设置 -->
+                <TextBlock Text="文件传输 (SFTP / SCP)" FontWeight="Bold" Foreground="#4EC9B0" FontSize="14"/>
+
+                <Grid ColumnDefinitions="100, *" RowDefinitions="Auto, Auto" Margin="0,4,0,10">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="传输协议:" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                    <ComboBox Grid.Row="0" Grid.Column="1" ItemsSource="{Binding AvailableProtocols}" SelectedItem="{Binding SelectedProtocol}" Margin="0,4" HorizontalAlignment="Stretch"/>
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="SFTP 模式:" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                    <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding AvailableSftpModes}" SelectedItem="{Binding SelectedSftpMode}" Margin="0,4" HorizontalAlignment="Stretch"/>
+                </Grid>
             </StackPanel>
         </ScrollViewer>
 
