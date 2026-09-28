@@ -74,7 +74,7 @@
             <Setter Property="Background" Value="#33E53935"/>
         </Style>
 
-        <!-- 控件外观类样式（iconBtn/tabItem/closeBtn）已迁至 Themes/KeiControls.axaml，
+        <!-- 控件外观类样式（iconBtn/tabItem/closeBtn）已迁至 DesignSystem/KeiControls.axaml，
              仅 KeiClassic 档挂载，使 Semi/Material 档可由第三方库模板接管。 -->
     </Window.Styles>
 
@@ -98,7 +98,6 @@
                 <MenuItem Header="{loc:KeiString Menu.File.QuickConnect}" Command="{Binding QuickConnectCommand}" InputGesture="Ctrl+Q"/>
                 <Separator/>
                 <MenuItem Header="{loc:KeiString Menu.File.ImportSecureCrt}" Command="{Binding ImportSecureCrtCommand}"/>
-                <MenuItem Header="{loc:KeiString Menu.File.ImportKonsole}" Command="{Binding ImportKonsoleCommand}"/>
                 <Separator/>
                 <MenuItem Header="{loc:KeiString Menu.File.Connect}" Command="{Binding ConnectSelectedSessionCommand}"/>
                 <MenuItem Header="{loc:KeiString Menu.File.DisconnectTab}" Command="{Binding DisconnectCurrentTabCommand}"/>
@@ -119,6 +118,11 @@
                     <Separator/>
                     <MenuItem Header="{loc:KeiString Menu.View.Compose.SingleLine}" ToggleType="CheckBox" IsChecked="{Binding IsSingleLineCompose, Mode=TwoWay}"/>
                     <MenuItem Header="{loc:KeiString Menu.View.Compose.MultiLine}" ToggleType="CheckBox" IsChecked="{Binding IsMultiLineCompose, Mode=TwoWay}"/>
+                </MenuItem>
+            </MenuItem>
+            <MenuItem Header="{loc:KeiString Menu.Appearance}">
+                <MenuItem Header="{loc:KeiString Menu.Appearance.Import}">
+                    <MenuItem Header="{loc:KeiString Menu.Appearance.Import.Konsole}" Command="{Binding ImportKonsoleCommand}"/>
                 </MenuItem>
             </MenuItem>
             <MenuItem Header="{loc:KeiString Menu.Tools}">

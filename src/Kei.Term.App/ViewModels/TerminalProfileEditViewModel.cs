@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Kei.Term.App.Models;
 using Kei.Term.Core.Models.Profiles;
 
 namespace Kei.Term.App.ViewModels;
@@ -41,6 +42,13 @@ public sealed partial class TerminalProfileEditViewModel : ObservableObject
     [ObservableProperty]
     private IBrush _activeBrush = new SolidColorBrush(Color.Parse("#1E1E1E"));
 
+    // 颜色合法性校验（当 ActiveHex 非法时禁止确认）
+    [ObservableProperty]
+    private bool _isCurrentColorValid = true;
+
+    [ObservableProperty]
+    private string _validationMessage = string.Empty;
+
     // 16 色 ANSI Hex 列表
     public ObservableCollection<string> AnsiColors { get; } = [];
 
@@ -59,13 +67,27 @@ public sealed partial class TerminalProfileEditViewModel : ObservableObject
 
     public ObservableCollection<IBrush> AnsiBrushes { get; } = [];
 
+    // 供终端 Demo 预览消费的实时草稿 Profile 与 Font 快照
+    [ObservableProperty]
+    private TerminalProfile _previewProfile = new();
+
+    public TerminalFontSnapshot? FontSnapshot { get; }
+
     public bool IsConfirmed { get; private set; }
 
     public TerminalProfile ResultProfile { get; private set; }
 
+    // 原构造函数兼容
     public TerminalProfileEditViewModel(TerminalProfile? sourceProfile = null)
+        : this(sourceProfile, null)
     {
-        ResultProfile = sourceProfile ?? new TerminalProfile();
+    }
+
+    // 包含字体快照的新重载
+    public TerminalProfileEditViewModel(TerminalProfile? sourceProfile, TerminalFontSnapshot? fontSnapshot)
+    {
+        FontSnapshot = fontSnapshot;
+        ResultProfile = sourceProfile != null ? sourceProfile.DeepCopy() : new TerminalProfile();
         InitFromProfile(ResultProfile);
     }
 
@@ -95,6 +117,7 @@ public sealed partial class TerminalProfileEditViewModel : ObservableObject
 
         RefreshBaseBrushes();
         SelectTarget("Background");
+        UpdatePreviewProfile();
     }
 
     [RelayCommand]
@@ -127,8 +150,13 @@ public sealed partial class TerminalProfileEditViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(value) || !HexColorRegex.IsMatch(value))
         {
+            IsCurrentColorValid = false;
+            ValidationMessage = "十六进制色值格式无效（支持 #RGB、#RRGGBB 或 #AARRGGBB）";
             return;
         }
+
+        IsCurrentColorValid = true;
+        ValidationMessage = string.Empty;
 
         string hex = value.Trim().ToUpperInvariant();
         if (ActiveColorTarget == "Background")
@@ -158,11 +186,45 @@ public sealed partial class TerminalProfileEditViewModel : ObservableObject
         }
 
         ActiveBrush = CreateBrush(hex);
+        UpdatePreviewProfile();
+    }
+
+    private void UpdatePreviewProfile()
+    {
+        string[] ansiArr = new string[16];
+        for (int i = 0; i < 16; i++)
+        {
+            ansiArr[i] = AnsiColors[i];
+        }
+
+        PreviewProfile = new TerminalProfile
+        {
+            Id = ResultProfile.Id,
+            Name = Name,
+            IsBuiltIn = false,
+            Background = Background,
+            Foreground = Foreground,
+            CursorColor = CursorColor,
+            SelectionBackground = SelectionBackground,
+            AnsiColors = ansiArr,
+            FontFamily = ResultProfile.FontFamily,
+            FontSize = ResultProfile.FontSize,
+            FontWeight = ResultProfile.FontWeight,
+            IsItalic = ResultProfile.IsItalic,
+            LineHeight = ResultProfile.LineHeight,
+            CursorBlink = ResultProfile.CursorBlink
+        };
     }
 
     [RelayCommand]
     public void Confirm()
     {
+        // 若当前处于非法颜色状态，禁止确认
+        if (!IsCurrentColorValid)
+        {
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(Name))
         {
             Name = "自定义终端主题";
@@ -174,6 +236,7 @@ public sealed partial class TerminalProfileEditViewModel : ObservableObject
             ansiArr[i] = AnsiColors[i];
         }
 
+        // 严格深拷贝赋值，保留旧字体字段（FontFamily, FontSize, FontWeight, IsItalic, LineHeight, CursorBlink）
         ResultProfile = new TerminalProfile
         {
             Id = ResultProfile.IsBuiltIn ? Guid.NewGuid().ToString() : ResultProfile.Id,
@@ -187,6 +250,7 @@ public sealed partial class TerminalProfileEditViewModel : ObservableObject
             FontFamily = ResultProfile.FontFamily,
             FontSize = ResultProfile.FontSize,
             FontWeight = ResultProfile.FontWeight,
+            IsItalic = ResultProfile.IsItalic,
             LineHeight = ResultProfile.LineHeight,
             CursorBlink = ResultProfile.CursorBlink
         };

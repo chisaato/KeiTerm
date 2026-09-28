@@ -5,6 +5,7 @@ using System.Linq;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Kei.Term.App.Helpers;
+using Kei.Term.App.Models;
 using Kei.Term.App.Services;
 using Kei.Term.App.ViewModels;
 using Kei.Term.Core.Models.Profiles;
@@ -69,6 +70,16 @@ public partial class AppearanceSettingsPage : ViewModelBase
     [ObservableProperty]
     private TerminalProfile? _selectedTerminalProfile;
 
+    // 草稿预览回调：选择变化即通知父流程（设置页保持不落盘、不改已提交 ID）
+    private Action<TerminalProfile?>? _draftPreviewHandler;
+
+    public void SetDraftPreviewHandler(Action<TerminalProfile?> handler) => _draftPreviewHandler = handler;
+
+    partial void OnSelectedTerminalProfileChanged(TerminalProfile? value)
+    {
+        _draftPreviewHandler?.Invoke(value);
+    }
+
     // 填充 Profile 候选项并选中对应项
     public void SetProfiles(
         IEnumerable<GuiProfile> guiProfiles,
@@ -127,7 +138,18 @@ public partial class AppearanceSettingsPage : ViewModelBase
     partial void OnIsItalicChanged(bool value)
     {
         OnPropertyChanged(nameof(PreviewFontStyle));
+        NotifyDraftFontSnapshotChanged();
     }
+
+    // 当前字体草稿快照（主字体/回退/字号/斜体/闪烁），供共用 Demo 与调色弹窗读取
+    public TerminalFontSnapshot DraftFontSnapshot => new(
+        FontFamily,
+        TerminalFallbackFonts.ToList(),
+        FontSize,
+        IsItalic,
+        CursorBlink);
+
+    private void NotifyDraftFontSnapshotChanged() => OnPropertyChanged(nameof(DraftFontSnapshot));
 
     // 实时预览属性（供 SettingsWindow 直接绑定）
     public FontFamily PreviewFontFamily
@@ -343,6 +365,7 @@ public partial class AppearanceSettingsPage : ViewModelBase
     partial void OnFontFamilyChanged(string value)
     {
         OnPropertyChanged(nameof(PreviewFontFamily));
+        NotifyDraftFontSnapshotChanged();
         if (_isSyncingFont) return;
         _isSyncingFont = true;
         SelectedFont = AvailableFonts.FirstOrDefault(f => string.Equals(f.Name, value, StringComparison.OrdinalIgnoreCase))
@@ -375,6 +398,7 @@ public partial class AppearanceSettingsPage : ViewModelBase
             }
         }
         OnPropertyChanged(nameof(PreviewFontFamily));
+        NotifyDraftFontSnapshotChanged();
     }
 
     public string GetTerminalFallbackFontsString() => string.Join(", ", TerminalFallbackFonts);
@@ -385,6 +409,7 @@ public partial class AppearanceSettingsPage : ViewModelBase
         {
             TerminalFallbackFonts.Add(TerminalFallbackFontCandidate.Name);
             OnPropertyChanged(nameof(PreviewFontFamily));
+            NotifyDraftFontSnapshotChanged();
         }
     }
 
@@ -394,6 +419,7 @@ public partial class AppearanceSettingsPage : ViewModelBase
         {
             TerminalFallbackFonts.Remove(SelectedTerminalFallbackFont);
             OnPropertyChanged(nameof(PreviewFontFamily));
+            NotifyDraftFontSnapshotChanged();
         }
     }
 
@@ -405,6 +431,7 @@ public partial class AppearanceSettingsPage : ViewModelBase
         {
             TerminalFallbackFonts.Move(idx, idx - 1);
             OnPropertyChanged(nameof(PreviewFontFamily));
+            NotifyDraftFontSnapshotChanged();
         }
     }
 
@@ -416,6 +443,7 @@ public partial class AppearanceSettingsPage : ViewModelBase
         {
             TerminalFallbackFonts.Move(idx, idx + 1);
             OnPropertyChanged(nameof(PreviewFontFamily));
+            NotifyDraftFontSnapshotChanged();
         }
     }
 
@@ -432,10 +460,16 @@ public partial class AppearanceSettingsPage : ViewModelBase
     partial void OnFontSizeChanged(double value)
     {
         OnPropertyChanged(nameof(FontSize));
+        NotifyDraftFontSnapshotChanged();
     }
 
     [ObservableProperty]
     private bool _cursorBlink = true;
+
+    partial void OnCursorBlinkChanged(bool value)
+    {
+        NotifyDraftFontSnapshotChanged();
+    }
 
     // 归一化主题键：仅接受 Dark/System，其余一律回退 Dark
     public string NormalizedThemeKey => SelectedTheme?.Key == "System" ? "System" : "Dark";

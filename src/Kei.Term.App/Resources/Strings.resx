@@ -646,6 +646,15 @@
   <data name="Settings.Appearance.ImportKonsoleScheme" xml:space="preserve">
     <value>从 Konsole 导入...</value>
   </data>
+  <data name="Menu.Appearance" xml:space="preserve">
+    <value>外观</value>
+  </data>
+  <data name="Menu.Appearance.Import" xml:space="preserve">
+    <value>导入</value>
+  </data>
+  <data name="Menu.Appearance.Import.Konsole" xml:space="preserve">
+    <value>Konsole 配色方案 (*.colorscheme)...</value>
+  </data>
   <data name="Menu.File.ImportKonsole" xml:space="preserve">
     <value>导入 Konsole 配色方案 (*.colorscheme)...</value>
   </data>

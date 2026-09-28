@@ -102,5 +102,7 @@ public record ResolvedSessionConfig(
     Guid? JumpHostSessionId,
     IReadOnlyDictionary<string, string> EnvironmentVariables,
     FileTransferProtocol FileTransferProtocol = FileTransferProtocol.Sftp,
-    SftpChannelMode SftpMode = SftpChannelMode.Auto
+    SftpChannelMode SftpMode = SftpChannelMode.Auto,
+    // 会话显式指定的终端配色 ID；null/空表示继承全局默认（末尾追加，保持既有构造点兼容）
+    string? TerminalProfileId = null
 );

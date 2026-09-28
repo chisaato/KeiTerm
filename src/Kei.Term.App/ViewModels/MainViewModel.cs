@@ -13,6 +13,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Kei.Term.App.Helpers;
 using Kei.Term.App.Logging;
+using Kei.Term.App.Models;
 using Kei.Term.App.Services;
 using Kei.Term.Core.Abstractions;
 using Kei.Term.Core.Models;
@@ -32,7 +33,7 @@ public enum ComposeMode
     MultiLine
 }
 
-public partial class MainViewModel : ViewModelBase
+public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 {
     // 认证失败后单次弹窗重试的最大次数（总弹窗上限）
     private const int MaxAuthRetries = 3;
@@ -47,6 +48,14 @@ public partial class MainViewModel : ViewModelBase
     private readonly ISshSessionFactory _sshFactory;
     private readonly ILogger<MainViewModel> _logger;
     private readonly ILoggerFactory? _loggerFactory;
+
+    // UI 线程分派：默认走 Avalonia Dispatcher；测试可注入同步执行器
+    private readonly Action<Action> _uiDispatch;
+
+    private int _disposed;
+
+    // 供测试观察配色刷新是否被触发（生产无副作用）
+    public int TerminalProfileRefreshCount { get; private set; }
 
     // 供窗口层复用同一 logger（弹窗 lambda 容错记录）
     public ILogger Logger => _logger;
@@ -172,8 +181,8 @@ public partial class MainViewModel : ViewModelBase
     // 打开 Konsole 配色方案文件对话框
     public Func<Task<string?>>? PickKonsoleFileDialogAsync { get; set; }
 
-    // 打开 Terminal Profile 调色预览窗口委托
-    public Func<TerminalProfile?, Task<TerminalProfile?>>? OpenTerminalProfileEditDialogAsync { get; set; }
+    // 打开 Terminal Profile 调色预览窗口委托（参数：源方案, 当前字体快照）
+    public Func<TerminalProfile?, TerminalFontSnapshot, Task<TerminalProfile?>>? OpenTerminalProfileEditDialogAsync { get; set; }
 
     // 提示通知/消息弹窗委托：参数为（标题, 内容）
     public Func<string, string, Task>? ShowNotificationAsync { get; set; }
@@ -191,7 +200,8 @@ public partial class MainViewModel : ViewModelBase
         IExternalEditorRepository? editorRepo = null,
         Services.ProfileManagerService? profileManager = null,
         ILogger<MainViewModel>? logger = null,
-        ILoggerFactory? loggerFactory = null)
+        ILoggerFactory? loggerFactory = null,
+        Action<Action>? uiDispatch = null)
     {
         _treeRepo = treeRepo;
         _identityRepo = identityRepo;
@@ -203,9 +213,143 @@ public partial class MainViewModel : ViewModelBase
         _sshFactory = sshFactory;
         _logger = logger ?? NullLogger<MainViewModel>.Instance;
         _loggerFactory = loggerFactory;
+        _uiDispatch = uiDispatch ?? DefaultUiDispatch;
 
         // 标签集合变化时同步 HasTabs，控制标签条显隐
         Tabs.CollectionChanged += (_, _) => HasTabs = Tabs.Count > 0;
+
+        // 配色变更单点订阅：不为每个标签单独挂钩子
+        if (_profileManager != null)
+        {
+            _profileManager.TerminalProfileChanged += OnTerminalProfileChanged;
+        }
+    }
+
+    // 默认分派：UI 线程直接执行，其他线程 Post 回 UI 线程
+    private static void DefaultUiDispatch(Action action)
+    {
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            action();
+        }
+        else
+        {
+            Dispatcher.UIThread.Post(action);
+        }
+    }
+
+    // 配色变更事件入口：跨线程安全分派
+    private void OnTerminalProfileChanged(TerminalProfileChange change)
+    {
+        if (_disposed != 0)
+        {
+            return;
+        }
+
+        _uiDispatch(() =>
+        {
+            // 排队事件可能在 Dispose 之后才执行：执行前再次检查，确保 shutdown race 安全
+            if (_disposed != 0)
+            {
+                return;
+            }
+
+            ApplyTerminalProfileChange(change);
+        });
+    }
+
+    // 单点刷新规则：
+    // DefaultSelectionChanged → 只刷新继承全局（无显式 ID）的标签
+    // ProfileContentEdited  → 刷新 EffectiveProfileId 命中该 ID 的标签（继承与显式都刷新）
+    public void ApplyTerminalProfileChange(TerminalProfileChange change)
+    {
+        if (_disposed != 0 || _profileManager == null)
+        {
+            return;
+        }
+
+        TerminalProfileRefreshCount++;
+
+        if (change.Reason == TerminalProfileChangeReason.DefaultSelectionChanged)
+        {
+            var effective = _profileManager.ResolveEffectiveTerminalProfile(null);
+            foreach (var tab in Tabs.ToList())
+            {
+                // 已关闭/释放的标签不更新；显式覆盖的会话不跟随全局切换
+                if (tab.IsDisposed || !string.IsNullOrWhiteSpace(tab.ExplicitProfileId))
+                {
+                    continue;
+                }
+
+                tab.ApplyTerminalProfile(effective);
+            }
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(change.ProfileId))
+        {
+            return;
+        }
+
+        var profile = _profileManager.ResolveEffectiveTerminalProfile(change.ProfileId);
+        foreach (var tab in Tabs.ToList())
+        {
+            if (tab.IsDisposed)
+            {
+                continue;
+            }
+
+            if (!string.Equals(tab.EffectiveProfileId, change.ProfileId, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            tab.ApplyTerminalProfile(profile);
+        }
+    }
+
+    // 释放：解除配色事件订阅并停止计时器（可重入安全）
+    public ValueTask DisposeAsync()
+    {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+        {
+            return ValueTask.CompletedTask;
+        }
+
+        if (_profileManager != null)
+        {
+            _profileManager.TerminalProfileChanged -= OnTerminalProfileChanged;
+        }
+
+        if (_lockTimer != null)
+        {
+            _lockTimer.Tick -= OnAutoLockTick;
+            _lockTimer.Stop();
+            _lockTimer = null;
+        }
+
+        return ValueTask.CompletedTask;
+    }
+
+    // 有效配色解析：会话显式 ID → 全局默认 → 内置默认（管理器缺省时直接内置）
+    private TerminalProfile ResolveEffectiveTerminalProfile(string? explicitProfileId)
+        => _profileManager?.ResolveEffectiveTerminalProfile(explicitProfileId)
+           ?? BuiltInPresets.GetDefaultTerminalProfile();
+
+    // 由当前设置构造“已应用”字体快照（AppSettings 无斜体字段，显式 false）
+    private static TerminalFontSnapshot BuildAppliedFontSnapshot(AppSettings settings)
+    {
+        var fallbacks = string.IsNullOrWhiteSpace(settings.TerminalFallbackFontFamily)
+            ? Array.Empty<string>()
+            : settings.TerminalFallbackFontFamily
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        return new TerminalFontSnapshot(
+            settings.FontFamily,
+            fallbacks,
+            settings.FontSize,
+            isItalic: false,
+            settings.CursorBlink);
     }
 
     partial void OnFilterTextChanged(string value) => RefreshTreeFromCache();
@@ -775,18 +919,33 @@ public partial class MainViewModel : ViewModelBase
         var defaultName = Path.GetFileNameWithoutExtension(filePath);
         var parsed = Kei.Term.Core.Services.KonsoleColorSchemeParser.Parse(content, defaultName);
 
-        var confirmed = await OpenTerminalProfileEditDialogAsync(parsed);
-        if (confirmed != null)
+        // 独立导入使用已应用的全局字体设置；配色不读取也不写回字体
+        var confirmed = await OpenTerminalProfileEditDialogAsync(parsed, BuildAppliedFontSnapshot(_settingsService.Current));
+        if (confirmed == null)
         {
-            var profileManager = _profileManager ?? new Services.ProfileManagerService(_settingsService);
-            profileManager.AddCustomTerminalProfile(confirmed);
-            await profileManager.SaveProfilesAsync();
+            return; // 取消无副作用
+        }
 
+        var profileManager = _profileManager ?? new Services.ProfileManagerService(_settingsService);
+        profileManager.AddOrUpdateCustomTerminalProfile(confirmed.DeepCopy());
+        try
+        {
+            // 独立导入：合并后原子落盘并推进已提交权威
+            await profileManager.CommitAndSaveProfilesAsync();
             if (ShowNotificationAsync != null)
             {
                 await ShowNotificationAsync(
                     Strings.Get("TerminalProfileEdit.Title"),
                     Strings.Get("Settings.Appearance.BundleImportSuccess"));
+            }
+        }
+        catch (Exception ex)
+        {
+            // 落盘失败：撤销内存草稿并给出可见提示，不假装成功
+            profileManager.RemoveCustomTerminalProfile(confirmed.Id);
+            if (ShowNotificationAsync != null)
+            {
+                await ShowNotificationAsync(Strings.Get("TerminalProfileEdit.Title"), ex.Message);
             }
         }
     });
@@ -1061,7 +1220,16 @@ public partial class MainViewModel : ViewModelBase
         }
 
         // 5. 先建标签（Connecting），后台线程完成创建与连接
-        var tab = new TerminalTabViewModel(resolved.SessionName, settings.FontFamily, settings.FontSize, _logger);
+        //    有效配色：会话显式 ID → 全局默认 → 内置默认，始终走同一适配路径
+        var effectiveProfile = ResolveEffectiveTerminalProfile(resolved.TerminalProfileId);
+        var tab = new TerminalTabViewModel(
+            resolved.SessionName,
+            BuildAppliedFontSnapshot(settings),
+            effectiveProfile,
+            resolved.TerminalProfileId,
+            _logger);
+        // 构造只记录状态，此处显式注入配色（新标签立即生效）
+        tab.ApplyTerminalProfile(effectiveProfile);
         Tabs.Add(tab);
         tab.CloseRequested += OnTabCloseRequested;
         SelectedTab = tab;

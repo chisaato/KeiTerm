@@ -101,8 +101,9 @@ public static class KonsoleColorSchemeParser
         }
         else
         {
-            // 采用蓝色系的半透明变体或默认选区深色
-            profile.SelectionBackground = profile.AnsiColors[4] + "50";
+            // 统一 8 位为 #AARRGGBB：alpha 在前，取蓝色槽位 RGB
+            // 不得写成 #RRGGBB50（Avalonia Color.Parse 会把前两位当 alpha，导致颜色被误读）
+            profile.SelectionBackground = "#50" + profile.AnsiColors[4].TrimStart('#');
         }
 
         return profile;

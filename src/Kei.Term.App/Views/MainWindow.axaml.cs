@@ -258,9 +258,9 @@ public partial class MainWindow : Window
             return files.Count > 0 ? files[0].Path.LocalPath : null;
         };
 
-        vm.OpenTerminalProfileEditDialogAsync = async (sourceProfile) =>
+        vm.OpenTerminalProfileEditDialogAsync = async (sourceProfile, fontSnapshot) =>
         {
-            var editVm = new TerminalProfileEditViewModel(sourceProfile);
+            var editVm = new TerminalProfileEditViewModel(sourceProfile, fontSnapshot);
             var dialog = new TerminalProfileEditWindow(editVm);
             var result = await dialog.ShowDialog<bool>(this);
             return result && editVm.IsConfirmed ? editVm.ResultProfile : null;
@@ -693,25 +693,48 @@ public partial class MainWindow : Window
         await about.ShowDialog(this);
     }
 
-    // 关闭确认：设置允许且有打开标签时弹窗确认，取消则阻止关闭
+    // 关闭确认：设置允许且有打开标签时弹窗确认，取消则阻止关闭；
+    // 确认关闭后必须 await vm.DisposeAsync() 完成资源释放方可正式关闭
     protected override async void OnClosing(WindowClosingEventArgs e)
     {
         base.OnClosing(e);
 
-        if (_closeConfirmed
-            || DataContext is not MainViewModel vm
-            || !vm.ConfirmBeforeClose
-            || vm.Tabs.Count == 0)
+        if (_closeConfirmed)
         {
             return;
         }
 
         e.Cancel = true;
-        if (await ShowCloseConfirmDialogAsync())
+
+        if (DataContext is not MainViewModel vm)
         {
             _closeConfirmed = true;
             Close();
+            return;
         }
+
+        if (vm.ConfirmBeforeClose && vm.Tabs.Count > 0)
+        {
+            bool confirmed = await ShowCloseConfirmDialogAsync();
+            if (!confirmed)
+            {
+                return;
+            }
+        }
+
+        _closeConfirmed = true;
+
+        try
+        {
+            // 在窗口彻底销毁前等待异步生命周期释放完毕
+            await vm.DisposeAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "MainViewModel 异步释放异常");
+        }
+
+        Close();
     }
 
     // 简洁的深色确认窗口（中文文案）

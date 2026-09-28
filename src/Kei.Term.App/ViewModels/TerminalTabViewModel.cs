@@ -12,8 +12,11 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using RoyalTerminal.Avalonia.Controls;
 using Kei.Term.App.Helpers;
+using Kei.Term.App.Models;
+using Kei.Term.App.Services;
 using Kei.Term.App.Terminals;
 using Kei.Term.Core.Abstractions;
+using Kei.Term.Core.Models.Profiles;
 using Kei.Term.Core.Services;
 using Kei.Term.Core.Settings;
 using Kei.Term.Core.Storage;
@@ -35,6 +38,39 @@ public enum TabStatus
     Connected,
     Disconnected,
     Error
+}
+
+// 配色应用抽象：默认走真实终端控件，纯状态测试可注入不触碰原生控件的实现
+public interface ITerminalThemeSink
+{
+    void Apply(TerminalProfile profile);
+
+    // Loaded 后 / 重新 ApplyTheme 后恢复被上游强制改写的选区 alpha；返回 false 表示 Renderer 尚未就绪
+    bool TryReapplySelectionOverride(TerminalProfile profile);
+}
+
+// 默认实现：把方案注入真实 TerminalControl（不启动任何会话）。
+// 通过访问器延迟获取控件：测试不访问 Terminal 时不会创建原生控件。
+internal sealed class TerminalControlThemeSink : ITerminalThemeSink
+{
+    private readonly Func<TerminalControl> _terminalAccessor;
+
+    public TerminalControlThemeSink(Func<TerminalControl> terminalAccessor) => _terminalAccessor = terminalAccessor;
+
+    public void Apply(TerminalProfile profile) => TerminalThemeAdapter.Apply(_terminalAccessor(), profile);
+
+    public bool TryReapplySelectionOverride(TerminalProfile profile)
+    {
+        var terminal = _terminalAccessor();
+        if (!TerminalThemeAdapter.TryReapplySelectionOverride(terminal, profile))
+        {
+            return false;
+        }
+
+        // 恢复成功后再请求重绘，避免闪一帧 0x80
+        terminal.InvalidateTerminal();
+        return true;
+    }
 }
 
 public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
@@ -81,11 +117,32 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
     [ObservableProperty]
     private RemoteFileManagerViewModel? _fileManager;
 
-    public TerminalControl Terminal { get; }
+    // 惰性创建：测试只验证状态/主题注入时不会构造原生 TerminalControl
+    private readonly Func<TerminalControl> _terminalFactory;
+    private TerminalControl? _terminal;
+    private TerminalFontSnapshot _fontSnapshot;
+
+    public TerminalControl Terminal
+    {
+        get
+        {
+            if (_terminal == null)
+            {
+                var terminal = _terminalFactory();
+                ApplyFontToTerminal(terminal, _fontSnapshot);
+                terminal.Loaded += OnTerminalLoaded;
+                terminal.SizeChanged += OnTerminalSizeChanged;
+                _terminal = terminal;
+            }
+
+            return _terminal;
+        }
+    }
 
     private ISshSession? _session;
     private SshTerminalEndpoint? _endpoint;
     private readonly ILogger _logger;
+    private readonly ITerminalThemeSink _themeSink;
 
     // 释放状态：0 = 未释放，1 = 释放中/已释放（防止 DisposeAsync 重入）
     private int _disposeState;
@@ -93,20 +150,76 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
     // 标签是否已释放（后台连接管线据此判断是否需要中止）
     public bool IsDisposed => _disposeState != 0;
 
+    // 会话级显式配色 ID；null/空表示继承全局默认
+    public string? ExplicitProfileId { get; }
+
+    // 当前有效配色 ID（继承时随全局切换更新；显式时保持显式 ID）
+    public string EffectiveProfileId { get; private set; }
+
+    // 当前生效方案（供刷新断言与调试）
+    public TerminalProfile CurrentProfile { get; private set; }
+
     // 字体与字号由设置传入（新标签生效，不要求旧标签热更新）
     public TerminalTabViewModel(string title, string fontFamily, double fontSize, ILogger? logger = null)
+        : this(
+            title,
+            new TerminalFontSnapshot(fontFamily, Array.Empty<string>(), fontSize, false, true),
+            BuiltInPresets.GetDefaultTerminalProfile(),
+            explicitProfileId: null,
+            logger)
     {
+    }
+
+    // 带配色方案的新构造：只记录状态；Terminal 惰性创建，注入由 ApplyTerminalProfile / ApplyFontSnapshot 完成
+    public TerminalTabViewModel(
+        string title,
+        TerminalFontSnapshot font,
+        TerminalProfile profile,
+        string? explicitProfileId,
+        ILogger? logger = null,
+        Func<TerminalControl>? terminalFactory = null,
+        ITerminalThemeSink? themeSink = null)
+    {
+        ArgumentNullException.ThrowIfNull(font);
+        ArgumentNullException.ThrowIfNull(profile);
+
         Title = title;
         _logger = logger ?? NullLogger.Instance;
-        Terminal = new TerminalControl
-        {
-            // TerminalControl.FontFamilyName 仅接受单一字体族名，先归一化再赋值
-            FontFamilyName = NormalizeFontFamilyName(fontFamily),
-            TerminalFontSize = fontSize
-        };
+        ExplicitProfileId = explicitProfileId;
+        CurrentProfile = profile;
+        EffectiveProfileId = profile.Id;
+        _fontSnapshot = font;
 
-        Terminal.Loaded += OnTerminalLoaded;
-        Terminal.SizeChanged += OnTerminalSizeChanged;
+        _terminalFactory = terminalFactory ?? (() => new TerminalControl());
+        // 生产默认绑定真实控件（惰性）；测试可注入无控件实现以验证纯状态
+        _themeSink = themeSink ?? new TerminalControlThemeSink(() => Terminal);
+    }
+
+    // 更新当前生效方案并注入目标（EffectiveProfileId 同步更新）
+    public void ApplyTerminalProfile(TerminalProfile profile)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        CurrentProfile = profile;
+        EffectiveProfileId = profile.Id;
+        _themeSink.Apply(profile);
+    }
+
+    // 只更新字体相关属性，不触碰配色；若控件尚未创建则仅记录，待创建时应用
+    public void ApplyFontSnapshot(TerminalFontSnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        _fontSnapshot = snapshot;
+        if (_terminal != null)
+        {
+            ApplyFontToTerminal(_terminal, snapshot);
+        }
+    }
+
+    // 只设置字体属性（PrimaryFontFamily 由 A 的 TerminalFontSnapshot 统一归一化）
+    private static void ApplyFontToTerminal(TerminalControl terminal, TerminalFontSnapshot snapshot)
+    {
+        terminal.FontFamilyName = snapshot.PrimaryFontFamily;
+        terminal.TerminalFontSize = snapshot.FontSize;
     }
 
     [RelayCommand]
@@ -151,6 +264,29 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
     private void OnTerminalLoaded(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         TrySyncTerminalSize();
+        // 控件挂载后 Renderer 才存在：对最新 CurrentProfile 重放选区 alpha 恢复
+        ReapplySelectionOverride();
+    }
+
+    // 对最新 CurrentProfile 重放选区 alpha 恢复（Loaded 后、以及重新 ApplyTheme 后需要）。
+    // 返回 false 表示 Renderer 尚未就绪；此处记录诊断而非静默。
+    public bool ReapplySelectionOverride()
+    {
+        if (IsDisposed)
+        {
+            return false;
+        }
+
+        if (_themeSink.TryReapplySelectionOverride(CurrentProfile))
+        {
+            return true;
+        }
+
+        _logger.LogDebug(
+            "终端选区 alpha 恢复推迟：Renderer 尚未就绪 标题={Title} ProfileId={ProfileId}",
+            Title,
+            CurrentProfile.Id);
+        return false;
     }
 
     private void OnTerminalSizeChanged(object? sender, Avalonia.Controls.SizeChangedEventArgs e)
@@ -165,18 +301,6 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         {
             _endpoint?.SetSize((int)Terminal.Bounds.Width, (int)Terminal.Bounds.Height);
         }
-    }
-
-    // 归一化字体族名：兼容旧配置里的逗号分隔候选列表，取第一段首选名；空值回退默认等宽字体
-    private static string NormalizeFontFamilyName(string? fontFamily)
-    {
-        if (string.IsNullOrWhiteSpace(fontFamily))
-        {
-            return "Noto Sans Mono";
-        }
-
-        var first = fontFamily.Split(',')[0].Trim();
-        return first.Length > 0 ? first : "Noto Sans Mono";
     }
 
     // 挂载会话与端点（必须在 UI 线程调用）；重试时替换旧会话/端点
@@ -333,8 +457,12 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
             return;
         }
 
-        Terminal.Loaded -= OnTerminalLoaded;
-        Terminal.SizeChanged -= OnTerminalSizeChanged;
+        // 控件可能从未创建（纯状态使用），仅在创建后解绑
+        if (_terminal != null)
+        {
+            _terminal.Loaded -= OnTerminalLoaded;
+            _terminal.SizeChanged -= OnTerminalSizeChanged;
+        }
 
         await DetachSessionAsync();
         _logger.LogInformation("终端标签已释放 标题={Title}", Title);

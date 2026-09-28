@@ -10,6 +10,9 @@ namespace Kei.Term.App.Views;
 
 public partial class SettingsWindow : Window
 {
+    private bool _isDischargingClose;
+    private bool _isCancelling;
+
     public SettingsWindow()
     {
         InitializeComponent();
@@ -20,7 +23,15 @@ public partial class SettingsWindow : Window
         DataContext = vm;
         // 每次打开都从当前设置重读，丢弃上次未保存的改动
         vm.Reload();
-        vm.RequestClose += Close;
+
+        // 统一成功出口（Save/Cancel成功后触发）
+        Action? onRequestClose = null;
+        onRequestClose = () =>
+        {
+            _isDischargingClose = true;
+            Close();
+        };
+        vm.RequestClose += onRequestClose;
 
         // 挂接文件选择器
         vm.SaveBundleFileDialogAsync = async () =>
@@ -81,22 +92,34 @@ public partial class SettingsWindow : Window
             return files.Count > 0 ? files[0].Path.LocalPath : null;
         };
 
-        vm.OpenTerminalProfileEditDialogAsync = async (sourceProfile) =>
+        vm.OpenTerminalProfileEditDialogAsync = async (sourceProfile, fontSnapshot) =>
         {
-            var editVm = new TerminalProfileEditViewModel(sourceProfile);
+            var editVm = new TerminalProfileEditViewModel(sourceProfile, fontSnapshot);
             var dialog = new TerminalProfileEditWindow(editVm);
             var result = await dialog.ShowDialog<bool>(this);
             return result && editVm.IsConfirmed ? editVm.ResultProfile : null;
         };
 
-        vm.ShowNotificationAsync = async (title, message) =>
+        // 接入真正可见且可复制的错误提示区域
+        vm.ShowNotificationAsync = (title, message) =>
         {
-            // 如果 MainWindow 可见，亦可通过日志或弹窗留痕
-            await Task.CompletedTask;
+            var textBlock = this.FindControl<SelectableTextBlock>("NotificationTextBlock");
+            if (textBlock != null)
+            {
+                textBlock.Text = string.IsNullOrWhiteSpace(title) ? message : $"[{title}] {message}";
+                textBlock.IsVisible = true;
+            }
+            return Task.CompletedTask;
         };
 
         // 窗口关闭时解绑，避免 VM 复用导致的处理器累积
-        Closed += (_, _) => vm.RequestClose -= Close;
+        Closed += (_, _) =>
+        {
+            if (onRequestClose != null)
+            {
+                vm.RequestClose -= onRequestClose;
+            }
+        };
 
         // Esc 按键安全关闭（触发取消回滚）
         KeyDown += (sender, e) =>
@@ -104,8 +127,54 @@ public partial class SettingsWindow : Window
             if (e.Key == Avalonia.Input.Key.Escape)
             {
                 e.Handled = true;
-                _ = vm.CancelCommand.ExecuteAsync(null);
+                _ = TriggerCancelAndCloseAsync(vm);
             }
         };
+    }
+
+    // 拦截任何非正常保存/放行的关闭操作（包括右上角 X / Alt+F4），必须等回滚完成后方能关闭
+    protected override async void OnClosing(WindowClosingEventArgs e)
+    {
+        base.OnClosing(e);
+
+        if (_isDischargingClose)
+        {
+            return;
+        }
+
+        // 拦截系统关闭
+        e.Cancel = true;
+
+        if (DataContext is SettingsViewModel vm)
+        {
+            if (vm.IsBusy)
+            {
+                // 保存/持久化 busy 期间禁止关闭，保持 e.Cancel = true
+                return;
+            }
+
+            await TriggerCancelAndCloseAsync(vm);
+        }
+    }
+
+    private async Task TriggerCancelAndCloseAsync(SettingsViewModel vm)
+    {
+        if (_isCancelling || vm.IsBusy)
+        {
+            return;
+        }
+
+        _isCancelling = true;
+        try
+        {
+            // 执行取消：回滚内存方案/默认选择并广播
+            // 只有取消执行成功，由 VM 触发 RequestClose 才能设置 _isDischargingClose 并真正关闭
+            await vm.CancelCommand.ExecuteAsync(null);
+        }
+        finally
+        {
+            // 仅重置防重入状态，绝不在此无条件放行或强制 Close()
+            _isCancelling = false;
+        }
     }
 }

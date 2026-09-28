@@ -2,14 +2,15 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Kei.Term.App.ViewModels"
         xmlns:settings="using:Kei.Term.App.ViewModels.Settings"
+        xmlns:controls="using:Kei.Term.App.Views.Controls"
         xmlns:loc="using:Kei.Term.App.Helpers"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="760" d:DesignHeight="560"
+        mc:Ignorable="d" d:DesignWidth="840" d:DesignHeight="620"
         x:Class="Kei.Term.App.Views.SettingsWindow"
         x:DataType="vm:SettingsViewModel"
         Title="{loc:KeiString Settings.Title}"
-        Width="760" Height="560" MinWidth="680" MinHeight="480"
+        Width="840" Height="620" MinWidth="760" MinHeight="520"
         WindowStartupLocation="CenterOwner"
         CanResize="True"
         FontFamily="Noto Sans CJK SC, Source Han Sans SC, Microsoft YaHei UI, Segoe UI, sans-serif"
@@ -100,9 +101,9 @@
                 </ListBox>
             </Border>
 
-            <!-- 右侧：分类内容区，按页面 VM 类型分发模板 -->
+            <!-- 右侧：分类内容区，按页面 VM 类型分发模板（受 IsBusy 控制禁用交互） -->
             <Border Grid.Column="1" Background="{DynamicResource Kei.Bg.Window}">
-                <ScrollViewer>
+                <ScrollViewer IsEnabled="{Binding !IsBusy}">
                     <ContentControl Content="{Binding SelectedCategory.Page}" Margin="26,22">
                         <ContentControl.DataTemplates>
 
@@ -320,12 +321,13 @@
                                     <!-- 终端字体与配色 -->
                                     <TextBlock Text="{loc:KeiString Settings.Appearance.FontSection}" FontSize="13" FontWeight="Bold" Margin="0,10,0,0"
                                                Foreground="{DynamicResource Kei.Session.Foreground}"/>
-                                    <Grid ColumnDefinitions="150, *" ColumnSpacing="12" RowDefinitions="Auto, Auto, Auto" RowSpacing="12"
-                                          DataContext="{Binding Appearance}">
-                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString Settings.Appearance.TerminalProfile}" VerticalAlignment="Center"
-                                                   Foreground="{DynamicResource Kei.Text.Secondary}"/>
-                                        <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                                            <ComboBox HorizontalAlignment="Left" MinWidth="180"
+
+                                    <!-- 终端配色分区（独占全宽下拉框 + 下行换行操作栏） -->
+                                    <StackPanel Spacing="6" DataContext="{Binding Appearance}">
+                                        <Grid ColumnDefinitions="150, *" ColumnSpacing="12">
+                                            <TextBlock Grid.Column="0" Text="{loc:KeiString Settings.Appearance.TerminalProfile}" VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                            <ComboBox Grid.Column="1" HorizontalAlignment="Stretch"
                                                       ItemsSource="{Binding TerminalProfiles}"
                                                       SelectedItem="{Binding SelectedTerminalProfile}"
                                                       ToolTip.Tip="{loc:KeiString Settings.Appearance.TerminalProfileTip}">
@@ -335,20 +337,34 @@
                                                     </DataTemplate>
                                                 </ComboBox.ItemTemplate>
                                             </ComboBox>
-                                            <Button Content="{loc:KeiString Settings.Appearance.EditTerminalProfile}"
-                                                    Command="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).EditTerminalProfileCommand}"
-                                                    Height="28" Padding="8,0" VerticalContentAlignment="Center"/>
-                                            <Button Content="{loc:KeiString Settings.Appearance.NewTerminalProfile}"
-                                                    Command="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).NewTerminalProfileCommand}"
-                                                    Height="28" Padding="8,0" VerticalContentAlignment="Center"/>
-                                            <Button Content="{loc:KeiString Settings.Appearance.ImportKonsoleScheme}"
-                                                    Command="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).ImportKonsoleSchemeCommand}"
-                                                    Height="28" Padding="8,0" VerticalContentAlignment="Center"/>
-                                        </StackPanel>
+                                        </Grid>
 
-                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="{loc:KeiString Settings.Appearance.FontFamily}" VerticalAlignment="Center"
+                                        <Grid ColumnDefinitions="150, *" ColumnSpacing="12">
+                                            <WrapPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                                <WrapPanel.Styles>
+                                                    <Style Selector="Button">
+                                                        <Setter Property="Height" Value="28"/>
+                                                        <Setter Property="Padding" Value="10,0"/>
+                                                        <Setter Property="Margin" Value="0,0,8,6"/>
+                                                        <Setter Property="VerticalContentAlignment" Value="Center"/>
+                                                    </Style>
+                                                </WrapPanel.Styles>
+                                                <Button Content="{loc:KeiString Settings.Appearance.NewTerminalProfile}"
+                                                        Command="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).NewTerminalProfileCommand}"/>
+                                                <Button Content="{loc:KeiString Settings.Appearance.EditTerminalProfile}"
+                                                        Command="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).EditTerminalProfileCommand}"/>
+                                                <Button Content="{loc:KeiString Settings.Appearance.ImportKonsoleScheme}"
+                                                        Command="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).ImportKonsoleSchemeCommand}"/>
+                                            </WrapPanel>
+                                        </Grid>
+                                    </StackPanel>
+
+                                    <!-- 字体配置行 -->
+                                    <Grid ColumnDefinitions="150, *" ColumnSpacing="12" RowDefinitions="Auto, Auto" RowSpacing="12"
+                                          DataContext="{Binding Appearance}">
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString Settings.Appearance.FontFamily}" VerticalAlignment="Center"
                                                    Foreground="{DynamicResource Kei.Text.Secondary}"/>
-                                        <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch"
+                                        <ComboBox Grid.Row="0" Grid.Column="1" HorizontalAlignment="Stretch"
                                                   ItemsSource="{Binding AvailableFonts}"
                                                   SelectedItem="{Binding SelectedFont}"
                                                   ToolTip.Tip="{loc:KeiString Settings.Appearance.FontFamilyTip}">
@@ -359,9 +375,9 @@
                                             </ComboBox.ItemTemplate>
                                         </ComboBox>
 
-                                        <TextBlock Grid.Row="2" Grid.Column="0" Text="{loc:KeiString Settings.Appearance.FontSize}" VerticalAlignment="Center"
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="{loc:KeiString Settings.Appearance.FontSize}" VerticalAlignment="Center"
                                                    Foreground="{DynamicResource Kei.Text.Secondary}"/>
-                                        <NumericUpDown Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" MinWidth="220"
+                                        <NumericUpDown Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" MinWidth="220"
                                                        Value="{Binding FontSize}" Minimum="8" Maximum="36" FormatString="0.0"
                                                        ToolTip.Tip="{loc:KeiString Settings.Appearance.FontSizeTip}"/>
                                     </Grid>
@@ -404,23 +420,12 @@
                                                   ToolTip.Tip="{loc:KeiString Settings.Appearance.FontItalicTip}"/>
                                     </StackPanel>
 
-                                    <!-- 实时预览区域 (Font Preview) -->
+                                    <!-- 实时终端 Demo 预览区域 (替代原单行纯文本预览) -->
                                     <TextBlock Text="{loc:KeiString Settings.Appearance.FontPreviewSection}" FontSize="13" FontWeight="Bold" Margin="0,10,0,0"
                                                Foreground="{DynamicResource Kei.Session.Foreground}"/>
-                                    <Border Background="{DynamicResource Kei.Bg.PanelAlt}"
-                                            BorderBrush="{DynamicResource Kei.Border}"
-                                            BorderThickness="1"
-                                            CornerRadius="4"
-                                            Padding="14,10"
-                                            DataContext="{Binding Appearance}">
-                                        <TextBlock Text="{Binding PreviewSampleText}"
-                                                   FontFamily="{Binding PreviewFontFamily}"
-                                                   FontSize="{Binding FontSize}"
-                                                   FontWeight="{Binding PreviewFontWeight}"
-                                                   FontStyle="{Binding PreviewFontStyle}"
-                                                   Foreground="{DynamicResource Kei.Text.Primary}"
-                                                   TextWrapping="Wrap"/>
-                                    </Border>
+                                    <controls:TerminalShellPreviewView Height="220" Margin="0,4,0,0"
+                                                                       Profile="{Binding Appearance.SelectedTerminalProfile}"
+                                                                       Font="{Binding Appearance.DraftFontSnapshot}"/>
                                 </StackPanel>
                             </DataTemplate>
 
@@ -632,18 +637,35 @@
             </Border>
         </Grid>
 
-        <!-- 底部：操作按钮行（取消 / 应用 / 确定 三态分家） -->
+        <!-- 底部：操作按钮与错误提示行（取消 / 应用 / 确定 三态分家） -->
         <Border Grid.Row="1"
                 Background="{DynamicResource Kei.Bg.Panel}"
                 BorderBrush="{DynamicResource Kei.Border}"
                 BorderThickness="0,1,0,0"
                 Padding="20,12">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12">
-                <Button Content="{loc:KeiString Common.Cancel}" MinWidth="88" HorizontalContentAlignment="Center" Command="{Binding CancelCommand}"/>
-                <Button Content="{loc:KeiString Common.Apply}" MinWidth="88" HorizontalContentAlignment="Center" Command="{Binding ApplyCommand}"/>
-                <Button Content="{loc:KeiString Common.Confirm}" MinWidth="88" HorizontalContentAlignment="Center"
-                        Classes="save" Foreground="White" Command="{Binding SaveCommand}"/>
-            </StackPanel>
+            <Grid ColumnDefinitions="*, Auto">
+                <!-- 窗口内可见错误/提示信息条（保留原始+补偿错误，可选中复制） -->
+                <SelectableTextBlock x:Name="NotificationTextBlock"
+                                     Grid.Column="0"
+                                     VerticalAlignment="Center"
+                                     Margin="0,0,16,0"
+                                     Foreground="#E53935"
+                                     FontSize="12"
+                                     TextWrapping="Wrap"
+                                     IsVisible="False"/>
+
+                <!-- 底部操作按钮容器：受 IsBusy 控制禁用交互，保留左侧 NotificationTextBlock 独立可读可复制 -->
+                <StackPanel Grid.Column="1"
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Right"
+                            Spacing="12"
+                            IsEnabled="{Binding !IsBusy}">
+                    <Button Content="{loc:KeiString Common.Cancel}" MinWidth="88" HorizontalContentAlignment="Center" Command="{Binding CancelCommand}"/>
+                    <Button Content="{loc:KeiString Common.Apply}" MinWidth="88" HorizontalContentAlignment="Center" Command="{Binding ApplyCommand}"/>
+                    <Button Content="{loc:KeiString Common.Confirm}" MinWidth="88" HorizontalContentAlignment="Center"
+                            Classes="save" Foreground="White" Command="{Binding SaveCommand}"/>
+                </StackPanel>
+            </Grid>
         </Border>
     </Grid>
 </Window>

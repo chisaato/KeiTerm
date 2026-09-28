@@ -16,10 +16,30 @@ public sealed class TerminalProfile
     public string[] AnsiColors { get; set; } = new string[16];
 
     // 字体相关（Fallback 兜底）
+    // 注意：这些字段为旧数据兼容而保留；配色操作不读取、不写入，也不作为终端字体来源
     public string FontFamily { get; set; } = "Cascadia Mono, Consolas, monospace";
     public double FontSize { get; set; } = 14.0;
     public string FontWeight { get; set; } = "Normal"; // Normal, Medium, SemiBold, Bold 等
     public bool IsItalic { get; set; } = false;
     public double LineHeight { get; set; } = 1.2;
     public bool CursorBlink { get; set; } = true;
+
+    // 深拷贝：逐字段保留（含 IsItalic 等旧字体字段），数组独立隔离
+    public TerminalProfile DeepCopy() => new()
+    {
+        Id = Id,
+        Name = Name,
+        IsBuiltIn = IsBuiltIn,
+        Foreground = Foreground,
+        Background = Background,
+        CursorColor = CursorColor,
+        SelectionBackground = SelectionBackground,
+        AnsiColors = (string[])AnsiColors.Clone(),
+        FontFamily = FontFamily,
+        FontSize = FontSize,
+        FontWeight = FontWeight,
+        IsItalic = IsItalic,
+        LineHeight = LineHeight,
+        CursorBlink = CursorBlink
+    };
 }

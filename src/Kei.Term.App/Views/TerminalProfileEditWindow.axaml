@@ -1,14 +1,16 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Kei.Term.App.ViewModels"
+        xmlns:controls="using:Kei.Term.App.Views.Controls"
         xmlns:loc="using:Kei.Term.App.Helpers"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="920" d:DesignHeight="600"
+        mc:Ignorable="d" d:DesignWidth="840" d:DesignHeight="620"
         x:Class="Kei.Term.App.Views.TerminalProfileEditWindow"
         x:DataType="vm:TerminalProfileEditViewModel"
         Title="{loc:KeiString TerminalProfileEdit.Title}"
-        Width="920" Height="620"
+        Width="840" Height="620"
+        MinWidth="760" MinHeight="520"
         WindowStartupLocation="CenterOwner"
         CanResize="True"
         Background="{DynamicResource Kei.Bg.Window}">
@@ -32,8 +34,8 @@
     </Window.Styles>
 
     <Grid RowDefinitions="*, Auto" Margin="16">
-        <!-- 主体区域：左右双面板 -->
-        <Grid Grid.Row="0" ColumnDefinitions="420, 16, *" Margin="0,0,0,12">
+        <!-- 主体区域：左右双面板（左调色板与编辑，右真实终端 Demo） -->
+        <Grid Grid.Row="0" ColumnDefinitions="380, 16, *" Margin="0,0,0,12">
             <!-- 左侧面板：调色与控制面板 -->
             <Border Grid.Column="0"
                     Background="{DynamicResource Kei.Bg.Panel}"
@@ -154,143 +156,42 @@
                         <Border Background="{DynamicResource Kei.Bg.PanelAlt}"
                                 CornerRadius="{DynamicResource Kei.Radius.Control}"
                                 Padding="10">
-                            <Grid ColumnDefinitions="Auto, 10, *, 10, Auto" VerticalAlignment="Center">
-                                <TextBlock Grid.Column="0"
-                                           Text="{Binding ActiveColorTarget}"
-                                           Foreground="{DynamicResource Kei.Text.Primary}"
-                                           FontWeight="SemiBold"
-                                           VerticalAlignment="Center"/>
-                                <TextBox Grid.Column="2"
-                                         Text="{Binding ActiveHex, Mode=TwoWay}"
-                                         Height="26"
-                                         VerticalContentAlignment="Center"
-                                         FontFamily="Cascadia Mono, Consolas, monospace"/>
-                                <Border Grid.Column="4"
-                                        Width="28" Height="26"
-                                        CornerRadius="{DynamicResource Kei.Radius.Control}"
-                                        BorderThickness="1"
-                                        BorderBrush="{DynamicResource Kei.Border}"
-                                        Background="{Binding ActiveBrush}"/>
-                            </Grid>
+                            <StackPanel Spacing="6">
+                                <Grid ColumnDefinitions="Auto, 10, *, 10, Auto" VerticalAlignment="Center">
+                                    <TextBlock Grid.Column="0"
+                                               Text="{Binding ActiveColorTarget}"
+                                               Foreground="{DynamicResource Kei.Text.Primary}"
+                                               FontWeight="SemiBold"
+                                               VerticalAlignment="Center"/>
+                                    <TextBox Grid.Column="2"
+                                             Text="{Binding ActiveHex, Mode=TwoWay}"
+                                             Height="26"
+                                             VerticalContentAlignment="Center"
+                                             FontFamily="Cascadia Mono, Consolas, monospace"/>
+                                    <Border Grid.Column="4"
+                                            Width="28" Height="26"
+                                            CornerRadius="{DynamicResource Kei.Radius.Control}"
+                                            BorderThickness="1"
+                                            BorderBrush="{DynamicResource Kei.Border}"
+                                            Background="{Binding ActiveBrush}"/>
+                                </Grid>
+                                <!-- 校验错误提示 -->
+                                <TextBlock Text="{Binding ValidationMessage}"
+                                           Foreground="#E53935"
+                                           FontSize="11"
+                                           IsVisible="{Binding !IsCurrentColorValid}"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
                         </Border>
                     </StackPanel>
                 </ScrollViewer>
             </Border>
 
-            <!-- 右侧面板：Tabby 风格实时模拟终端屏幕 (Demo Terminal Preview) -->
-            <Border Grid.Column="2"
-                    Background="{Binding BackgroundBrush}"
-                    BorderBrush="{DynamicResource Kei.Border}"
-                    BorderThickness="1"
-                    CornerRadius="{DynamicResource Kei.Radius.Card}"
-                    Padding="16">
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel Spacing="10" TextElement.FontFamily="Cascadia Mono, Consolas, monospace" TextElement.FontSize="12">
-                        <!-- 顶层色块梯级测试条 -->
-                        <TextBlock Text="ANSI Palette Test (0-7 Normal, 8-15 Bright):"
-                                   Foreground="{DynamicResource Kei.Text.Muted}"
-                                   FontSize="11"/>
-                        <StackPanel Orientation="Vertical" Spacing="2">
-                            <UniformGrid Columns="8" Height="14">
-                                <Border Background="{Binding AnsiBrushes[0]}"/>
-                                <Border Background="{Binding AnsiBrushes[1]}"/>
-                                <Border Background="{Binding AnsiBrushes[2]}"/>
-                                <Border Background="{Binding AnsiBrushes[3]}"/>
-                                <Border Background="{Binding AnsiBrushes[4]}"/>
-                                <Border Background="{Binding AnsiBrushes[5]}"/>
-                                <Border Background="{Binding AnsiBrushes[6]}"/>
-                                <Border Background="{Binding AnsiBrushes[7]}"/>
-                            </UniformGrid>
-                            <UniformGrid Columns="8" Height="14">
-                                <Border Background="{Binding AnsiBrushes[8]}"/>
-                                <Border Background="{Binding AnsiBrushes[9]}"/>
-                                <Border Background="{Binding AnsiBrushes[10]}"/>
-                                <Border Background="{Binding AnsiBrushes[11]}"/>
-                                <Border Background="{Binding AnsiBrushes[12]}"/>
-                                <Border Background="{Binding AnsiBrushes[13]}"/>
-                                <Border Background="{Binding AnsiBrushes[14]}"/>
-                                <Border Background="{Binding AnsiBrushes[15]}"/>
-                            </UniformGrid>
-                        </StackPanel>
-
-                        <Separator Background="{DynamicResource Kei.Border.Subtle}" Margin="0,4"/>
-
-                        <!-- 模拟命令行 Shell 输出 -->
-                        <TextBlock Foreground="{Binding ForegroundBrush}">
-                            <Run Foreground="{Binding AnsiBrushes[2]}" Text="user@keiterm"/>
-                            <Run Foreground="{Binding ForegroundBrush}" Text=":"/>
-                            <Run Foreground="{Binding AnsiBrushes[12]}" Text="~"/>
-                            <Run Foreground="{Binding ForegroundBrush}" Text="$ uname -srm"/>
-                        </TextBlock>
-                        <TextBlock Foreground="{Binding ForegroundBrush}" Text="Linux 6.10.0-keiterm x86_64"/>
-
-                        <TextBlock Foreground="{Binding ForegroundBrush}" Margin="0,4,0,0">
-                            <Run Foreground="{Binding AnsiBrushes[2]}" Text="user@keiterm"/>
-                            <Run Foreground="{Binding ForegroundBrush}" Text=":"/>
-                            <Run Foreground="{Binding AnsiBrushes[12]}" Text="~/workspace"/>
-                            <Run Foreground="{Binding ForegroundBrush}" Text="$ ls -la --color=auto"/>
-                        </TextBlock>
-
-                        <!-- ls 目录与文件列表模拟 -->
-                        <StackPanel Spacing="2">
-                            <TextBlock Foreground="{Binding ForegroundBrush}">
-                                <Run Foreground="{Binding AnsiBrushes[8]}" Text="drwxr-xr-x 4 user user 4096 Sep 29 10:00 "/>
-                                <Run Foreground="{Binding AnsiBrushes[4]}" FontWeight="Bold" Text="."/>
-                            </TextBlock>
-                            <TextBlock Foreground="{Binding ForegroundBrush}">
-                                <Run Foreground="{Binding AnsiBrushes[8]}" Text="drwxr-xr-x 6 user user 4096 Sep 29 09:30 "/>
-                                <Run Foreground="{Binding AnsiBrushes[4]}" FontWeight="Bold" Text=".."/>
-                            </TextBlock>
-                            <TextBlock Foreground="{Binding ForegroundBrush}">
-                                <Run Foreground="{Binding AnsiBrushes[8]}" Text="-rw-r--r-- 1 user user  220 Sep 29 09:30 "/>
-                                <Run Foreground="{Binding ForegroundBrush}" Text=".bashrc"/>
-                            </TextBlock>
-                            <TextBlock Foreground="{Binding ForegroundBrush}">
-                                <Run Foreground="{Binding AnsiBrushes[8]}" Text="drwxr-xr-x 2 user user 4096 Sep 29 09:35 "/>
-                                <Run Foreground="{Binding AnsiBrushes[12]}" FontWeight="Bold" Text="src/"/>
-                            </TextBlock>
-                            <TextBlock Foreground="{Binding ForegroundBrush}">
-                                <Run Foreground="{Binding AnsiBrushes[8]}" Text="-rwxr-xr-x 1 user user 8192 Sep 29 09:40 "/>
-                                <Run Foreground="{Binding AnsiBrushes[10]}" FontWeight="Bold" Text="build.sh*"/>
-                            </TextBlock>
-                            <TextBlock Foreground="{Binding ForegroundBrush}">
-                                <Run Foreground="{Binding AnsiBrushes[8]}" Text="-rw-r--r-- 1 user user 1024 Sep 29 09:42 "/>
-                                <Run Foreground="{Binding AnsiBrushes[9]}" Text="package.tar.gz"/>
-                            </TextBlock>
-                        </StackPanel>
-
-                        <!-- Git 状态与选区高亮模拟 -->
-                        <TextBlock Foreground="{Binding ForegroundBrush}" Margin="0,4,0,0">
-                            <Run Foreground="{Binding AnsiBrushes[2]}" Text="user@keiterm"/>
-                            <Run Foreground="{Binding ForegroundBrush}" Text=":"/>
-                            <Run Foreground="{Binding AnsiBrushes[12]}" Text="~/workspace"/>
-                            <Run Foreground="{Binding ForegroundBrush}" Text="$ git status -s"/>
-                        </TextBlock>
-                        <StackPanel Spacing="2">
-                            <TextBlock Foreground="{Binding ForegroundBrush}">
-                                <Run Foreground="{Binding AnsiBrushes[1]}" Text=" M "/>
-                                <Run Foreground="{Binding ForegroundBrush}" Text="BuiltInPresets.cs"/>
-                            </TextBlock>
-                            <!-- 选区效果演示 -->
-                            <Border Background="{Binding SelectionBrush}" HorizontalAlignment="Left" Padding="1,0">
-                                <TextBlock Foreground="{Binding ForegroundBrush}">
-                                    <Run Foreground="{Binding AnsiBrushes[2]}" Text="?? "/>
-                                    <Run Foreground="{Binding ForegroundBrush}" Text="Themes/KeiTokens.axaml (Selected)"/>
-                                </TextBlock>
-                            </Border>
-                        </StackPanel>
-
-                        <!-- 交互输入光标模拟 -->
-                        <TextBlock Foreground="{Binding ForegroundBrush}" Margin="0,4,0,0">
-                            <Run Foreground="{Binding AnsiBrushes[2]}" Text="user@keiterm"/>
-                            <Run Foreground="{Binding ForegroundBrush}" Text=":"/>
-                            <Run Foreground="{Binding AnsiBrushes[12]}" Text="~/workspace"/>
-                            <Run Foreground="{Binding ForegroundBrush}" Text="$ "/>
-                            <Run Foreground="{Binding CursorBrush}" Text="█"/>
-                        </TextBlock>
-                    </StackPanel>
-                </ScrollViewer>
-            </Border>
+            <!-- 右侧面板：共享的真实终端 Demo 预览控件 (TerminalShellPreviewView) -->
+            <Grid Grid.Column="2">
+                <controls:TerminalShellPreviewView Profile="{Binding PreviewProfile}"
+                                                   Font="{Binding FontSnapshot}"/>
+            </Grid>
         </Grid>
 
         <!-- 底部确定与取消操作栏 -->
@@ -302,6 +203,7 @@
                     HorizontalContentAlignment="Center"/>
             <Button Content="{loc:KeiString Common.Confirm}"
                     Click="OnConfirmClick"
+                    IsEnabled="{Binding IsCurrentColorValid}"
                     Classes="accent"
                     Width="80"
                     Height="28"

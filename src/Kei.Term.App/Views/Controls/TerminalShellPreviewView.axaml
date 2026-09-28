@@ -1,0 +1,43 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="260"
+             x:Class="Kei.Term.App.Views.Controls.TerminalShellPreviewView">
+
+    <!-- 容器 Border：包裹 RoyalTerminal TerminalControl，附带卡片圆角与细边框 -->
+    <Grid>
+        <Border x:Name="TerminalContainer"
+                Background="{DynamicResource Kei.Bg.Window}"
+                BorderBrush="{DynamicResource Kei.Border}"
+                BorderThickness="1"
+                CornerRadius="{DynamicResource Kei.Radius.Card}"
+                ClipToBounds="True"
+                MinHeight="200"/>
+
+        <!-- 预览加载/渲染异常提示覆盖层（用户可见，避免冒充正常） -->
+        <Border x:Name="ErrorOverlay"
+                Background="#B01E1E1E"
+                BorderBrush="#E53935"
+                BorderThickness="1"
+                CornerRadius="{DynamicResource Kei.Radius.Card}"
+                Padding="16"
+                IsVisible="False"
+                VerticalAlignment="Stretch"
+                HorizontalAlignment="Stretch">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="8">
+                <TextBlock Text="终端模拟预览渲染失败"
+                           Foreground="#E53935"
+                           FontWeight="Bold"
+                           FontSize="12"
+                           HorizontalAlignment="Center"/>
+                <TextBlock x:Name="ErrorMessageText"
+                           Foreground="{DynamicResource Kei.Text.Secondary}"
+                           FontSize="11"
+                           TextWrapping="Wrap"
+                           MaxWidth="340"
+                           HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

@@ -33,7 +33,9 @@ public static class SessionConfigBuilder
             StartupScript: node.StartupScript,
             // 跳板机为会话级配置，不回退
             JumpHostSessionId: node.JumpHostSessionId,
-            EnvironmentVariables: node.EnvironmentVariables
+            EnvironmentVariables: node.EnvironmentVariables,
+            // 终端配色：显式 ID 透传，交由 App 层做三级回退解析
+            TerminalProfileId: node.TerminalProfileId
         );
     }
 }

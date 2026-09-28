@@ -1,4 +1,5 @@
 using System;
+using Kei.Term.App.Services;
 using Kei.Term.Core.Models.Profiles;
 using Kei.Term.Core.Services;
 using Xunit;
@@ -85,6 +86,28 @@ public class KonsoleColorSchemeParserTests
         // 光标色与选区高亮色必须存在且为有效 Hex
         Assert.False(string.IsNullOrWhiteSpace(profile.CursorColor));
         Assert.False(string.IsNullOrWhiteSpace(profile.SelectionBackground));
+
+        // 自动推导的选区色必须是 #AARRGGBB（alpha 前缀），RGB 取自蓝色槽位 Color4 = 29,153,243
+        Assert.Equal("#501D99F3", profile.SelectionBackground);
+    }
+
+    [Fact]
+    public void Parse_AutoDerivedSelectionColor_IsAlphaPrefixedArgBFromBlueSlot()
+    {
+        string scheme = """
+            [Color4]
+            Color=36,114,200
+            """;
+
+        TerminalProfile profile = KonsoleColorSchemeParser.Parse(scheme, "SelectionTest");
+
+        // #50 + RGB，而不是把 alpha 追加到末尾（#RRGGBB50 会被误读）
+        Assert.Equal("#502472C8", profile.SelectionBackground);
+
+        // alpha 与 RGB 必须可独立还原
+        Assert.True(TerminalThemeAdapter.TryParseArgb(profile.SelectionBackground, out uint argb));
+        Assert.Equal(0x50u, argb >> 24);
+        Assert.Equal(0x2472C8u, argb & 0x00FFFFFFu);
     }
 
     [Fact]

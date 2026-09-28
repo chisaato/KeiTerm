@@ -65,8 +65,8 @@ public static class UiDesignSystemService
     }
 
     private static ResourceDictionary LoadDictionary(string fileName)
-        => (ResourceDictionary)AvaloniaXamlLoader.Load(new Uri($"avares://Kei.Term.App/Themes/{fileName}"), null)!;
+        => (ResourceDictionary)AvaloniaXamlLoader.Load(new Uri($"avares://Kei.Term.App/DesignSystem/{fileName}"), null)!;
 
     private static Styles LoadStyles(string fileName)
-        => (Styles)AvaloniaXamlLoader.Load(new Uri($"avares://Kei.Term.App/Themes/{fileName}"), null)!;
+        => (Styles)AvaloniaXamlLoader.Load(new Uri($"avares://Kei.Term.App/DesignSystem/{fileName}"), null)!;
 }
