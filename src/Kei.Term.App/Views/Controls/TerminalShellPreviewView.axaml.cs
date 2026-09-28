@@ -37,12 +37,17 @@ public partial class TerminalShellPreviewView : UserControl
     private EventHandler<RoutedEventArgs>? _terminalLoadedHandler;
     private bool _hasWrittenSample;
 
-    // 安全的固定 ANSI 演示样本：测试 ANSI 0..15 色条、prompt、ls -la、git 状态以及光标
+    // 安全的固定 ANSI 演示样本：测试 ANSI 0..15 色条、CJK 混排、prompt、ls -la、git 状态以及光标
     private static readonly byte[] DemoAnsiSample = Encoding.UTF8.GetBytes(
         "\x1b[0m ANSI Palette: " +
         "\x1b[40m  \x1b[41m  \x1b[42m  \x1b[43m  \x1b[44m  \x1b[45m  \x1b[46m  \x1b[47m  \x1b[0m\r\n" +
         "               " +
         "\x1b[100m  \x1b[101m  \x1b[102m  \x1b[103m  \x1b[104m  \x1b[105m  \x1b[106m  \x1b[107m  \x1b[0m\r\n\r\n" +
+        // CJK 与英文混排的等宽字形覆盖样本（含全角标点与谚文）
+        "\x1b[36m[ZH]\x1b[0m 天地玄黄 宇宙洪荒 • 繁星落入深渊，终端静静流淌。\r\n" +
+        "\x1b[36m[JA]\x1b[0m いろはにほへと 散りぬるを • 我が世誰ぞ常ならむ\r\n" +
+        "\x1b[36m[KO]\x1b[0m 다람쥐 헌 쳇바퀴에 타고파 • 별빛이 흐르는 은하수\r\n" +
+        "\x1b[36m[EN]\x1b[0m The quick brown fox jumps over the lazy dog. 1234567890\r\n\r\n" +
         "\x1b[32muser@keiterm\x1b[0m:\x1b[34m~\x1b[0m$ uname -srm\r\n" +
         "Linux 6.10.0-keiterm x86_64\r\n\r\n" +
         "\x1b[32muser@keiterm\x1b[0m:\x1b[34m~/workspace\x1b[0m$ ls -la --color=auto\r\n" +

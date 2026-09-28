@@ -344,7 +344,13 @@
     <value>终端</value>
   </data>
   <data name="Settings.Categories.TerminalDesc" xml:space="preserve">
-    <value>终端字体、配色方案与仿真</value>
+    <value>回滚缓冲区与默认终端仿真类型</value>
+  </data>
+  <data name="Settings.Categories.TerminalAppearance" xml:space="preserve">
+    <value>终端外观</value>
+  </data>
+  <data name="Settings.Categories.TerminalAppearanceDesc" xml:space="preserve">
+    <value>终端配色方案、主字体与回退字体配置</value>
   </data>
   <data name="Settings.Categories.TabBar" xml:space="preserve">
     <value>标签栏</value>

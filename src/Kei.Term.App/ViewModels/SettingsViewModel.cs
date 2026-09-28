@@ -91,8 +91,13 @@ public partial class SettingsViewModel : ViewModelBase
             new SettingsCategoryItem(
                 Strings.Get("Settings.Categories.Terminal"),
                 Strings.Get("Settings.Categories.TerminalDesc"),
-                new TerminalSettingsCombinedPage(_terminal, _appearance),
+                new TerminalSettingsCombinedPage(_terminal),
                 SettingsIcons.Terminal),
+            new SettingsCategoryItem(
+                Strings.Get("Settings.Categories.TerminalAppearance"),
+                Strings.Get("Settings.Categories.TerminalAppearanceDesc"),
+                new TerminalAppearanceSettingsPage(_appearance),
+                SettingsIcons.Appearance),
             new SettingsCategoryItem(
                 Strings.Get("Settings.Categories.TabBar"),
                 Strings.Get("Settings.Categories.TabBarDesc"),

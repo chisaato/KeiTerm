@@ -164,5 +164,19 @@ public class TerminalProfileEditViewModelTests
         Assert.Contains("ScrollViewer IsEnabled=\"{Binding !IsBusy}\"", xamlText);
         Assert.Contains("IsEnabled=\"{Binding !IsBusy}\"", xamlText);
         Assert.Contains("NotificationTextBlock", xamlText);
+
+        // R3: 确保 TerminalAppearanceSettingsPage 使用左右两栏分栏响应式布局（左侧表单+左下导入，右侧常驻实时Demo预览）
+        Assert.Contains("DataTemplate DataType=\"settings:TerminalAppearanceSettingsPage\"", xamlText);
+        Assert.Contains("ColumnDefinitions=\"400, *\"", xamlText);
+        Assert.Contains("ColumnSpacing=\"20\"", xamlText);
+        Assert.Contains("controls:TerminalShellPreviewView", xamlText);
+        Assert.Contains("Profile=\"{Binding Appearance.SelectedTerminalProfile}\"", xamlText);
+        Assert.Contains("Font=\"{Binding Appearance.DraftFontSnapshot}\"", xamlText);
+        Assert.Contains("VerticalAlignment=\"Stretch\"", xamlText);
+        Assert.Contains("MinHeight=\"360\"", xamlText);
+        Assert.Contains("ImportKonsoleSchemeCommand", xamlText);
+        Assert.Contains("从 Konsole 导入 (*.colorscheme)...", xamlText);
+        Assert.Contains("从 iTerm2 导入 (预留)", xamlText);
+        Assert.Contains("实时效果预览 (Live Preview)", xamlText);
     }
 }

@@ -10,7 +10,7 @@
         x:Class="Kei.Term.App.Views.SettingsWindow"
         x:DataType="vm:SettingsViewModel"
         Title="{loc:KeiString Settings.Title}"
-        Width="840" Height="620" MinWidth="760" MinHeight="520"
+        Width="980" Height="660" MinWidth="880" MinHeight="580"
         WindowStartupLocation="CenterOwner"
         CanResize="True"
         FontFamily="Noto Sans CJK SC, Source Han Sans SC, Microsoft YaHei UI, Segoe UI, sans-serif"
@@ -293,7 +293,7 @@
                                 </StackPanel>
                             </DataTemplate>
 
-                            <!-- 终端设置页（综合终端仿真与终端字体/配色） -->
+                            <!-- 终端设置页（底层终端仿真与回滚缓冲） -->
                             <DataTemplate DataType="settings:TerminalSettingsCombinedPage"
                                           x:DataType="settings:TerminalSettingsCombinedPage">
                                 <StackPanel MaxWidth="560" HorizontalAlignment="Left" Spacing="14">
@@ -317,116 +317,156 @@
                                                  PlaceholderText="{loc:KeiString Settings.Terminal.DefaultTerminalTypePlaceholder}"
                                                  ToolTip.Tip="{loc:KeiString Settings.Terminal.DefaultTerminalTypeTip}"/>
                                     </Grid>
-
-                                    <!-- 终端字体与配色 -->
-                                    <TextBlock Text="{loc:KeiString Settings.Appearance.FontSection}" FontSize="13" FontWeight="Bold" Margin="0,10,0,0"
-                                               Foreground="{DynamicResource Kei.Session.Foreground}"/>
-
-                                    <!-- 终端配色分区（独占全宽下拉框 + 下行换行操作栏） -->
-                                    <StackPanel Spacing="6" DataContext="{Binding Appearance}">
-                                        <Grid ColumnDefinitions="150, *" ColumnSpacing="12">
-                                            <TextBlock Grid.Column="0" Text="{loc:KeiString Settings.Appearance.TerminalProfile}" VerticalAlignment="Center"
-                                                       Foreground="{DynamicResource Kei.Text.Secondary}"/>
-                                            <ComboBox Grid.Column="1" HorizontalAlignment="Stretch"
-                                                      ItemsSource="{Binding TerminalProfiles}"
-                                                      SelectedItem="{Binding SelectedTerminalProfile}"
-                                                      ToolTip.Tip="{loc:KeiString Settings.Appearance.TerminalProfileTip}">
-                                                <ComboBox.ItemTemplate>
-                                                    <DataTemplate>
-                                                        <TextBlock Text="{Binding Name}"/>
-                                                    </DataTemplate>
-                                                </ComboBox.ItemTemplate>
-                                            </ComboBox>
-                                        </Grid>
-
-                                        <Grid ColumnDefinitions="150, *" ColumnSpacing="12">
-                                            <WrapPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                                                <WrapPanel.Styles>
-                                                    <Style Selector="Button">
-                                                        <Setter Property="Height" Value="28"/>
-                                                        <Setter Property="Padding" Value="10,0"/>
-                                                        <Setter Property="Margin" Value="0,0,8,6"/>
-                                                        <Setter Property="VerticalContentAlignment" Value="Center"/>
-                                                    </Style>
-                                                </WrapPanel.Styles>
-                                                <Button Content="{loc:KeiString Settings.Appearance.NewTerminalProfile}"
-                                                        Command="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).NewTerminalProfileCommand}"/>
-                                                <Button Content="{loc:KeiString Settings.Appearance.EditTerminalProfile}"
-                                                        Command="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).EditTerminalProfileCommand}"/>
-                                                <Button Content="{loc:KeiString Settings.Appearance.ImportKonsoleScheme}"
-                                                        Command="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).ImportKonsoleSchemeCommand}"/>
-                                            </WrapPanel>
-                                        </Grid>
-                                    </StackPanel>
-
-                                    <!-- 字体配置行 -->
-                                    <Grid ColumnDefinitions="150, *" ColumnSpacing="12" RowDefinitions="Auto, Auto" RowSpacing="12"
-                                          DataContext="{Binding Appearance}">
-                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString Settings.Appearance.FontFamily}" VerticalAlignment="Center"
-                                                   Foreground="{DynamicResource Kei.Text.Secondary}"/>
-                                        <ComboBox Grid.Row="0" Grid.Column="1" HorizontalAlignment="Stretch"
-                                                  ItemsSource="{Binding AvailableFonts}"
-                                                  SelectedItem="{Binding SelectedFont}"
-                                                  ToolTip.Tip="{loc:KeiString Settings.Appearance.FontFamilyTip}">
-                                            <ComboBox.ItemTemplate>
-                                                <DataTemplate>
-                                                    <TextBlock Text="{Binding DisplayName}"/>
-                                                </DataTemplate>
-                                            </ComboBox.ItemTemplate>
-                                        </ComboBox>
-
-                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="{loc:KeiString Settings.Appearance.FontSize}" VerticalAlignment="Center"
-                                                   Foreground="{DynamicResource Kei.Text.Secondary}"/>
-                                        <NumericUpDown Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" MinWidth="220"
-                                                       Value="{Binding FontSize}" Minimum="8" Maximum="36" FormatString="0.0"
-                                                       ToolTip.Tip="{loc:KeiString Settings.Appearance.FontSizeTip}"/>
-                                    </Grid>
-
-                                    <!-- 终端回退字体有序列表 -->
-                                    <TextBlock Text="{loc:KeiString Settings.Appearance.FallbackFontsSection}" FontSize="12"
-                                               Foreground="{DynamicResource Kei.Text.Secondary}" Margin="0,4,0,0"/>
-                                    <Grid ColumnDefinitions="*, Auto" ColumnSpacing="8" DataContext="{Binding Appearance}">
-                                        <ComboBox Grid.Column="0" HorizontalAlignment="Stretch"
-                                                  ItemsSource="{Binding AvailableFonts}"
-                                                  SelectedItem="{Binding TerminalFallbackFontCandidate}"
-                                                  PlaceholderText="{loc:KeiString Settings.Appearance.SelectFallbackFontToAdd}">
-                                            <ComboBox.ItemTemplate>
-                                                <DataTemplate>
-                                                    <TextBlock Text="{Binding DisplayName}"/>
-                                                </DataTemplate>
-                                            </ComboBox.ItemTemplate>
-                                        </ComboBox>
-                                        <Button Grid.Column="1" Content="{loc:KeiString Settings.Appearance.AddFallbackFont}"
-                                                Command="{Binding AddTerminalFallbackFont}"/>
-                                    </Grid>
-                                    <Grid ColumnDefinitions="*, Auto" ColumnSpacing="8" DataContext="{Binding Appearance}">
-                                        <ListBox Grid.Column="0" MinHeight="80" MaxHeight="120"
-                                                 ItemsSource="{Binding TerminalFallbackFonts}"
-                                                 SelectedItem="{Binding SelectedTerminalFallbackFont}"/>
-                                        <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
-                                            <Button Content="{loc:KeiString Settings.Appearance.MoveUp}" MinWidth="60"
-                                                    Command="{Binding MoveUpTerminalFallbackFont}"/>
-                                            <Button Content="{loc:KeiString Settings.Appearance.MoveDown}" MinWidth="60"
-                                                    Command="{Binding MoveDownTerminalFallbackFont}"/>
-                                            <Button Content="{loc:KeiString Settings.Appearance.RemoveFallbackFont}" MinWidth="60"
-                                                    Command="{Binding RemoveTerminalFallbackFont}"/>
-                                        </StackPanel>
-                                    </Grid>
-
-                                    <StackPanel Orientation="Horizontal" Spacing="24" DataContext="{Binding Appearance}">
-                                        <CheckBox IsChecked="{Binding CursorBlink}" Content="{loc:KeiString Settings.Appearance.CursorBlink}"
-                                                  ToolTip.Tip="{loc:KeiString Settings.Appearance.CursorBlinkTip}"/>
-                                        <CheckBox IsChecked="{Binding IsItalic}" Content="{loc:KeiString Settings.Appearance.FontItalic}"
-                                                  ToolTip.Tip="{loc:KeiString Settings.Appearance.FontItalicTip}"/>
-                                    </StackPanel>
-
-                                    <!-- 实时终端 Demo 预览区域 (替代原单行纯文本预览) -->
-                                    <TextBlock Text="{loc:KeiString Settings.Appearance.FontPreviewSection}" FontSize="13" FontWeight="Bold" Margin="0,10,0,0"
-                                               Foreground="{DynamicResource Kei.Session.Foreground}"/>
-                                    <controls:TerminalShellPreviewView Height="220" Margin="0,4,0,0"
-                                                                       Profile="{Binding Appearance.SelectedTerminalProfile}"
-                                                                       Font="{Binding Appearance.DraftFontSnapshot}"/>
                                 </StackPanel>
+                            </DataTemplate>
+
+                            <!-- 终端外观设置页（配色方案、主字体与回退字体，左右两栏响应式布局） -->
+                            <DataTemplate DataType="settings:TerminalAppearanceSettingsPage"
+                                          x:DataType="settings:TerminalAppearanceSettingsPage">
+                                <Grid ColumnDefinitions="400, *" ColumnSpacing="20" HorizontalAlignment="Stretch">
+                                    <!-- 左侧列：编辑与导入区（固定宽约 400，可滚动） -->
+                                    <ScrollViewer Grid.Column="0" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                                        <StackPanel Spacing="16" Margin="0,0,8,0">
+                                            <!-- 分组 1：终端配色 -->
+                                            <StackPanel Spacing="8" DataContext="{Binding Appearance}">
+                                                <TextBlock Text="{loc:KeiString Settings.Appearance.TerminalProfile}" FontSize="13" FontWeight="Bold"
+                                                           Foreground="{DynamicResource Kei.Session.Foreground}"/>
+
+                                                <!-- 配色方案下拉框（独占整行） -->
+                                                <ComboBox HorizontalAlignment="Stretch"
+                                                          ItemsSource="{Binding TerminalProfiles}"
+                                                          SelectedItem="{Binding SelectedTerminalProfile}"
+                                                          ToolTip.Tip="{loc:KeiString Settings.Appearance.TerminalProfileTip}">
+                                                    <ComboBox.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <TextBlock Text="{Binding Name}"/>
+                                                        </DataTemplate>
+                                                    </ComboBox.ItemTemplate>
+                                                </ComboBox>
+
+                                                <!-- 下方横向操作按钮 -->
+                                                <WrapPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                                                    <WrapPanel.Styles>
+                                                        <Style Selector="Button">
+                                                            <Setter Property="Height" Value="28"/>
+                                                            <Setter Property="Padding" Value="10,0"/>
+                                                            <Setter Property="Margin" Value="0,0,8,6"/>
+                                                            <Setter Property="VerticalContentAlignment" Value="Center"/>
+                                                        </Style>
+                                                    </WrapPanel.Styles>
+                                                    <Button Content="{loc:KeiString Settings.Appearance.NewTerminalProfile}"
+                                                            Command="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).NewTerminalProfileCommand}"/>
+                                                    <Button Content="{loc:KeiString Settings.Appearance.EditTerminalProfile}"
+                                                            Command="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).EditTerminalProfileCommand}"/>
+                                                </WrapPanel>
+                                            </StackPanel>
+
+                                            <!-- 分组 2：终端字体 -->
+                                            <StackPanel Spacing="10" DataContext="{Binding Appearance}">
+                                                <TextBlock Text="{loc:KeiString Settings.Appearance.FontSection}" FontSize="13" FontWeight="Bold"
+                                                           Foreground="{DynamicResource Kei.Session.Foreground}"/>
+
+                                                <!-- 主等宽字体下拉框 -->
+                                                <Grid ColumnDefinitions="110, *" ColumnSpacing="10">
+                                                    <TextBlock Grid.Column="0" Text="{loc:KeiString Settings.Appearance.FontFamily}" VerticalAlignment="Center"
+                                                               Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                                    <ComboBox Grid.Column="1" HorizontalAlignment="Stretch"
+                                                              ItemsSource="{Binding AvailableFonts}"
+                                                              SelectedItem="{Binding SelectedFont}"
+                                                              ToolTip.Tip="{loc:KeiString Settings.Appearance.FontFamilyTip}">
+                                                        <ComboBox.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <TextBlock Text="{Binding DisplayName}"/>
+                                                            </DataTemplate>
+                                                        </ComboBox.ItemTemplate>
+                                                    </ComboBox>
+                                                </Grid>
+
+                                                <!-- 字号 NumericUpDown (8.0~36.0) -->
+                                                <Grid ColumnDefinitions="110, *" ColumnSpacing="10">
+                                                    <TextBlock Grid.Column="0" Text="{loc:KeiString Settings.Appearance.FontSize}" VerticalAlignment="Center"
+                                                               Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                                    <NumericUpDown Grid.Column="1" HorizontalAlignment="Left" MinWidth="160"
+                                                                   Value="{Binding FontSize}" Minimum="8" Maximum="36" FormatString="0.0"
+                                                                   ToolTip.Tip="{loc:KeiString Settings.Appearance.FontSizeTip}"/>
+                                                </Grid>
+
+                                                <!-- 光标闪烁、字体倾斜 CheckBox -->
+                                                <StackPanel Orientation="Horizontal" Spacing="20">
+                                                    <CheckBox IsChecked="{Binding CursorBlink}" Content="{loc:KeiString Settings.Appearance.CursorBlink}"
+                                                              ToolTip.Tip="{loc:KeiString Settings.Appearance.CursorBlinkTip}"/>
+                                                    <CheckBox IsChecked="{Binding IsItalic}" Content="{loc:KeiString Settings.Appearance.FontItalic}"
+                                                              ToolTip.Tip="{loc:KeiString Settings.Appearance.FontItalicTip}"/>
+                                                </StackPanel>
+
+                                                <!-- 回退字体候选 ComboBox + 添加按钮 -->
+                                                <TextBlock Text="{loc:KeiString Settings.Appearance.FallbackFontsSection}" FontSize="12"
+                                                           Foreground="{DynamicResource Kei.Text.Secondary}" Margin="0,4,0,0"/>
+                                                <Grid ColumnDefinitions="*, Auto" ColumnSpacing="8">
+                                                    <ComboBox Grid.Column="0" HorizontalAlignment="Stretch"
+                                                              ItemsSource="{Binding AvailableFonts}"
+                                                              SelectedItem="{Binding TerminalFallbackFontCandidate}"
+                                                              PlaceholderText="{loc:KeiString Settings.Appearance.SelectFallbackFontToAdd}">
+                                                        <ComboBox.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <TextBlock Text="{Binding DisplayName}"/>
+                                                            </DataTemplate>
+                                                        </ComboBox.ItemTemplate>
+                                                    </ComboBox>
+                                                    <Button Grid.Column="1" Content="{loc:KeiString Settings.Appearance.AddFallbackFont}"
+                                                            Command="{Binding AddTerminalFallbackFont}"/>
+                                                </Grid>
+
+                                                <!-- 回退字体优先级列表（ListBox）及 上移、下移、删除 按钮 -->
+                                                <Grid ColumnDefinitions="*, Auto" ColumnSpacing="8">
+                                                    <ListBox Grid.Column="0" MinHeight="80" MaxHeight="120"
+                                                             ItemsSource="{Binding TerminalFallbackFonts}"
+                                                             SelectedItem="{Binding SelectedTerminalFallbackFont}"/>
+                                                    <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
+                                                        <Button Content="{loc:KeiString Settings.Appearance.MoveUp}" MinWidth="60"
+                                                                Command="{Binding MoveUpTerminalFallbackFont}"/>
+                                                        <Button Content="{loc:KeiString Settings.Appearance.MoveDown}" MinWidth="60"
+                                                                Command="{Binding MoveDownTerminalFallbackFont}"/>
+                                                        <Button Content="{loc:KeiString Settings.Appearance.RemoveFallbackFont}" MinWidth="60"
+                                                                Command="{Binding RemoveTerminalFallbackFont}"/>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </StackPanel>
+
+                                            <!-- 分组 3：导入外部配色方案（置于左栏底部） -->
+                                            <StackPanel Spacing="8">
+                                                <TextBlock Text="导入外部配色方案" FontSize="13" FontWeight="Bold"
+                                                           Foreground="{DynamicResource Kei.Session.Foreground}"/>
+                                                <WrapPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                                                    <WrapPanel.Styles>
+                                                        <Style Selector="Button">
+                                                            <Setter Property="Height" Value="28"/>
+                                                            <Setter Property="Padding" Value="10,0"/>
+                                                            <Setter Property="Margin" Value="0,0,8,6"/>
+                                                            <Setter Property="VerticalContentAlignment" Value="Center"/>
+                                                        </Style>
+                                                    </WrapPanel.Styles>
+                                                    <Button Content="从 Konsole 导入 (*.colorscheme)..."
+                                                            Command="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).ImportKonsoleSchemeCommand}"/>
+                                                    <Button Content="从 iTerm2 导入 (预留)"
+                                                            IsEnabled="False"/>
+                                                </WrapPanel>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </ScrollViewer>
+
+                                    <!-- 右侧列：常驻实时终端 Demo 预览（垂直拉伸撑满） -->
+                                    <Grid Grid.Column="1" RowDefinitions="Auto, *" RowSpacing="10" VerticalAlignment="Stretch">
+                                        <TextBlock Grid.Row="0" Text="实时效果预览 (Live Preview)" FontSize="13" FontWeight="Bold"
+                                                   Foreground="{DynamicResource Kei.Session.Foreground}"/>
+                                        <controls:TerminalShellPreviewView Grid.Row="1"
+                                                                           MinHeight="360"
+                                                                           VerticalAlignment="Stretch"
+                                                                           HorizontalAlignment="Stretch"
+                                                                           Profile="{Binding Appearance.SelectedTerminalProfile}"
+                                                                           Font="{Binding Appearance.DraftFontSnapshot}"/>
+                                    </Grid>
+                                </Grid>
                             </DataTemplate>
 
                             <!-- 标签栏设置页 -->

@@ -12,7 +12,7 @@
         x:DataType="vm:MainViewModel"
         Icon="/Assets/avalonia-logo.ico"
         Title="{loc:KeiString Main.Title}"
-        Width="1200" Height="780"
+        Width="1280" Height="820"
         MinWidth="960" MinHeight="600"
         FontFamily="Noto Sans CJK SC, Source Han Sans SC, Microsoft YaHei UI, Segoe UI, sans-serif"
         Background="{DynamicResource Kei.Bg.Window}">

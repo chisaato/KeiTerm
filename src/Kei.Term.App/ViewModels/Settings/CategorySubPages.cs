@@ -11,17 +11,21 @@ public sealed class TreeSettingsProxyPage : ViewModelBase
     }
 }
 
-// 终端设置分类项容器（整合 TerminalSettingsPage 与终端字体/配色）
+// 「终端」分类项容器：仅承载底层终端行为（回滚缓冲、默认仿真类型）
 public sealed class TerminalSettingsCombinedPage : ViewModelBase
 {
     public TerminalSettingsPage Terminal { get; }
-    public AppearanceSettingsPage Appearance { get; }
 
-    public TerminalSettingsCombinedPage(TerminalSettingsPage terminal, AppearanceSettingsPage appearance)
+    public TerminalSettingsCombinedPage(TerminalSettingsPage terminal)
     {
         Terminal = terminal;
-        Appearance = appearance;
     }
+}
+
+// 「终端外观」分类项容器：终端配色方案、主字体与回退字体配置
+public sealed class TerminalAppearanceSettingsPage(AppearanceSettingsPage appearance) : ViewModelBase
+{
+    public AppearanceSettingsPage Appearance { get; } = appearance;
 }
 
 // 标签栏设置分类项容器（代理 AppearanceSettingsPage 中的标签栏与配置包导入导出）
