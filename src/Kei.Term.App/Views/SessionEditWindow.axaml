@@ -8,7 +8,7 @@
         x:Class="Kei.Term.App.Views.SessionEditWindow"
         x:DataType="vm:SessionEditViewModel"
         Title="{Binding Title}"
-        Width="520" Height="560"
+        Width="520" Height="640"
         WindowStartupLocation="CenterOwner"
         CanResize="False"
         Background="#1E1E1E">
@@ -74,6 +74,19 @@
 
                     <TextBlock Grid.Row="1" Grid.Column="0" Text="SFTP 模式:" VerticalAlignment="Center" Foreground="#CCCCCC"/>
                     <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding AvailableSftpModes}" SelectedItem="{Binding SelectedSftpMode}" Margin="0,4" HorizontalAlignment="Stretch"/>
+                </Grid>
+
+                <Separator Background="#333333"/>
+
+                <!-- 会话行为：可继承全局设置的覆盖项 -->
+                <TextBlock Text="{loc:KeiString SessionEdit.BehaviorSection}" FontWeight="Bold" Foreground="#4EC9B0" FontSize="14"/>
+
+                <Grid ColumnDefinitions="100, *" RowDefinitions="Auto, Auto" Margin="0,4,0,10">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString SessionEdit.TabTitle}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                    <ComboBox Grid.Row="0" Grid.Column="1" ItemsSource="{Binding TitleFollowOptions}" SelectedItem="{Binding SelectedTitleFollow}" Margin="0,4" HorizontalAlignment="Stretch"/>
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{loc:KeiString SessionEdit.CwdFollow}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                    <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding CwdFollowOptions}" SelectedItem="{Binding SelectedCwdFollow}" Margin="0,4" HorizontalAlignment="Stretch"/>
                 </Grid>
             </StackPanel>
         </ScrollViewer>

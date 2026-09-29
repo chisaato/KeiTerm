@@ -1,12 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Kei.Term.App.Helpers;
 using Kei.Term.App.ViewModels.Settings;
 using Kei.Term.Core.Models;
+using Kei.Term.Core.Settings;
 using Kei.Term.Core.Vault;
 
 namespace Kei.Term.App.ViewModels;
@@ -54,14 +56,36 @@ public partial class SessionEditViewModel : ViewModelBase
     [ObservableProperty]
     private SftpChannelMode _selectedSftpMode = SftpChannelMode.Auto;
 
+    // 会话行为覆盖：首项为「继承全局（当前：…）」
+    public IReadOnlyList<InheritableOption<bool>> TitleFollowOptions { get; }
+
+    [ObservableProperty]
+    private InheritableOption<bool>? _selectedTitleFollow;
+
+    public IReadOnlyList<InheritableOption<CwdFollowMode>> CwdFollowOptions { get; }
+
+    [ObservableProperty]
+    private InheritableOption<CwdFollowMode>? _selectedCwdFollow;
+
     public Guid NodeId { get; }
     public Guid? ParentId { get; set; }
     public bool IsConfirmed { get; private set; }
 
     public event Action? RequestClose;
 
-    public SessionEditViewModel(SessionNode? existing, Guid? parentId, IReadOnlyList<Identity> availableIdentities)
+    public SessionEditViewModel(
+        SessionNode? existing,
+        Guid? parentId,
+        IReadOnlyList<Identity> availableIdentities,
+        AppSettings? globalSettings = null)
     {
+        AppSettings global = globalSettings ?? new AppSettings();
+        TitleFollowOptions = SessionBehaviorOptions.InheritableTitleFollow(global.TabTitleFollowsRemote);
+        CwdFollowOptions = SessionBehaviorOptions.InheritableCwdFollow(global.CwdFollowMode);
+        SessionOverrides overrides = existing?.Overrides ?? new SessionOverrides();
+        SelectedTitleFollow = TitleFollowOptions.First(o => o.Value == overrides.FollowRemoteTitle);
+        SelectedCwdFollow = CwdFollowOptions.First(o => o.Value == overrides.CwdFollow);
+
         Identities.Add(new IdentityOption(null, Strings.Get("SessionEdit.IdentityNone")));
         foreach (var identity in availableIdentities)
         {
@@ -133,6 +157,9 @@ public partial class SessionEditViewModel : ViewModelBase
         model.IdentityId = SelectedIdentity?.Id;
         model.FileTransferProtocol = SelectedProtocol;
         model.SftpMode = SelectedSftpMode;
+        // 只改本窗口管理的覆盖项，其余覆盖项（如批量修改设置的新项）原样保留
+        model.Overrides.FollowRemoteTitle = SelectedTitleFollow?.Value;
+        model.Overrides.CwdFollow = SelectedCwdFollow?.Value;
         return model;
     }
 }

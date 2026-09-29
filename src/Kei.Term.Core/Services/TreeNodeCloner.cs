@@ -58,7 +58,11 @@ public static class TreeNodeCloner
                     JumpHostSessionId = session.JumpHostSessionId,
                     EnvironmentVariables = new Dictionary<string, string>(
                         session.EnvironmentVariables,
-                        session.EnvironmentVariables.Comparer)
+                        session.EnvironmentVariables.Comparer),
+                    TerminalProfileId = session.TerminalProfileId,
+                    FileTransferProtocol = session.FileTransferProtocol,
+                    SftpMode = session.SftpMode,
+                    Overrides = session.Overrides.Clone()
                 };
             }
             default:

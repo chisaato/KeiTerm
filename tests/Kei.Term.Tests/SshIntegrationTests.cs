@@ -314,6 +314,39 @@ public class SshIntegrationTests : IClassFixture<SshdFixture>, IDisposable
     }
 
     [SshdFact]
+    public async Task RapidUnawaitedInputs_ArriveExactlyOnceAndInOrder()
+    {
+        await using ISshSession session = await new SshSessionFactory().CreateSessionAsync(_sshd.Config(), _sshd.KeyAuth());
+        await session.ConnectAsync();
+        await session.SendInputAsync(Encoding.UTF8.GetBytes("stty -echo\r"));
+        await Task.Delay(300);
+
+        // 键盘输入与终端应答都是"发出即不管"的连续调用：曾因并发 Flush 出现字节重复（tmux 把重复的 DA 应答当成按键）。
+        // 竞态按概率出现，重复多轮以提高检出率
+        for (int round = 0; round < 6; round++)
+        {
+            await session.SendInputAsync(Encoding.UTF8.GetBytes("read -r line; echo \"GOT[$line]\"\r"));
+            await Task.Delay(100);
+
+            // 仿终端连续回多条应答的节奏：每轮连发 4 段、段间短暂停顿，让前一批写出与后一批交错
+            string[] chunks = Enumerable.Range(0, 160).Select(i => $"{i:D3}{(char)('a' + (i + round) % 26)}").ToArray();
+            string expected = string.Concat(chunks);
+            Task<string> output = CollectOutputAsync(session, "]", TimeSpan.FromSeconds(10));
+            for (int i = 0; i < chunks.Length; i++)
+            {
+                _ = session.SendInputAsync(Encoding.ASCII.GetBytes(chunks[i]));
+                if (i % 4 == 3)
+                {
+                    await Task.Delay(1);
+                }
+            }
+
+            await session.SendInputAsync("\r"u8.ToArray());
+            Assert.Contains($"GOT[{expected}]", await output);
+        }
+    }
+
+    [SshdFact]
     public async Task Scp_MaliciousFileName_IsNotExecutedByRemoteShell()
     {
         var (_, trust) = await NewTrustAsync(HostKeyPolicy.AcceptNew);

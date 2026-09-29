@@ -12,6 +12,7 @@ public static class SchemaMigrations
     [
         new(1, "baseline", ApplyBaselineAsync),
         new(2, "known_hosts", ApplyKnownHostsAsync),
+        new(3, "session_options", ApplySessionOptionsAsync),
     ];
 
     // v1 基线：必须幂等，兼容三类库——全新库、user_version=0 的现行库、更早的 credentials 旧库
@@ -113,6 +114,10 @@ public static class SchemaMigrations
         // 目录组配置继承已废弃
         await ExecAsync(conn, tx, "DROP TABLE IF EXISTS folder_configs;", ct);
     }
+
+    // v3 会话级行为覆盖（标题跟随、目录跟随……）：整体存 JSON，后续新增覆盖项无需再迁移
+    private static Task ApplySessionOptionsAsync(SqliteConnection conn, SqliteTransaction tx, CancellationToken ct)
+        => AddColumnIfMissingAsync(conn, tx, "session_details", "options_json", "TEXT", ct);
 
     // v2 主机密钥信任库：一台主机可有多把密钥（不同算法 / 轮换期新旧并存 / 被吊销）
     private static Task ApplyKnownHostsAsync(SqliteConnection conn, SqliteTransaction tx, CancellationToken ct)

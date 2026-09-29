@@ -327,6 +327,22 @@
                                                  PlaceholderText="{loc:KeiString Settings.Terminal.DefaultTerminalTypePlaceholder}"
                                                  ToolTip.Tip="{loc:KeiString Settings.Terminal.DefaultTerminalTypeTip}"/>
                                     </Grid>
+
+                                    <TextBlock Text="{loc:KeiString Settings.Terminal.BehaviorSection}" FontSize="13" FontWeight="Bold" Margin="0,10,0,0"
+                                               Foreground="{DynamicResource Kei.Session.Foreground}"/>
+                                    <CheckBox IsChecked="{Binding Terminal.TabTitleFollowsRemote}"
+                                              Content="{loc:KeiString Settings.Terminal.TabTitleFollowsRemote}"
+                                              ToolTip.Tip="{loc:KeiString Settings.Terminal.TabTitleFollowsRemoteTip}"/>
+                                    <Grid ColumnDefinitions="150, *" ColumnSpacing="12">
+                                        <TextBlock Grid.Column="0" Text="{loc:KeiString Settings.Terminal.CwdFollow}" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                        <ComboBox Grid.Column="1" MinWidth="220"
+                                                  ItemsSource="{Binding Terminal.CwdFollowModes}"
+                                                  SelectedItem="{Binding Terminal.SelectedCwdFollow}"
+                                                  ToolTip.Tip="{loc:KeiString Settings.Terminal.CwdFollowTip}"/>
+                                    </Grid>
+                                    <TextBlock Text="{loc:KeiString Settings.Terminal.SessionOverrideHint}" FontSize="11" TextWrapping="Wrap"
+                                               Foreground="{DynamicResource Kei.Text.Muted}"/>
                                 </StackPanel>
                             </DataTemplate>
 

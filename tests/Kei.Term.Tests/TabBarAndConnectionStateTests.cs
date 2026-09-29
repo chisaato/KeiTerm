@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using Avalonia.Media;
 using Kei.Term.App.Converters;
 using Kei.Term.App.ViewModels;
@@ -8,8 +9,9 @@ namespace Kei.Term.Tests;
 
 public class TabBarAndConnectionStateTests
 {
+    // ReportError 会向真实终端控件写入红字：须在 Headless UI 线程上运行
     [Fact]
-    public void TerminalTabViewModel_StateTransitions_MaintainCompatibility()
+    public Task TerminalTabViewModel_StateTransitions_MaintainCompatibility() => HeadlessAvalonia.RunAsync(() =>
     {
         var tab = new TerminalTabViewModel("TestTab", "monospace", 14.0);
 
@@ -30,6 +32,6 @@ public class TabBarAndConnectionStateTests
         Assert.Equal(ConnectionState.Error, tab.Status);
 #pragma warning restore CS0618
         Assert.Equal("Network timeout", tab.StatusMessage);
-    }
+    });
 
 }

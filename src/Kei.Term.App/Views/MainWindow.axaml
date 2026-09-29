@@ -346,16 +346,40 @@
                                 <DataTemplate DataType="vm:TerminalTabViewModel">
                                     <Button Classes="tabItem"
                                             Classes.selected="{Binding IsSelected}"
+                                            Classes.activity="{Binding HasActivity}"
                                             DragDrop.AllowDrop="True"
                                             Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).SelectTabCommand}"
                                             CommandParameter="{Binding}"
-                                            ToolTip.Tip="{Binding StatusMessage}">
+                                            ToolTip.Tip="{Binding ToolTip}">
+                                        <Button.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="{loc:KeiString Main.Tab.Menu.Reconnect}" Command="{Binding RequestReconnectCommand}"/>
+                                                <MenuItem Header="{loc:KeiString Main.Tab.Menu.Disconnect}" Command="{Binding DisconnectCommand}"/>
+                                                <MenuItem Header="{loc:KeiString Main.Tab.Menu.Clone}" Command="{Binding RequestCloneCommand}"/>
+                                                <Separator/>
+                                                <MenuItem Header="{loc:KeiString Main.Tab.Menu.Rename}" Command="{Binding RequestRenameCommand}"/>
+                                                <MenuItem Header="{loc:KeiString Main.Tab.Menu.FollowRemoteTitle}"
+                                                          ToggleType="CheckBox"
+                                                          IsChecked="{Binding FollowRemoteTitle, Mode=OneWay}"
+                                                          Command="{Binding ToggleFollowRemoteTitleCommand}"/>
+                                                <Separator/>
+                                                <MenuItem Header="{loc:KeiString Main.Tab.Menu.Close}" Command="{Binding RequestCloseCommand}"/>
+                                                <MenuItem Header="{loc:KeiString Main.Tab.Menu.CloseOthers}" Command="{Binding RequestCloseOthersCommand}"/>
+                                                <MenuItem Header="{loc:KeiString Main.Tab.Menu.CloseToRight}" Command="{Binding RequestCloseToRightCommand}"/>
+                                            </ContextMenu>
+                                        </Button.ContextMenu>
                                         <StackPanel Orientation="Horizontal" Spacing="6" Margin="10,5">
                                             <!-- SecureCRT 风格 3px 宽状态指示竖条，替代原圆点 -->
                                             <Border Width="3" Height="16" CornerRadius="1" VerticalAlignment="Center"
                                                     Background="{Binding State, Converter={StaticResource ConnectionStateBrush}}"/>
-                                            <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontSize="12"
+                                            <!-- 远端标题可能很长（如 byobu 的 user@host (ip) - byobu）：限宽省略，完整内容见悬停提示 -->
+                                            <TextBlock Classes="tabTitle" Text="{Binding Title}" VerticalAlignment="Center" FontSize="12"
+                                                       MaxWidth="220" TextTrimming="CharacterEllipsis"
                                                        Foreground="{DynamicResource Kei.Text.Primary}"/>
+                                            <!-- 后台标签有新输出 / 响铃 -->
+                                            <Ellipse Width="6" Height="6" VerticalAlignment="Center"
+                                                     Fill="{DynamicResource Kei.Accent}"
+                                                     IsVisible="{Binding HasActivity}"/>
                                             <Button Classes="closeBtn"
                                                     Content="✕"
                                                     ToolTip.Tip="{loc:KeiString Main.Tab.CloseTip}"

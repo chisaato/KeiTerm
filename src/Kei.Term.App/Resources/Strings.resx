@@ -1346,4 +1346,85 @@
   <data name="Terminal.Menu.ClearScrollback" xml:space="preserve">
     <value>仅清除回滚缓冲区</value>
   </data>
+  <data name="Behavior.CwdFollow.Off" xml:space="preserve">
+    <value>关闭</value>
+  </data>
+  <data name="Behavior.CwdFollow.OnceOnOpen" xml:space="preserve">
+    <value>打开侧栏时同步一次</value>
+  </data>
+  <data name="Behavior.CwdFollow.Always" xml:space="preserve">
+    <value>永远跟随</value>
+  </data>
+  <data name="Behavior.TabTitle.Remote" xml:space="preserve">
+    <value>跟随远端标题</value>
+  </data>
+  <data name="Behavior.TabTitle.SessionName" xml:space="preserve">
+    <value>固定为会话名</value>
+  </data>
+  <data name="Behavior.Inherit" xml:space="preserve">
+    <value>继承全局（当前：{0}）</value>
+  </data>
+  <data name="Settings.Terminal.BehaviorSection" xml:space="preserve">
+    <value>会话行为</value>
+  </data>
+  <data name="Settings.Terminal.TabTitleFollowsRemote" xml:space="preserve">
+    <value>标签标题跟随远端标题</value>
+  </data>
+  <data name="Settings.Terminal.TabTitleFollowsRemoteTip" xml:space="preserve">
+    <value>远端程序（shell、tmux、byobu 等）通过 OSC 0/2 设置的标题显示在标签上；远端未设置标题时仍显示会话名</value>
+  </data>
+  <data name="Settings.Terminal.CwdFollow" xml:space="preserve">
+    <value>文件侧栏跟随目录</value>
+  </data>
+  <data name="Settings.Terminal.CwdFollowTip" xml:space="preserve">
+    <value>需要远端报告当前目录（OSC 7，或 tmux 标题设为 主机:路径）；详见 docs/design/09</value>
+  </data>
+  <data name="Settings.Terminal.SessionOverrideHint" xml:space="preserve">
+    <value>以上为全局默认，可在会话属性或「批量修改会话」中逐会话覆盖。</value>
+  </data>
+  <data name="Main.Tab.ToolTip.Session" xml:space="preserve">
+    <value>会话：{0}</value>
+  </data>
+  <data name="Main.Tab.Reconnecting" xml:space="preserve">
+    <value>—— 重新连接 ——</value>
+  </data>
+  <data name="Main.Tab.Rename.Title" xml:space="preserve">
+    <value>重命名标签</value>
+  </data>
+  <data name="Main.Tab.Rename.Label" xml:space="preserve">
+    <value>新的标签名（仅本标签生效，不修改会话；重命名后不再跟随远端标题）：</value>
+  </data>
+  <data name="Main.Tab.Menu.Reconnect" xml:space="preserve">
+    <value>重新连接</value>
+  </data>
+  <data name="Main.Tab.Menu.Disconnect" xml:space="preserve">
+    <value>断开</value>
+  </data>
+  <data name="Main.Tab.Menu.Clone" xml:space="preserve">
+    <value>克隆会话（新标签）</value>
+  </data>
+  <data name="Main.Tab.Menu.Rename" xml:space="preserve">
+    <value>重命名…</value>
+  </data>
+  <data name="Main.Tab.Menu.FollowRemoteTitle" xml:space="preserve">
+    <value>标题跟随远端</value>
+  </data>
+  <data name="Main.Tab.Menu.Close" xml:space="preserve">
+    <value>关闭</value>
+  </data>
+  <data name="Main.Tab.Menu.CloseOthers" xml:space="preserve">
+    <value>关闭其他标签</value>
+  </data>
+  <data name="Main.Tab.Menu.CloseToRight" xml:space="preserve">
+    <value>关闭右侧标签</value>
+  </data>
+  <data name="SessionEdit.BehaviorSection" xml:space="preserve">
+    <value>会话行为</value>
+  </data>
+  <data name="SessionEdit.TabTitle" xml:space="preserve">
+    <value>标签标题:</value>
+  </data>
+  <data name="SessionEdit.CwdFollow" xml:space="preserve">
+    <value>目录跟随:</value>
+  </data>
 </root>

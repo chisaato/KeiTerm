@@ -73,7 +73,7 @@ public sealed class MainWindowInteractionService : IInteractionService
         => Safe.RunAsync<SessionNode?>(_log, "打开会话编辑窗口", async () =>
         {
             _log.LogInformation("会话编辑窗口打开 模式={Mode}", existing == null ? "新建" : "编辑");
-            var editVm = new SessionEditViewModel(existing, parentId, identities);
+            var editVm = new SessionEditViewModel(existing, parentId, identities, _mainVm.CurrentSettings);
             await new SessionEditWindow(editVm).ShowDialog(_owner);
             SessionNode? result = editVm.IsConfirmed ? editVm.ApplyToModel(existing) : null;
             _log.LogInformation("会话编辑窗口关闭 结果={Result}", result == null ? "取消" : "确认");
@@ -196,6 +196,10 @@ public sealed class MainWindowInteractionService : IInteractionService
 
     // 独立确认框尚未实现：保持现有行为直接放行
     public Task<bool> ConfirmDeleteAsync(string name) => Task.FromResult(true);
+
+    public Task<string?> PromptTextAsync(string title, string label, string? initialText)
+        => Safe.RunAsync<string?>(_log, "打开文本输入窗口",
+            () => new TextPromptWindow(title, label, initialText).ShowDialog<string?>(_owner));
 
     // 统一消息通知：更新主窗口状态提示栏，并在日志留痕
     public Task NotifyAsync(string title, string message)

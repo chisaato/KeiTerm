@@ -10,4 +10,8 @@ public static class Strings
 
     public static string Get(string key)
         => Rm.GetString(key, CultureInfo.CurrentUICulture) ?? key;
+
+    // 带占位符的词条：{0}、{1}…
+    public static string Format(string key, params object?[] args)
+        => string.Format(CultureInfo.CurrentUICulture, Get(key), args);
 }

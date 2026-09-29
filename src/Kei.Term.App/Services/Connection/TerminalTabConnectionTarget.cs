@@ -1,6 +1,7 @@
 using System.Threading.Tasks;
 using Kei.Term.App.ViewModels;
 using Kei.Term.Core.Abstractions;
+using Kei.Term.Core.Models;
 using Kei.Term.Core.Services;
 using Kei.Term.Core.Settings;
 using Kei.Term.Core.Storage;
@@ -38,6 +39,12 @@ public sealed class TerminalTabConnectionTarget : IConnectionTarget
     public void MarkConnected() => _tab.MarkConnected();
 
     public void ReportError(string message) => _tab.ReportError(message);
+
+    public async Task ResetForReconnectAsync(ResolvedSessionConfig config)
+    {
+        await _tab.PrepareReconnectAsync();
+        _tab.BindConfig(config);
+    }
 
     public Task AttachFileSystemAsync(IRemoteFileSystem fileSystem)
     {

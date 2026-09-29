@@ -1057,10 +1057,12 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
             scrollbackLines: _settingsService.Current.ScrollbackLines);
         // 构造只记录状态，此处显式注入配色（新标签立即生效）
         tab.ApplyTerminalProfile(effectiveProfile);
+        tab.BindConfig(config);
         Tabs.Add(tab);
         tab.CloseRequested += OnTabCloseRequested;
+        tab.ActionRequested += OnTabActionRequested;
         SelectedTab = tab;
-        return new TerminalTabConnectionTarget(tab, _settingsService, _editorRepo, _loggerFactory);
+        return CreateConnectionTarget(tab);
     }
 
     // IConnectionHost：跳板链解析按 Id 查会话节点（取自最近一次加载的树缓存）
@@ -1101,6 +1103,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         }
 
         tab.CloseRequested -= OnTabCloseRequested;
+        tab.ActionRequested -= OnTabActionRequested;
         var isCurrentSelected = SelectedTab == tab;
         var tabIndex = Tabs.IndexOf(tab);
 

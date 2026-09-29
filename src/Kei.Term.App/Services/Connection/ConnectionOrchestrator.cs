@@ -74,8 +74,24 @@ public sealed class ConnectionOrchestrator
             return;
         }
 
-        // 3. 先建标签（Connecting），再后台建连
-        IConnectionTarget target = host.OpenTab(auth.Config);
+        // 3. 先建标签（Connecting）或复位待重连的标签，再后台建连；
+        //    复位放在认证收集之后：用户取消认证时旧标签保持原状
+        IConnectionTarget target;
+        if (request.ReuseTarget is { } reuse)
+        {
+            if (reuse.IsDisposed)
+            {
+                return;
+            }
+
+            await reuse.ResetForReconnectAsync(auth.Config);
+            target = reuse;
+        }
+        else
+        {
+            target = host.OpenTab(auth.Config);
+        }
+
         await ConnectWithRetryAsync(target, auth, jumpHops);
     }
 

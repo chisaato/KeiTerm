@@ -1,6 +1,7 @@
 namespace Kei.Term.App.ViewModels;
 
 using System;
+using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -18,6 +19,7 @@ using Kei.Term.App.Models;
 using Kei.Term.App.Services;
 using Kei.Term.App.Terminals;
 using Kei.Term.Core.Abstractions;
+using Kei.Term.Core.Models;
 using Kei.Term.Core.Models.Profiles;
 using Kei.Term.Core.Services;
 using Kei.Term.Core.Settings;
@@ -75,13 +77,193 @@ internal sealed class TerminalControlThemeSink : ITerminalThemeSink
     }
 }
 
+// 标签右键菜单中需要主窗口处理的动作（涉及其他标签或连接编排）
+public enum TabAction
+{
+    Reconnect,
+    Clone,
+    Rename,
+    CloseOthers,
+    CloseToRight
+}
+
 public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
 {
+    // 远端标题最长保留字符数：防止异常程序刷出超长标题撑爆标签条与提示框
+    private const int MaxRemoteTitleLength = 256;
+
     // 请求关闭此标签页（如会话正常退出时触发）
     public event Action<TerminalTabViewModel>? CloseRequested;
 
+    // 标签右键菜单动作，由主窗口 VM 订阅处理
+    public event Action<TerminalTabViewModel, TabAction>? ActionRequested;
+
+    // 显示在标签上的标题：跟随远端时为远端标题（未设置则回退标签名），否则为标签名
     [ObservableProperty]
     private string _title = Strings.Get("Main.Tab.DefaultTitle");
+
+    // 标签名：默认取会话名，可在标签上重命名（仅本标签生效，不改会话）
+    [ObservableProperty]
+    private string _tabName = Strings.Get("Main.Tab.DefaultTitle");
+
+    // 远端程序通过 OSC 0/2 设置的最近一次标题
+    [ObservableProperty]
+    private string? _remoteTitle;
+
+    // 本标签是否用远端标题；初值来自会话/全局设置，可在标签右键菜单临时切换
+    [ObservableProperty]
+    private bool _followRemoteTitle;
+
+    // 后台标签收到新输出或响铃：标签上显示活动标记，切到该标签时清除
+    [ObservableProperty]
+    private bool _hasActivity;
+
+    // 标签悬停提示：会话、目标地址、状态
+    [ObservableProperty]
+    private string _toolTip = string.Empty;
+
+    // 发起本标签连接时的解析配置（重连 / 克隆 / 提示信息用）；未经连接编排创建的标签为 null
+    public ResolvedSessionConfig? Config { get; private set; }
+
+    partial void OnTabNameChanged(string value) => UpdateTitle();
+
+    partial void OnRemoteTitleChanged(string? value) => UpdateTitle();
+
+    partial void OnFollowRemoteTitleChanged(bool value) => UpdateTitle();
+
+    partial void OnStatusMessageChanged(string? value) => UpdateToolTip();
+
+    partial void OnTitleChanged(string value) => UpdateToolTip();
+
+    private void UpdateTitle()
+        => Title = FollowRemoteTitle && !string.IsNullOrWhiteSpace(RemoteTitle) ? RemoteTitle! : TabName;
+
+    private void UpdateToolTip()
+    {
+        var lines = new List<string> { Title };
+        if (!string.Equals(Title, TabName, StringComparison.Ordinal))
+        {
+            lines.Add(Strings.Format("Main.Tab.ToolTip.Session", TabName));
+        }
+
+        if (Config is { } config)
+        {
+            lines.Add($"{config.Username}@{config.Host}:{config.Port}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(StatusMessage))
+        {
+            lines.Add(StatusMessage!);
+        }
+
+        ToolTip = string.Join(Environment.NewLine, lines);
+    }
+
+    // 记录连接配置并按其行为设置初始化标题跟随（连接编排开标签时调用）
+    public void BindConfig(ResolvedSessionConfig config)
+    {
+        // 标题跟随只在首次绑定时取会话/全局设置；重连沿用用户在本标签上的选择（含重命名后的停止跟随）
+        if (Config == null)
+        {
+            FollowRemoteTitle = config.FollowRemoteTitle;
+        }
+
+        Config = config;
+        UpdateToolTip();
+    }
+
+    // 远端标题：去掉控制字符并截断；空标题表示远端清除了标题
+    public static string? SanitizeRemoteTitle(string? raw)
+    {
+        if (string.IsNullOrEmpty(raw))
+        {
+            return null;
+        }
+
+        var builder = new StringBuilder(Math.Min(raw.Length, MaxRemoteTitleLength));
+        foreach (char c in raw)
+        {
+            if (builder.Length >= MaxRemoteTitleLength)
+            {
+                break;
+            }
+
+            if (!char.IsControl(c))
+            {
+                builder.Append(c);
+            }
+        }
+
+        string cleaned = builder.ToString().Trim();
+        return cleaned.Length == 0 ? null : cleaned;
+    }
+
+    public void ApplyRemoteTitle(string? raw) => RemoteTitle = SanitizeRemoteTitle(raw);
+
+    // 重命名：用户给定的名字优先于远端标题，因此同时停止跟随
+    public void Rename(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return;
+        }
+
+        TabName = name.Trim();
+        FollowRemoteTitle = false;
+    }
+
+    [RelayCommand]
+    private void ToggleFollowRemoteTitle() => FollowRemoteTitle = !FollowRemoteTitle;
+
+    [RelayCommand]
+    private void RequestReconnect() => ActionRequested?.Invoke(this, TabAction.Reconnect);
+
+    [RelayCommand]
+    private void RequestClone() => ActionRequested?.Invoke(this, TabAction.Clone);
+
+    [RelayCommand]
+    private void RequestRename() => ActionRequested?.Invoke(this, TabAction.Rename);
+
+    [RelayCommand]
+    private void RequestCloseOthers() => ActionRequested?.Invoke(this, TabAction.CloseOthers);
+
+    [RelayCommand]
+    private void RequestCloseToRight() => ActionRequested?.Invoke(this, TabAction.CloseToRight);
+
+    [RelayCommand]
+    private void RequestClose() => CloseRequested?.Invoke(this);
+
+    [RelayCommand]
+    private Task Disconnect() => DisconnectAsync();
+
+    partial void OnIsSelectedChanged(bool value)
+    {
+        if (value)
+        {
+            HasActivity = false;
+        }
+    }
+
+    // 后台线程上的输出回调：只在状态需要翻转时才投递到 UI 线程，避免每个数据块都排队
+    private void OnSessionOutput(byte[] data)
+    {
+        if (_activityPending || IsSelected || HasActivity)
+        {
+            return;
+        }
+
+        _activityPending = true;
+        Dispatcher.UIThread.Post(() =>
+        {
+            _activityPending = false;
+            if (!IsSelected)
+            {
+                HasActivity = true;
+            }
+        });
+    }
+
+    private volatile bool _activityPending;
 
     [ObservableProperty]
     private ConnectionState _state = ConnectionState.Connecting;
@@ -121,7 +303,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
 
     // 终端区底色：网格贴底后顶部余量与滚动条轨道用配色背景填充，避免露出窗口底色
     [ObservableProperty]
-    private IBrush _terminalBackground = Brushes.Black;
+    private IBrush _terminalBackground = new Avalonia.Media.Immutable.ImmutableSolidColorBrush(Colors.Black);
 
     // 惰性创建：测试只验证状态/主题注入时不会构造原生 TerminalControl
     private readonly Func<TerminalControl> _terminalFactory;
@@ -193,6 +375,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         ArgumentNullException.ThrowIfNull(font);
         ArgumentNullException.ThrowIfNull(profile);
 
+        TabName = title;
         Title = title;
         _logger = logger ?? NullLogger.Instance;
         ExplicitProfileId = explicitProfileId;
@@ -202,13 +385,24 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         _fontSnapshot = font;
         _scrollbackLines = Math.Max(0, scrollbackLines);
 
-        _terminalFactory = terminalFactory ?? (() => new TerminalControl
-        {
-            FontLinearMetrics = true,
-            FontSubpixelPositioning = true
-        });
+        _terminalFactory = terminalFactory ?? CreateHookedTerminal;
         // 生产默认绑定真实控件（惰性）；测试可注入无控件实现以验证纯状态
         _themeSink = themeSink ?? new TerminalControlThemeSink(() => Terminal);
+    }
+
+    // VT 处理器回调：应答立即发回远端；响铃与标题投递回 UI 线程，避免在 VT 解析过程中重入改界面状态
+    private TerminalControl CreateHookedTerminal()
+    {
+        var hooks = new VtCallbackHooks
+        {
+            Response = data => _ = _session?.SendInputAsync(data),
+            Bell = () => Dispatcher.UIThread.Post(OnRemoteBell),
+            Title = title => Dispatcher.UIThread.Post(() => ApplyRemoteTitle(title))
+        };
+        TerminalControl terminal = TerminalControlFactory.Create(hooks);
+        terminal.FontLinearMetrics = true;
+        terminal.FontSubpixelPositioning = true;
+        return terminal;
     }
 
     // 更新当前生效方案并注入目标（EffectiveProfileId 同步更新）
@@ -221,8 +415,9 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         _themeSink.Apply(profile);
     }
 
+    // 不可变画刷不是 AvaloniaObject，不绑定 UI 线程：纯状态测试可在任意线程构造标签
     private static IBrush ParseBrush(string? hex)
-        => Color.TryParse(hex, out Color color) ? new SolidColorBrush(color) : Brushes.Black;
+        => new Avalonia.Media.Immutable.ImmutableSolidColorBrush(Color.TryParse(hex, out Color color) ? color : Colors.Black);
 
     // 只更新字体相关属性，不触碰配色；若控件尚未创建则仅记录，待创建时应用
     public void ApplyFontSnapshot(TerminalFontSnapshot snapshot)
@@ -346,6 +541,14 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         TrySyncTerminalSize();
     }
 
+    private void OnRemoteBell()
+    {
+        if (!IsSelected)
+        {
+            HasActivity = true;
+        }
+    }
+
     // 行列数变化（含字号引起的行高变化）后重新计算贴底余量
     private void OnTerminalGridResized(object? sender, TerminalSizeEventArgs e)
     {
@@ -370,9 +573,10 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
     // 尝试同步终端尺寸至后台 SSH 会话
     public void TrySyncTerminalSize()
     {
-        if (Terminal.Bounds.Width > 0 && Terminal.Bounds.Height > 0)
+        // 控件尚未创建即无尺寸可同步：不为此惰性创建原生控件
+        if (_terminal is { } terminal && terminal.Bounds.Width > 0 && terminal.Bounds.Height > 0)
         {
-            _endpoint?.SetSize((int)Terminal.Bounds.Width, (int)Terminal.Bounds.Height);
+            _endpoint?.SetSize((int)terminal.Bounds.Width, (int)terminal.Bounds.Height);
         }
     }
 
@@ -393,6 +597,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         _endpoint = new TerminalSessionEndpoint(session, Terminal);
         Terminal.AttachEndpoint(_endpoint);
         session.Disconnected += OnSessionDisconnected;
+        session.OutputReceived += OnSessionOutput;
 
         State = ConnectionState.Connecting;
         StatusMessage = null;
@@ -409,7 +614,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         TrySyncTerminalSize();
         if (IsSelected)
         {
-            Terminal.Focus();
+            _terminal?.Focus();
         }
     }
 
@@ -426,7 +631,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
     public async Task DetachSessionAsync()
     {
         _endpoint?.Dispose();
-        Terminal.DetachEndpoint();
+        _terminal?.DetachEndpoint();
         _endpoint = null;
 
         var session = _session;
@@ -434,6 +639,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         if (session != null)
         {
             session.Disconnected -= OnSessionDisconnected;
+            session.OutputReceived -= OnSessionOutput;
             await session.DisposeAsync();
             _logger.LogInformation("终端标签释放会话 标题={Title} SessionId={SessionId}", Title, session.SessionId);
         }
@@ -514,12 +720,51 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         Dispatcher.UIThread.Post(() => TrySyncTerminalSize(), DispatcherPriority.Render);
     }
 
+    // 主动断开：只卸下会话与文件侧栏，标签与终端内容保留，可原地重连
     public async Task DisconnectAsync()
     {
-        await DisposeAsync();
+        await DetachSessionAsync();
+        await CloseFileManagerAsync();
         State = ConnectionState.Disconnected;
         StatusMessage = Strings.Get("Main.Tab.Disconnected");
         _logger.LogInformation("终端标签主动断开 标题={Title}", Title);
+    }
+
+    // 原地重连前的清理：卸下旧会话与文件侧栏，终端内保留历史并打印分隔提示
+    public async Task PrepareReconnectAsync()
+    {
+        await DetachSessionAsync();
+        await CloseFileManagerAsync();
+        RemoteTitle = null;
+        State = ConnectionState.Connecting;
+        StatusMessage = null;
+        Terminal.WriteOutput(Encoding.UTF8.GetBytes($"\r\n\x1b[90m{Strings.Get("Main.Tab.Reconnecting")}\x1b[0m\r\n"));
+    }
+
+    // 文件侧栏持有独立的 SFTP/SCP 通道（专用模式下是第二条 SSH 连接），标签断开或关闭时必须释放
+    // releaseOnly：关闭标签时在后台线程释放，不再改动已解绑界面的可观察属性
+    private async Task CloseFileManagerAsync(bool releaseOnly = false)
+    {
+        RemoteFileManagerViewModel? fileManager = FileManager;
+        if (!releaseOnly)
+        {
+            IsFileManagerVisible = false;
+            FileManager = null;
+        }
+
+        if (fileManager == null)
+        {
+            return;
+        }
+
+        try
+        {
+            await fileManager.DisposeAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "释放文件侧栏失败 标题={Title}", Title);
+        }
     }
 
     public async ValueTask DisposeAsync()
@@ -539,6 +784,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         }
 
         await DetachSessionAsync();
+        await CloseFileManagerAsync(releaseOnly: true);
         _logger.LogInformation("终端标签已释放 标题={Title}", Title);
     }
 }

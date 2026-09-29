@@ -2,6 +2,7 @@ namespace Kei.Term.Infrastructure.Storage;
 
 using Kei.Term.Core.Abstractions;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Dapper;
 using Microsoft.Data.Sqlite;
 using Kei.Term.Core.Models;
@@ -15,9 +16,16 @@ public class SqliteTreeRepository : ITreeRepository
         SELECT t.id, t.parent_id, t.node_type, t.name, t.description, t.sort_order, t.created_at, t.updated_at,
                t.protocol, t.is_expanded,
                s.host, s.port, s.username, s.identity_id, s.terminal_type, s.startup_script, s.jump_host_id, s.env_vars_json,
-               s.terminal_profile_id, s.file_transfer_protocol, s.sftp_mode
+               s.terminal_profile_id, s.file_transfer_protocol, s.sftp_mode, s.options_json
         FROM tree_nodes t
         LEFT JOIN session_details s ON t.id = s.node_id";
+
+    // 覆盖项 JSON：枚举存名称便于人工排查；null 项（= 继承）不落盘
+    private static readonly JsonSerializerOptions OverridesJson = new()
+    {
+        Converters = { new JsonStringEnumConverter() },
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
 
     private readonly SqliteConnectionFactory _factory;
 
@@ -57,7 +65,25 @@ public class SqliteTreeRepository : ITreeRepository
     {
         using SqliteConnection conn = await _factory.OpenAsync(ct);
         using SqliteTransaction tx = conn.BeginTransaction();
+        await SaveNodeCoreAsync(conn, tx, node, ct);
+        tx.Commit();
+    }
 
+    // 批量保存走单一事务：任一失败则整体回滚，不会出现"改了一半"的会话集合
+    public async Task SaveNodesAsync(IReadOnlyCollection<TreeNodeBase> nodes, CancellationToken ct = default)
+    {
+        using SqliteConnection conn = await _factory.OpenAsync(ct);
+        using SqliteTransaction tx = conn.BeginTransaction();
+        foreach (TreeNodeBase node in nodes)
+        {
+            await SaveNodeCoreAsync(conn, tx, node, ct);
+        }
+
+        tx.Commit();
+    }
+
+    private static async Task SaveNodeCoreAsync(SqliteConnection conn, SqliteTransaction tx, TreeNodeBase node, CancellationToken ct)
+    {
         string protocol = node is SessionNode p && !string.IsNullOrWhiteSpace(p.Protocol) ? p.Protocol : SessionProtocols.Ssh;
         await conn.ExecuteAsync(new CommandDefinition(@"
             INSERT INTO tree_nodes (id, parent_id, node_type, name, description, sort_order, protocol, is_expanded, created_at, updated_at)
@@ -88,9 +114,9 @@ public class SqliteTreeRepository : ITreeRepository
         {
             await conn.ExecuteAsync(new CommandDefinition(@"
                 INSERT INTO session_details (node_id, host, port, username, identity_id, terminal_type, startup_script, jump_host_id,
-                                             env_vars_json, terminal_profile_id, file_transfer_protocol, sftp_mode)
+                                             env_vars_json, terminal_profile_id, file_transfer_protocol, sftp_mode, options_json)
                 VALUES (@NodeId, @Host, @Port, @Username, @IdentityId, @TerminalType, @StartupScript, @JumpHostId,
-                        @EnvJson, @TerminalProfileId, @FileTransferProtocol, @SftpMode)
+                        @EnvJson, @TerminalProfileId, @FileTransferProtocol, @SftpMode, @OptionsJson)
                 ON CONFLICT(node_id) DO UPDATE SET
                     host = excluded.host,
                     port = excluded.port,
@@ -102,7 +128,8 @@ public class SqliteTreeRepository : ITreeRepository
                     env_vars_json = excluded.env_vars_json,
                     terminal_profile_id = excluded.terminal_profile_id,
                     file_transfer_protocol = excluded.file_transfer_protocol,
-                    sftp_mode = excluded.sftp_mode;
+                    sftp_mode = excluded.sftp_mode,
+                    options_json = excluded.options_json;
             ", new
             {
                 NodeId = session.Id.ToString(),
@@ -116,11 +143,34 @@ public class SqliteTreeRepository : ITreeRepository
                 EnvJson = JsonSerializer.Serialize(session.EnvironmentVariables),
                 session.TerminalProfileId,
                 FileTransferProtocol = (int)session.FileTransferProtocol,
-                SftpMode = (int)session.SftpMode
+                SftpMode = (int)session.SftpMode,
+                OptionsJson = SerializeOverrides(session.Overrides)
             }, transaction: tx, cancellationToken: ct));
         }
+    }
 
-        tx.Commit();
+    private static string? SerializeOverrides(SessionOverrides? overrides)
+    {
+        string json = JsonSerializer.Serialize(overrides ?? new SessionOverrides(), OverridesJson);
+        return json == "{}" ? null : json;
+    }
+
+    // 损坏或来自更新版本的未知值不应让整棵树加载失败：解析失败时按全部继承处理
+    private static SessionOverrides DeserializeOverrides(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return new SessionOverrides();
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<SessionOverrides>(json, OverridesJson) ?? new SessionOverrides();
+        }
+        catch (JsonException)
+        {
+            return new SessionOverrides();
+        }
     }
 
     public async Task DeleteNodeAsync(Guid id, CancellationToken ct = default)
@@ -212,7 +262,8 @@ public class SqliteTreeRepository : ITreeRepository
             EnvironmentVariables = envVars,
             TerminalProfileId = row.TerminalProfileId,
             FileTransferProtocol = (FileTransferProtocol)(row.FileTransferProtocol ?? 0),
-            SftpMode = (SftpChannelMode)(row.SftpMode ?? 0)
+            SftpMode = (SftpChannelMode)(row.SftpMode ?? 0),
+            Overrides = DeserializeOverrides(row.OptionsJson)
         };
     }
 
@@ -240,5 +291,6 @@ public class SqliteTreeRepository : ITreeRepository
         public string? TerminalProfileId { get; set; }
         public long? FileTransferProtocol { get; set; }
         public long? SftpMode { get; set; }
+        public string? OptionsJson { get; set; }
     }
 }

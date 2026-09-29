@@ -1,6 +1,8 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
+using Dapper;
 using Kei.Term.Core.Models;
 using Kei.Term.Infrastructure.Storage;
 using Xunit;
@@ -110,5 +112,68 @@ public class SqliteProfilePersistenceTests : IDisposable
         var loaded3 = await repo.GetNodeByIdAsync(session.Id) as SessionNode;
         Assert.NotNull(loaded3);
         Assert.Null(loaded3.TerminalProfileId);
+    }
+
+    [Fact]
+    public async Task Overrides_RoundTrip_NullMeansInherit()
+    {
+        var repo = new SqliteTreeRepository(_connectionString);
+        await repo.InitializeAsync();
+        var explicitSession = new SessionNode
+        {
+            Name = "a",
+            Host = "h",
+            Overrides = new SessionOverrides { FollowRemoteTitle = false, CwdFollow = CwdFollowMode.OnceOnOpen }
+        };
+        var inheriting = new SessionNode { Name = "b", Host = "h" };
+
+        await repo.SaveNodeAsync(explicitSession);
+        await repo.SaveNodeAsync(inheriting);
+
+        var loadedExplicit = Assert.IsType<SessionNode>(await repo.GetNodeByIdAsync(explicitSession.Id));
+        Assert.False(loadedExplicit.Overrides.FollowRemoteTitle);
+        Assert.Equal(CwdFollowMode.OnceOnOpen, loadedExplicit.Overrides.CwdFollow);
+
+        var loadedInheriting = Assert.IsType<SessionNode>(await repo.GetNodeByIdAsync(inheriting.Id));
+        Assert.Null(loadedInheriting.Overrides.FollowRemoteTitle);
+        Assert.Null(loadedInheriting.Overrides.CwdFollow);
+    }
+
+    [Fact]
+    public async Task CorruptOverridesJson_DoesNotBreakTreeLoad()
+    {
+        var factory = new SqliteConnectionFactory(_connectionString);
+        var repo = new SqliteTreeRepository(factory);
+        await repo.InitializeAsync();
+        var session = new SessionNode { Name = "a", Host = "h" };
+        await repo.SaveNodeAsync(session);
+        using (var conn = await factory.OpenAsync())
+        {
+            // 模拟更新版本写入的未知枚举值
+            await conn.ExecuteAsync("UPDATE session_details SET options_json = '{\"CwdFollow\":\"Teleport\"}';");
+        }
+
+        var all = await repo.GetAllNodesAsync();
+
+        var loaded = Assert.IsType<SessionNode>(Assert.Single(all));
+        Assert.Null(loaded.Overrides.CwdFollow);
+    }
+
+    [Fact]
+    public async Task SaveNodesAsync_IsAllOrNothing()
+    {
+        var repo = new SqliteTreeRepository(_connectionString);
+        await repo.InitializeAsync();
+        var existing = new SessionNode { Name = "keep", Host = "old" };
+        await repo.SaveNodeAsync(existing);
+
+        existing.Host = "new";
+        // 父节点不存在 → 外键失败；前一个节点的修改也必须回滚
+        var broken = new SessionNode { Name = "broken", Host = "h", ParentId = Guid.NewGuid() };
+
+        await Assert.ThrowsAnyAsync<Exception>(() => repo.SaveNodesAsync([existing, broken]));
+
+        var reloaded = await repo.GetAllNodesAsync();
+        Assert.Equal("old", Assert.IsType<SessionNode>(Assert.Single(reloaded)).Host);
     }
 }

@@ -55,6 +55,9 @@ public interface IInteractionService
     Task<bool> ConfirmDeleteAsync(string name);
 
     Task NotifyAsync(string title, string message);
+
+    // 单行文本输入（重命名等）；取消 = null
+    Task<string?> PromptTextAsync(string title, string label, string? initialText);
 }
 
 // 无界面实现：一切交互按「用户取消」处理；删除确认保持旧行为（无确认 UI 时直接放行）
@@ -97,4 +100,6 @@ public sealed class NullInteractionService : IInteractionService
     public Task<bool> ConfirmDeleteAsync(string name) => Task.FromResult(true);
 
     public Task NotifyAsync(string title, string message) => Task.CompletedTask;
+
+    public Task<string?> PromptTextAsync(string title, string label, string? initialText) => Task.FromResult<string?>(null);
 }

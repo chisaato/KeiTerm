@@ -123,6 +123,32 @@ public class ConnectionOrchestratorTests
         Assert.Empty(_factory.SessionCalls);
     }
 
+    [Fact]
+    public async Task Reconnect_ReusesGivenTab_AndDoesNotOpenAnother()
+    {
+        var existing = new FakeTarget();
+        ResolvedSessionConfig config = Config();
+
+        await Create().ConnectAsync(new ConnectionRequest(config, UseIdentity: false, Password("p1"), ReuseTarget: existing), _host);
+
+        Assert.Empty(_host.Tabs);
+        Assert.Equal(config, Assert.Single(existing.Resets));
+        Assert.True(existing.Connected);
+        Assert.NotNull(existing.AttachedSession);
+    }
+
+    [Fact]
+    public async Task Reconnect_AuthCancelled_LeavesExistingTabUntouched()
+    {
+        var existing = new FakeTarget();
+
+        // 无预置材料且兜底认证框被取消：不得复位旧标签（保留断开前的状态与错误信息）
+        await Create().ConnectAsync(new ConnectionRequest(Config(), UseIdentity: false, ReuseTarget: existing), _host);
+
+        Assert.Empty(existing.Resets);
+        Assert.Empty(_factory.SessionCalls);
+    }
+
     [Theory]
     [InlineData(HostKeyDecision.AcceptOnce, true)]
     [InlineData(HostKeyDecision.Reject, false)]
@@ -304,6 +330,17 @@ public class ConnectionOrchestratorTests
         public void ReportError(string message) => Error = message;
 
         public Task AttachFileSystemAsync(IRemoteFileSystem fileSystem) => Task.CompletedTask;
+
+        public List<ResolvedSessionConfig> Resets { get; } = [];
+
+        public Task ResetForReconnectAsync(ResolvedSessionConfig config)
+        {
+            Resets.Add(config);
+            AttachedSession = null;
+            Connected = false;
+            Error = null;
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class FakeHost : IConnectionHost

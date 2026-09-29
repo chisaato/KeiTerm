@@ -194,6 +194,8 @@ public partial class SettingsViewModel : ViewModelBase
         _terminal.DefaultTerminalType = string.IsNullOrWhiteSpace(current.DefaultTerminalType)
             ? "xterm-256color"
             : current.DefaultTerminalType;
+        _terminal.TabTitleFollowsRemote = current.TabTitleFollowsRemote;
+        _terminal.SetCwdFollow(current.CwdFollowMode);
 
         _ssh.DefaultPort = current.DefaultPort;
         _ssh.DefaultUsername = current.DefaultUsername;
@@ -219,82 +221,71 @@ public partial class SettingsViewModel : ViewModelBase
             return false;
         }
 
-        // 本页不编辑的字段一律沿用当前值：整对象重建时漏列即被重置为默认（曾导致文件侧栏位置、轮询参数等保存后丢失）
-        AppSettings previous = _settingsService.Current;
-        AppSettings settings = new AppSettings
+        // 以当前设置的完整副本为底稿，只覆盖本窗口编辑的字段：新增设置项无需在此登记也不会被保存重置
+        //（曾因整对象重建漏列导致文件侧栏位置、轮询参数等保存后丢失）
+        AppSettings settings = CloneSettings(_settingsService.Current);
+        settings.HostKeyPolicy = _ssh.HostKeyPolicy;
+
+        // 常规
+        settings.ConfirmBeforeClose = _general.ConfirmBeforeClose;
+        settings.TreeSortMode = _general.SelectedTreeSort?.Mode ?? "AsciiFirst";
+        settings.SessionManagerVisibilityMode = _general.SelectedSessionManagerMode switch
         {
-            UiFontSize = previous.UiFontSize,
-            HostKeyPolicy = _ssh.HostKeyPolicy,
-
-            // 常规
-            ConfirmBeforeClose = _general.ConfirmBeforeClose,
-            TreeSortMode = _general.SelectedTreeSort?.Mode ?? "AsciiFirst",
-            SessionManagerVisibilityMode = _general.SelectedSessionManagerMode switch
-            {
-                "常开 (Always Visible)" => PanelVisibilityMode.AlwaysVisible,
-                "常关 (Always Hidden)" => PanelVisibilityMode.AlwaysHidden,
-                _ => PanelVisibilityMode.RememberLastState
-            },
-            LastSessionManagerVisible = _settingsService.Current.LastSessionManagerVisible,
-            ComposeBarVisibilityMode = _general.SelectedComposeBarMode switch
-            {
-                "常开 (Always Visible)" => PanelVisibilityMode.AlwaysVisible,
-                "常关 (Always Hidden)" => PanelVisibilityMode.AlwaysHidden,
-                _ => PanelVisibilityMode.RememberLastState
-            },
-            LastComposeBarVisible = _settingsService.Current.LastComposeBarVisible,
-            FileTransfer = new FileTransferSettings
-            {
-                CacheDirectory = _fileTransfer.CacheDirectory,
-                CustomEditorPath = previous.FileTransfer.CustomEditorPath,
-                WatcherMode = Enum.TryParse<FileWatcherMode>(_fileTransfer.SelectedWatcherMode, out var wm) ? wm : FileWatcherMode.Auto,
-                PollingIntervalSeconds = previous.FileTransfer.PollingIntervalSeconds,
-                WriteDebounceMilliseconds = previous.FileTransfer.WriteDebounceMilliseconds,
-                IsFileManagerOnLeft = previous.FileTransfer.IsFileManagerOnLeft
-            },
-
-            // 外观：主题值归一化，仅接受 Dark/System
-            UiTheme = _appearance.NormalizedThemeKey,
-            ControlLibraryTheme = _appearance.NormalizedControlLibraryKey,
-            TreeDensityPreset = _appearance.SelectedDensityPreset?.Key ?? "Compact",
-            TreeItemHeight = Math.Clamp(_appearance.TreeItemHeight, 16.0, 40.0),
-            TreeFontSize = Math.Clamp(_appearance.TreeFontSize, 9.0, 18.0),
-            TreeIconSize = Math.Clamp(_appearance.TreeIconSize, 10.0, 24.0),
-            TreeIndent = Math.Clamp(_appearance.TreeIndent, 6.0, 32.0),
-            UiFontFamily = string.IsNullOrWhiteSpace(_appearance.UiFontFamily)
-                ? "Noto Sans CJK SC"
-                : _appearance.UiFontFamily.Trim(),
-            UiFallbackFontFamily = _appearance.GetUiFallbackFontsString(),
-            FontFamily = string.IsNullOrWhiteSpace(_appearance.FontFamily) ? "monospace" : _appearance.FontFamily.Trim(),
-            TerminalFallbackFontFamily = string.IsNullOrWhiteSpace(_appearance.FallbackFontFamily)
-                ? "Noto Sans Mono CJK SC, Source Han Sans HW SC, Microsoft YaHei, monospace"
-                : _appearance.FallbackFontFamily.Trim(),
-            FontSize = Math.Clamp(_appearance.FontSize, 8.0, 36.0),
-            CursorBlink = _appearance.CursorBlink,
-            TabPlacement = _appearance.SelectedTabPlacement?.Key ?? "Top",
-
-            ActiveGuiProfileId = _appearance.SelectedGuiProfile?.Id,
-            ActiveTerminalProfileId = _appearance.SelectedTerminalProfile?.Id,
-
-            // 终端
-            ScrollbackLines = Math.Clamp(_terminal.ScrollbackLines, 500, 50000),
-            DefaultTerminalType = string.IsNullOrWhiteSpace(_terminal.DefaultTerminalType)
-                ? "xterm-256color"
-                : _terminal.DefaultTerminalType.Trim(),
-
-            // SSH
-            DefaultPort = _ssh.DefaultPort is >= 1 and <= 65535 ? _ssh.DefaultPort : 22,
-            DefaultUsername = string.IsNullOrWhiteSpace(_ssh.DefaultUsername) ? "" : _ssh.DefaultUsername.Trim(),
-            DefaultIdentityId = _ssh.SelectedIdentityId,
-            PreferSystemAgent = _ssh.PreferSystemAgent,
-            LockTimeoutMinutes = Math.Clamp(_ssh.LockTimeoutMinutes, 0, 120),
-            ConnectTimeoutSeconds = Math.Clamp(_ssh.ConnectTimeoutSeconds, 3, 120),
-            KeepAliveIntervalSeconds = Math.Clamp(_ssh.KeepAliveIntervalSeconds, 0, 300),
-            EnableAgentForwarding = _ssh.EnableAgentForwarding,
-            CustomAgentSocketPath = string.IsNullOrWhiteSpace(_ssh.CustomAgentSocketPath)
-                ? null
-                : _ssh.CustomAgentSocketPath.Trim()
+            "常开 (Always Visible)" => PanelVisibilityMode.AlwaysVisible,
+            "常关 (Always Hidden)" => PanelVisibilityMode.AlwaysHidden,
+            _ => PanelVisibilityMode.RememberLastState
         };
+        settings.ComposeBarVisibilityMode = _general.SelectedComposeBarMode switch
+        {
+            "常开 (Always Visible)" => PanelVisibilityMode.AlwaysVisible,
+            "常关 (Always Hidden)" => PanelVisibilityMode.AlwaysHidden,
+            _ => PanelVisibilityMode.RememberLastState
+        };
+        settings.FileTransfer.CacheDirectory = _fileTransfer.CacheDirectory;
+        settings.FileTransfer.WatcherMode = Enum.TryParse<FileWatcherMode>(_fileTransfer.SelectedWatcherMode, out var wm) ? wm : FileWatcherMode.Auto;
+
+        // 外观：主题值归一化，仅接受 Dark/System
+        settings.UiTheme = _appearance.NormalizedThemeKey;
+        settings.ControlLibraryTheme = _appearance.NormalizedControlLibraryKey;
+        settings.TreeDensityPreset = _appearance.SelectedDensityPreset?.Key ?? "Compact";
+        settings.TreeItemHeight = Math.Clamp(_appearance.TreeItemHeight, 16.0, 40.0);
+        settings.TreeFontSize = Math.Clamp(_appearance.TreeFontSize, 9.0, 18.0);
+        settings.TreeIconSize = Math.Clamp(_appearance.TreeIconSize, 10.0, 24.0);
+        settings.TreeIndent = Math.Clamp(_appearance.TreeIndent, 6.0, 32.0);
+        settings.UiFontFamily = string.IsNullOrWhiteSpace(_appearance.UiFontFamily)
+            ? "Noto Sans CJK SC"
+            : _appearance.UiFontFamily.Trim();
+        settings.UiFallbackFontFamily = _appearance.GetUiFallbackFontsString();
+        settings.FontFamily = string.IsNullOrWhiteSpace(_appearance.FontFamily) ? "monospace" : _appearance.FontFamily.Trim();
+        settings.TerminalFallbackFontFamily = string.IsNullOrWhiteSpace(_appearance.FallbackFontFamily)
+            ? "Noto Sans Mono CJK SC, Source Han Sans HW SC, Microsoft YaHei, monospace"
+            : _appearance.FallbackFontFamily.Trim();
+        settings.FontSize = Math.Clamp(_appearance.FontSize, 8.0, 36.0);
+        settings.CursorBlink = _appearance.CursorBlink;
+        settings.TabPlacement = _appearance.SelectedTabPlacement?.Key ?? "Top";
+        settings.ActiveGuiProfileId = _appearance.SelectedGuiProfile?.Id;
+        settings.ActiveTerminalProfileId = _appearance.SelectedTerminalProfile?.Id;
+
+        // 终端
+        settings.ScrollbackLines = Math.Clamp(_terminal.ScrollbackLines, 500, 50000);
+        settings.DefaultTerminalType = string.IsNullOrWhiteSpace(_terminal.DefaultTerminalType)
+            ? "xterm-256color"
+            : _terminal.DefaultTerminalType.Trim();
+        settings.TabTitleFollowsRemote = _terminal.TabTitleFollowsRemote;
+        settings.CwdFollowMode = _terminal.SelectedCwdFollow?.Mode ?? CwdFollowMode.Off;
+
+        // SSH
+        settings.DefaultPort = _ssh.DefaultPort is >= 1 and <= 65535 ? _ssh.DefaultPort : 22;
+        settings.DefaultUsername = string.IsNullOrWhiteSpace(_ssh.DefaultUsername) ? "" : _ssh.DefaultUsername.Trim();
+        settings.DefaultIdentityId = _ssh.SelectedIdentityId;
+        settings.PreferSystemAgent = _ssh.PreferSystemAgent;
+        settings.LockTimeoutMinutes = Math.Clamp(_ssh.LockTimeoutMinutes, 0, 120);
+        settings.ConnectTimeoutSeconds = Math.Clamp(_ssh.ConnectTimeoutSeconds, 3, 120);
+        settings.KeepAliveIntervalSeconds = Math.Clamp(_ssh.KeepAliveIntervalSeconds, 0, 300);
+        settings.EnableAgentForwarding = _ssh.EnableAgentForwarding;
+        settings.CustomAgentSocketPath = string.IsNullOrWhiteSpace(_ssh.CustomAgentSocketPath)
+            ? null
+            : _ssh.CustomAgentSocketPath.Trim();
 
         IsBusy = true;
         try
@@ -418,53 +409,9 @@ public partial class SettingsViewModel : ViewModelBase
         }
     }
 
-    private static AppSettings CloneSettings(AppSettings source) => new()
-    {
-        SessionManagerVisibilityMode = source.SessionManagerVisibilityMode,
-        LastSessionManagerVisible = source.LastSessionManagerVisible,
-        ComposeBarVisibilityMode = source.ComposeBarVisibilityMode,
-        LastComposeBarVisible = source.LastComposeBarVisible,
-        FontFamily = source.FontFamily,
-        FontSize = source.FontSize,
-        ScrollbackLines = source.ScrollbackLines,
-        CursorBlink = source.CursorBlink,
-        UiFontFamily = source.UiFontFamily,
-        UiFallbackFontFamily = source.UiFallbackFontFamily,
-        UiFontSize = source.UiFontSize,
-        TerminalFallbackFontFamily = source.TerminalFallbackFontFamily,
-        UiTheme = source.UiTheme,
-        ControlLibraryTheme = source.ControlLibraryTheme,
-        ConfirmBeforeClose = source.ConfirmBeforeClose,
-        TreeSortMode = source.TreeSortMode,
-        TreeDensityPreset = source.TreeDensityPreset,
-        TreeItemHeight = source.TreeItemHeight,
-        TreeFontSize = source.TreeFontSize,
-        TreeIconSize = source.TreeIconSize,
-        TreeIndent = source.TreeIndent,
-        DefaultPort = source.DefaultPort,
-        DefaultTerminalType = source.DefaultTerminalType,
-        KeepAliveIntervalSeconds = source.KeepAliveIntervalSeconds,
-        DefaultUsername = source.DefaultUsername,
-        DefaultIdentityId = source.DefaultIdentityId,
-        PreferSystemAgent = source.PreferSystemAgent,
-        LockTimeoutMinutes = source.LockTimeoutMinutes,
-        ConnectTimeoutSeconds = source.ConnectTimeoutSeconds,
-        EnableAgentForwarding = source.EnableAgentForwarding,
-        CustomAgentSocketPath = source.CustomAgentSocketPath,
-        HostKeyPolicy = source.HostKeyPolicy,
-        TabPlacement = source.TabPlacement,
-        ActiveGuiProfileId = source.ActiveGuiProfileId,
-        ActiveTerminalProfileId = source.ActiveTerminalProfileId,
-        FileTransfer = new FileTransferSettings
-        {
-            CacheDirectory = source.FileTransfer.CacheDirectory,
-            CustomEditorPath = source.FileTransfer.CustomEditorPath,
-            WatcherMode = source.FileTransfer.WatcherMode,
-            PollingIntervalSeconds = source.FileTransfer.PollingIntervalSeconds,
-            WriteDebounceMilliseconds = source.FileTransfer.WriteDebounceMilliseconds,
-            IsFileManagerOnLeft = source.FileTransfer.IsFileManagerOnLeft
-        }
-    };
+    // 完整深拷贝（与设置文件同一套 JSON 序列化），新增字段自动覆盖，无需逐项登记
+    private static AppSettings CloneSettings(AppSettings source)
+        => System.Text.Json.JsonSerializer.Deserialize<AppSettings>(System.Text.Json.JsonSerializer.Serialize(source))!;
 
     [RelayCommand]
     private async Task SaveAsync()

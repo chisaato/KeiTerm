@@ -179,4 +179,31 @@ public class TreeNodeClonerTests
         Assert.Equal(deep.Host, clone.Host);
         Assert.Equal(deep.Name, clone.Name);
     }
+
+    [Fact]
+    public void DeepClone_KeepsProfileTransferAndOverrides_WithIndependentOverrides()
+    {
+        var session = new SessionNode
+        {
+            Name = "S",
+            Host = "h",
+            TerminalProfileId = "solarized",
+            FileTransferProtocol = FileTransferProtocol.Scp,
+            SftpMode = SftpChannelMode.Dedicated,
+            Overrides = new SessionOverrides { FollowRemoteTitle = false, CwdFollow = CwdFollowMode.Always }
+        };
+
+        var clone = Assert.IsType<SessionNode>(TreeNodeCloner.DeepClone(session));
+
+        // 粘贴出的会话不应悄悄变回默认配色 / SFTP / 继承
+        Assert.Equal("solarized", clone.TerminalProfileId);
+        Assert.Equal(FileTransferProtocol.Scp, clone.FileTransferProtocol);
+        Assert.Equal(SftpChannelMode.Dedicated, clone.SftpMode);
+        Assert.False(clone.Overrides.FollowRemoteTitle);
+        Assert.Equal(CwdFollowMode.Always, clone.Overrides.CwdFollow);
+
+        // 改副本的覆盖项不影响原会话
+        clone.Overrides.CwdFollow = CwdFollowMode.Off;
+        Assert.Equal(CwdFollowMode.Always, session.Overrides.CwdFollow);
+    }
 }
