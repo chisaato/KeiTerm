@@ -58,4 +58,6 @@ Kei.Term 遵循严格的关注点分离（Separation of Concerns）与依赖反�
 5. [E2EE 云同步与插件化扩展设计 (05-cloud-sync-and-plugins.md)](./05-cloud-sync-and-plugins.md)
 6. [身份（Identity）与认证编排设计 (06-identity-and-auth.md)](./06-identity-and-auth.md)
 7. [主机密钥信任与连接可达性 (07-host-keys-and-connectivity.md)](./07-host-keys-and-connectivity.md)
-8. [架构审查与后端优化记录 2026-09（含 ORM 选型） (08-architecture-review-2026-09.md)](./08-architecture-review-2026-09.md)
+8. [架构审查与后端优化记录 2026-09（含 ORM 选型、SSH 库评估） (08-architecture-review-2026-09.md)](./08-architecture-review-2026-09.md)
+9. [跟随终端当前目录（OSC 7/133、tmux 实测） (09-cwd-tracking.md)](./09-cwd-tracking.md)
+10. [长文件扫描与拆分规划 (10-refactor-plan.md)](./10-refactor-plan.md)

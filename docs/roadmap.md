@@ -1,6 +1,6 @@
 # KeiTerm 研发路线图 (Roadmap)
 
-> 最近更新：2026-09-29（第二轮调研 + 后端审查，详见 [design/08 架构审查](./design/08-architecture-review-2026-09.md)）
+> 最近更新：2026-09-29（后端审查见 [design/08](./design/08-architecture-review-2026-09.md)，拆分规划见 [design/10](./design/10-refactor-plan.md)，目录跟随见 [design/09](./design/09-cwd-tracking.md)）
 
 KeiTerm 不追求与 Xshell / SecureCRT 1:1 复刻。设计理念：抛弃传统工具冗余陈旧的历史包袱，避开 Electron 类客户端的资源消耗，
 结合现代 DevOps 工程师的实际工作流，聚焦**高可用网络穿透、直观交互、安全凭据与轻快体验**。
@@ -13,10 +13,12 @@ KeiTerm 不追求与 Xshell / SecureCRT 1:1 复刻。设计理念：抛弃传统
 |---|---|
 | 会话树（无限层级、拖拽、复制/剪切）、身份（有序多方法认证）、Vault（可选主密码） | ✅ |
 | SFTP / SCP 文件侧栏、外部编辑器联动、终端配色（含 Konsole 导入）、撰写栏 | ✅ |
-| **主机密钥信任库**（TOFU / 确认 / 严格三策略，变更阻断，导入 known_hosts） | ✅ 后端完成，确认弹窗 UI 待做 |
+| **主机密钥信任库**（确认 / TOFU / 严格三策略，变更阻断，算法协商偏好，已知主机管理与导入导出） | ✅ |
 | **跳板链 ProxyJump**（多级、每跳独立身份、文件通道复用跳板链） | ✅ 后端完成，会话编辑器的跳板下拉待做 |
 | **导入 `~/.ssh/config`**（Host / IdentityFile / ProxyJump / Include） | ✅ |
 | 保活、自定义 Agent（含 Pageant）、登录脚本 | ✅ 已接通（此前只存不用） |
+| Agent 转发（`ssh -A`） | ❌ SSH.NET 不支持；候选 Tmds.Ssh，见 design/08 §6 |
+| 多协议扩展点（`ITerminalSession`） | ✅ 接口就绪，提供者待接入 |
 | 持久化：版本化迁移 + Dapper + WAL | ✅ |
 | 终端内搜索、右键菜单、滚轮缩放、字体弹窗 | ⏳ 依赖 UI（见 `todo.md`） |
 | 端口转发管理器、自动重连、本地 Shell / 串口 | ⏳ 建议下一步 |
@@ -46,7 +48,8 @@ KeiTerm 不追求与 Xshell / SecureCRT 1:1 复刻。设计理念：抛弃传统
 
 ### P0：补齐「连接可信 + 可达」闭环（约 1–2 周，后端已就绪，主要是小型 UI）
 
-1. **主机密钥确认弹窗 + 信任库管理页**：后端两段式确认已实现，只需注入 prompt（见 [07 §1.5](./design/07-host-keys-and-connectivity.md)）。
+0. **先拆 `MainViewModel` 的连接管线**（`IInteractionService` → `VaultSessionService` → `ConnectionOrchestrator`，见 [10](./design/10-refactor-plan.md)），否则下面 2–4 会继续堆进 2000 行的类。
+1. ~~主机密钥确认弹窗 + 信任库管理页~~ ✅
 2. **会话编辑器「跳板机」下拉**：选择另一会话作为跳板（后端已支持多级链与循环检测）。
 3. **端口转发管理器**（Local / Remote / Dynamic SOCKS5）：SSH.NET 原生支持三种转发，
    在 `SshNetSession` 上挂 `ForwardedPort*` 即可；新增 `port_forwards` 表（迁移 v3），支持随会话自动挂载、端口冲突检测。
@@ -61,11 +64,13 @@ KeiTerm 不追求与 Xshell / SecureCRT 1:1 复刻。设计理念：抛弃传统
 
 RoyalTerminal 已提供 `Transport.Pty`（本地 Shell，含 Windows ConPTY）、`Transport.Serial`、`Transport.Telnet`。
 接入后会话树即可统一管理本地 Shell 与网络设备串口——这是 Xshell/MobaXterm 用户的高频场景。
-`tree_nodes.protocol` 列已预留，按协议建 `session_details_*` 表即可。
+`ITerminalSession` 已抽出；每种协议实现一个 `ITerminalSessionProvider` 包装 RoyalTerminal 的 `ITerminalTransport`，
+协议参数存 `session_protocol_settings` 多态 JSON（见 [10 §6](./design/10-refactor-plan.md)）。
 
 ### P2：现代化差异点
 
-- **Shell 集成**：解析 OSC 7（cwd）→ 文件侧栏自动跟随；OSC 133（提示符/命令边界）→ 命令块、快速跳转上一条命令、复制某条命令输出。
+- **Shell 集成 / 目录跟随**：RoyalTerminal 已解析 OSC 7 与 OSC 133，无需自写解析器；tmux 需透传或标题方案（已实测），
+  设计与待拍板问题见 [09](./design/09-cwd-tracking.md)。OSC 133 同时支撑命令块、跳转上一条命令、复制某条命令输出。
 - **会话录制**：asciicast v2 格式落盘（审计/复盘），纯后端能力。
 - **Snippets（参数化命令片段）+ 广播发送**：撰写栏扩展。
 - **ZMODEM（rz/sz）**：对 Xshell 迁移用户是切换阻碍项，优先级视目标用户群调整。

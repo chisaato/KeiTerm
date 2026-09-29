@@ -34,6 +34,10 @@ dotnet run --project src/Kei.Term.App/Kei.Term.App.csproj
   - Schema 变更只能在 `Storage/Schema/SchemaMigrations.cs` 追加版本号 +1 的迁移；已发布的迁移不得修改，仓储内不得 `CREATE TABLE`。
   - 仓储使用 Dapper + 私有行对象（`XxxRow`）映射，领域模型不带持久化特性；时间列用 `SqliteValue.FormatUtc/ParseUtc`。
   - 目录树采用 `parent_id` 扁平持久化 + 启动时单次加载至内存组树模型，避免递归 SQL。
+- **ViewModel 规模**：
+  - 新增弹窗一律走统一的交互服务（见 `docs/design/10-refactor-plan.md`），不再往 ViewModel 上加 `Func<>` 弹窗属性。
+  - ViewModel 超过约 600 行时，先按职责拆分再加新功能。
+- **测试**：测试必须能因生产行为出错而失败；不写只测 Mock、按源码文本/调用顺序断言、回显常量或默认值的测试（XAML 契约测试除外）。
 - **代码与注释**：
   - 多用行内注释，少用行后注释。
   - 所有新增的核心业务逻辑与算法变更，需在 `tests/Kei.Term.Tests` 中补充对应的单元测试。

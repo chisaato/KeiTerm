@@ -64,7 +64,17 @@ sequenceDiagram
 - 同一次连接最多确认 2 次（防止每次呈现不同密钥的服务器导致无限弹窗）。
 - `HostKeyRejectedException` 与认证失败区分：不会回弹密码框。
 - 校验自身故障（如数据库不可用）按**拒绝**处理，安全检查失败不能退化为放行。
-- 未注入确认 UI（当前状态）时 `Ask` 退化为：未知主机 TOFU 记录、变更一律阻断。
+- 未注入确认 UI（如单元测试）时 `Ask` 退化为：未知主机 TOFU 记录、变更一律阻断。
+
+### 1.3.1 算法协商偏好
+
+服务器通常同时持有 ed25519 / ecdsa / rsa 多把主机密钥，协商到哪一把取决于客户端的算法顺序。若只记录过 rsa，
+而客户端默认先协商 ed25519，就会每次都被判为「未知主机」（Strict 下直接拒绝）。OpenSSH 的做法是把已记录类型的算法排到最前，
+这里相同：`HostKeyGate` 握手前调用 `IHostKeyVerifier.GetKnownKeyTypesAsync`，用 `HostKeyAlgorithmPreference.Order` 重排
+`ConnectionInfo.HostKeyAlgorithms`（`rsa-sha2-256/512` 归入 `ssh-rsa`，证书算法不因普通密钥已知而提前）。
+
+另：`HostKeyEventArgs.HostKeyName` 是**签名算法**名（如 `rsa-sha2-512`），信任库记录的是**密钥类型**（`ssh-rsa`），
+呈现密钥的类型一律以公钥 blob 自描述为准，否则 RSA 密钥变更会被误判为「未知」而非「变更」。
 
 ### 1.4 存储（迁移 v2）
 
@@ -88,12 +98,17 @@ CREATE INDEX idx_known_hosts_endpoint ON known_hosts(host, port);
 
 候选查询 = 该端点精确条目 + 全部模式条目，最终匹配（哈希 HMAC-SHA1、通配符、否定）在内存完成。
 
-### 1.5 待办
+### 1.5 界面（已完成）
 
-- 确认弹窗 UI：展示主机、算法、指纹、之前记录的指纹（`HostKeyEvaluation.KnownEntries`）；`Changed` 使用红色强警示并默认焦点在「拒绝」。
-  注入方式：`new HostKeyTrustService(repo, policy, prompt: evaluation => dialog...)`。
-- 设置页：策略三选一；信任库管理列表（删除 / 标记吊销 / 导出为 known_hosts）。
+- `HostKeyPromptWindow`：未知 / 变更两态；展示主机、算法、指纹，变更时列出同算法的旧指纹并用错误色警示；
+  关闭窗口 / Esc 视为拒绝；变更时默认焦点在「拒绝」，防止习惯性回车放行。按钮：拒绝 / 仅本次连接 / 信任并保存（变更时为「替换记录并连接」）。
+- 设置 → SSH → 主机密钥：策略三选一。
+- 工具 → 已知主机：筛选（主机 / 指纹 / 备注）、删除、吊销 ⇄ 恢复、从 `~/.ssh/known_hosts` 导入、导出为 known_hosts（`OpenSshKnownHostsWriter`，可被 ssh 与本解析器读回）。
+
+### 1.6 待办
+
 - SSH 证书（`@cert-authority`）目前在导入时跳过，随证书认证一起做。
+- 写回系统 `~/.ssh/known_hosts`（与命令行 ssh 双向同步）：暂不做，避免与用户手工维护的文件冲突；需要时用导出。
 
 ---
 
@@ -114,7 +129,7 @@ CREATE INDEX idx_known_hosts_endpoint ON known_hosts(host, port);
 | `KeepAliveInterval` | `KeepAliveIntervalSeconds` | 0 关闭；防 NAT/防火墙静默回收空闲连接 |
 | `AgentSocketPath` | `CustomAgentSocketPath` | 空 = 系统默认；`pageant` = PuTTY Pageant；其它 = socket / 命名管道路径 |
 | `InteractivePrompt` | — | keyboard-interactive 真交互（2FA） |
-| `HostKeyValidator` | `HostKeyPolicy` | 见 §1 |
+| `HostKeyVerifier` | `HostKeyPolicy` | 见 §1（`IHostKeyVerifier`，生产实现为 `HostKeyTrustService`） |
 | `JumpHosts` | 会话 `JumpHostSessionId` | 见 §2 |
 
 登录脚本：会话 `StartupScript` 在 shell 打开后逐行以回车提交。

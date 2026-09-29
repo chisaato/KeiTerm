@@ -20,8 +20,10 @@
 | 9 | `DateTime.Parse` 无文化/往返参数：UTC 时间被转换为本地时间（Kind=Local） | 低 | ✅ 统一 `RoundtripKind`，读出恒为 UTC |
 | 10 | Vault 未记录 KDF 标识，未来切换 Argon2id 会导致旧库无法解锁 | 低（前瞻） | ✅ `vault_metadata.kdf` |
 | 11 | `GetNodeByIdAsync` 全量加载后内存过滤 | 低 | ✅ 单行查询 |
-| 12 | `MainViewModel` 约 1900 行，混合树管理、认证编排、连接重试、文件侧栏装配 | 中（可维护性） | ⏳ 建议拆分，见 §4 |
-| 13 | `EnableAgentForwarding` 设置项存在但 SSH.NET 不支持 agent 转发 | 低（误导） | ⏳ 建议 UI 隐藏或标注"暂不支持" |
+| 12 | `MainViewModel` 约 2050 行，混合树管理、认证编排、连接重试、文件侧栏装配 | 中（可维护性） | ⏳ 拆分规划见 [10](./10-refactor-plan.md) |
+| 13 | `EnableAgentForwarding` 设置项存在但 SSH.NET 不支持 agent 转发 | 低（误导） | ✅ 设置页已标注「暂不支持」并说明免密登录的真实来源，见 §6 |
+| 16 | 测试集中混有空测试、只测 Mock、按源码文本断言、断言常量等无效测试 | 低（维护成本） | ✅ 已清理 24 个，见 §5 |
+| 17 | 主机密钥协商未优先已记录的算法；`HostKeyName` 为签名算法（`rsa-sha2-512`）与记录的密钥类型（`ssh-rsa`）不一致 | 中（误报 / 漏判变更） | ✅ 已修复，sshd 三密钥集成测试覆盖 |
 | 14 | `SftpChannelMode.Auto/Subsystem` 无法实现（SSH.NET 公共 API 不能在已有会话上开 sftp 子系统） | 低（误导） | ⏳ 已在代码注释说明；建议 UI 合并为单一选项 |
 | 15 | README 将 OS Keyring、E2EE 同步、插件化凭据源写为既有特性 | 低（预期管理） | ✅ README 已标注「规划中」 |
 
@@ -116,15 +118,7 @@ SshConnectOptions ──► SshSessionFactory
 
 ### 4.1 拆分 `MainViewModel`（优先）
 
-建议抽出三个无 UI 依赖、可单测的服务，ViewModel 只保留绑定与命令转发：
-
-| 新服务 | 职责（从 MainViewModel 迁出） | 依赖 |
-|---|---|---|
-| `ConnectionOrchestrator` | 认证计划 → 物化 → 跳板物化 → 建连重试 → 主机密钥确认循环 | `IAuthPromptService`（弹窗接口）、`ISshSessionFactory`、`HostKeyTrustService` |
-| `SessionTreeService` | 缓存、建树、复制/剪切/粘贴/移动、导入 | `ITreeRepository` |
-| `VaultSessionService` | 懒解锁、口令会话缓存、自动锁定计时 | `IVaultManager`、`IVaultSecretStore` |
-
-弹窗委托（`AuthPromptDialogAsync` 等 6 个 `Func<>` 属性）收敛为一个 `IInteractionService` 接口，测试可用假实现替代。
+完整的职责地图、目标类型、接口草案与执行顺序见 [10 - 长文件扫描与拆分规划](./10-refactor-plan.md)。
 
 ### 4.2 组合根
 
@@ -140,3 +134,50 @@ SshConnectOptions ──► SshSessionFactory
 
 PBKDF2-HMAC-SHA512 600k 迭代高于 OWASP 密码存储建议（SHA-512 为 21 万次）；若要回到规格中的 Argon2id，
 可引入 `Konscious.Security.Cryptography.Argon2` 或 libsodium 绑定，写入新的 `kdf` 标识即可无损并存（本轮已预留）。
+
+---
+
+## 5. 测试集清理（2026-09-29）
+
+原则：测试必须能因**生产行为出错**而失败。删除（265 → 241，其后新增至 249）：
+
+| 类别 | 例子 |
+|---|---|
+| 不测任何生产代码 | 空的 `UnitTest1`；打印 API 的 `ApiInspectionTests`；只测自身 Mock 的 `RemoteFileSystemTests` |
+| 锁死实现细节 | 用 `IndexOf` 断言 `.axaml.cs` 源码里方法调用顺序、`.axaml` 里 `ColumnSpacing="20"` 等字面量；反射私有字段 `_cursorBlinkTimer` |
+| 永不失败 | `ConnectionStateBrushConverter` 测试（测试进程无 `Application`，恒返回灰色）；同一输入算两次比较相等 |
+| 回显常量 | 默认前景色必须是 `#FFFFFF`、枚举整数值、预设名称清单 |
+| 与 Theory 数据行重复 | `ToArgb` 六位/八位单例测试、空白字体名回退 |
+
+保留：`Contracts/*` 下的 XAML 契约测试（裸色号、图标、令牌前缀）——这是 `.agents/skills/avalonia-contract-tests` 约定的防腐手段，断言的是规则而非字面布局。
+合并：内置预设改为校验 **Id 唯一 + 颜色合法**；`TerminalProfileId` 透传并入 `SessionConfigBuilderTests`。
+
+---
+
+## 6. Agent 转发与 SSH 库选型
+
+### 6.1 现状核实
+
+- SSH.NET 2026.0 的程序集里不存在 `auth-agent-req@openssh.com`（agent 转发请求名）；对照 `pty-req`、`x11-req`、`keepalive@openssh.com` 均能找到，检索方法有效。
+- 代码中 `EnableAgentForwarding` 只被设置页读写，连接路径从未使用。
+- 勾选后能"免密登录常用服务器"来自 **本机 agent 认证**（`PreferSystemAgent`，默认开启），与转发无关。
+  区分方法：登录后在远端执行 `ssh-add -l`——真正的转发会列出本机密钥，当前会提示 `Could not open a connection to your authentication agent`。
+
+### 6.2 候选：Tmds.Ssh
+
+| 能力 | SSH.NET 2026.0 | Tmds.Ssh 0.24.0（2026-08，MIT） |
+|---|---|---|
+| Agent 转发 | ❌ | 主干已合并（2026-09-17，PR #510），**尚未发版** |
+| SFTP 复用同一连接 | ❌ | ✅ `SshClient.OpenSftpClientAsync` |
+| 原生 ProxyJump（通道内承载，无需回环转发口） | ❌ | ✅ `SshProxy` |
+| 会话环境变量 | ❌ | ✅ `ExecuteOptions.EnvironmentVariables` |
+| 本地 / 远程 / SOCKS 转发 | ✅ | ✅ |
+| 异步主机密钥回调 / known_hosts | 同步事件 | ✅ `HostAuthentication`（异步）+ 内建 known_hosts |
+| keyboard-interactive（2FA） | ✅ | ✅ |
+| 自动重连 | ❌ | ✅ `AutoReconnect` |
+| SK 硬件密钥经 agent | ✅ 已在用 | ⚠️ 未验证（程序集中未见 `sk-*` 算法名，需实机测试） |
+| API 稳定性 | 稳定 | 0.x，可能有破坏性变更 |
+
+建议：**现在不迁移**，待 agent 转发发版后做一次 spike。本轮已把 SSH 相关代码收敛到 `Kei.Term.Ssh` 的 `SshDialer` / `SshAuthMethodBuilder` 与
+`ISshSession` / `IRemoteFileSystem` 抽象之后，迁移范围限定在该项目内。spike 的通过条件：
+YubiKey `ed25519-sk` 经 agent 登录成功、2FA 交互正常、跳板 + SFTP 复用正常、现有 sshd 集成测试全部通过。
