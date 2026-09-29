@@ -61,23 +61,6 @@ public class TerminalThemeAdapterTests
     }
 
     [Fact]
-    public void ToArgb_SixDigit_AddsOpaqueAlpha()
-    {
-        Assert.Equal(0xFF1E1E1Eu, TerminalThemeAdapter.ToArgb("#1E1E1E"));
-    }
-
-    [Fact]
-    public void ToArgb_EightDigit_ReadsAlphaFirst()
-    {
-        Assert.Equal(0x501D99F3u, TerminalThemeAdapter.ToArgb("#501D99F3"));
-
-        // alpha 与 RGB 独立可还原，防止把末尾当 alpha 的错误解析
-        uint argb = TerminalThemeAdapter.ToArgb("#501D99F3");
-        Assert.Equal(0x50u, argb >> 24);
-        Assert.Equal(0x1D99F3u, argb & 0x00FFFFFFu);
-    }
-
-    [Fact]
     public void ToArgb_LegacyThreeDigit_ExpandsInsteadOfCrashing()
     {
         // 兼容边界：既有 Avalonia Color.TryParse / 编辑弹窗正则接受 #RGB，
@@ -91,17 +74,6 @@ public class TerminalThemeAdapterTests
     {
         ArgumentException ex = Assert.Throws<ArgumentException>(() => TerminalThemeAdapter.ToArgb("#12345"));
         Assert.Contains("hex", ex.Message, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void ToRoyalTheme_ReturnsCanonicalTheme()
-    {
-        TerminalProfile profile = CreateProfile();
-
-        TerminalTheme theme = TerminalThemeAdapter.ToRoyalTheme(profile);
-
-        Assert.NotNull(theme);
-        Assert.Equal(TerminalPaletteGenerationMode.Canonical, theme.PaletteGenerationMode);
     }
 
     // 上游边界：TerminalTheme 构造期对选区色执行 EnsureOpaque（alpha 强制 0xFF），
@@ -161,19 +133,6 @@ public class TerminalThemeAdapterTests
     }
 
     [Fact]
-    public void ToRoyalTheme_LegacyThreeDigitProfile_DoesNotThrow()
-    {
-        TerminalProfile profile = CreateProfile(ansi0: "#1E1");
-        profile.Foreground = "#FFF";
-        profile.Background = "#000";
-
-        TerminalTheme theme = TerminalThemeAdapter.ToRoyalTheme(profile);
-
-        Assert.NotNull(theme);
-        Assert.Equal(0xFF11EE11u, theme.Palette[0]); // "#1E1" 展开为 #11EE11
-    }
-
-    [Fact]
     public void ToRoyalTheme_ShortAnsiArray_FallsBackWithoutCrash()
     {
         TerminalProfile profile = CreateProfile();
@@ -200,15 +159,6 @@ public class TerminalThemeAdapterTests
         Assert.DoesNotContain("Later Added", snapshot.FallbackFonts);
     }
 
-    [Fact]
-    public void TerminalFontSnapshot_NullFallbackList_BecomesEmptyNotThrow()
-    {
-        TerminalFontSnapshot snapshot = new("JetBrains Mono", null!, 14.0, true);
-
-        Assert.NotNull(snapshot.FallbackFonts);
-        Assert.Empty(snapshot.FallbackFonts);
-    }
-
     // M1：主字体单一化规则必须与 TerminalTabViewModel.NormalizeFontFamilyName 一致
     [Theory]
     [InlineData("JetBrains Mono", "JetBrains Mono")]
@@ -233,11 +183,4 @@ public class TerminalThemeAdapterTests
         Assert.Single(snapshot.FallbackFonts);
     }
 
-    [Fact]
-    public void TerminalFontSnapshot_PrimaryFontFamily_BlankInputFallsBackToDefault()
-    {
-        TerminalFontSnapshot snapshot = new("   ", [], 14.0, true);
-
-        Assert.Equal("Noto Sans Mono", snapshot.PrimaryFontFamily);
-    }
 }

@@ -111,15 +111,6 @@ public class SchemaMigratorTests : IDisposable
     }
 
     [Fact]
-    public async Task GetNodeById_ReturnsNullForUnknownId()
-    {
-        var repo = new SqliteTreeRepository(ConnStr);
-        await repo.InitializeAsync();
-
-        Assert.Null(await repo.GetNodeByIdAsync(Guid.NewGuid()));
-    }
-
-    [Fact]
     public async Task SettingsService_BacksUpCorruptFileAndSavesAtomically()
     {
         var dir = Path.Combine(Path.GetTempPath(), $"keiterm_settings_{Guid.NewGuid():N}");

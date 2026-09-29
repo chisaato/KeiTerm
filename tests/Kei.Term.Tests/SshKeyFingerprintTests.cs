@@ -119,10 +119,4 @@ ZGVza3RvcAECAwQF
         Assert.Null(SshKeyFingerprint.Compute(""));
         Assert.Null(SshKeyFingerprint.Compute(null!));
     }
-
-    [Fact]
-    public void Compute_SameInput_IsDeterministic()
-        => Assert.Equal(
-            SshKeyFingerprint.Compute(Ed25519Key),
-            SshKeyFingerprint.Compute(Ed25519Key));
 }

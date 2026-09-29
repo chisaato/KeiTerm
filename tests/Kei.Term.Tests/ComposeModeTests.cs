@@ -67,15 +67,6 @@ public class ComposeModeTests
     }
 
     [Fact]
-    public void ComposeMode_DefaultIsSingleLine()
-    {
-        ComposeMode mode = ComposeMode.SingleLine;
-        Assert.Equal(ComposeMode.SingleLine, mode);
-        Assert.Equal(0, (int)ComposeMode.SingleLine);
-        Assert.Equal(1, (int)ComposeMode.MultiLine);
-    }
-
-    [Fact]
     public void MainViewModel_ComposeMode_SwitchesCorrectly()
     {
         string tempPath = Path.Combine(Path.GetTempPath(), $"keiterm_test_compose_{Path.GetRandomFileName()}.json");

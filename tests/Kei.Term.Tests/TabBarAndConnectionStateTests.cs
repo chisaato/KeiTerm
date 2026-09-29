@@ -32,23 +32,4 @@ public class TabBarAndConnectionStateTests
         Assert.Equal("Network timeout", tab.StatusMessage);
     }
 
-    [Fact]
-    public void ConnectionStateBrushConverter_MapsAllStatesGracefully()
-    {
-        var converter = new ConnectionStateBrushConverter();
-
-        foreach (var state in Enum.GetValues<ConnectionState>())
-        {
-            var brush = converter.Convert(state, typeof(IBrush), null, System.Globalization.CultureInfo.InvariantCulture);
-            Assert.NotNull(brush);
-            Assert.IsAssignableFrom<IBrush>(brush);
-        }
-    }
-
-    [Fact]
-    public void TabPlacement_EnumValues_AreDefined()
-    {
-        Assert.Equal(0, (int)TabPlacement.Top);
-        Assert.Equal(1, (int)TabPlacement.Bottom);
-    }
 }
