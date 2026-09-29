@@ -28,7 +28,7 @@ Kei.Term 遵循严格的关注点分离（Separation of Concerns）与依赖反�
        v                                                         v
 +-----------------------------+          +------------------------------+
 |   Kei.Term.Infrastructure   |          |         Kei.Term.Ssh         |
-| - SQLite 数据库 (EF/Dapper)  |          | - SSH.NET 客户端生命周期     |
+| - SQLite (Dapper + 版本迁移) |          | - SSH.NET 客户端生命周期     |
 | - Vault 双后端:             |          | - SshNet.Agent 集成          |
 |   * 内置 AES-256-GCM 存储   |          |   (Unix Socket/Named Pipe)   |
 |   * OS 原生 Keyring 适配器  |          | - RoyalTerminal 适配桥接     |
@@ -56,3 +56,6 @@ Kei.Term 遵循严格的关注点分离（Separation of Concerns）与依赖反�
 3. [SSH 通信与 Agent / SK 密钥架构 (03-ssh-and-agent.md)](./03-ssh-and-agent.md)
 4. [终端仿真与会话流转设计 (04-terminal-and-lifecycle.md)](./04-terminal-and-lifecycle.md)
 5. [E2EE 云同步与插件化扩展设计 (05-cloud-sync-and-plugins.md)](./05-cloud-sync-and-plugins.md)
+6. [身份（Identity）与认证编排设计 (06-identity-and-auth.md)](./06-identity-and-auth.md)
+7. [主机密钥信任与连接可达性 (07-host-keys-and-connectivity.md)](./07-host-keys-and-connectivity.md)
+8. [架构审查与后端优化记录 2026-09（含 ORM 选型） (08-architecture-review-2026-09.md)](./08-architecture-review-2026-09.md)
