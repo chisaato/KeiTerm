@@ -110,10 +110,10 @@ public partial class MainWindow : Window
         // 身份管理器编辑器由管理器窗口自身以模态方式打开（保证 owner 正确）
         identityMgrVm.ConfirmDeleteAsync = _ => Task.FromResult(true);
         // 手动锁定 Vault 时一并清空 SessionOnly 口令缓存
-        identityMgrVm.LockVaultAction = vm.LockVault;
+        identityMgrVm.LockVaultAction = vm.VaultSession.Lock;
         // 编辑器回显 Vault 私钥信息 / 「应用」时写入 Vault 材料
-        identityMgrVm.VaultKeyInfoLoader = vm.GetVaultKeyInfoAsync;
-        identityMgrVm.PersistVaultKeysAsync = vm.PersistVaultKeyImportsAsync;
+        identityMgrVm.VaultKeyInfoLoader = vm.VaultSession.GetVaultKeyInfoAsync;
+        identityMgrVm.PersistVaultKeysAsync = vm.VaultSession.PersistVaultKeyImportsAsync;
     }
 
     // 右键松开在空白处（命中点不在任何 TreeViewItem 上）→ 清除选中，使新建/粘贴落到顶级

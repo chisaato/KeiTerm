@@ -45,8 +45,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private readonly ITreeRepository _treeRepo;
     private readonly IIdentityRepository _identityRepo;
     private readonly IExternalEditorRepository? _editorRepo;
-    private readonly IVaultManager _vault;
-    private readonly IVaultSecretStore _vaultSecretStore;
     private readonly ISettingsService _settingsService;
     private readonly Services.ProfileManagerService? _profileManager;
     private readonly ISshSessionFactory _sshFactory;
@@ -65,17 +63,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     // 供窗口层复用同一 logger（弹窗 lambda 容错记录）
     public ILogger Logger => _logger;
 
-    // Vault 主密码连续失败计数（成功即清零）
-    private int _vaultUnlockFailures;
-
     // 最近一次从仓储取回的扁平节点缓存，过滤/建树/解析继承链时复用，避免重复查库
     private IReadOnlyList<TreeNodeBase> _allNodesCache = [];
-
-    // SessionOnly 口令缓存：键 = 方法 Id；Vault 锁定/退出时清空
-    private readonly Dictionary<Guid, string> _sessionPassphrases = new();
-
-    // 最近一次 Vault 访问时刻，供自动锁定计时判断
-    private DateTime _lastVaultAccessUtc = DateTime.UtcNow;
 
     // 自动锁定计时器（每分钟检查一次，默认 0 分钟不启用）
     private DispatcherTimer? _lockTimer;
@@ -161,6 +150,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     // 用户交互（弹窗 / 选择器 / 子窗口 / 通知）统一入口；窗口层注入 Avalonia 实现，默认按"取消"处理
     public IInteractionService Interaction { get; set; } = NullInteractionService.Instance;
 
+    // Vault 会话（懒解锁、材料读写、口令缓存、空闲锁定判定）
+    public VaultSessionService VaultSession { get; }
+
     // 当前设置快照（供快速连接窗口取默认端口/用户名等）
     public AppSettings CurrentSettings => _settingsService.Current;
 
@@ -183,13 +175,17 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         _identityRepo = identityRepo;
         _editorRepo = editorRepo;
         _profileManager = profileManager;
-        _vault = vault;
-        _vaultSecretStore = vaultSecretStore;
         _settingsService = settingsService;
         _sshFactory = sshFactory;
         _logger = logger ?? NullLogger<MainViewModel>.Instance;
         _loggerFactory = loggerFactory;
         _uiDispatch = uiDispatch ?? DefaultUiDispatch;
+        VaultSession = new VaultSessionService(
+            vault,
+            vaultSecretStore,
+            settingsService,
+            () => Interaction,
+            loggerFactory?.CreateLogger<VaultSessionService>());
 
         // 标签集合变化时同步 HasTabs，控制标签条显隐
         Tabs.CollectionChanged += (_, _) => HasTabs = Tabs.Count > 0;
@@ -380,35 +376,16 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         await ReloadTreeAsync();
 
         // 自动锁定计时：每分钟 tick，按设置的空闲阈值判断是否 Lock
-        _lastVaultAccessUtc = DateTime.UtcNow;
+        VaultSession.MarkAccessed();
         _lockTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
         _lockTimer.Tick += OnAutoLockTick;
         _lockTimer.Start();
     }
 
-    private void OnAutoLockTick(object? sender, EventArgs e)
-    {
-        var minutes = _settingsService.Current.LockTimeoutMinutes;
-        if (minutes <= 0 || _vault.IsPlainMode || !_vault.IsUnlocked)
-        {
-            return;
-        }
+    private void OnAutoLockTick(object? sender, EventArgs e) => VaultSession.AutoLockIfIdle(DateTime.UtcNow);
 
-        if (DateTime.UtcNow - _lastVaultAccessUtc >= TimeSpan.FromMinutes(minutes))
-        {
-            _logger.LogInformation("Vault 自动锁定计时触发 空闲阈值={Minutes} 分钟", minutes);
-            LockVault();
-        }
-    }
-
-    // 锁定 Vault 并清空 SessionOnly 口令缓存（手动锁定与超时锁定共用）
-    public void LockVault()
-    {
-        _vault.Lock();
-        _sessionPassphrases.Clear();
-        _lastVaultAccessUtc = DateTime.UtcNow;
-        _logger.LogInformation("Vault 已锁定（内存 MEK 与 SessionOnly 口令缓存已清空）");
-    }
+    // 锁定 Vault 并清空 SessionOnly 口令缓存（手动锁定入口）
+    public void LockVault() => VaultSession.Lock();
 
     public async Task ReloadTreeAsync()
     {
@@ -1129,7 +1106,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     return (null, result.Username);
                 }
 
-                var secrets = await LoadIdentitySecretsAsync(identity.Id);
+                var secrets = await VaultSession.LoadIdentitySecretsAsync(identity.Id);
                 if (!secrets.TryGetValue(result.VaultMethodId.Value.ToString(), out var payload)
                     || string.IsNullOrEmpty(payload.PrivateKeyContent))
                 {
@@ -1354,18 +1331,17 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 return;
             }
 
-            secrets ??= await LoadIdentitySecretsAsync(identity.Id);
+            secrets ??= await VaultSession.LoadIdentitySecretsAsync(identity.Id);
         }
 
         var context = new AuthMaterializerContext
         {
             ReadPrivateKeyFileAsync = ReadPrivateKeyFileAsync,
             Logger = _logger,
-            GetSessionPassphrase = methodId =>
-                _sessionPassphrases.TryGetValue(methodId, out var cached) ? cached : null,
+            GetSessionPassphrase = VaultSession.GetSessionPassphrase,
             GetVaultSecret = methodId =>
                 secrets != null && secrets.TryGetValue(methodId.ToString(), out var payload) ? payload : null,
-            PromptPassphraseAsync = PromptPassphraseAsync,
+            PromptPassphraseAsync = (method, _) => VaultSession.PromptPassphraseAsync(method),
             SaveVaultSecretAsync = async (methodId, payload) =>
             {
                 if (identity == null)
@@ -1373,7 +1349,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     return;
                 }
 
-                await PersistVaultSecretAsync(identity.Id, methodId, payload);
+                await VaultSession.PersistSecretAsync(identity.Id, methodId, payload);
                 // 同步内存副本，后续同一连接内读取命中
                 secrets ??= new Dictionary<string, SecretPayload>();
                 secrets[methodId.ToString()] = payload;
@@ -1413,79 +1389,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
 
         return results;
-    }
-
-    // 读取身份整包材料；Vault 加密且锁定时先懒解锁，取消则返回空（方法顺延跳过）
-    private async Task<Dictionary<string, SecretPayload>> LoadIdentitySecretsAsync(Guid identityId)
-    {
-        if (!_vault.IsPlainMode && !_vault.IsUnlocked && !await EnsureVaultUnlockedAsync())
-        {
-            return new Dictionary<string, SecretPayload>();
-        }
-
-        try
-        {
-            var secrets = await _vaultSecretStore.GetSecretsAsync(identityId);
-            _lastVaultAccessUtc = DateTime.UtcNow;
-            return secrets;
-        }
-        catch
-        {
-            return new Dictionary<string, SecretPayload>();
-        }
-    }
-
-    // 主密码懒解锁：循环重试直到成功/取消
-    private async Task<bool> EnsureVaultUnlockedAsync()
-    {
-        if (_vault.IsPlainMode || _vault.IsUnlocked)
-        {
-            return true;
-        }
-
-        var error = Strings.Get("Status.Vault.UnlockPrompt");
-        _logger.LogInformation("保管库已锁定，弹出主密码框等待解锁");
-        while (true)
-        {
-            var password = await Interaction.PromptMasterPasswordAsync(error);
-            if (password == null)
-            {
-                _logger.LogInformation("主密码框取消，保管库保持锁定");
-                return false;
-            }
-
-            try
-            {
-                await _vault.UnlockAsync(password, false);
-                _lastVaultAccessUtc = DateTime.UtcNow;
-                _vaultUnlockFailures = 0;
-                return true;
-            }
-            catch (UnauthorizedAccessException)
-            {
-                _vaultUnlockFailures++;
-                _logger.LogWarning("Vault 解锁失败：主密码错误 连续失败={Failures} 次", _vaultUnlockFailures);
-                error = Strings.Get("Status.Vault.PasswordIncorrect");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Vault 解锁异常");
-                error = ex.Message;
-            }
-        }
-    }
-
-    // 写入 Vault 前确保可用：明文模式（未初始化或已选明文）直通，加密模式需先解锁
-    private async Task<bool> EnsureVaultReadyForWriteAsync()
-    {
-        if (_vault.IsPlainMode)
-        {
-            // 零摩擦：不弹初始化框，直接明文写入（明文警示由身份管理器横幅承担）
-            _logger.LogInformation("保管库为明文模式，凭据材料将明文写入本地数据库");
-            return true;
-        }
-
-        return await EnsureVaultUnlockedAsync();
     }
 
     // 读取私钥文件并探测是否需要口令（不引入 SSH 依赖，按文件头特征判断）
@@ -1533,114 +1436,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
         // OpenSSH 新格式（openssh-key-v1）加密私钥的 KDF 名固定为 bcrypt
         return content.Contains("bcrypt", StringComparison.OrdinalIgnoreCase);
-    }
-
-    // 口令弹窗（三态）；SessionOnly 勾选记住时写入本次运行内存缓存
-    private async Task<PassphrasePromptResult?> PromptPassphraseAsync(FilePrivateKeyMethod method, CancellationToken ct)
-    {
-        _logger.LogInformation("口令框打开 方法Id={MethodId} 模式={Mode}", method.Id, method.PassphraseMode);
-        var result = await Interaction.PromptPassphraseAsync(method);
-        if (result == null)
-        {
-            _logger.LogInformation("口令框取消 方法Id={MethodId}", method.Id);
-            return null;
-        }
-
-        _logger.LogInformation("口令框确认 方法Id={MethodId} 本次运行记住={Remember}", method.Id, result.Remember);
-        if (method.PassphraseMode == PassphrasePersistence.SessionOnly && result.Remember)
-        {
-            _sessionPassphrases[method.Id] = result.Passphrase;
-        }
-
-        return result;
-    }
-
-    // 把单个方法的材料并入身份整包写回 Vault
-    private async Task PersistVaultSecretAsync(Guid identityId, Guid methodId, SecretPayload payload)
-    {
-        if (!await EnsureVaultReadyForWriteAsync())
-        {
-            // 用户取消初始化/解锁：不持久化，材料仍在本次内存
-            _logger.LogInformation("Vault 材料未持久化（未解锁/取消） 方法Id={MethodId}", methodId);
-            return;
-        }
-
-        var secrets = await _vaultSecretStore.GetSecretsAsync(identityId);
-        secrets[methodId.ToString()] = payload;
-        await _vaultSecretStore.SaveSecretsAsync(identityId, secrets);
-        _lastVaultAccessUtc = DateTime.UtcNow;
-        // 仅记录有无与字节数，绝不记录材料内容
-        _logger.LogInformation(
-            "Vault 材料持久化 身份Id={IdentityId} 方法Id={MethodId} 含密码={HasPassword} 私钥字节={KeyBytes} 含口令={HasPassphrase}",
-            identityId,
-            methodId,
-            !string.IsNullOrEmpty(payload.Password),
-            payload.PrivateKeyContent == null ? 0 : PrivateKeyImport.ByteCount(payload.PrivateKeyContent),
-            !string.IsNullOrEmpty(payload.Passphrase));
-    }
-
-    // 读取指定 Vault 私钥方法的已存材料信息（字节数 + 指纹）；无材料返回 null。供身份编辑器回显。
-    public async Task<VaultKeyInfo?> GetVaultKeyInfoAsync(Guid identityId, Guid methodId)
-    {
-        var secrets = await LoadIdentitySecretsAsync(identityId);
-        if (!secrets.TryGetValue(methodId.ToString(), out var payload)
-            || string.IsNullOrEmpty(payload.PrivateKeyContent))
-        {
-            return null;
-        }
-
-        return new VaultKeyInfo(
-            PrivateKeyImport.ByteCount(payload.PrivateKeyContent),
-            SshKeyFingerprint.Compute(payload.PrivateKeyContent, payload.Passphrase));
-    }
-
-    // 身份落库后统一写入/删除其 Vault 私钥材料（编辑器「应用」时暂存的导入结果）；
-    // 返回 false 表示保管库未解锁（用户取消），调用方据此保持错误提示
-    public async Task<bool> PersistVaultKeyImportsAsync(Guid identityId, IReadOnlyList<VaultKeyImport> imports)
-    {
-        if (imports.Count == 0)
-        {
-            return true;
-        }
-
-        if (!await EnsureVaultReadyForWriteAsync())
-        {
-            // 加密保管库未解锁：不持久化
-            return false;
-        }
-
-        var secrets = await _vaultSecretStore.GetSecretsAsync(identityId);
-        foreach (var import in imports)
-        {
-            var key = import.MethodId.ToString();
-            if (import.Remove)
-            {
-                secrets.Remove(key);
-                _logger.LogInformation("Vault 私钥材料移除 身份Id={IdentityId} 方法Id={MethodId}", identityId, import.MethodId);
-                continue;
-            }
-
-            if (!string.IsNullOrEmpty(import.PrivateKeyContent))
-            {
-                secrets[key] = new SecretPayload
-                {
-                    PrivateKeyContent = import.PrivateKeyContent,
-                    Passphrase = import.Passphrase,
-                };
-                // 记录字节数与指纹有无，不记录私钥内容
-                var hasFingerprint = SshKeyFingerprint.Compute(import.PrivateKeyContent, import.Passphrase) != null;
-                _logger.LogInformation(
-                    "Vault 私钥材料写入 身份Id={IdentityId} 方法Id={MethodId} 字节={Bytes} 指纹={HasFingerprint}",
-                    identityId,
-                    import.MethodId,
-                    PrivateKeyImport.ByteCount(import.PrivateKeyContent),
-                    hasFingerprint);
-            }
-        }
-
-        await _vaultSecretStore.SaveSecretsAsync(identityId, secrets);
-        _lastVaultAccessUtc = DateTime.UtcNow;
-        return true;
     }
 
     // SSH 连接：后台线程执行，认证失败经 Dispatcher 回弹统一认证窗重试（上限 3 次）
