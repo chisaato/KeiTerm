@@ -35,9 +35,16 @@ public partial class IdentityMethodRowViewModel : ViewModelBase
     [ObservableProperty]
     private int _passphraseModeIndex;
 
-    // Vault 私钥状态回显：未导入 / 已导入 · 指纹 … · N 字节 / 待保存 … / 待移除
+    // Vault 私钥状态回显：未导入 / 已导入 · N 字节 / 待保存 … / 待移除
     [ObservableProperty]
     private string _vaultKeyStatus = Strings.Get("IdentityEdit.VaultKey.NotImported");
+
+    // Vault 私钥指纹回显（无指纹时留空）
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasVaultKeyFingerprint))]
+    private string _vaultKeyFingerprint = string.Empty;
+
+    public bool HasVaultKeyFingerprint => !string.IsNullOrEmpty(VaultKeyFingerprint);
 
     // 文件私钥指纹回显（读取文件计算，失败留空不阻塞）
     [ObservableProperty]
@@ -144,9 +151,17 @@ public partial class IdentityMethodRowViewModel : ViewModelBase
             var info = await VaultKeyInfoLoader(identityId, Model.Id);
             _persistedSize = info?.Size;
             _fingerprint = info?.Fingerprint;
-            VaultKeyStatus = info != null
-                ? BuildVaultKeyStatus(Strings.Get("IdentityEdit.VaultKey.Imported"), info.Size, info.Fingerprint)
-                : Strings.Get("IdentityEdit.VaultKey.NotImported");
+            if (info != null)
+            {
+                var bytesText = string.Format(Strings.Get("IdentityEdit.BytesFormat"), info.Size);
+                VaultKeyStatus = $"{Strings.Get("IdentityEdit.VaultKey.Imported")} · {bytesText}";
+                VaultKeyFingerprint = info.Fingerprint ?? string.Empty;
+            }
+            else
+            {
+                VaultKeyStatus = Strings.Get("IdentityEdit.VaultKey.NotImported");
+                VaultKeyFingerprint = string.Empty;
+            }
         }
 
         if (IsFilePrivateKey && !string.IsNullOrWhiteSpace(KeyFilePath))
@@ -174,6 +189,7 @@ public partial class IdentityMethodRowViewModel : ViewModelBase
         if (read == null)
         {
             VaultKeyStatus = Strings.Get("IdentityEdit.VaultKey.ReadFailed");
+            VaultKeyFingerprint = string.Empty;
             return;
         }
 
@@ -183,6 +199,7 @@ public partial class IdentityMethodRowViewModel : ViewModelBase
             if (VaultKeyPassphrasePrompt == null)
             {
                 VaultKeyStatus = Strings.Get("IdentityEdit.VaultKey.PassphrasePromptUnavailable");
+                VaultKeyFingerprint = string.Empty;
                 return;
             }
 
@@ -200,7 +217,9 @@ public partial class IdentityMethodRowViewModel : ViewModelBase
         StagedPassphrase = passphrase;
         _stagedFingerprint = SshKeyFingerprint.Compute(read.Content, passphrase);
         IsRemovalRequested = false;
-        VaultKeyStatus = BuildVaultKeyStatus(Strings.Get("IdentityEdit.VaultKey.PendingSave"), PrivateKeyImport.ByteCount(read.Content), _stagedFingerprint);
+        var stagedBytesText = string.Format(Strings.Get("IdentityEdit.BytesFormat"), PrivateKeyImport.ByteCount(read.Content));
+        VaultKeyStatus = $"{Strings.Get("IdentityEdit.VaultKey.PendingSave")} · {stagedBytesText}";
+        VaultKeyFingerprint = _stagedFingerprint ?? string.Empty;
     }
 
     // 移除私钥：清空暂存；已有 Vault 材料则标记待删除
@@ -210,6 +229,7 @@ public partial class IdentityMethodRowViewModel : ViewModelBase
         StagedPrivateKeyContent = null;
         StagedPassphrase = null;
         _stagedFingerprint = null;
+        VaultKeyFingerprint = string.Empty;
 
         if (_persistedSize.HasValue)
         {
@@ -235,13 +255,16 @@ public partial class IdentityMethodRowViewModel : ViewModelBase
         {
             _persistedSize = PrivateKeyImport.ByteCount(StagedPrivateKeyContent);
             _fingerprint = _stagedFingerprint;
-            VaultKeyStatus = BuildVaultKeyStatus(Strings.Get("IdentityEdit.VaultKey.Imported"), _persistedSize.Value, _fingerprint);
+            var bytesText = string.Format(Strings.Get("IdentityEdit.BytesFormat"), _persistedSize.Value);
+            VaultKeyStatus = $"{Strings.Get("IdentityEdit.VaultKey.Imported")} · {bytesText}";
+            VaultKeyFingerprint = _fingerprint ?? string.Empty;
         }
         else if (IsRemovalRequested)
         {
             _persistedSize = null;
             _fingerprint = null;
             VaultKeyStatus = Strings.Get("IdentityEdit.VaultKey.NotImported");
+            VaultKeyFingerprint = string.Empty;
         }
 
         StagedPrivateKeyContent = null;
@@ -258,15 +281,6 @@ public partial class IdentityMethodRowViewModel : ViewModelBase
             file.KeyFilePath = string.IsNullOrWhiteSpace(KeyFilePath) ? null : KeyFilePath.Trim();
             file.PassphraseMode = (PassphrasePersistence)Math.Clamp(PassphraseModeIndex, 0, 2);
         }
-    }
-
-    private static string BuildVaultKeyStatus(string prefix, int size, string? fingerprint)
-    {
-        var bytesText = string.Format(Strings.Get("IdentityEdit.BytesFormat"), size);
-        return string.IsNullOrEmpty(fingerprint)
-            ? $"{prefix} · {bytesText}"
-            // 指纹独立成行：SHA-256 冒号全长过长，避免横向溢出
-            : $"{prefix} · {bytesText}\n{string.Format(Strings.Get("IdentityEdit.FingerprintFormat"), fingerprint)}";
     }
 }
 
