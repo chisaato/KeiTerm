@@ -741,10 +741,139 @@
     <value>仅在会话未绑定身份时生效：先尝试用系统 ssh-agent 的密钥认证，失败再回退单次弹窗</value>
   </data>
   <data name="Settings.Ssh.EnableAgentForwarding" xml:space="preserve">
-    <value>启用 Agent 转发</value>
+    <value>启用 Agent 转发（暂不支持）</value>
   </data>
   <data name="Settings.Ssh.EnableAgentForwardingTip" xml:space="preserve">
-    <value>在远端会话中转发本地 SSH-Agent，便于跳板登录</value>
+    <value>在远端服务器上继续使用本机 ssh-agent（等价 ssh -A）。当前 SSH 库尚不支持，此开关暂不生效。登录本机可达服务器的免密认证来自上方「优先尝试系统 ssh-agent」，与本开关无关。</value>
+  </data>
+  <data name="Settings.Ssh.HostKeySection" xml:space="preserve">
+    <value>主机密钥</value>
+  </data>
+  <data name="Settings.Ssh.HostKeyPolicy" xml:space="preserve">
+    <value>校验策略</value>
+  </data>
+  <data name="Settings.Ssh.HostKeyPolicyTip" xml:space="preserve">
+    <value>连接时如何对待未记录或已变更的主机密钥。任何策略下，已吊销的密钥都会被拒绝。</value>
+  </data>
+  <data name="Settings.Ssh.HostKeyPolicy.Ask" xml:space="preserve">
+    <value>询问（推荐）：未知主机确认，变更强警示</value>
+  </data>
+  <data name="Settings.Ssh.HostKeyPolicy.AcceptNew" xml:space="preserve">
+    <value>自动信任新主机，密钥变更时阻断</value>
+  </data>
+  <data name="Settings.Ssh.HostKeyPolicy.Strict" xml:space="preserve">
+    <value>严格：只连接已记录的主机</value>
+  </data>
+  <data name="Menu.Tools.KnownHosts" xml:space="preserve">
+    <value>已知主机（主机密钥）</value>
+  </data>
+  <data name="HostKeyPrompt.Title.Unknown" xml:space="preserve">
+    <value>未知主机</value>
+  </data>
+  <data name="HostKeyPrompt.Title.Changed" xml:space="preserve">
+    <value>警告：主机密钥已变更</value>
+  </data>
+  <data name="HostKeyPrompt.Header.Unknown" xml:space="preserve">
+    <value>首次连接到 {0}，尚无法确认该主机的身份。</value>
+  </data>
+  <data name="HostKeyPrompt.Header.Changed" xml:space="preserve">
+    <value>{0} 出示的主机密钥与之前记录的不一致！</value>
+  </data>
+  <data name="HostKeyPrompt.Hint.Unknown" xml:space="preserve">
+    <value>请通过可信渠道（云控制台、运维文档、服务器上的 ssh-keygen -lf）核对下方指纹后再继续。</value>
+  </data>
+  <data name="HostKeyPrompt.Hint.Changed" xml:space="preserve">
+    <value>这可能是中间人攻击，也可能是服务器重装或密钥轮换。除非你已确认服务器密钥确实更换，否则请拒绝连接。</value>
+  </data>
+  <data name="HostKeyPrompt.KeyType" xml:space="preserve">
+    <value>算法</value>
+  </data>
+  <data name="HostKeyPrompt.Fingerprint" xml:space="preserve">
+    <value>指纹</value>
+  </data>
+  <data name="HostKeyPrompt.Previous" xml:space="preserve">
+    <value>之前记录</value>
+  </data>
+  <data name="HostKeyPrompt.Reject" xml:space="preserve">
+    <value>拒绝连接</value>
+  </data>
+  <data name="HostKeyPrompt.AcceptOnce" xml:space="preserve">
+    <value>仅本次连接</value>
+  </data>
+  <data name="HostKeyPrompt.AcceptAndSave" xml:space="preserve">
+    <value>信任并保存</value>
+  </data>
+  <data name="HostKeyPrompt.ReplaceAndSave" xml:space="preserve">
+    <value>替换记录并连接</value>
+  </data>
+  <data name="KnownHosts.Title" xml:space="preserve">
+    <value>已知主机</value>
+  </data>
+  <data name="KnownHosts.FilterPlaceholder" xml:space="preserve">
+    <value>按主机、指纹或备注筛选</value>
+  </data>
+  <data name="KnownHosts.Column.Host" xml:space="preserve">
+    <value>主机</value>
+  </data>
+  <data name="KnownHosts.Column.KeyType" xml:space="preserve">
+    <value>算法</value>
+  </data>
+  <data name="KnownHosts.Column.Fingerprint" xml:space="preserve">
+    <value>指纹</value>
+  </data>
+  <data name="KnownHosts.Column.Status" xml:space="preserve">
+    <value>状态</value>
+  </data>
+  <data name="KnownHosts.Column.Source" xml:space="preserve">
+    <value>来源</value>
+  </data>
+  <data name="KnownHosts.Column.LastSeen" xml:space="preserve">
+    <value>最近连接</value>
+  </data>
+  <data name="KnownHosts.Status.Trusted" xml:space="preserve">
+    <value>信任</value>
+  </data>
+  <data name="KnownHosts.Status.Revoked" xml:space="preserve">
+    <value>已吊销</value>
+  </data>
+  <data name="KnownHosts.Source.FirstUse" xml:space="preserve">
+    <value>首次连接</value>
+  </data>
+  <data name="KnownHosts.Source.UserConfirmed" xml:space="preserve">
+    <value>人工确认</value>
+  </data>
+  <data name="KnownHosts.Source.Imported" xml:space="preserve">
+    <value>导入</value>
+  </data>
+  <data name="KnownHosts.HashedHost" xml:space="preserve">
+    <value>（哈希主机名）</value>
+  </data>
+  <data name="KnownHosts.Never" xml:space="preserve">
+    <value>—</value>
+  </data>
+  <data name="KnownHosts.Revoke" xml:space="preserve">
+    <value>吊销</value>
+  </data>
+  <data name="KnownHosts.Restore" xml:space="preserve">
+    <value>恢复信任</value>
+  </data>
+  <data name="KnownHosts.Import" xml:space="preserve">
+    <value>从 ~/.ssh/known_hosts 导入</value>
+  </data>
+  <data name="KnownHosts.Export" xml:space="preserve">
+    <value>导出为 known_hosts…</value>
+  </data>
+  <data name="KnownHosts.Summary" xml:space="preserve">
+    <value>共 {0} 条，显示 {1} 条</value>
+  </data>
+  <data name="KnownHosts.ImportResult" xml:space="preserve">
+    <value>导入 {0} 条，跳过无法识别的行 {1} 行</value>
+  </data>
+  <data name="KnownHosts.ImportMissing" xml:space="preserve">
+    <value>未找到 {0}</value>
+  </data>
+  <data name="KnownHosts.ExportResult" xml:space="preserve">
+    <value>已导出 {0} 条到 {1}</value>
   </data>
   <data name="Settings.Ssh.CustomAgentPath" xml:space="preserve">
     <value>自定义 Agent 路径:</value>

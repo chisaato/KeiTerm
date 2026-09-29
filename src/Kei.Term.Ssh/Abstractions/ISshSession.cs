@@ -36,8 +36,8 @@ public sealed record SshConnectOptions
     // keyboard-interactive 真交互回调；为空时用预收集密码应答
     public Func<string, Task<string?>>? InteractivePrompt { get; init; }
 
-    // 主机密钥校验（在密钥交换回调内调用，必须快速返回、不可弹窗）；为空则不校验（仅供测试/旧调用方）
-    public Func<PresentedHostKey, CancellationToken, Task<HostKeyCheckOutcome>>? HostKeyValidator { get; init; }
+    // 主机密钥校验（握手前调整算法顺序；密钥交换回调内裁决，不可弹窗）；为空则不校验（仅供测试/旧调用方）
+    public IHostKeyVerifier? HostKeyVerifier { get; init; }
 
     // 自定义 Agent：空 = 系统默认（SSH_AUTH_SOCK / OpenSSH 命名管道）；"pageant" = PuTTY Pageant；其它 = socket/管道路径
     public string? AgentSocketPath { get; init; }

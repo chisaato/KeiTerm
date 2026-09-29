@@ -13,25 +13,21 @@ internal sealed record SshTarget(string Host, int Port, string Username, Authent
 internal sealed record SshClientOptions(
     TimeSpan ConnectTimeout,
     TimeSpan KeepAliveInterval,
-    Func<PresentedHostKey, CancellationToken, Task<HostKeyCheckOutcome>>? HostKeyValidator);
+    IHostKeyVerifier? HostKeyVerifier);
 
 // 主机密钥闸门：挂到 SSH.NET 的 HostKeyReceived 事件，拒绝时记录结论以便抛出可识别的异常
 internal sealed class HostKeyGate
 {
     private readonly string _host;
     private readonly int _port;
-    private readonly Func<PresentedHostKey, CancellationToken, Task<HostKeyCheckOutcome>>? _validator;
+    private readonly IHostKeyVerifier? _verifier;
     private readonly CancellationToken _ct;
 
-    public HostKeyGate(
-        string host,
-        int port,
-        Func<PresentedHostKey, CancellationToken, Task<HostKeyCheckOutcome>>? validator,
-        CancellationToken ct)
+    public HostKeyGate(string host, int port, IHostKeyVerifier? verifier, CancellationToken ct)
     {
         _host = host;
         _port = port;
-        _validator = validator;
+        _verifier = verifier;
         _ct = ct;
     }
 
@@ -39,7 +35,7 @@ internal sealed class HostKeyGate
 
     public void Attach(BaseClient client)
     {
-        if (_validator != null)
+        if (_verifier != null)
         {
             client.HostKeyReceived += OnHostKeyReceived;
         }
@@ -47,6 +43,7 @@ internal sealed class HostKeyGate
 
     public async Task ConnectAsync(BaseClient client, CancellationToken ct)
     {
+        await PreferKnownAlgorithmsAsync(client.ConnectionInfo, ct);
         try
         {
             await client.ConnectAsync(ct);
@@ -58,13 +55,31 @@ internal sealed class HostKeyGate
         }
     }
 
+    // 已记录某类密钥时把对应算法排到协商列表最前，避免协商到未记录的另一把而误报未知主机
+    private async Task PreferKnownAlgorithmsAsync(ConnectionInfo info, CancellationToken ct)
+    {
+        if (_verifier == null)
+        {
+            return;
+        }
+
+        IReadOnlyList<string> knownTypes = await _verifier.GetKnownKeyTypesAsync(_host, _port, ct);
+        IReadOnlyList<string> ordered = HostKeyAlgorithmPreference.Order(info.HostKeyAlgorithms.Keys.ToList(), knownTypes.ToHashSet());
+        for (int i = 0; i < ordered.Count; i++)
+        {
+            info.HostKeyAlgorithms.SetPosition(ordered[i], i);
+        }
+    }
+
     private void OnHostKeyReceived(object? sender, HostKeyEventArgs e)
     {
-        var presented = new PresentedHostKey(_host, _port, e.HostKeyName, e.HostKey);
+        // HostKeyName 是签名算法（如 rsa-sha2-512），信任库按密钥类型（ssh-rsa）记录：以 blob 自描述类型为准
+        string keyType = HostKeyFingerprint.ReadKeyType(e.HostKey) ?? e.HostKeyName;
+        var presented = new PresentedHostKey(_host, _port, keyType, e.HostKey);
         try
         {
             // 回调运行于 SSH.NET 后台线程；校验只查库不弹窗，同步等待安全
-            HostKeyCheckOutcome outcome = _validator!(presented, _ct).GetAwaiter().GetResult();
+            HostKeyCheckOutcome outcome = _verifier!.VerifyAsync(presented, _ct).GetAwaiter().GetResult();
             e.CanTrust = outcome.Accepted;
             Rejection = outcome.Accepted ? null : outcome;
         }
@@ -119,7 +134,7 @@ internal sealed class SshJumpChain : IAsyncDisposable
                     : chain.ForwardTo(hop.Host, hop.Port);
 
                 var client = new SshClient(BuildConnectionInfo(hop, dialHost, dialPort, options));
-                var gate = new HostKeyGate(hop.Host, hop.Port, options.HostKeyValidator, ct);
+                var gate = new HostKeyGate(hop.Host, hop.Port, options.HostKeyVerifier, ct);
                 gate.Attach(client);
                 ApplyKeepAlive(client, options);
                 chain._clients.Add(client);
@@ -279,7 +294,7 @@ internal sealed class SshDialer : IAsyncDisposable
     {
         (string host, int port) = await ResolveDialEndpointAsync(ct);
         T client = create(SshJumpChain.BuildConnectionInfo(_target, host, port, _options));
-        var gate = new HostKeyGate(_target.Host, _target.Port, _options.HostKeyValidator, ct);
+        var gate = new HostKeyGate(_target.Host, _target.Port, _options.HostKeyVerifier, ct);
         gate.Attach(client);
         SshJumpChain.ApplyKeepAlive(client, _options);
 

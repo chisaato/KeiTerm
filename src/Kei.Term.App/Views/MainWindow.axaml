@@ -108,6 +108,7 @@
             </MenuItem>
             <MenuItem Header="{loc:KeiString Menu.Tools}">
                 <MenuItem Header="{loc:KeiString Menu.Tools.IdentityManager}" Command="{Binding OpenIdentityManagerCommand}"/>
+                <MenuItem Header="{loc:KeiString Menu.Tools.KnownHosts}" Command="{Binding OpenKnownHostsCommand}"/>
                 <MenuItem Header="{loc:KeiString Menu.Tools.Settings}" Command="{Binding OpenSettingsCommand}"/>
             </MenuItem>
             <MenuItem Header="{loc:KeiString Menu.Help}">

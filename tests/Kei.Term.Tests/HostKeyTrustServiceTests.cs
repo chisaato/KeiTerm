@@ -193,4 +193,30 @@ public class HostKeyTrustServiceTests : IDisposable
         Assert.Single(await repo.GetCandidatesAsync("EXAMPLE.COM", 22, CancellationToken.None));
         Assert.Empty(await repo.GetCandidatesAsync("example.com", 2222, CancellationToken.None));
     }
+
+    [Fact]
+    public async Task KnownKeyTypes_IncludeMatchingPatternsButNotRevoked()
+    {
+        var repo = await NewRepoAsync();
+        foreach (var entry in OpenSshKnownHostsParser.Parse($"{HashedExampleCom} ssh-ed25519 {KeyA}").Entries)
+        {
+            await repo.SaveAsync(entry);
+        }
+
+        // 被吊销的密钥不能影响协商偏好
+        await repo.SaveAsync(new KnownHostEntry
+        {
+            Host = "example.com",
+            Port = 22,
+            KeyType = "ecdsa-sha2-nistp256",
+            PublicKeyBase64 = "revoked-ecdsa",
+            FingerprintSha256 = "x",
+            Status = KnownHostStatus.Revoked
+        });
+
+        var service = new HostKeyTrustService(repo, () => HostKeyPolicy.Ask);
+
+        Assert.Equal(["ssh-ed25519"], await service.GetKnownKeyTypesAsync("example.com", 22));
+        Assert.Empty(await service.GetKnownKeyTypesAsync("example.com", 2222));
+    }
 }

@@ -159,4 +159,39 @@ public class KnownHostsTests
         Assert.Empty(result.Entries);
         Assert.Equal(3, result.SkippedLines);
     }
+
+    [Fact]
+    public void AlgorithmPreference_MovesKnownKeyTypesFirst_KeepingRelativeOrder()
+    {
+        string[] defaults = ["ssh-ed25519", "ecdsa-sha2-nistp256", "rsa-sha2-512", "rsa-sha2-256", "ssh-rsa", "ssh-ed25519-cert-v01@openssh.com"];
+
+        Assert.Equal(defaults, HostKeyAlgorithmPreference.Order(defaults, []));
+        Assert.Equal(
+            ["rsa-sha2-512", "rsa-sha2-256", "ssh-rsa", "ssh-ed25519", "ecdsa-sha2-nistp256", "ssh-ed25519-cert-v01@openssh.com"],
+            HostKeyAlgorithmPreference.Order(defaults, ["ssh-rsa"]));
+        // 证书算法不因普通密钥已知而被提前
+        Assert.Equal("ssh-ed25519-cert-v01@openssh.com", HostKeyAlgorithmPreference.Order(defaults, ["ssh-ed25519"])[^1]);
+    }
+
+    [Fact]
+    public void Writer_OutputIsReadableByParser()
+    {
+        KnownHostEntry[] entries =
+        [
+            new() { Host = "example.com", Port = 22, KeyType = "ssh-ed25519", PublicKeyBase64 = KeyA, Comment = "prod" },
+            new() { Host = "bastion.example", Port = 2222, KeyType = "ssh-ed25519", PublicKeyBase64 = KeyB },
+            new() { Host = HashedExampleCom, Port = 0, KeyType = "ssh-ed25519", PublicKeyBase64 = KeyA },
+            new() { Host = "old.example", Port = 22, KeyType = "ssh-ed25519", PublicKeyBase64 = KeyB, Status = KnownHostStatus.Revoked }
+        ];
+
+        string text = OpenSshKnownHostsWriter.Write(entries);
+        var parsed = OpenSshKnownHostsParser.Parse(text);
+
+        Assert.Equal(0, parsed.SkippedLines);
+        Assert.Equal(
+            entries.Select(e => (e.Host, e.Port, e.PublicKeyBase64, e.Status)),
+            parsed.Entries.Select(e => (e.Host, e.Port, e.PublicKeyBase64, e.Status)));
+        Assert.Contains("[bastion.example]:2222 ssh-ed25519", text);
+        Assert.Equal("prod", parsed.Entries[0].Comment);
+    }
 }

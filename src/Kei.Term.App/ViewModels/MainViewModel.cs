@@ -162,6 +162,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public Func<SessionNode?, Guid?, IReadOnlyList<Identity>, Task<SessionNode?>>? OpenSessionDialogAsync { get; set; }
     public Func<FolderNode?, Guid?, Task<FolderNode?>>? OpenFolderDialogAsync { get; set; }
     public Func<Task>? OpenIdentityManagerDialogAsync { get; set; }
+    public Func<Task>? OpenKnownHostsDialogAsync { get; set; }
     public Func<Task>? OpenSettingsDialogAsync { get; set; }
     public Func<string, Task<bool>>? ConfirmDeleteAsync { get; set; }
 
@@ -859,6 +860,15 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     });
 
     [RelayCommand]
+    private Task OpenKnownHostsAsync() => Safe.RunAsync(_logger, "打开已知主机", async () =>
+    {
+        if (OpenKnownHostsDialogAsync != null)
+        {
+            await OpenKnownHostsDialogAsync();
+        }
+    });
+
+    [RelayCommand]
     private Task OpenSettingsAsync() => Safe.RunAsync(_logger, "打开设置", async () =>
     {
         if (OpenSettingsDialogAsync != null)
@@ -1391,7 +1401,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             ConnectTimeout = timeout,
             KeepAliveInterval = TimeSpan.FromSeconds(Math.Max(0, settings.KeepAliveIntervalSeconds)),
             InteractivePrompt = BuildInteractivePrompt(),
-            HostKeyValidator = _hostKeyTrust == null ? null : _hostKeyTrust.VerifyAsync,
+            HostKeyVerifier = _hostKeyTrust,
             AgentSocketPath = settings.CustomAgentSocketPath,
             JumpHosts = jumpHops
         };

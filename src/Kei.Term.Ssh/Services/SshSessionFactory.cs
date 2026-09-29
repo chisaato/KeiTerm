@@ -61,7 +61,7 @@ public class SshSessionFactory : ISshSessionFactory
             ? []
             : options.JumpHosts.Select(h => BuildTarget(h.Config, h.Methods, options, options.InteractivePrompt)).ToList();
 
-        var clientOptions = new SshClientOptions(options.ConnectTimeout, options.KeepAliveInterval, options.HostKeyValidator);
+        var clientOptions = new SshClientOptions(options.ConnectTimeout, options.KeepAliveInterval, options.HostKeyVerifier);
         return new SshDialer(target, hops, borrowedChain, clientOptions, _logger);
     }
 

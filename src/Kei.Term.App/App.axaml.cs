@@ -72,11 +72,14 @@ public partial class App : Application
             var vault = new InternalVaultManager(db, _loggerFactory.CreateLogger<InternalVaultManager>());
             var settingsPath = Path.Combine(appDataDir, "settings.json");
             var settingsService = new JsonSettingsService(settingsPath);
-            // 主机密钥信任：确认弹窗 UI 就绪前不传 prompt → 未知主机 TOFU 记录、密钥变更一律阻断
+            // 主机密钥信任：确认框以主窗口为 owner，主窗口在其后创建，故延迟引用
+            MainWindow? promptOwner = null;
             var hostKeyTrust = new HostKeyTrustService(
                 knownHostRepo,
                 () => settingsService.Current.HostKeyPolicy,
-                prompt: null,
+                prompt: (evaluation, _) => promptOwner == null
+                    ? Task.FromResult(HostKeyDecision.Reject)
+                    : new HostKeyPromptWindow(evaluation).ShowDialog<HostKeyDecision>(promptOwner),
                 logger: _loggerFactory.CreateLogger<HostKeyTrustService>());
             var profileManager = new ProfileManagerService(settingsService, appDataDir);
             var sshFactory = new SshSessionFactory(_loggerFactory.CreateLogger<SshSessionFactory>());
@@ -109,7 +112,13 @@ public partial class App : Application
             {
                 DataContext = mainVm,
             };
-            mainWindow.WireDialogs(mainVm, identityMgrVm, settingsVm, _loggerFactory.CreateLogger<MainWindow>());
+            mainWindow.WireDialogs(
+                mainVm,
+                identityMgrVm,
+                settingsVm,
+                _loggerFactory.CreateLogger<MainWindow>(),
+                new KnownHostsManagerViewModel(knownHostRepo));
+            promptOwner = mainWindow;
             desktop.MainWindow = mainWindow;
             logger.LogInformation("启动完成: 主窗口已在 await 之前同步赋值");
 

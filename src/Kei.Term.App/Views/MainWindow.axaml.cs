@@ -90,11 +90,25 @@ public partial class MainWindow : Window
         }
     }
 
-    public void WireDialogs(MainViewModel vm, IdentityManagerViewModel identityMgrVm, SettingsViewModel settingsVm, ILogger? logger = null)
+    public void WireDialogs(
+        MainViewModel vm,
+        IdentityManagerViewModel identityMgrVm,
+        SettingsViewModel settingsVm,
+        ILogger? logger = null,
+        KnownHostsManagerViewModel? knownHostsVm = null)
     {
         _logger = logger;
         // 弹窗 lambda 统一容错：异常记录后按取消语义返回，避免 AsyncRelayCommand 静默吞异常
         var log = logger ?? NullLogger.Instance;
+
+        if (knownHostsVm != null)
+        {
+            vm.OpenKnownHostsDialogAsync = () => Safe.RunAsync(log, "打开已知主机", async () =>
+            {
+                await knownHostsVm.LoadAsync();
+                await new KnownHostsManagerWindow(knownHostsVm).ShowDialog(this);
+            });
+        }
 
         vm.OpenSessionDialogAsync = (existing, parentId, identities) =>
             Safe.RunAsync<SessionNode?>(log, "打开会话编辑窗口", async () =>

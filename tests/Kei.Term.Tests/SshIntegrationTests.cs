@@ -48,6 +48,8 @@ public sealed class SshdFixture : IDisposable
     public string User { get; } = Environment.UserName;
     public string ClientPrivateKey { get; } = string.Empty;
     public string HostPublicKeyBase64 { get; } = string.Empty;
+    // 服务器持有的全部主机密钥：算法 → Base64 公钥（ed25519 / ecdsa / rsa）
+    public IReadOnlyDictionary<string, string> HostKeys { get; } = new Dictionary<string, string>();
 
     public SshdFixture()
     {
@@ -61,13 +63,20 @@ public sealed class SshdFixture : IDisposable
         System.IO.Directory.CreateDirectory("/run/sshd");
 
         string hostKey = Path.Combine(Directory, "host_ed25519");
+        string ecdsaHostKey = Path.Combine(Directory, "host_ecdsa");
+        string rsaHostKey = Path.Combine(Directory, "host_rsa");
         string clientKey = Path.Combine(Directory, "client_ed25519");
         Run("ssh-keygen", $"-q -t ed25519 -N \"\" -f {hostKey}");
+        Run("ssh-keygen", $"-q -t ecdsa -b 256 -N \"\" -f {ecdsaHostKey}");
+        Run("ssh-keygen", $"-q -t rsa -b 2048 -N \"\" -f {rsaHostKey}");
         Run("ssh-keygen", $"-q -t ed25519 -N \"\" -f {clientKey}");
         File.Copy(clientKey + ".pub", Path.Combine(Directory, "authorized_keys"));
 
         ClientPrivateKey = File.ReadAllText(clientKey);
         HostPublicKeyBase64 = File.ReadAllText(hostKey + ".pub").Split(' ')[1];
+        HostKeys = new[] { hostKey, ecdsaHostKey, rsaHostKey }
+            .Select(k => File.ReadAllText(k + ".pub").Split(' '))
+            .ToDictionary(parts => parts[0], parts => parts[1]);
         Port = FreePort();
 
         string config = Path.Combine(Directory, "sshd_config");
@@ -75,6 +84,8 @@ public sealed class SshdFixture : IDisposable
             Port {Port}
             ListenAddress 127.0.0.1
             HostKey {hostKey}
+            HostKey {ecdsaHostKey}
+            HostKey {rsaHostKey}
             PidFile {Path.Combine(Directory, "sshd.pid")}
             AuthorizedKeysFile {Path.Combine(Directory, "authorized_keys")}
             PasswordAuthentication no
@@ -228,7 +239,7 @@ public class SshIntegrationTests : IClassFixture<SshdFixture>, IDisposable
     {
         var (repo, trust) = await NewTrustAsync(HostKeyPolicy.AcceptNew);
         var factory = new SshSessionFactory();
-        var options = new SshConnectOptions { HostKeyValidator = trust.VerifyAsync, KeepAliveInterval = TimeSpan.FromSeconds(5) };
+        var options = new SshConnectOptions { HostKeyVerifier = trust, KeepAliveInterval = TimeSpan.FromSeconds(5) };
 
         await using (var first = await factory.CreateSessionAsync(_sshd.Config(), _sshd.KeyAuth(), options))
         {
@@ -237,7 +248,7 @@ public class SshIntegrationTests : IClassFixture<SshdFixture>, IDisposable
         }
 
         var entry = Assert.Single(await repo.GetAllAsync());
-        Assert.Equal(_sshd.HostPublicKeyBase64, entry.PublicKeyBase64);
+        Assert.Equal(_sshd.HostKeys[entry.KeyType], entry.PublicKeyBase64);
         Assert.Equal(_sshd.Port, entry.Port);
 
         await using var second = await factory.CreateSessionAsync(_sshd.Config(), _sshd.KeyAuth(), options);
@@ -264,7 +275,7 @@ public class SshIntegrationTests : IClassFixture<SshdFixture>, IDisposable
         await using var session = await factory.CreateSessionAsync(
             _sshd.Config(),
             _sshd.KeyAuth(),
-            new SshConnectOptions { HostKeyValidator = trust.VerifyAsync });
+            new SshConnectOptions { HostKeyVerifier = trust });
 
         var ex = await Assert.ThrowsAsync<HostKeyRejectedException>(() => session.ConnectAsync());
         Assert.Equal(HostKeyVerdict.Changed, ex.Outcome.Evaluation.Verdict);
@@ -282,7 +293,7 @@ public class SshIntegrationTests : IClassFixture<SshdFixture>, IDisposable
             new(_sshd.Config("hop1"), _sshd.KeyAuth()),
             new(_sshd.Config("hop2"), _sshd.KeyAuth())
         };
-        var options = new SshConnectOptions { HostKeyValidator = trust.VerifyAsync, JumpHosts = hops };
+        var options = new SshConnectOptions { HostKeyVerifier = trust, JumpHosts = hops };
         var target = _sshd.Config("target") with { StartupScript = "echo KEI_MARK_$((40+2))" };
 
         await using var session = await factory.CreateSessionAsync(target, _sshd.KeyAuth(), options);
@@ -316,7 +327,7 @@ public class SshIntegrationTests : IClassFixture<SshdFixture>, IDisposable
         await using IRemoteFileSystem fs = await factory.CreateFileSystemAsync(
             config,
             _sshd.KeyAuth(),
-            options: new SshConnectOptions { HostKeyValidator = trust.VerifyAsync });
+            options: new SshConnectOptions { HostKeyVerifier = trust });
         await fs.ConnectAsync();
         await fs.CreateDirectoryAsync(evil);
 
@@ -326,5 +337,35 @@ public class SshIntegrationTests : IClassFixture<SshdFixture>, IDisposable
         await fs.DeleteAsync(evil, isDirectory: true);
         Assert.False(System.IO.Directory.Exists(evil));
         Assert.False(File.Exists(canary));
+    }
+
+    // 只记录了服务器的"非首选"密钥时，必须协商到该算法，而不是误判未知主机（Strict 下会直接拒绝）
+    [SshdFact]
+    public async Task KnownKeyType_IsPreferredDuringNegotiation()
+    {
+        var factory = new SshSessionFactory();
+        foreach (string keyType in new[] { "ecdsa-sha2-nistp256", "ssh-rsa", "ssh-ed25519" })
+        {
+            Dispose();
+            var (repo, trust) = await NewTrustAsync(HostKeyPolicy.Strict);
+            byte[] blob = Convert.FromBase64String(_sshd.HostKeys[keyType]);
+            await repo.SaveAsync(new KnownHostEntry
+            {
+                Host = "127.0.0.1",
+                Port = _sshd.Port,
+                KeyType = keyType,
+                PublicKeyBase64 = _sshd.HostKeys[keyType],
+                FingerprintSha256 = HostKeyFingerprint.Sha256(blob)
+            });
+
+            await using var session = await factory.CreateSessionAsync(
+                _sshd.Config(),
+                _sshd.KeyAuth(),
+                new SshConnectOptions { HostKeyVerifier = trust });
+            await session.ConnectAsync();
+
+            Assert.True(session.IsConnected, keyType);
+            Assert.Single(await repo.GetAllAsync());
+        }
     }
 }

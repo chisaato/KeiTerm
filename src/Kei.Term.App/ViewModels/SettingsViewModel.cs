@@ -204,6 +204,7 @@ public partial class SettingsViewModel : ViewModelBase
         _ssh.KeepAliveIntervalSeconds = current.KeepAliveIntervalSeconds;
         _ssh.EnableAgentForwarding = current.EnableAgentForwarding;
         _ssh.CustomAgentSocketPath = current.CustomAgentSocketPath ?? string.Empty;
+        _ssh.HostKeyPolicy = current.HostKeyPolicy;
 
         // 异步加载身份列表填充下拉，加载完成后按 SelectedIdentityId 恢复选中
         _ = _ssh.LoadIdentitiesAsync();
@@ -223,7 +224,7 @@ public partial class SettingsViewModel : ViewModelBase
         AppSettings settings = new AppSettings
         {
             UiFontSize = previous.UiFontSize,
-            HostKeyPolicy = previous.HostKeyPolicy,
+            HostKeyPolicy = _ssh.HostKeyPolicy,
 
             // 常规
             ConfirmBeforeClose = _general.ConfirmBeforeClose,

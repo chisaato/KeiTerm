@@ -39,7 +39,7 @@ public sealed class HostKeyRejectedException : Exception
 // 1) VerifyAsync：在 SSH 密钥交换回调内同步调用，只做查库与策略裁决，绝不弹窗
 //    （握手受连接超时约束，用户阅读指纹的时间不能计入超时）；
 // 2) ConfirmAsync：需要人工确认时由上层在握手之外弹窗，确认后重连即可命中信任。
-public sealed class HostKeyTrustService
+public sealed class HostKeyTrustService : IHostKeyVerifier
 {
     private readonly IKnownHostRepository _repository;
     private readonly Func<HostKeyPolicy> _policy;
@@ -80,6 +80,16 @@ public sealed class HostKeyTrustService
         }
 
         return evaluation;
+    }
+
+    public async Task<IReadOnlyList<string>> GetKnownKeyTypesAsync(string host, int port, CancellationToken ct = default)
+    {
+        IReadOnlyList<KnownHostEntry> candidates = await _repository.GetCandidatesAsync(host, port, ct);
+        return candidates
+            .Where(e => e.Status == KnownHostStatus.Trusted && KnownHostMatcher.Matches(e, host, port))
+            .Select(e => e.KeyType)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
     }
 
     public async Task<HostKeyCheckOutcome> VerifyAsync(PresentedHostKey presented, CancellationToken ct = default)
