@@ -1,6 +1,6 @@
 # KeiTerm 研发路线图 (Roadmap)
 
-> 最近更新：2026-09-29（后端审查见 [design/08](./design/08-architecture-review-2026-09.md)，拆分规划见 [design/10](./design/10-refactor-plan.md)，目录跟随见 [design/09](./design/09-cwd-tracking.md)）
+> 最近更新：2026-09-30（后端审查见 [design/08](./design/08-architecture-review-2026-09.md)，拆分规划见 [design/10](./design/10-refactor-plan.md)，目录跟随见 [design/09](./design/09-cwd-tracking.md)，终端宿主 / 标签 / 批量修改见 [design/12](./design/12-terminal-host-and-session-options.md)）
 
 KeiTerm 不追求与 Xshell / SecureCRT 1:1 复刻。设计理念：抛弃传统工具冗余陈旧的历史包袱，避开 Electron 类客户端的资源消耗，
 结合现代 DevOps 工程师的实际工作流，聚焦**高可用网络穿透、直观交互、安全凭据与轻快体验**。
@@ -19,9 +19,14 @@ KeiTerm 不追求与 Xshell / SecureCRT 1:1 复刻。设计理念：抛弃传统
 | 保活、自定义 Agent（含 Pageant）、登录脚本 | ✅ 已接通（此前只存不用） |
 | Agent 转发（`ssh -A`） | ⏳ 双引擎方案已验证可行（Tmds.Ssh 主干实测转发成功），待其发版后接入，见 [design/11](./design/11-dual-ssh-backend.md) |
 | 多协议扩展点（`ITerminalSession`） | ✅ 接口就绪，提供者待接入 |
+| **标签**：标题跟随远端（OSC 0/2，全局 + 会话覆盖）、后台活动标记、右键菜单（原地重连 / 克隆 / 重命名 / 批量关闭）、中键关闭 | ✅ |
+| **批量修改会话**（身份 / 用户名 / 标签标题 / 目录跟随；字段注册式扩展） | ✅ |
+| 终端：回滚滚动条、本地清屏、网格贴底（tmux 状态栏贴底）、终端查询应答（DA/DSR）、SSH 输入去重 | ✅ |
 | 持久化：版本化迁移 + Dapper + WAL | ✅ |
-| 终端内搜索、右键菜单、滚轮缩放、字体弹窗 | ⏳ 依赖 UI（见 `todo.md`） |
-| 端口转发管理器、自动重连、本地 Shell / 串口 | ⏳ 建议下一步 |
+| 终端右键菜单（复制 / 粘贴 / 全选 / 清屏） | ✅ |
+| 终端内搜索、滚轮缩放、字体弹窗 | ⏳ 依赖 UI（见 `todo.md`） |
+| 端口转发管理器、自动重连、本地 Shell / 串口 | ⏳ 建议下一步（原地重连通道已就绪，自动重连只差触发策略） |
+| 目录跟随 | ⏳ 设置与会话覆盖已完成，跟随行为待 `RemoteFileManagerViewModel` 拆分后实现 |
 | E2EE 同步、OS Keyring 静默解锁 | ⏳ 规划中 |
 
 ---
@@ -48,12 +53,13 @@ KeiTerm 不追求与 Xshell / SecureCRT 1:1 复刻。设计理念：抛弃传统
 
 ### P0：补齐「连接可信 + 可达」闭环（约 1–2 周，后端已就绪，主要是小型 UI）
 
-0. **先拆 `MainViewModel` 的连接管线**（`IInteractionService` → `VaultSessionService` → `ConnectionOrchestrator`，见 [10](./design/10-refactor-plan.md)），否则下面 2–4 会继续堆进 2000 行的类。
+0. ~~先拆 `MainViewModel` 的连接管线~~ ✅（`IInteractionService` → `VaultSessionService` → `ConnectionOrchestrator`，见 [10](./design/10-refactor-plan.md)）；会话树拆分（第 4 步）仍在后面。
 1. ~~主机密钥确认弹窗 + 信任库管理页~~ ✅
 2. **会话编辑器「跳板机」下拉**：选择另一会话作为跳板（后端已支持多级链与循环检测）。
 3. **端口转发管理器**（Local / Remote / Dynamic SOCKS5）：SSH.NET 原生支持三种转发，
-   在 `SshNetSession` 上挂 `ForwardedPort*` 即可；新增 `port_forwards` 表（迁移 v3），支持随会话自动挂载、端口冲突检测。
-4. **自动重连**：`Disconnected` 事件 + 指数退避 + 标签状态；重连复用已物化材料（交互式/2FA 除外）。
+   在 `SshNetSession` 上挂 `ForwardedPort*` 即可；新增 `port_forwards` 表（迁移 v4；v3 已用于会话覆盖项），支持随会话自动挂载、端口冲突检测。
+4. **自动重连**：`Disconnected` 事件 + 指数退避 + 标签状态；复用标签右键「重新连接」已走通的 `ConnectionRequest.ReuseTarget` 原地重连，
+   重连复用已物化材料（交互式/2FA 除外）。
 
 ### P1：终端核心体验（UI 为主，见 `todo.md`）
 
@@ -77,7 +83,7 @@ RoyalTerminal 已提供 `Transport.Pty`（本地 Shell，含 Windows ConPTY）�
 
 ### P3：同步与生态
 
-- **E2EE 同步**：先做迁移 v3/v4（`revision` + `deleted_at` 墓碑），再落 AGE 格式容器与 WebDAV/S3/本地目录后端。
+- **E2EE 同步**：先追加迁移（`revision` + `deleted_at` 墓碑），再落 AGE 格式容器与 WebDAV/S3/本地目录后端。
 - **连接中枢化**：从已连主机自动发现 Docker 容器 / K8s Pod / WSL 发行版，作为可直接打开的"子会话"（`docker exec` / `kubectl exec` 经 SSH 通道执行）。
 - OS Keyring 静默解锁；1Password / Bitwarden 凭据源；SSH 证书。
 
@@ -87,7 +93,8 @@ RoyalTerminal 已提供 `Transport.Pty`（本地 Shell，含 Windows ConPTY）�
 
 详见 [design/08](./design/08-architecture-review-2026-09.md) §4：
 
-1. 拆分 `MainViewModel`（~1900 行）为 `ConnectionOrchestrator` / `SessionTreeService` / `VaultSessionService`，弹窗委托收敛为 `IInteractionService`。**建议在做 P0-3/4 之前完成**，否则端口转发与自动重连会继续堆进同一个类。
+1. 拆分 `MainViewModel`：连接管线（`ConnectionOrchestrator`）、Vault（`VaultSessionService`）、弹窗（`IInteractionService`）✅，
+   现 ~1180 行；会话树（`SessionTreeViewModel`）与拖放控制器待拆，见 [10](./design/10-refactor-plan.md)。
 2. 服务数增长后引入 `Microsoft.Extensions.DependencyInjection`。
 3. SSH.NET 能力边界（无 sftp 复用、无 agent 转发、无 env 请求）：设置页对应项标注或隐藏；必要时向上游贡献。
 
