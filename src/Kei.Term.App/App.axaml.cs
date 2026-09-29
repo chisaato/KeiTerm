@@ -72,14 +72,14 @@ public partial class App : Application
             var vault = new InternalVaultManager(db, _loggerFactory.CreateLogger<InternalVaultManager>());
             var settingsPath = Path.Combine(appDataDir, "settings.json");
             var settingsService = new JsonSettingsService(settingsPath);
-            // 主机密钥信任：确认框以主窗口为 owner，主窗口在其后创建，故延迟引用
-            MainWindow? promptOwner = null;
+            // 主机密钥信任：确认框经主 VM 的交互服务弹出（窗口装配完成前按拒绝处理）
+            MainViewModel? interactionHost = null;
             var hostKeyTrust = new HostKeyTrustService(
                 knownHostRepo,
                 () => settingsService.Current.HostKeyPolicy,
-                prompt: (evaluation, _) => promptOwner == null
+                prompt: (evaluation, _) => interactionHost == null
                     ? Task.FromResult(HostKeyDecision.Reject)
-                    : new HostKeyPromptWindow(evaluation).ShowDialog<HostKeyDecision>(promptOwner),
+                    : interactionHost.Interaction.PromptHostKeyAsync(evaluation),
                 logger: _loggerFactory.CreateLogger<HostKeyTrustService>());
             var profileManager = new ProfileManagerService(settingsService, appDataDir);
             var sshFactory = new SshSessionFactory(_loggerFactory.CreateLogger<SshSessionFactory>());
@@ -118,7 +118,7 @@ public partial class App : Application
                 settingsVm,
                 _loggerFactory.CreateLogger<MainWindow>(),
                 new KnownHostsManagerViewModel(knownHostRepo));
-            promptOwner = mainWindow;
+            interactionHost = mainVm;
             desktop.MainWindow = mainWindow;
             logger.LogInformation("启动完成: 主窗口已在 await 之前同步赋值");
 

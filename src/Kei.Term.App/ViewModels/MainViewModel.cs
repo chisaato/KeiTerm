@@ -158,40 +158,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     // 关闭窗口前是否需要确认（来自设置）
     public bool ConfirmBeforeClose => _settingsService.Current.ConfirmBeforeClose;
 
-    // UI 对话框委托
-    public Func<SessionNode?, Guid?, IReadOnlyList<Identity>, Task<SessionNode?>>? OpenSessionDialogAsync { get; set; }
-    public Func<FolderNode?, Guid?, Task<FolderNode?>>? OpenFolderDialogAsync { get; set; }
-    public Func<Task>? OpenIdentityManagerDialogAsync { get; set; }
-    public Func<Task>? OpenKnownHostsDialogAsync { get; set; }
-    public Func<Task>? OpenSettingsDialogAsync { get; set; }
-    public Func<string, Task<bool>>? ConfirmDeleteAsync { get; set; }
-
-    // 统一认证窗完整模式：参数为（预填用户名, 保管库密钥选项, 指定默认方法?）；返回 null 表示取消
-    public Func<string, IReadOnlyList<VaultKeyOption>, AuthPromptMethod?, Task<AuthPromptResult?>>? AuthPromptDialogAsync { get; set; }
-
-    // KI 真交互提示模式：参数为服务器提示文本，返回应答（null/取消 → 空应答）
-    public Func<string, Task<string?>>? InteractiveInputDialogAsync { get; set; }
-
-    // 主密码输入框：参数为错误提示；返回 null 表示取消
-    public Func<string?, Task<string?>>? MasterPasswordDialogAsync { get; set; }
-
-    // 文件私钥口令三态框
-    public Func<FilePrivateKeyMethod, Task<PassphrasePromptResult?>>? PassphrasePromptDialogAsync { get; set; }
-
-    // 快速连接对话框：窗口内自行收集输入，确认后回调 ConnectQuickAsync
-    public Func<Task>? QuickConnectDialogAsync { get; set; }
-
-    // 目录选择对话框：用于导入 SecureCRT 会话目录，返回所选文件夹路径（取消 = null）
-    public Func<Task<string?>>? PickFolderDialogAsync { get; set; }
-
-    // 打开 Konsole 配色方案文件对话框
-    public Func<Task<string?>>? PickKonsoleFileDialogAsync { get; set; }
-
-    // 打开 Terminal Profile 调色预览窗口委托（参数：源方案, 当前字体快照）
-    public Func<TerminalProfile?, TerminalFontSnapshot, Task<TerminalProfile?>>? OpenTerminalProfileEditDialogAsync { get; set; }
-
-    // 提示通知/消息弹窗委托：参数为（标题, 内容）
-    public Func<string, string, Task>? ShowNotificationAsync { get; set; }
+    // 用户交互（弹窗 / 选择器 / 子窗口 / 通知）统一入口；窗口层注入 Avalonia 实现，默认按"取消"处理
+    public IInteractionService Interaction { get; set; } = NullInteractionService.Instance;
 
     // 当前设置快照（供快速连接窗口取默认端口/用户名等）
     public AppSettings CurrentSettings => _settingsService.Current;
@@ -576,10 +544,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [RelayCommand]
     private Task CreateSessionAsync() => Safe.RunAsync(_logger, "新建会话", async () =>
     {
-        if (OpenSessionDialogAsync == null) return;
         var parentId = TreePlacement.ResolveCreationParent(SelectedTreeNode);
         var identities = await _identityRepo.GetAllAsync();
-        var result = await OpenSessionDialogAsync(null, parentId, identities);
+        var result = await Interaction.EditSessionAsync(null, parentId, identities);
         if (result != null)
         {
             await _treeRepo.SaveNodeAsync(result);
@@ -590,9 +557,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [RelayCommand]
     private Task CreateFolderAsync() => Safe.RunAsync(_logger, "新建文件夹", async () =>
     {
-        if (OpenFolderDialogAsync == null) return;
         var parentId = TreePlacement.ResolveCreationParent(SelectedTreeNode);
-        var result = await OpenFolderDialogAsync(null, parentId);
+        var result = await Interaction.EditFolderAsync(null, parentId);
         if (result != null)
         {
             await _treeRepo.SaveNodeAsync(result);
@@ -608,9 +574,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
         if (SelectedTreeNode is SessionNode session)
         {
-            if (OpenSessionDialogAsync == null) return;
             var identities = await _identityRepo.GetAllAsync();
-            var result = await OpenSessionDialogAsync(session, session.ParentId, identities);
+            var result = await Interaction.EditSessionAsync(session, session.ParentId, identities);
             if (result != null)
             {
                 await _treeRepo.SaveNodeAsync(result);
@@ -619,8 +584,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
         else if (SelectedTreeNode is FolderNode folder)
         {
-            if (OpenFolderDialogAsync == null) return;
-            var result = await OpenFolderDialogAsync(folder, folder.ParentId);
+            var result = await Interaction.EditFolderAsync(folder, folder.ParentId);
             if (result != null)
             {
                 await _treeRepo.SaveNodeAsync(result);
@@ -635,10 +599,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         // 虚拟根不可删除
         if (SelectedTreeNode == null || SelectedTreeNode is VirtualRootNode) return;
 
-        if (ConfirmDeleteAsync != null)
+        if (!await Interaction.ConfirmDeleteAsync(SelectedTreeNode.Name))
         {
-            var ok = await ConfirmDeleteAsync(SelectedTreeNode.Name);
-            if (!ok) return;
+            return;
         }
 
         await _treeRepo.DeleteNodeAsync(SelectedTreeNode.Id);
@@ -853,28 +816,19 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [RelayCommand]
     private Task OpenIdentityManagerAsync() => Safe.RunAsync(_logger, "打开身份管理器", async () =>
     {
-        if (OpenIdentityManagerDialogAsync != null)
-        {
-            await OpenIdentityManagerDialogAsync();
-        }
+        await Interaction.OpenIdentityManagerAsync();
     });
 
     [RelayCommand]
     private Task OpenKnownHostsAsync() => Safe.RunAsync(_logger, "打开已知主机", async () =>
     {
-        if (OpenKnownHostsDialogAsync != null)
-        {
-            await OpenKnownHostsDialogAsync();
-        }
+        await Interaction.OpenKnownHostsAsync();
     });
 
     [RelayCommand]
     private Task OpenSettingsAsync() => Safe.RunAsync(_logger, "打开设置", async () =>
     {
-        if (OpenSettingsDialogAsync != null)
-        {
-            await OpenSettingsDialogAsync();
-        }
+        await Interaction.OpenSettingsAsync();
     });
 
     // 连接侧栏选中的会话（选中节点为会话时可用）
@@ -888,10 +842,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [RelayCommand]
     private Task QuickConnectAsync() => Safe.RunAsync(_logger, "快速连接", async () =>
     {
-        if (QuickConnectDialogAsync != null)
-        {
-            await QuickConnectDialogAsync();
-        }
+        await Interaction.OpenQuickConnectAsync();
     });
 
     // 导入 ~/.ssh/config：具体 Host 别名 → 会话，IdentityFile → 身份，ProxyJump → 跳板链
@@ -901,10 +852,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         string path = OpenSshPaths.UserConfig;
         if (!File.Exists(path))
         {
-            if (ShowNotificationAsync != null)
-            {
-                await ShowNotificationAsync(Strings.Get("Menu.File.ImportOpenSshConfig"), $"未找到 {path}");
-            }
+            await Interaction.NotifyAsync(Strings.Get("Menu.File.ImportOpenSshConfig"), $"未找到 {path}");
             return;
         }
 
@@ -920,15 +868,12 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
         await ReloadTreeAsync();
 
-        if (ShowNotificationAsync != null)
+        string message = $"导入 {summary.SessionsImported} 个会话（跳过已存在 {summary.SessionsSkipped} 个），新建 {summary.IdentitiesCreated} 个身份。";
+        if (summary.Warnings.Count > 0)
         {
-            string message = $"导入 {summary.SessionsImported} 个会话（跳过已存在 {summary.SessionsSkipped} 个），新建 {summary.IdentitiesCreated} 个身份。";
-            if (summary.Warnings.Count > 0)
-            {
-                message += "\n" + string.Join("\n", summary.Warnings);
-            }
-            await ShowNotificationAsync(Strings.Get("Menu.File.ImportOpenSshConfig"), message);
+            message += "\n" + string.Join("\n", summary.Warnings);
         }
+        await Interaction.NotifyAsync(Strings.Get("Menu.File.ImportOpenSshConfig"), message);
     });
 
     // 导入 ~/.ssh/known_hosts：与系统 ssh 共享已建立的主机信任（含哈希条目与 @revoked）
@@ -938,30 +883,23 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         string path = OpenSshPaths.UserKnownHosts;
         if (_hostKeyTrust == null || !File.Exists(path))
         {
-            if (ShowNotificationAsync != null)
-            {
-                await ShowNotificationAsync(Strings.Get("Menu.File.ImportKnownHosts"), $"未找到 {path}");
-            }
+            await Interaction.NotifyAsync(Strings.Get("Menu.File.ImportKnownHosts"), $"未找到 {path}");
             return;
         }
 
         KnownHostsParseResult parsed = OpenSshKnownHostsParser.Parse(await File.ReadAllTextAsync(path));
         int count = await _hostKeyTrust.ImportAsync(parsed.Entries);
 
-        if (ShowNotificationAsync != null)
-        {
-            await ShowNotificationAsync(
-                Strings.Get("Menu.File.ImportKnownHosts"),
-                $"导入 {count} 条主机密钥，跳过无法识别的行 {parsed.SkippedLines} 行。");
-        }
+        await Interaction.NotifyAsync(
+            Strings.Get("Menu.File.ImportKnownHosts"),
+            $"导入 {count} 条主机密钥，跳过无法识别的行 {parsed.SkippedLines} 行。");
     });
 
     // 导入 SecureCRT 会话：弹出目录选择框，提取层级目录与会话，并为用到的凭据建立占位 Profile
     [RelayCommand]
     private Task ImportSecureCrtAsync() => Safe.RunAsync(_logger, "导入 SecureCRT 会话", async () =>
     {
-        if (PickFolderDialogAsync == null) return;
-        var folderPath = await PickFolderDialogAsync();
+        var folderPath = await Interaction.PickSecureCrtFolderAsync();
         if (string.IsNullOrWhiteSpace(folderPath) || !Directory.Exists(folderPath))
         {
             return;
@@ -975,22 +913,18 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
         await ReloadTreeAsync();
 
-        if (ShowNotificationAsync != null)
+        var msg = $"成功扫描 {summary.TotalFilesScanned} 个文件，新建 {summary.FoldersCreated} 个目录，导入 {summary.SessionsImported} 个会话。";
+        if (summary.IdentitiesCreated > 0)
         {
-            var msg = $"成功扫描 {summary.TotalFilesScanned} 个文件，新建 {summary.FoldersCreated} 个目录，导入 {summary.SessionsImported} 个会话。";
-            if (summary.IdentitiesCreated > 0)
-            {
-                msg += $"\n为未注册凭据创建了 {summary.IdentitiesCreated} 个空身份档案 ({string.Join(", ", summary.ImportedIdentityNames)})，请在身份管理器中补全私钥或口令。";
-            }
-            await ShowNotificationAsync("SecureCRT 导入完成", msg);
+            msg += $"\n为未注册凭据创建了 {summary.IdentitiesCreated} 个空身份档案 ({string.Join(", ", summary.ImportedIdentityNames)})，请在身份管理器中补全私钥或口令。";
         }
+        await Interaction.NotifyAsync("SecureCRT 导入完成", msg);
     });
 
     [RelayCommand]
     private Task ImportKonsoleAsync() => Safe.RunAsync(_logger, "导入 Konsole 配色方案", async () =>
     {
-        if (PickKonsoleFileDialogAsync == null || OpenTerminalProfileEditDialogAsync == null) return;
-        var filePath = await PickKonsoleFileDialogAsync();
+        var filePath = await Interaction.PickKonsoleSchemeFileAsync();
         if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath)) return;
 
         var content = await File.ReadAllTextAsync(filePath);
@@ -998,7 +932,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         var parsed = Kei.Term.Core.Services.KonsoleColorSchemeParser.Parse(content, defaultName);
 
         // 独立导入使用已应用的全局字体设置；配色不读取也不写回字体
-        var confirmed = await OpenTerminalProfileEditDialogAsync(parsed, BuildAppliedFontSnapshot(_settingsService.Current));
+        var confirmed = await Interaction.EditTerminalProfileAsync(parsed, BuildAppliedFontSnapshot(_settingsService.Current));
         if (confirmed == null)
         {
             return; // 取消无副作用
@@ -1010,21 +944,15 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         {
             // 独立导入：合并后原子落盘并推进已提交权威
             await profileManager.CommitAndSaveProfilesAsync();
-            if (ShowNotificationAsync != null)
-            {
-                await ShowNotificationAsync(
-                    Strings.Get("TerminalProfileEdit.Title"),
-                    Strings.Get("Settings.Appearance.BundleImportSuccess"));
-            }
+            await Interaction.NotifyAsync(
+                Strings.Get("TerminalProfileEdit.Title"),
+                Strings.Get("Settings.Appearance.BundleImportSuccess"));
         }
         catch (Exception ex)
         {
             // 落盘失败：撤销内存草稿并给出可见提示，不假装成功
             profileManager.RemoveCustomTerminalProfile(confirmed.Id);
-            if (ShowNotificationAsync != null)
-            {
-                await ShowNotificationAsync(Strings.Get("TerminalProfileEdit.Title"), ex.Message);
-            }
+            await Interaction.NotifyAsync(Strings.Get("TerminalProfileEdit.Title"), ex.Message);
         }
     });
 
@@ -1135,12 +1063,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         Identity? identity,
         AuthPromptMethod? defaultMethod = null)
     {
-        if (AuthPromptDialogAsync == null)
-        {
-            return null;
-        }
-
-        var result = await AuthPromptDialogAsync(prefillUsername, BuildVaultKeyOptions(identity), defaultMethod);
+        var result = await Interaction.PromptAuthAsync(prefillUsername, BuildVaultKeyOptions(identity), defaultMethod);
         _logger.LogInformation(
             "认证窗结果 方法={Method} 用户名={Username}",
             result?.Method.ToString() ?? "取消",
@@ -1306,10 +1229,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         catch (JumpChainException ex)
         {
             _logger.LogWarning("跳板链解析失败 会话={Session} 原因={Reason}", resolved.SessionName, ex.Message);
-            if (ShowNotificationAsync != null)
-            {
-                await ShowNotificationAsync(resolved.SessionName, ex.Message);
-            }
+            await Interaction.NotifyAsync(resolved.SessionName, ex.Message);
             return;
         }
 
@@ -1523,16 +1443,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             return true;
         }
 
-        if (MasterPasswordDialogAsync == null)
-        {
-            return false;
-        }
-
         var error = Strings.Get("Status.Vault.UnlockPrompt");
         _logger.LogInformation("保管库已锁定，弹出主密码框等待解锁");
         while (true)
         {
-            var password = await MasterPasswordDialogAsync(error);
+            var password = await Interaction.PromptMasterPasswordAsync(error);
             if (password == null)
             {
                 _logger.LogInformation("主密码框取消，保管库保持锁定");
@@ -1623,13 +1538,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     // 口令弹窗（三态）；SessionOnly 勾选记住时写入本次运行内存缓存
     private async Task<PassphrasePromptResult?> PromptPassphraseAsync(FilePrivateKeyMethod method, CancellationToken ct)
     {
-        if (PassphrasePromptDialogAsync == null)
-        {
-            return null;
-        }
-
         _logger.LogInformation("口令框打开 方法Id={MethodId} 模式={Mode}", method.Id, method.PassphraseMode);
-        var result = await PassphrasePromptDialogAsync(method);
+        var result = await Interaction.PromptPassphraseAsync(method);
         if (result == null)
         {
             _logger.LogInformation("口令框取消 方法Id={MethodId}", method.Id);
@@ -1920,9 +1830,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             {
                 try
                 {
-                    var response = InteractiveInputDialogAsync == null
-                        ? null
-                        : await InteractiveInputDialogAsync(prompt);
+                    var response = await Interaction.PromptKeyboardInteractiveAsync(prompt);
                     _logger.LogInformation("KI 认证提示应答 已应答={Answered}", !string.IsNullOrEmpty(response));
                     tcs.TrySetResult(response);
                 }
