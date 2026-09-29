@@ -219,11 +219,31 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         }
     }
 
-    // 只设置字体属性（PrimaryFontFamily 由 A 的 TerminalFontSnapshot 统一归一化）
+    // 只设置字体属性（包括主字体与回退字体链）
     private static void ApplyFontToTerminal(TerminalControl terminal, TerminalFontSnapshot snapshot)
     {
         terminal.FontFamilyName = snapshot.PrimaryFontFamily;
         terminal.TerminalFontSize = snapshot.FontSize;
+
+        // 构造回退字体链（0.6.0-preview.2 引入）
+        System.Collections.Immutable.ImmutableArray<string>.Builder regularBuilder =
+            System.Collections.Immutable.ImmutableArray.CreateBuilder<string>();
+        if (!string.IsNullOrWhiteSpace(snapshot.PrimaryFontFamily))
+        {
+            regularBuilder.Add(snapshot.PrimaryFontFamily);
+        }
+        foreach (string fallback in snapshot.FallbackFonts)
+        {
+            if (!string.IsNullOrWhiteSpace(fallback) && !regularBuilder.Contains(fallback))
+            {
+                regularBuilder.Add(fallback.Trim());
+            }
+        }
+
+        terminal.FontFamilies = new RoyalTerminal.Terminal.TerminalFontFamilySettings
+        {
+            Regular = regularBuilder.ToImmutable()
+        };
     }
 
     [RelayCommand]

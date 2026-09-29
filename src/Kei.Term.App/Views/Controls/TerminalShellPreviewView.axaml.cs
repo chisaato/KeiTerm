@@ -273,7 +273,7 @@ public partial class TerminalShellPreviewView : UserControl
             }
         }
 
-        // 2. 应用字体快照：使用规范的主字体提取 PrimaryFontFamily（截取首个候选族名）
+        // 2. 应用字体快照：使用规范的主字体提取 PrimaryFontFamily（截取首个候选族名）与回退字体链
         if (Font != null)
         {
             try
@@ -287,6 +287,26 @@ public partial class TerminalShellPreviewView : UserControl
                 {
                     _terminalControl.TerminalFontSize = Font.FontSize;
                 }
+
+                // 构造回退字体链（0.6.0-preview.2 引入）
+                System.Collections.Immutable.ImmutableArray<string>.Builder regularBuilder =
+                    System.Collections.Immutable.ImmutableArray.CreateBuilder<string>();
+                if (!string.IsNullOrWhiteSpace(primaryFamily))
+                {
+                    regularBuilder.Add(primaryFamily);
+                }
+                foreach (string fallback in Font.FallbackFonts)
+                {
+                    if (!string.IsNullOrWhiteSpace(fallback) && !regularBuilder.Contains(fallback))
+                    {
+                        regularBuilder.Add(fallback.Trim());
+                    }
+                }
+
+                _terminalControl.FontFamilies = new RoyalTerminal.Terminal.TerminalFontFamilySettings
+                {
+                    Regular = regularBuilder.ToImmutable()
+                };
             }
             catch (Exception ex)
             {

@@ -22,7 +22,7 @@
     </PackageReference>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
-    <PackageReference Include="RoyalApps.RoyalTerminal.Avalonia" Version="0.5.2" />
+    <PackageReference Include="RoyalApps.RoyalTerminal.Avalonia" Version="0.6.0-preview.2" />
   </ItemGroup>
 
   <ItemGroup>
