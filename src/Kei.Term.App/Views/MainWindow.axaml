@@ -403,20 +403,28 @@
                                         </ColumnDefinition>
                                     </Grid.ColumnDefinitions>
 
-                                    <!-- 终端控件：根据 IsFileManagerOnLeft 动态停靠在 Column 0 或 Column 2 -->
-                                    <ContentControl Grid.Column="{Binding IsFileManagerOnLeft, Converter={x:Static conv:FileManagerDockConverter.Instance}, ConverterParameter=Terminal}"
-                                                    Content="{Binding Terminal}"
-                                                    Background="{DynamicResource Kei.Bg.Window}">
-                                        <ContentControl.ContextMenu>
+                                    <!-- 终端控件：根据 IsFileManagerOnLeft 动态停靠在 Column 0 或 Column 2。
+                                         外层 ScrollViewer 提供回滚滚动条（TerminalControl 实现 ILogicalScrollable）；
+                                         底色取配色背景，覆盖网格贴底后顶部的余量区域 -->
+                                    <Border Grid.Column="{Binding IsFileManagerOnLeft, Converter={x:Static conv:FileManagerDockConverter.Instance}, ConverterParameter=Terminal}"
+                                            Background="{Binding TerminalBackground}">
+                                        <Border.ContextMenu>
                                             <ContextMenu>
-                                                <MenuItem Header="复制 (Copy)" Command="{Binding CopySelectionCommand}"/>
-                                                <MenuItem Header="粘贴 (Paste)" Command="{Binding PasteToTerminalCommand}"/>
+                                                <MenuItem Header="{loc:KeiString Terminal.Menu.Copy}" Command="{Binding CopySelectionCommand}"/>
+                                                <MenuItem Header="{loc:KeiString Terminal.Menu.Paste}" Command="{Binding PasteToTerminalCommand}"/>
                                                 <Separator/>
-                                                <MenuItem Header="全选 (Select All)" Command="{Binding SelectAllTerminalTextCommand}"/>
-                                                <MenuItem Header="清屏 (Clear)" Command="{Binding ClearTerminalScreenCommand}"/>
+                                                <MenuItem Header="{loc:KeiString Terminal.Menu.SelectAll}" Command="{Binding SelectAllTerminalTextCommand}"/>
+                                                <MenuItem Header="{loc:KeiString Terminal.Menu.Clear}" Command="{Binding ClearTerminalScreenCommand}"/>
+                                                <MenuItem Header="{loc:KeiString Terminal.Menu.ClearScrollback}" Command="{Binding ClearTerminalScrollbackCommand}"/>
                                             </ContextMenu>
-                                        </ContentControl.ContextMenu>
-                                    </ContentControl>
+                                        </Border.ContextMenu>
+                                        <ScrollViewer Classes="terminalScroll"
+                                                      Content="{Binding Terminal}"
+                                                      Background="Transparent"
+                                                      AllowAutoHide="False"
+                                                      VerticalScrollBarVisibility="Visible"
+                                                      HorizontalScrollBarVisibility="Disabled"/>
+                                    </Border>
 
                                     <!-- 分割条：固定在 Column 1，仅在文件管理器侧栏展开时呈现 -->
                                     <GridSplitter Grid.Column="1" Width="4"

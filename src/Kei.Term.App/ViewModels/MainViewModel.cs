@@ -1053,7 +1053,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
             BuildAppliedFontSnapshot(_settingsService.Current),
             effectiveProfile,
             config.TerminalProfileId,
-            _logger);
+            _logger,
+            scrollbackLines: _settingsService.Current.ScrollbackLines);
         // 构造只记录状态，此处显式注入配色（新标签立即生效）
         tab.ApplyTerminalProfile(effectiveProfile);
         Tabs.Add(tab);

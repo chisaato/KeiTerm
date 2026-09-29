@@ -1331,4 +1331,19 @@
   <data name="AuthPrompt.Error.PathRequired" xml:space="preserve">
     <value>请选择或输入私钥文件路径</value>
   </data>
+  <data name="Terminal.Menu.Copy" xml:space="preserve">
+    <value>复制</value>
+  </data>
+  <data name="Terminal.Menu.Paste" xml:space="preserve">
+    <value>粘贴</value>
+  </data>
+  <data name="Terminal.Menu.SelectAll" xml:space="preserve">
+    <value>全选</value>
+  </data>
+  <data name="Terminal.Menu.Clear" xml:space="preserve">
+    <value>清屏（含回滚缓冲区）</value>
+  </data>
+  <data name="Terminal.Menu.ClearScrollback" xml:space="preserve">
+    <value>仅清除回滚缓冲区</value>
+  </data>
 </root>

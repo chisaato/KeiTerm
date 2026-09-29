@@ -4,7 +4,9 @@ using System;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Media;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -117,10 +119,15 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
     [ObservableProperty]
     private RemoteFileManagerViewModel? _fileManager;
 
+    // 终端区底色：网格贴底后顶部余量与滚动条轨道用配色背景填充，避免露出窗口底色
+    [ObservableProperty]
+    private IBrush _terminalBackground = Brushes.Black;
+
     // 惰性创建：测试只验证状态/主题注入时不会构造原生 TerminalControl
     private readonly Func<TerminalControl> _terminalFactory;
     private TerminalControl? _terminal;
     private TerminalFontSnapshot _fontSnapshot;
+    private readonly int _scrollbackLines;
 
     public TerminalControl Terminal
     {
@@ -129,9 +136,11 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
             if (_terminal == null)
             {
                 var terminal = _terminalFactory();
+                terminal.ScrollbackLimit = _scrollbackLines;
                 ApplyFontToTerminal(terminal, _fontSnapshot);
                 terminal.Loaded += OnTerminalLoaded;
                 terminal.SizeChanged += OnTerminalSizeChanged;
+                terminal.TerminalResized += OnTerminalGridResized;
                 _terminal = terminal;
             }
 
@@ -178,7 +187,8 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         string? explicitProfileId,
         ILogger? logger = null,
         Func<TerminalControl>? terminalFactory = null,
-        ITerminalThemeSink? themeSink = null)
+        ITerminalThemeSink? themeSink = null,
+        int scrollbackLines = 5000)
     {
         ArgumentNullException.ThrowIfNull(font);
         ArgumentNullException.ThrowIfNull(profile);
@@ -188,7 +198,9 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         ExplicitProfileId = explicitProfileId;
         CurrentProfile = profile;
         EffectiveProfileId = profile.Id;
+        TerminalBackground = ParseBrush(profile.Background);
         _fontSnapshot = font;
+        _scrollbackLines = Math.Max(0, scrollbackLines);
 
         _terminalFactory = terminalFactory ?? (() => new TerminalControl
         {
@@ -205,8 +217,12 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         ArgumentNullException.ThrowIfNull(profile);
         CurrentProfile = profile;
         EffectiveProfileId = profile.Id;
+        TerminalBackground = ParseBrush(profile.Background);
         _themeSink.Apply(profile);
     }
+
+    private static IBrush ParseBrush(string? hex)
+        => Color.TryParse(hex, out Color color) ? new SolidColorBrush(color) : Brushes.Black;
 
     // 只更新字体相关属性，不触碰配色；若控件尚未创建则仅记录，待创建时应用
     public void ApplyFontSnapshot(TerminalFontSnapshot snapshot)
@@ -216,6 +232,8 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         if (_terminal != null)
         {
             ApplyFontToTerminal(_terminal, snapshot);
+            // 字号变化会改变行高：等控件重新测量后再对齐一次
+            Dispatcher.UIThread.Post(AlignGridToBottom, DispatcherPriority.Background);
         }
     }
 
@@ -276,17 +294,26 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         catch { }
     }
 
+    // 本地清屏：只保留光标所在行并清空回滚缓冲区；不向远端发送任何字节，
+    // 避免把 clear 敲进 vim 等全屏程序、也不会冲掉用户正在输入的半行命令
     [RelayCommand]
-    public async Task ClearTerminalScreenAsync()
+    public void ClearTerminalScreen()
     {
-        if (_session != null && _session.IsConnected)
-        {
-            await _session.SendInputAsync(Encoding.UTF8.GetBytes("clear\r"));
-        }
+        Terminal.ClearHistory();
+        // 全屏程序（vim / tmux 的备用屏幕）中 ClearHistory 不动主屏；仍要清掉主屏回滚，否则"清屏后还能往上滚"
+        Terminal.ClearScrollback();
+    }
+
+    // 只清回滚缓冲区，保留当前屏幕内容
+    [RelayCommand]
+    public void ClearTerminalScrollback()
+    {
+        Terminal.ClearScrollback();
     }
 
     private void OnTerminalLoaded(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
+        AlignGridToBottom();
         TrySyncTerminalSize();
         // 控件挂载后 Renderer 才存在：对最新 CurrentProfile 重放选区 alpha 恢复
         ReapplySelectionOverride();
@@ -315,7 +342,29 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
 
     private void OnTerminalSizeChanged(object? sender, Avalonia.Controls.SizeChangedEventArgs e)
     {
+        AlignGridToBottom();
         TrySyncTerminalSize();
+    }
+
+    // 行列数变化（含字号引起的行高变化）后重新计算贴底余量
+    private void OnTerminalGridResized(object? sender, TerminalSizeEventArgs e)
+    {
+        AlignGridToBottom();
+    }
+
+    // 把不足一行的余量放到顶部，使全屏程序的底部状态栏贴住终端底边
+    private void AlignGridToBottom()
+    {
+        if (_terminal?.Renderer is not { } renderer || IsDisposed)
+        {
+            return;
+        }
+
+        double inset = TerminalGridAlignment.TopInset(_terminal.Bounds.Height, renderer.CellHeight);
+        if (Math.Abs(_terminal.Padding.Top - inset) > 0.001)
+        {
+            _terminal.Padding = new Thickness(0, inset, 0, 0);
+        }
     }
 
     // 尝试同步终端尺寸至后台 SSH 会话
@@ -486,6 +535,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         {
             _terminal.Loaded -= OnTerminalLoaded;
             _terminal.SizeChanged -= OnTerminalSizeChanged;
+            _terminal.TerminalResized -= OnTerminalGridResized;
         }
 
         await DetachSessionAsync();
