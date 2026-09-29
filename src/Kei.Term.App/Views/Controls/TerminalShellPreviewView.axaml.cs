@@ -105,6 +105,7 @@ public partial class TerminalShellPreviewView : UserControl
         {
             IsHitTestVisible = false, // 纯预览展示，不接收键盘鼠标输入
             Focusable = false,
+            AutoScroll = false, // 禁用自动滚动到底部，保证顶部色条和完整 CJK 样例常驻可见
             FontLinearMetrics = true,
             FontSubpixelPositioning = true
         };
@@ -239,6 +240,9 @@ public partial class TerminalShellPreviewView : UserControl
         try
         {
             _terminalControl.WriteOutput(DemoAnsiSample);
+            // 写入样本后重置滚动位置到顶部，确保 ANSI Palette 和 [ZH]/[JA]/[KO] 头部样例不会因可视区行数较小而被推入回滚历史
+            _terminalControl.ScrollData?.ScrollToTop();
+            _terminalControl.ScrollByRows(-100);
             _hasWrittenSample = true;
         }
         catch (Exception ex)
