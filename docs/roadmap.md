@@ -17,7 +17,7 @@ KeiTerm 不追求与 Xshell / SecureCRT 1:1 复刻。设计理念：抛弃传统
 | **跳板链 ProxyJump**（多级、每跳独立身份、文件通道复用跳板链） | ✅ 后端完成，会话编辑器的跳板下拉待做 |
 | **导入 `~/.ssh/config`**（Host / IdentityFile / ProxyJump / Include） | ✅ |
 | 保活、自定义 Agent（含 Pageant）、登录脚本 | ✅ 已接通（此前只存不用） |
-| Agent 转发（`ssh -A`） | ❌ SSH.NET 不支持；候选 Tmds.Ssh，见 design/08 §6 |
+| Agent 转发（`ssh -A`） | ⏳ 双引擎方案已验证可行（Tmds.Ssh 主干实测转发成功），待其发版后接入，见 [design/11](./design/11-dual-ssh-backend.md) |
 | 多协议扩展点（`ITerminalSession`） | ✅ 接口就绪，提供者待接入 |
 | 持久化：版本化迁移 + Dapper + WAL | ✅ |
 | 终端内搜索、右键菜单、滚轮缩放、字体弹窗 | ⏳ 依赖 UI（见 `todo.md`） |
@@ -69,8 +69,8 @@ RoyalTerminal 已提供 `Transport.Pty`（本地 Shell，含 Windows ConPTY）�
 
 ### P2：现代化差异点
 
-- **Shell 集成 / 目录跟随**：RoyalTerminal 已解析 OSC 7 与 OSC 133，无需自写解析器；tmux 需透传或标题方案（已实测），
-  设计与待拍板问题见 [09](./design/09-cwd-tracking.md)。OSC 133 同时支撑命令块、跳转上一条命令、复制某条命令输出。
+- **目录跟随**（低优先级便利功能）：全局 + 会话覆盖，默认关闭；只被动接收 OSC 7 与 tmux 标题，不改动远端，见 [09](./design/09-cwd-tracking.md)。
+- **Shell 集成 / 命令块**：RoyalTerminal 已解析 OSC 133，可做命令块、跳转上一条命令、复制某条命令输出。OSC 133 同时支撑命令块、跳转上一条命令、复制某条命令输出。
 - **会话录制**：asciicast v2 格式落盘（审计/复盘），纯后端能力。
 - **Snippets（参数化命令片段）+ 广播发送**：撰写栏扩展。
 - **ZMODEM（rz/sz）**：对 Xshell 迁移用户是切换阻碍项，优先级视目标用户群调整。
@@ -100,3 +100,4 @@ RoyalTerminal 已提供 `Transport.Pty`（本地 Shell，含 Windows ConPTY）�
 3. **坚持原生桌面质感**：Avalonia 原生渲染与轻量内存开销，避免 Web/Electron 容器。
 4. **安全默认**：主机密钥校验、Vault 加密、机密不落明文日志——默认开启，而不是高级选项。
 5. **与 OpenSSH 生态互通优先于自建格式**：配置、信任库、Agent 都优先读写用户已有的 OpenSSH 资产。
+6. **零远端安装（agentless）**：不在服务器上部署 helper / daemon（区别于 Warp、Wave、VS Code Remote）；需要远端信息时走 SSH exec 通道执行普通命令。

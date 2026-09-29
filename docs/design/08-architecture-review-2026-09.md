@@ -178,6 +178,7 @@ PBKDF2-HMAC-SHA512 600k 迭代高于 OWASP 密码存储建议（SHA-512 为 21 �
 | SK 硬件密钥经 agent | ✅ 已在用 | ⚠️ 未验证（程序集中未见 `sk-*` 算法名，需实机测试） |
 | API 稳定性 | 稳定 | 0.x，可能有破坏性变更 |
 
-建议：**现在不迁移**，待 agent 转发发版后做一次 spike。本轮已把 SSH 相关代码收敛到 `Kei.Term.Ssh` 的 `SshDialer` / `SshAuthMethodBuilder` 与
+建议：**不整体迁移**，改为双引擎——默认 SSH.NET，会话开启 Agent 转发时用 Tmds.Ssh。已用主干构建实测可行，
+方案、能力映射与 keyboard-interactive 缺口的处理见 [11](./11-dual-ssh-backend.md)。以下为最初的迁移评估，保留备查：本轮已把 SSH 相关代码收敛到 `Kei.Term.Ssh` 的 `SshDialer` / `SshAuthMethodBuilder` 与
 `ISshSession` / `IRemoteFileSystem` 抽象之后，迁移范围限定在该项目内。spike 的通过条件：
 YubiKey `ed25519-sk` 经 agent 登录成功、2FA 交互正常、跳板 + SFTP 复用正常、现有 sshd 集成测试全部通过。
