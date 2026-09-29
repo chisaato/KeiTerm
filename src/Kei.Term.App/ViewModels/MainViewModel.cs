@@ -336,7 +336,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         => _profileManager?.ResolveEffectiveTerminalProfile(explicitProfileId)
            ?? BuiltInPresets.GetDefaultTerminalProfile();
 
-    // 由当前设置构造“已应用”字体快照（AppSettings 无斜体字段，显式 false）
+    // 由当前设置构造“已应用”字体快照
     private static TerminalFontSnapshot BuildAppliedFontSnapshot(AppSettings settings)
     {
         var fallbacks = string.IsNullOrWhiteSpace(settings.TerminalFallbackFontFamily)
@@ -348,7 +348,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             settings.FontFamily,
             fallbacks,
             settings.FontSize,
-            isItalic: false,
             settings.CursorBlink);
     }
 

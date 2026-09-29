@@ -192,7 +192,7 @@ public class TerminalThemeAdapterTests
     {
         List<string> source = ["Cascadia Mono", "Noto Sans Mono"];
 
-        TerminalFontSnapshot snapshot = new("JetBrains Mono", source, 14.0, false, true);
+        TerminalFontSnapshot snapshot = new("JetBrains Mono", source, 14.0, true);
 
         // 外部修改源列表不得影响快照，避免“假不可变”
         source.Add("Later Added");
@@ -203,7 +203,7 @@ public class TerminalThemeAdapterTests
     [Fact]
     public void TerminalFontSnapshot_NullFallbackList_BecomesEmptyNotThrow()
     {
-        TerminalFontSnapshot snapshot = new("JetBrains Mono", null!, 14.0, false, true);
+        TerminalFontSnapshot snapshot = new("JetBrains Mono", null!, 14.0, true);
 
         Assert.NotNull(snapshot.FallbackFonts);
         Assert.Empty(snapshot.FallbackFonts);
@@ -226,7 +226,7 @@ public class TerminalThemeAdapterTests
     [Fact]
     public void TerminalFontSnapshot_PrimaryFontFamily_UsesNormalizedSingleName()
     {
-        TerminalFontSnapshot snapshot = new("JetBrains Mono, Consolas, monospace", ["Consolas"], 14.0, false, true);
+        TerminalFontSnapshot snapshot = new("JetBrains Mono, Consolas, monospace", ["Consolas"], 14.0, true);
 
         Assert.Equal("JetBrains Mono", snapshot.PrimaryFontFamily);
         // 回退列表仍然只做值传递，不表示已生效
@@ -236,7 +236,7 @@ public class TerminalThemeAdapterTests
     [Fact]
     public void TerminalFontSnapshot_PrimaryFontFamily_BlankInputFallsBackToDefault()
     {
-        TerminalFontSnapshot snapshot = new("   ", [], 14.0, false, true);
+        TerminalFontSnapshot snapshot = new("   ", [], 14.0, true);
 
         Assert.Equal("Noto Sans Mono", snapshot.PrimaryFontFamily);
     }

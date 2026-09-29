@@ -13,14 +13,12 @@ public sealed record TerminalFontSnapshot
         string fontFamily,
         IReadOnlyList<string> fallbackFonts,
         double fontSize,
-        bool isItalic,
         bool cursorBlink)
     {
         FontFamily = fontFamily;
         // 复制回退列表：快照不得因外部随后修改列表而“假不可变”
         FallbackFonts = fallbackFonts is null ? [] : [.. fallbackFonts];
         FontSize = fontSize;
-        IsItalic = isItalic;
         CursorBlink = cursorBlink;
 
         // 真实终端只接受单一族名；这里统一算出唯一主字体名（规则与 TerminalTabViewModel 一致）
@@ -34,7 +32,6 @@ public sealed record TerminalFontSnapshot
 
     public IReadOnlyList<string> FallbackFonts { get; }
     public double FontSize { get; }
-    public bool IsItalic { get; }
     public bool CursorBlink { get; }
 
     // 与 TerminalTabViewModel.NormalizeFontFamilyName 相同的规则：取逗号列表第一段，空则默认单族名。

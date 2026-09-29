@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Kei.Term.App.ViewModels"
         xmlns:settings="using:Kei.Term.App.ViewModels.Settings"
+        xmlns:services="using:Kei.Term.App.Services"
         xmlns:controls="using:Kei.Term.App.Views.Controls"
         xmlns:loc="using:Kei.Term.App.Helpers"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -199,33 +200,42 @@
                                     <Grid ColumnDefinitions="150, *" ColumnSpacing="12">
                                         <TextBlock Grid.Column="0" Text="{loc:KeiString Settings.Appearance.UiFontFamily}" VerticalAlignment="Center"
                                                    Foreground="{DynamicResource Kei.Text.Secondary}"/>
-                                        <ComboBox Grid.Column="1" HorizontalAlignment="Stretch"
-                                                  ItemsSource="{Binding AvailableFonts}"
-                                                  SelectedItem="{Binding SelectedUiFont}"
-                                                  ToolTip.Tip="{loc:KeiString Settings.Appearance.UiFontFamilyTip}">
-                                            <ComboBox.ItemTemplate>
-                                                <DataTemplate>
+                                        <AutoCompleteBox Grid.Column="1" HorizontalAlignment="Stretch"
+                                                         ItemsSource="{Binding AvailableFonts}"
+                                                         SelectedItem="{Binding SelectedUiFont}"
+                                                         ItemFilter="{Binding FontItemFilter}"
+                                                         FilterMode="Custom"
+                                                         MinimumPrefixLength="0"
+                                                         ValueMemberBinding="{CompiledBinding DisplayName, DataType=services:FontFamilyOption}"
+                                                         ToolTip.Tip="{loc:KeiString Settings.Appearance.UiFontFamilyTip}">
+                                            <AutoCompleteBox.ItemTemplate>
+                                                <DataTemplate x:DataType="services:FontFamilyOption">
                                                     <TextBlock Text="{Binding DisplayName}"/>
                                                 </DataTemplate>
-                                            </ComboBox.ItemTemplate>
-                                        </ComboBox>
+                                            </AutoCompleteBox.ItemTemplate>
+                                        </AutoCompleteBox>
                                     </Grid>
 
                                     <!-- 界面回退字体有序列表 -->
                                     <TextBlock Text="{loc:KeiString Settings.Appearance.FallbackFontsSection}" FontSize="12"
                                                Foreground="{DynamicResource Kei.Text.Secondary}" Margin="0,4,0,0"/>
                                     <Grid ColumnDefinitions="*, Auto" ColumnSpacing="8">
-                                        <ComboBox Grid.Column="0" HorizontalAlignment="Stretch"
-                                                  ItemsSource="{Binding AvailableFonts}"
-                                                  SelectedItem="{Binding UiFallbackFontCandidate}"
-                                                  PlaceholderText="{loc:KeiString Settings.Appearance.SelectFallbackFontToAdd}">
-                                            <ComboBox.ItemTemplate>
-                                                <DataTemplate>
+                                        <AutoCompleteBox Grid.Column="0" HorizontalAlignment="Stretch"
+                                                         ItemsSource="{Binding AvailableFonts}"
+                                                         SelectedItem="{Binding UiFallbackFontCandidate}"
+                                                         ItemFilter="{Binding FontItemFilter}"
+                                                         FilterMode="Custom"
+                                                         MinimumPrefixLength="0"
+                                                         ValueMemberBinding="{CompiledBinding DisplayName, DataType=services:FontFamilyOption}"
+                                                         PlaceholderText="{loc:KeiString Settings.Appearance.SelectFallbackFontToAdd}">
+                                            <AutoCompleteBox.ItemTemplate>
+                                                <DataTemplate x:DataType="services:FontFamilyOption">
                                                     <TextBlock Text="{Binding DisplayName}"/>
                                                 </DataTemplate>
-                                            </ComboBox.ItemTemplate>
-                                        </ComboBox>
+                                            </AutoCompleteBox.ItemTemplate>
+                                        </AutoCompleteBox>
                                         <Button Grid.Column="1" Content="{loc:KeiString Settings.Appearance.AddFallbackFont}"
+                                                IsEnabled="{Binding UiFallbackFontCandidate, Converter={x:Static ObjectConverters.IsNotNull}}"
                                                 Command="{Binding AddUiFallbackFont}"/>
                                     </Grid>
                                     <Grid ColumnDefinitions="*, Auto" ColumnSpacing="8">
@@ -370,16 +380,20 @@
                                                 <Grid ColumnDefinitions="110, *" ColumnSpacing="10">
                                                     <TextBlock Grid.Column="0" Text="{loc:KeiString Settings.Appearance.FontFamily}" VerticalAlignment="Center"
                                                                Foreground="{DynamicResource Kei.Text.Secondary}"/>
-                                                    <ComboBox Grid.Column="1" HorizontalAlignment="Stretch"
-                                                              ItemsSource="{Binding AvailableFonts}"
-                                                              SelectedItem="{Binding SelectedFont}"
-                                                              ToolTip.Tip="{loc:KeiString Settings.Appearance.FontFamilyTip}">
-                                                        <ComboBox.ItemTemplate>
-                                                            <DataTemplate>
+                                                    <AutoCompleteBox Grid.Column="1" HorizontalAlignment="Stretch"
+                                                                     ItemsSource="{Binding AvailableFonts}"
+                                                                     SelectedItem="{Binding SelectedFont}"
+                                                                     ItemFilter="{Binding FontItemFilter}"
+                                                                     FilterMode="Custom"
+                                                                     MinimumPrefixLength="0"
+                                                                     ValueMemberBinding="{CompiledBinding DisplayName, DataType=services:FontFamilyOption}"
+                                                                     ToolTip.Tip="{loc:KeiString Settings.Appearance.FontFamilyTip}">
+                                                        <AutoCompleteBox.ItemTemplate>
+                                                            <DataTemplate x:DataType="services:FontFamilyOption">
                                                                 <TextBlock Text="{Binding DisplayName}"/>
                                                             </DataTemplate>
-                                                        </ComboBox.ItemTemplate>
-                                                    </ComboBox>
+                                                        </AutoCompleteBox.ItemTemplate>
+                                                    </AutoCompleteBox>
                                                 </Grid>
 
                                                 <!-- 字号 NumericUpDown (8.0~36.0) -->
@@ -391,29 +405,32 @@
                                                                    ToolTip.Tip="{loc:KeiString Settings.Appearance.FontSizeTip}"/>
                                                 </Grid>
 
-                                                <!-- 光标闪烁、字体倾斜 CheckBox -->
+                                                <!-- 光标闪烁 CheckBox -->
                                                 <StackPanel Orientation="Horizontal" Spacing="20">
                                                     <CheckBox IsChecked="{Binding CursorBlink}" Content="{loc:KeiString Settings.Appearance.CursorBlink}"
                                                               ToolTip.Tip="{loc:KeiString Settings.Appearance.CursorBlinkTip}"/>
-                                                    <CheckBox IsChecked="{Binding IsItalic}" Content="{loc:KeiString Settings.Appearance.FontItalic}"
-                                                              ToolTip.Tip="{loc:KeiString Settings.Appearance.FontItalicTip}"/>
                                                 </StackPanel>
 
-                                                <!-- 回退字体候选 ComboBox + 添加按钮 -->
+                                                <!-- 回退字体候选 AutoCompleteBox + 添加按钮 -->
                                                 <TextBlock Text="{loc:KeiString Settings.Appearance.FallbackFontsSection}" FontSize="12"
                                                            Foreground="{DynamicResource Kei.Text.Secondary}" Margin="0,4,0,0"/>
                                                 <Grid ColumnDefinitions="*, Auto" ColumnSpacing="8">
-                                                    <ComboBox Grid.Column="0" HorizontalAlignment="Stretch"
-                                                              ItemsSource="{Binding AvailableFonts}"
-                                                              SelectedItem="{Binding TerminalFallbackFontCandidate}"
-                                                              PlaceholderText="{loc:KeiString Settings.Appearance.SelectFallbackFontToAdd}">
-                                                        <ComboBox.ItemTemplate>
-                                                            <DataTemplate>
+                                                    <AutoCompleteBox Grid.Column="0" HorizontalAlignment="Stretch"
+                                                                     ItemsSource="{Binding AvailableFonts}"
+                                                                     SelectedItem="{Binding TerminalFallbackFontCandidate}"
+                                                                     ItemFilter="{Binding FontItemFilter}"
+                                                                     FilterMode="Custom"
+                                                                     MinimumPrefixLength="0"
+                                                                     ValueMemberBinding="{CompiledBinding DisplayName, DataType=services:FontFamilyOption}"
+                                                                     PlaceholderText="{loc:KeiString Settings.Appearance.SelectFallbackFontToAdd}">
+                                                        <AutoCompleteBox.ItemTemplate>
+                                                            <DataTemplate x:DataType="services:FontFamilyOption">
                                                                 <TextBlock Text="{Binding DisplayName}"/>
                                                             </DataTemplate>
-                                                        </ComboBox.ItemTemplate>
-                                                    </ComboBox>
+                                                        </AutoCompleteBox.ItemTemplate>
+                                                    </AutoCompleteBox>
                                                     <Button Grid.Column="1" Content="{loc:KeiString Settings.Appearance.AddFallbackFont}"
+                                                            IsEnabled="{Binding TerminalFallbackFontCandidate, Converter={x:Static ObjectConverters.IsNotNull}}"
                                                             Command="{Binding AddTerminalFallbackFont}"/>
                                                 </Grid>
 

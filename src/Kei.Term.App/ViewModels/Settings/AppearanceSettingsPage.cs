@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using Avalonia.Controls;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Kei.Term.App.Helpers;
@@ -119,6 +120,16 @@ public partial class AppearanceSettingsPage : ViewModelBase
     // 字体列表与当前选中的字体
     public IReadOnlyList<FontFamilyOption> AvailableFonts { get; }
 
+    // 用于 AutoCompleteBox 的自定义过滤谓词（多 token 匹配 DisplayName）
+    public AutoCompleteFilterPredicate<object> FontItemFilter { get; } = (search, item) =>
+    {
+        if (item is FontFamilyOption opt)
+        {
+            return FontNameSearch.IsMatch(search, opt.DisplayName);
+        }
+        return false;
+    };
+
     [ObservableProperty]
     private FontFamilyOption? _selectedFont;
 
@@ -131,22 +142,11 @@ public partial class AppearanceSettingsPage : ViewModelBase
         OnPropertyChanged(nameof(PreviewFontFamily));
     }
 
-    // 斜体选项
-    [ObservableProperty]
-    private bool _isItalic;
-
-    partial void OnIsItalicChanged(bool value)
-    {
-        OnPropertyChanged(nameof(PreviewFontStyle));
-        NotifyDraftFontSnapshotChanged();
-    }
-
-    // 当前字体草稿快照（主字体/回退/字号/斜体/闪烁），供共用 Demo 与调色弹窗读取
+    // 当前字体草稿快照（主字体/回退/字号/闪烁），供共用 Demo 与调色弹窗读取
     public TerminalFontSnapshot DraftFontSnapshot => new(
         FontFamily,
         TerminalFallbackFonts.ToList(),
         FontSize,
-        IsItalic,
         CursorBlink);
 
     private void NotifyDraftFontSnapshotChanged() => OnPropertyChanged(nameof(DraftFontSnapshot));
@@ -165,7 +165,6 @@ public partial class AppearanceSettingsPage : ViewModelBase
     }
 
     public FontWeight PreviewFontWeight => FontWeight.Regular;
-    public FontStyle PreviewFontStyle => IsItalic ? FontStyle.Italic : FontStyle.Normal;
     public string PreviewSampleText => "AaBbCc 012345 !@#$% 中文测试 0O1lI|";
 
     // 主题候选项：纯粹深色为主与跟随系统

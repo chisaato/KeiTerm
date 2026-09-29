@@ -163,7 +163,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
     public TerminalTabViewModel(string title, string fontFamily, double fontSize, ILogger? logger = null)
         : this(
             title,
-            new TerminalFontSnapshot(fontFamily, Array.Empty<string>(), fontSize, false, true),
+            new TerminalFontSnapshot(fontFamily, Array.Empty<string>(), fontSize, true),
             BuiltInPresets.GetDefaultTerminalProfile(),
             explicitProfileId: null,
             logger)

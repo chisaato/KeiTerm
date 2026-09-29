@@ -225,6 +225,27 @@
         <Setter Property="Opacity" Value="0.35"/>
     </Style>
 
+    <!-- Kei 统一单色矢量图标规范（默认 16x16，居中，等比缩放，次级文字色） -->
+    <Style Selector="Path.kei-icon">
+        <Setter Property="Stretch" Value="Uniform"/>
+        <Setter Property="HorizontalAlignment" Value="Center"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Fill" Value="{DynamicResource Kei.Text.Secondary}"/>
+        <Setter Property="Width" Value="16"/>
+        <Setter Property="Height" Value="16"/>
+    </Style>
+    <!-- 图标按钮与图标联动交互态（平时 85% 透明度，悬停 100% 并高亮为主字色，禁用淡化） -->
+    <Style Selector="Button.iconBtn Path.kei-icon">
+        <Setter Property="Opacity" Value="0.85"/>
+    </Style>
+    <Style Selector="Button.iconBtn:pointerover Path.kei-icon">
+        <Setter Property="Opacity" Value="1.0"/>
+        <Setter Property="Fill" Value="{DynamicResource Kei.Text.Primary}"/>
+    </Style>
+    <Style Selector="Button.iconBtn:disabled Path.kei-icon">
+        <Setter Property="Fill" Value="{DynamicResource Kei.Text.Muted}"/>
+    </Style>
+
     <!-- 工具栏垂直分隔条 -->
     <Style Selector="Separator.toolSep">
         <Setter Property="Width" Value="1"/>

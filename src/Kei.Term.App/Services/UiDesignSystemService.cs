@@ -15,6 +15,9 @@ public static class UiDesignSystemService
     // KeiTerm 专属桌面设计令牌字典（深色工业桌面风格）
     private static readonly ResourceDictionary ClassicTokens = LoadDictionary("KeiTokens.axaml");
 
+    // KeiTerm 专属全局矢量图标字典
+    private static readonly ResourceDictionary ClassicIcons = LoadDictionary("KeiIcons.axaml");
+
     // Kei 紧凑控件外观样式（树形结构引导线、工具栏按钮、标签页、输入框等）
     private static readonly Styles ClassicControlStyles = LoadStyles("KeiControls.axaml");
 
@@ -30,7 +33,7 @@ public static class UiDesignSystemService
 
         var styles = app.Styles;
 
-        // 挂载 Kei 专属设计令牌字典
+        // 挂载 Kei 专属设计令牌字典与全局矢量图标字典
         var merged = app.Resources.MergedDictionaries;
         if (_activeTokens != null)
         {
@@ -39,6 +42,11 @@ public static class UiDesignSystemService
 
         _activeTokens = ClassicTokens;
         merged.Add(_activeTokens);
+
+        if (!merged.Contains(ClassicIcons))
+        {
+            merged.Add(ClassicIcons);
+        }
 
         // 挂载紧凑控件外观样式
         if (!styles.Contains(ClassicControlStyles))

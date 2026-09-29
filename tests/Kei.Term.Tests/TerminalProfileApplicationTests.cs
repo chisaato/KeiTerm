@@ -47,7 +47,7 @@ public class TerminalProfileApplicationTests
     }
 
     private static TerminalFontSnapshot Font(string family = "JetBrains Mono")
-        => new(family, new[] { "Noto Sans Mono" }, 14.0, false, true);
+        => new(family, new[] { "Noto Sans Mono" }, 14.0, true);
 
     private static string NewTempDir()
     {
@@ -835,7 +835,7 @@ public class TerminalProfileApplicationTests
 
         var next = Profile("P-Next", "#ABCDEF");
         tab.ApplyTerminalProfile(next);
-        tab.ApplyFontSnapshot(new TerminalFontSnapshot("Fira Code", new[] { "Fallback" }, 15.0, true, false));
+        tab.ApplyFontSnapshot(new TerminalFontSnapshot("Fira Code", new[] { "Fallback" }, 15.0, false));
 
         Assert.Equal(0, probe.Calls);
         Assert.Single(sink.Applied);
@@ -1090,14 +1090,12 @@ public class TerminalProfileApplicationTests
 
         page.FontFamily = "Fira Code";
         page.FontSize = 16.0;
-        page.IsItalic = true;
         page.CursorBlink = false;
         page.SetTerminalFallbackFonts("Noto Sans Mono, monospace");
 
         var snapshot = page.DraftFontSnapshot;
         Assert.Equal("Fira Code", snapshot.FontFamily);
         Assert.Equal(16.0, snapshot.FontSize);
-        Assert.True(snapshot.IsItalic);
         Assert.False(snapshot.CursorBlink);
         Assert.Equal(new[] { "Noto Sans Mono", "monospace" }, snapshot.FallbackFonts);
         Assert.Contains(nameof(AppearanceSettingsPage.DraftFontSnapshot), notified);

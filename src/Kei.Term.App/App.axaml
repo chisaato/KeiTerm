@@ -14,7 +14,10 @@
     </Application.Styles>
 
     <Application.Resources>
-        <!-- Kei.* 画刷与桌面工具设计系统令牌由 UiDesignSystemService 在运行时挂载（KeiTokens.axaml） -->
-        <ResourceDictionary />
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceInclude Source="avares://Kei.Term.App/DesignSystem/KeiIcons.axaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
     </Application.Resources>
 </Application>

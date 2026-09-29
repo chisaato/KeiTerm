@@ -5,10 +5,9 @@
              mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="260"
              x:Class="Kei.Term.App.Views.Controls.TerminalShellPreviewView">
 
-    <!-- 容器 Border：包裹 RoyalTerminal TerminalControl，附带卡片圆角与细边框 -->
+    <!-- 容器 Border：包裹 RoyalTerminal TerminalControl，附带卡片圆角与细边框；背景由后台按主题底色同步 -->
     <Grid>
         <Border x:Name="TerminalContainer"
-                Background="{DynamicResource Kei.Bg.Window}"
                 BorderBrush="{DynamicResource Kei.Border}"
                 BorderThickness="1"
                 CornerRadius="{DynamicResource Kei.Radius.Card}"

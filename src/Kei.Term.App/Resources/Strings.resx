@@ -566,12 +566,6 @@
   <data name="Settings.Appearance.FontWeightBold" xml:space="preserve">
     <value>粗体 (Bold)</value>
   </data>
-  <data name="Settings.Appearance.FontItalic" xml:space="preserve">
-    <value>斜体样式 (Italic)</value>
-  </data>
-  <data name="Settings.Appearance.FontItalicTip" xml:space="preserve">
-    <value>启用字体斜体倾斜渲染</value>
-  </data>
   <data name="Settings.Appearance.FontPreviewSection" xml:space="preserve">
     <value>字体实时预览</value>
   </data>

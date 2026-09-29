@@ -69,13 +69,6 @@ public class SystemFontScannerTests
         Assert.Equal("Courier New", page.TerminalFallbackFonts[0]);
         Assert.Equal("Consolas", page.TerminalFallbackFonts[1]);
 
-        // 验证斜体与预览联动
-        page.IsItalic = true;
-        Assert.Equal(FontStyle.Italic, page.PreviewFontStyle);
-
-        page.IsItalic = false;
-        Assert.Equal(FontStyle.Normal, page.PreviewFontStyle);
-
         // 验证修改字体时同步更新 SelectedFont 与 PreviewFontFamily
         page.FontFamily = "Consolas";
         Assert.Equal("Consolas", page.SelectedFont.Name);

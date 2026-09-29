@@ -115,7 +115,6 @@ public class TerminalProfileEditViewModelTests
             fontFamily: "Draft Cascadia",
             fallbackFonts: new List<string> { "Draft Fallback" },
             fontSize: 14.5,
-            isItalic: false,
             cursorBlink: true);
 
         var vm = new TerminalProfileEditViewModel(legacyProfile, snapshot);
@@ -178,5 +177,145 @@ public class TerminalProfileEditViewModelTests
         Assert.Contains("从 Konsole 导入 (*.colorscheme)...", xamlText);
         Assert.Contains("从 iTerm2 导入 (预留)", xamlText);
         Assert.Contains("实时效果预览 (Live Preview)", xamlText);
+
+        // 契约：设置页不再包含毫无用处的斜体勾选框
+        Assert.DoesNotContain("IsItalic", xamlText);
+        Assert.DoesNotContain("FontItalic", xamlText);
+    }
+
+    [Fact]
+    public void TerminalShellPreviewView_CodeBehind_EnforcesCleanThemeTransitionAndSampleReplayContracts()
+    {
+        var solutionDir = AppContext.BaseDirectory;
+        while (!string.IsNullOrEmpty(solutionDir) && !Directory.GetFiles(solutionDir, "*.sln*").Any())
+        {
+            solutionDir = Directory.GetParent(solutionDir)?.FullName;
+        }
+        var root = solutionDir ?? Environment.CurrentDirectory;
+
+        var csFile = Path.Combine(root, "src", "Kei.Term.App", "Views", "Controls", "TerminalShellPreviewView.axaml.cs");
+        Assert.True(File.Exists(csFile), "TerminalShellPreviewView.axaml.cs 必须存在");
+
+        var csText = File.ReadAllText(csFile);
+
+        // 1. 清屏序列包含 \x1b[2J 与 \x1b[3J（清空屏幕与回滚缓冲区）
+        Assert.Contains(@"\x1b[2J", csText);
+        Assert.Contains(@"\x1b[3J", csText);
+        Assert.Contains(@"\x1b[0m\x1b[2J\x1b[3J\x1b[H", csText);
+
+        // 2. 顺序约束：在 UpdateThemeAndFont 中，先 TerminalThemeAdapter.Apply，字体设置块之后再 WriteOutput(ClearScreenSequence)，重置守卫 _hasWrittenSample = false，再灌入样本与 InvalidateTerminal
+        int updateThemeMethodIndex = csText.IndexOf("private void UpdateThemeAndFont()", StringComparison.Ordinal);
+        Assert.True(updateThemeMethodIndex >= 0, "必须存在 UpdateThemeAndFont 方法");
+
+        int applyIndex = csText.IndexOf("TerminalThemeAdapter.Apply(_terminalControl, Profile);", updateThemeMethodIndex, StringComparison.Ordinal);
+        int fontIndex = csText.IndexOf("_terminalControl.FontFamilyName = primaryFamily;", updateThemeMethodIndex, StringComparison.Ordinal);
+        int clearIndex = csText.IndexOf("_terminalControl.WriteOutput(ClearScreenSequence);", updateThemeMethodIndex, StringComparison.Ordinal);
+        int resetGuardIndex = csText.IndexOf("_hasWrittenSample = false;", updateThemeMethodIndex, StringComparison.Ordinal);
+        int sampleIndex = csText.IndexOf("EnsureSampleWritten();", updateThemeMethodIndex, StringComparison.Ordinal);
+        int invalidateIndex = csText.IndexOf("_terminalControl.InvalidateTerminal();", updateThemeMethodIndex, StringComparison.Ordinal);
+
+        Assert.True(applyIndex >= 0, "必须调用 TerminalThemeAdapter.Apply");
+        Assert.True(fontIndex > applyIndex, "必须在 ApplyTheme 之后进行字体设置");
+        Assert.True(clearIndex > fontIndex, "必须在 ApplyTheme 与字体设置均成功后向终端写入清屏序列");
+        Assert.True(resetGuardIndex > clearIndex, "写入清屏后必须重置样本写入守卫以触发重放");
+        Assert.True(sampleIndex > resetGuardIndex, "重置守卫后必须重新写入样本");
+        Assert.True(invalidateIndex > sampleIndex, "样本重放后必须请求终端重绘");
+
+        // 3. 边框 Letterbox 背景与主题 Background 绑定同步，消除边缘底色透出色差
+        Assert.Contains("UpdateTerminalContainerBackground()", csText);
+        Assert.Contains("container.Background = new SolidColorBrush(color)", csText);
+
+        // 4. 样本结构与可读性断言：包含带索引的 ANSI 0..15 色条，主体文字用默认前景色呈现，CJK/EN 样本保留
+        var sampleField = typeof(Kei.Term.App.Views.Controls.TerminalShellPreviewView)
+            .GetField("DemoAnsiSample", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        Assert.NotNull(sampleField);
+
+        var sampleBytes = Assert.IsType<byte[]>(sampleField!.GetValue(null));
+        string sampleText = System.Text.Encoding.UTF8.GetString(sampleBytes);
+
+        // 包含每个色块的索引标注
+        for (int i = 0; i <= 15; i++)
+        {
+            Assert.Contains(i.ToString(), sampleText);
+        }
+
+        // CJK/EN 语言标签与多语言内容
+        Assert.Contains("[ZH]", sampleText);
+        Assert.Contains("[JA]", sampleText);
+        Assert.Contains("[KO]", sampleText);
+        Assert.Contains("[EN]", sampleText);
+        Assert.Contains("天地玄黄", sampleText);
+        Assert.Contains("いろはにほへと", sampleText);
+        Assert.Contains("다람쥐", sampleText);
+        Assert.Contains("The quick brown fox jumps over the lazy dog.", sampleText);
+        // 5. 光标闪烁驱动与生命周期断言：
+        // 5.1 必须读取 Font.CursorBlink 属性
+        Assert.Contains("Font?.CursorBlink", csText);
+        // 5.2 必须使用 DispatcherTimer 设置 ≈530ms 周期并切换 Renderer.CursorVisible
+        Assert.Contains("TimeSpan.FromMilliseconds(530)", csText);
+        Assert.Contains("renderer.CursorVisible = visible", csText);
+        Assert.Contains("_cursorBlinkPhase = !_cursorBlinkPhase;", csText);
+        // 5.3 在 CleanupTerminalControl 中停止并释放计时器
+        int cleanupIndex = csText.IndexOf("private void CleanupTerminalControl()", StringComparison.Ordinal);
+        int stopInCleanupIndex = csText.IndexOf("StopCursorBlink();", cleanupIndex, StringComparison.Ordinal);
+        Assert.True(cleanupIndex >= 0, "必须存在 CleanupTerminalControl 方法");
+        Assert.True(stopInCleanupIndex > cleanupIndex, "CleanupTerminalControl 必须调用 StopCursorBlink 停止并解绑计时器");
+        // 5.4 Renderer 尚未就绪（未挂载）时安全防护，并在 OnTerminalLoaded 中触发启动
+        Assert.Contains("if (_terminalControl?.Renderer == null)", csText);
+        int loadedIndex = csText.IndexOf("private void OnTerminalLoaded()", StringComparison.Ordinal);
+        int blinkInLoadedIndex = csText.IndexOf("ApplyCursorBlink();", loadedIndex, StringComparison.Ordinal);
+        Assert.True(loadedIndex >= 0, "必须存在 OnTerminalLoaded 方法");
+        Assert.True(blinkInLoadedIndex > loadedIndex, "OnTerminalLoaded 必须在挂载就绪后调用 ApplyCursorBlink");
+    }
+
+    [Fact]
+    public void TerminalShellPreviewView_WithoutVisualTree_DoesNotThrow()
+    {
+        // 针对未挂载/无可视化树时的实例化与属性更新契约：
+        // Profile 为 null、Font 为 null 或包含 CursorBlink = true 时，不得抛出 NRE
+        var view = new Kei.Term.App.Views.Controls.TerminalShellPreviewView();
+
+        var snapshotWithBlink = new TerminalFontSnapshot(
+            fontFamily: "Noto Sans Mono",
+            fallbackFonts: [],
+            fontSize: 14.0,
+            cursorBlink: true);
+
+        // 未进入可视化树时，_terminalControl 为 null，直接更新 Font/Profile 不得崩溃
+        view.Font = snapshotWithBlink;
+        view.Profile = new TerminalProfile();
+        view.Font = null;
+        view.Profile = null;
+    }
+
+    [Fact]
+    public void TerminalShellPreviewView_StopCursorBlink_CleansUpTimerAndNullsField()
+    {
+        var view = new Kei.Term.App.Views.Controls.TerminalShellPreviewView();
+
+        var timerField = typeof(Kei.Term.App.Views.Controls.TerminalShellPreviewView)
+            .GetField("_cursorBlinkTimer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        Assert.NotNull(timerField);
+
+        // 人工模拟计时器已创建并运行
+        var dummyTimer = new Avalonia.Threading.DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(530)
+        };
+        dummyTimer.Start();
+        timerField!.SetValue(view, dummyTimer);
+
+        Assert.NotNull(timerField.GetValue(view));
+
+        // 调用私有清理方法 CleanupTerminalControl()
+        var cleanupMethod = typeof(Kei.Term.App.Views.Controls.TerminalShellPreviewView)
+            .GetMethod("CleanupTerminalControl", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        Assert.NotNull(cleanupMethod);
+        cleanupMethod!.Invoke(view, null);
+
+        // 真实断言：停表后计时器字段必须为 null 且已停止，杜绝计时器泄漏
+        var afterCleanup = timerField.GetValue(view);
+        Assert.Null(afterCleanup);
+        Assert.False(dummyTimer.IsEnabled);
     }
 }
