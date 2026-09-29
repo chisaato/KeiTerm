@@ -14,19 +14,35 @@ using Kei.Term.Core.Models;
 
 public partial class ScpRemoteFileSystem : IRemoteFileSystem
 {
-    private readonly ScpClient _scpClient;
-    private readonly SshClient _sshCommandClient;
+    private readonly SshDialer _dialer;
     private readonly ILogger _logger;
+    private ScpClient? _scp;
+    private SshClient? _exec;
     private bool _isDisposed;
 
-    public bool IsConnected => !_isDisposed && _scpClient.IsConnected && _sshCommandClient.IsConnected;
+    public bool IsConnected => !_isDisposed && _scp is { IsConnected: true } && _exec is { IsConnected: true };
     public string WorkingDirectory { get; private set; } = ".";
 
+    private ScpClient _scpClient => _scp ?? throw new InvalidOperationException("SCP 客户端尚未连接");
+    private SshClient _sshCommandClient => _exec ?? throw new InvalidOperationException("SCP 辅助通道尚未连接");
+
+    // 兼容构造：直连、不做主机密钥校验
     public ScpRemoteFileSystem(ConnectionInfo connectionInfo, ILogger? logger = null)
+        : this(
+            new SshDialer(
+                new SshTarget(connectionInfo.Host, connectionInfo.Port, connectionInfo.Username, connectionInfo.AuthenticationMethods.ToArray()),
+                [],
+                null,
+                new SshClientOptions(connectionInfo.Timeout, TimeSpan.Zero, null),
+                logger ?? NullLogger.Instance),
+            logger)
     {
+    }
+
+    internal ScpRemoteFileSystem(SshDialer dialer, ILogger? logger)
+    {
+        _dialer = dialer;
         _logger = logger ?? NullLogger.Instance;
-        _scpClient = new ScpClient(connectionInfo, RemotePathTransformation.ShellQuote);
-        _sshCommandClient = new SshClient(connectionInfo);
     }
 
     public async Task ConnectAsync(CancellationToken ct = default)
@@ -34,8 +50,10 @@ public partial class ScpRemoteFileSystem : IRemoteFileSystem
         ThrowIfDisposed();
         if (IsConnected) return;
 
-        await _scpClient.ConnectAsync(ct);
-        await _sshCommandClient.ConnectAsync(ct);
+        _scp?.Dispose();
+        _exec?.Dispose();
+        _scp = await _dialer.ConnectClientAsync(info => new ScpClient(info, RemotePathTransformation.ShellQuote), ct);
+        _exec = await _dialer.ConnectClientAsync(info => new SshClient(info), ct);
         _logger.LogInformation("SCP & Exec 辅助通道已建立");
 
         // 获取远程工作目录 pwd
@@ -61,7 +79,7 @@ public partial class ScpRemoteFileSystem : IRemoteFileSystem
 
         string target = string.IsNullOrWhiteSpace(path) ? WorkingDirectory : path;
         // 使用标准 ls -la 命令辅助获取目录列表
-        string commandText = $"ls -la --time-style=+%s \"{EscapePath(target)}\" 2>/dev/null || ls -la \"{EscapePath(target)}\"";
+        string commandText = $"ls -la --time-style=+%s -- {ShellQuote(target)} 2>/dev/null || ls -la -- {ShellQuote(target)}";
         var cmd = _sshCommandClient.CreateCommand(commandText);
 
         string output = await Task.Run(() => cmd.Execute(), ct);
@@ -115,7 +133,7 @@ public partial class ScpRemoteFileSystem : IRemoteFileSystem
         ThrowIfDisposed();
         EnsureConnected();
 
-        string cmdText = isDirectory ? $"rm -rf \"{EscapePath(path)}\"" : $"rm -f \"{EscapePath(path)}\"";
+        string cmdText = isDirectory ? $"rm -rf -- {ShellQuote(path)}" : $"rm -f -- {ShellQuote(path)}";
         var cmd = _sshCommandClient.CreateCommand(cmdText);
         await Task.Run(() => cmd.Execute(), ct);
     }
@@ -125,7 +143,7 @@ public partial class ScpRemoteFileSystem : IRemoteFileSystem
         ThrowIfDisposed();
         EnsureConnected();
 
-        string cmdText = $"mv \"{EscapePath(oldPath)}\" \"{EscapePath(newPath)}\"";
+        string cmdText = $"mv -- {ShellQuote(oldPath)} {ShellQuote(newPath)}";
         var cmd = _sshCommandClient.CreateCommand(cmdText);
         await Task.Run(() => cmd.Execute(), ct);
     }
@@ -135,7 +153,7 @@ public partial class ScpRemoteFileSystem : IRemoteFileSystem
         ThrowIfDisposed();
         EnsureConnected();
 
-        string cmdText = $"mkdir -p \"{EscapePath(path)}\"";
+        string cmdText = $"mkdir -p -- {ShellQuote(path)}";
         var cmd = _sshCommandClient.CreateCommand(cmdText);
         await Task.Run(() => cmd.Execute(), ct);
     }
@@ -146,7 +164,7 @@ public partial class ScpRemoteFileSystem : IRemoteFileSystem
         EnsureConnected();
 
         string octal = Convert.ToString(octalPermissions, 8);
-        string cmdText = $"chmod {octal} \"{EscapePath(path)}\"";
+        string cmdText = $"chmod {octal} -- {ShellQuote(path)}";
         var cmd = _sshCommandClient.CreateCommand(cmdText);
         await Task.Run(() => cmd.Execute(), ct);
     }
@@ -162,10 +180,10 @@ public partial class ScpRemoteFileSystem : IRemoteFileSystem
         return items.FirstOrDefault(i => string.Equals(i.Name, targetName, StringComparison.Ordinal));
     }
 
-    private static string EscapePath(string path)
-    {
-        return path.Replace("\"", "\\\"");
-    }
+    // POSIX 单引号转义：单引号内 $ ` \ 均不展开，内部单引号以 '\'' 拼接。
+    // 双引号包裹无法阻止 $(...) 与反引号展开，远端恶意文件名可借此在服务器上执行命令
+    internal static string ShellQuote(string path)
+        => "'" + path.Replace("'", "'\\''") + "'";
 
     private static RemoteFileItem? ParseLsLine(string line, string directory)
     {
@@ -214,27 +232,27 @@ public partial class ScpRemoteFileSystem : IRemoteFileSystem
         ObjectDisposedException.ThrowIf(_isDisposed, this);
     }
 
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
-        if (_isDisposed) return ValueTask.CompletedTask;
+        if (_isDisposed) return;
         _isDisposed = true;
 
         try
         {
-            if (_scpClient.IsConnected) _scpClient.Disconnect();
-            _scpClient.Dispose();
+            if (_scp is { IsConnected: true }) _scp.Disconnect();
+            _scp?.Dispose();
         }
         catch { }
 
         try
         {
-            if (_sshCommandClient.IsConnected) _sshCommandClient.Disconnect();
-            _sshCommandClient.Dispose();
+            if (_exec is { IsConnected: true }) _exec.Disconnect();
+            _exec?.Dispose();
         }
         catch { }
 
+        await _dialer.DisposeAsync();
         GC.SuppressFinalize(this);
-        return ValueTask.CompletedTask;
     }
 
     // 用于代理上传的临时内存写入流

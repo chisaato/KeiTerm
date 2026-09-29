@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Kei.Term.Core.Abstractions;
 using Kei.Term.Core.Models;
+using Kei.Term.Ssh.Abstractions;
 using Kei.Term.Ssh.Services;
 using Renci.SshNet;
 using Xunit;
@@ -28,14 +29,9 @@ public class SshSessionFactoryAuthTests
         null,
         new Dictionary<string, string>());
 
-    // 通过反射读取 SshNetSession 内部 SshClient 已注册的认证方法列表
+    // SshNetSession 连接前即已构建的认证方法列表
     private static IReadOnlyList<AuthenticationMethod> GetAuthMethods(SshNetSession session)
-    {
-        var field = typeof(SshNetSession).GetField("_client", BindingFlags.NonPublic | BindingFlags.Instance);
-        Assert.NotNull(field);
-        var client = (SshClient)field!.GetValue(session)!;
-        return client.ConnectionInfo.AuthenticationMethods.ToList();
-    }
+        => session.AuthenticationMethods;
 
     [Fact]
     public async Task CreateSession_ZeroMaterialsWithInteractivePrompt_RegistersKeyboardInteractive()
@@ -45,8 +41,7 @@ public class SshSessionFactoryAuthTests
         var session = (SshNetSession)await factory.CreateSessionAsync(
             Config(),
             Array.Empty<MaterializedAuthMethod>(),
-            connectTimeout: null,
-            interactivePrompt: _ => Task.FromResult<string?>(null));
+            new SshConnectOptions { InteractivePrompt = _ => Task.FromResult<string?>(null) });
 
         try
         {

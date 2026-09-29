@@ -53,8 +53,7 @@ public class ComposeModeTests
         public Task<ISshSession> CreateSessionAsync(
             ResolvedSessionConfig config,
             IReadOnlyList<MaterializedAuthMethod> methods,
-            TimeSpan? connectTimeout = null,
-            Func<string, Task<string?>>? interactivePrompt = null,
+            SshConnectOptions? options = null,
             CancellationToken ct = default)
             => throw new NotImplementedException();
 
@@ -62,7 +61,7 @@ public class ComposeModeTests
             ResolvedSessionConfig config,
             IReadOnlyList<MaterializedAuthMethod> methods,
             ISshSession? activeSession = null,
-            TimeSpan? connectTimeout = null,
+            SshConnectOptions? options = null,
             CancellationToken ct = default)
             => throw new NotImplementedException();
     }

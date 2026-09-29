@@ -1,6 +1,7 @@
 namespace Kei.Term.Core.Settings;
 
 using Kei.Term.Core.Models;
+using Kei.Term.Core.Security;
 
 public enum PanelVisibilityMode
 {
@@ -74,7 +75,10 @@ public class AppSettings
     // SSH 连接超时（秒）
     public int ConnectTimeoutSeconds { get; set; } = 15;
 
-    // SSH-Agent 设置
+    // 主机密钥校验策略：Ask（未知弹窗确认/变更强警示）| AcceptNew（TOFU）| Strict（仅已知主机）
+    public HostKeyPolicy HostKeyPolicy { get; set; } = HostKeyPolicy.Ask;
+
+    // SSH-Agent 设置；CustomAgentSocketPath 为空走系统默认，"pageant" 走 PuTTY Pageant
     public bool EnableAgentForwarding { get; set; } = false;
     public string? CustomAgentSocketPath { get; set; }
 

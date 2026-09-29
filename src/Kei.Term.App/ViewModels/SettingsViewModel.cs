@@ -218,8 +218,13 @@ public partial class SettingsViewModel : ViewModelBase
             return false;
         }
 
+        // 本页不编辑的字段一律沿用当前值：整对象重建时漏列即被重置为默认（曾导致文件侧栏位置、轮询参数等保存后丢失）
+        AppSettings previous = _settingsService.Current;
         AppSettings settings = new AppSettings
         {
+            UiFontSize = previous.UiFontSize,
+            HostKeyPolicy = previous.HostKeyPolicy,
+
             // 常规
             ConfirmBeforeClose = _general.ConfirmBeforeClose,
             TreeSortMode = _general.SelectedTreeSort?.Mode ?? "AsciiFirst",
@@ -240,8 +245,11 @@ public partial class SettingsViewModel : ViewModelBase
             FileTransfer = new FileTransferSettings
             {
                 CacheDirectory = _fileTransfer.CacheDirectory,
-                CustomEditorPath = string.Empty,
-                WatcherMode = Enum.TryParse<FileWatcherMode>(_fileTransfer.SelectedWatcherMode, out var wm) ? wm : FileWatcherMode.Auto
+                CustomEditorPath = previous.FileTransfer.CustomEditorPath,
+                WatcherMode = Enum.TryParse<FileWatcherMode>(_fileTransfer.SelectedWatcherMode, out var wm) ? wm : FileWatcherMode.Auto,
+                PollingIntervalSeconds = previous.FileTransfer.PollingIntervalSeconds,
+                WriteDebounceMilliseconds = previous.FileTransfer.WriteDebounceMilliseconds,
+                IsFileManagerOnLeft = previous.FileTransfer.IsFileManagerOnLeft
             },
 
             // 外观：主题值归一化，仅接受 Dark/System
@@ -442,6 +450,7 @@ public partial class SettingsViewModel : ViewModelBase
         ConnectTimeoutSeconds = source.ConnectTimeoutSeconds,
         EnableAgentForwarding = source.EnableAgentForwarding,
         CustomAgentSocketPath = source.CustomAgentSocketPath,
+        HostKeyPolicy = source.HostKeyPolicy,
         TabPlacement = source.TabPlacement,
         ActiveGuiProfileId = source.ActiveGuiProfileId,
         ActiveTerminalProfileId = source.ActiveTerminalProfileId,

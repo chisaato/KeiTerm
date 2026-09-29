@@ -18,6 +18,7 @@ using Kei.Term.App.Services;
 using Kei.Term.Core.Abstractions;
 using Kei.Term.Core.Models;
 using Kei.Term.Core.Models.Profiles;
+using Kei.Term.Core.Security;
 using Kei.Term.Core.Services;
 using Kei.Term.Core.Storage;
 using Kei.Term.Core.Settings;
@@ -38,6 +39,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     // 认证失败后单次弹窗重试的最大次数（总弹窗上限）
     private const int MaxAuthRetries = 3;
 
+    // 同一次连接中主机密钥人工确认的上限（防止服务器每次呈现不同密钥导致无限弹窗）
+    private const int MaxHostKeyConfirmations = 2;
+
     private readonly ITreeRepository _treeRepo;
     private readonly IIdentityRepository _identityRepo;
     private readonly IExternalEditorRepository? _editorRepo;
@@ -46,6 +50,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private readonly ISettingsService _settingsService;
     private readonly Services.ProfileManagerService? _profileManager;
     private readonly ISshSessionFactory _sshFactory;
+    private readonly HostKeyTrustService? _hostKeyTrust;
     private readonly ILogger<MainViewModel> _logger;
     private readonly ILoggerFactory? _loggerFactory;
 
@@ -201,8 +206,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         Services.ProfileManagerService? profileManager = null,
         ILogger<MainViewModel>? logger = null,
         ILoggerFactory? loggerFactory = null,
-        Action<Action>? uiDispatch = null)
+        Action<Action>? uiDispatch = null,
+        HostKeyTrustService? hostKeyTrust = null)
     {
+        _hostKeyTrust = hostKeyTrust;
         _treeRepo = treeRepo;
         _identityRepo = identityRepo;
         _editorRepo = editorRepo;
@@ -1218,7 +1225,23 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             }
         }
 
-        // 5. 先建标签（Connecting），后台线程完成创建与连接
+        // 5. 跳板链：逐跳解析配置并物化认证（每一跳都是普通会话，复用其身份）
+        IReadOnlyList<SshHop> jumpHops;
+        try
+        {
+            jumpHops = await MaterializeJumpHopsAsync(resolved);
+        }
+        catch (JumpChainException ex)
+        {
+            _logger.LogWarning("跳板链解析失败 会话={Session} 原因={Reason}", resolved.SessionName, ex.Message);
+            if (ShowNotificationAsync != null)
+            {
+                await ShowNotificationAsync(resolved.SessionName, ex.Message);
+            }
+            return;
+        }
+
+        // 6. 先建标签（Connecting），后台线程完成创建与连接
         //    有效配色：会话显式 ID → 全局默认 → 内置默认，始终走同一适配路径
         var effectiveProfile = ResolveEffectiveTerminalProfile(resolved.TerminalProfileId);
         var tab = new TerminalTabViewModel(
@@ -1234,7 +1257,82 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         SelectedTab = tab;
 
         var timeout = TimeSpan.FromSeconds(Math.Max(1, settings.ConnectTimeoutSeconds));
-        await ConnectWithRetryAsync(tab, resolved, materialized, identity, timeout);
+        await ConnectWithRetryAsync(tab, resolved, materialized, identity, timeout, jumpHops);
+    }
+
+    // 跳板逐跳物化：取不到任何材料时弹认证窗（预填该跳用户名）；用户取消则中止整条连接
+    private async Task<IReadOnlyList<SshHop>> MaterializeJumpHopsAsync(ResolvedSessionConfig resolved)
+    {
+        if (resolved.JumpHostSessionId == null)
+        {
+            return [];
+        }
+
+        var target = new SessionNode
+        {
+            Id = resolved.SessionId,
+            Name = resolved.SessionName,
+            JumpHostSessionId = resolved.JumpHostSessionId
+        };
+        Dictionary<Guid, SessionNode> sessions = _allNodesCache.OfType<SessionNode>().ToDictionary(n => n.Id);
+        IReadOnlyList<SessionNode> chain = JumpChainResolver.Resolve(
+            target,
+            id => sessions.TryGetValue(id, out SessionNode? node) ? node : null);
+
+        var hops = new List<SshHop>();
+        foreach (SessionNode jumpNode in chain)
+        {
+            ResolvedSessionConfig hopConfig = SessionConfigBuilder.Build(jumpNode, _settingsService.Current);
+            Identity? hopIdentity = await ResolveIdentityAsync(hopConfig);
+            IReadOnlyList<AuthStep> steps = AuthPlanBuilder.Plan(
+                hopIdentity?.Methods,
+                _settingsService.Current.PreferSystemAgent,
+                hopIdentity?.Username);
+            List<MaterializedAuthMethod> hopMaterials = await MaterializePlanAsync(steps, hopIdentity, hopConfig);
+
+            if (hopMaterials.Count == 0)
+            {
+                AuthPromptResult? prompt = await PromptAuthAsync(hopIdentity?.Username ?? hopConfig.Username, hopIdentity);
+                if (prompt == null)
+                {
+                    throw new JumpChainException($"已取消跳板机认证: {jumpNode.Name}");
+                }
+
+                (MaterializedAuthMethod? material, string? username) = await ResolvePromptResultAsync(prompt, hopIdentity);
+                if (!string.IsNullOrWhiteSpace(username))
+                {
+                    hopConfig = hopConfig with { Username = username.Trim() };
+                }
+                if (material != null)
+                {
+                    hopMaterials.Add(material);
+                }
+            }
+
+            _logger.LogInformation(
+                "跳板物化完成 跳板={Jump} host={Host}:{Port} 材料数={Count}",
+                jumpNode.Name,
+                hopConfig.Host,
+                hopConfig.Port,
+                hopMaterials.Count);
+            hops.Add(new SshHop(hopConfig, hopMaterials));
+        }
+
+        return hops;
+    }
+
+    private SshConnectOptions BuildConnectOptions(TimeSpan timeout, IReadOnlyList<SshHop> jumpHops)
+    {
+        AppSettings settings = _settingsService.Current;
+        return new SshConnectOptions
+        {
+            ConnectTimeout = timeout,
+            KeepAliveInterval = TimeSpan.FromSeconds(Math.Max(0, settings.KeepAliveIntervalSeconds)),
+            InteractivePrompt = BuildInteractivePrompt(),
+            HostKeyValidator = _hostKeyTrust == null ? null : _hostKeyTrust.VerifyAsync,
+            AgentSocketPath = settings.CustomAgentSocketPath,
+            JumpHosts = jumpHops
+        };
     }
 
     // 认证计划步骤的可读描述（仅类型，不含任何材料值）
@@ -1569,11 +1667,12 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         ResolvedSessionConfig resolved,
         List<MaterializedAuthMethod> materialized,
         Identity? identity,
-        TimeSpan timeout)
+        TimeSpan timeout,
+        IReadOnlyList<SshHop> jumpHops)
     {
         var promptCount = 0;
+        var hostKeyConfirmations = 0;
         var current = new List<MaterializedAuthMethod>(materialized);
-        var interactivePrompt = BuildInteractivePrompt();
 
         while (true)
         {
@@ -1595,8 +1694,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             try
             {
                 // 连接流程整体运行于后台线程，避免阻塞 UI
+                SshConnectOptions options = BuildConnectOptions(timeout, jumpHops);
                 session = await Task.Run(() =>
-                    _sshFactory.CreateSessionAsync(resolved, current, timeout, interactivePrompt, CancellationToken.None));
+                    _sshFactory.CreateSessionAsync(resolved, current, options, CancellationToken.None));
             }
             catch (Exception ex)
             {
@@ -1632,12 +1732,16 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 _logger.LogInformation("SSH 会话连接成功 host={Host}:{Port}", resolved.Host, resolved.Port);
                 tab.MarkConnected();
 
-                // 异步预准备并挂载文件管理器
+                // 异步预准备并挂载文件管理器：必须用最终认证成功的材料（重试后的 current），
+                // 而非首轮材料，否则重试输入的新密码不会用于文件通道
+                IReadOnlyList<MaterializedAuthMethod> successfulMaterials = current.ToList();
+                ResolvedSessionConfig successfulConfig = resolved;
+                SshConnectOptions fileOptions = BuildConnectOptions(timeout, jumpHops);
                 _ = Task.Run(async () =>
                 {
                     try
                     {
-                        var fs = await _sshFactory.CreateFileSystemAsync(resolved, materialized, session);
+                        var fs = await _sshFactory.CreateFileSystemAsync(successfulConfig, successfulMaterials, session, fileOptions);
                         var trackerLogger = _loggerFactory?.CreateLogger<LocalFileTracker>() ?? (_logger as ILogger);
                         var tracker = new LocalFileTracker(
                             cacheBaseDirectory: _settingsService.Current.FileTransfer.CacheDirectory,
@@ -1666,6 +1770,19 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 resolved.SessionName);
 
             await tab.DetachSessionAsync();
+
+            // 主机密钥需人工确认：在握手之外弹窗（不受连接超时约束），放行后直接重连
+            if (failure is HostKeyRejectedException { Outcome.RequiresConfirmation: true } hostKeyFailure
+                && _hostKeyTrust is { CanConfirm: true }
+                && hostKeyConfirmations < MaxHostKeyConfirmations)
+            {
+                hostKeyConfirmations++;
+                if (await _hostKeyTrust.ConfirmAsync(hostKeyFailure.Outcome.Evaluation))
+                {
+                    _logger.LogInformation("主机密钥已人工确认，重新连接 host={Host}:{Port}", resolved.Host, resolved.Port);
+                    continue;
+                }
+            }
 
             // 弹窗次数达上限或非认证类失败：终端显示失败原因
             if (promptCount >= MaxAuthRetries || !IsAuthenticationFailure(failure))
