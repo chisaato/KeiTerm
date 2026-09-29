@@ -44,6 +44,8 @@
 ```
 
 - 判断时机在**认证物化之后、建连之前**（此时已知材料种类），不在连接失败后回退，避免对服务器多次失败尝试。
+  代码位置：`ConnectionOrchestrator.ConnectAsync` 拿到 `CollectedAuth` 之后、`BuildConnectOptions` 处写入 `SshConnectOptions.ForwardAgent` / 引擎选择；
+  规则本身（输入：会话三态、材料种类、身份方法）放 Core 纯函数。
 - 另留一个高级设置「SSH 引擎：自动 / 强制 SSH.NET / 强制 Tmds.Ssh」，便于排障与日后评估整体迁移。
 
 ## 4. 代码落点（接入时）
