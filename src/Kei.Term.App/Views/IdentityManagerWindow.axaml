@@ -5,20 +5,29 @@
         xmlns:loc="using:Kei.Term.App.Helpers"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="680" d:DesignHeight="480"
+        mc:Ignorable="d" d:DesignWidth="680" d:DesignHeight="380"
         x:Class="Kei.Term.App.Views.IdentityManagerWindow"
         x:DataType="vm:IdentityManagerViewModel"
         Title="{loc:KeiString IdentityManager.Title}"
-        Width="700" Height="500"
+        Width="700" Height="380"
         WindowStartupLocation="CenterOwner"
         Background="#1E1E1E">
 
-    <Grid RowDefinitions="Auto, Auto, *, Auto" Margin="16">
+    <Window.Styles>
+        <!-- 紧凑列表项内距，消除 Fluent 默认过大的垂直留白 -->
+        <Style Selector="ListBoxItem">
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="MinHeight" Value="32"/>
+        </Style>
+    </Window.Styles>
+
+    <!-- 紧凑边距布局：上下留白收至 12px，外框更贴合内容 -->
+    <Grid RowDefinitions="Auto, Auto, *, Auto" Margin="14,12">
 
         <!-- 明文写入警示横幅：条件 = Vault 当前为明文模式（未初始化或已选明文） -->
         <Border Grid.Row="0" IsVisible="{Binding IsPlainMode}"
                 Background="#3A2E12" BorderBrush="#6B5316" BorderThickness="1"
-                CornerRadius="4" Padding="10,6" Margin="0,0,0,10">
+                CornerRadius="4" Padding="10,5" Margin="0,0,0,8">
             <Grid ColumnDefinitions="*, Auto" ColumnSpacing="10">
                 <TextBlock Grid.Column="0" Text="{loc:KeiString IdentityManager.PlainWarning}"
                            Foreground="#E0A030" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center"/>
@@ -28,7 +37,7 @@
         </Border>
 
         <!-- 顶部操作栏 -->
-        <Border Grid.Row="1" Margin="0,0,0,12">
+        <Border Grid.Row="1" Margin="0,0,0,8">
             <StackPanel Orientation="Horizontal" Spacing="8">
                 <Button Content="{loc:KeiString IdentityManager.NewIdentity}" Command="{Binding AddIdentityCommand}"
                         Background="#2D2D2D" Foreground="#E1E1E1"/>
@@ -49,7 +58,7 @@
             <ListBox ItemsSource="{Binding Identities}" SelectedItem="{Binding SelectedIdentity}" Background="Transparent">
                 <ListBox.ItemTemplate>
                     <DataTemplate x:DataType="vault:Identity">
-                        <Grid ColumnDefinitions="*, 180, 90" Margin="4">
+                        <Grid ColumnDefinitions="*, 180, 90" Margin="0,2">
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="#4EC9B0"/>
                                 <TextBlock Text="{Binding Description}" Foreground="#888888" FontSize="11"/>
@@ -69,7 +78,7 @@
         </Border>
 
         <!-- 底部说明 -->
-        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,12,0,0" HorizontalAlignment="Right">
+        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,8,0,0" HorizontalAlignment="Right">
             <TextBlock Text="{loc:KeiString IdentityManager.OrderHint}" Foreground="#888888" FontSize="11"
                        VerticalAlignment="Center" Margin="0,0,12,0"/>
             <Button Content="{loc:KeiString Common.Close}" Click="CloseButton_Click" Width="80" HorizontalContentAlignment="Center"/>

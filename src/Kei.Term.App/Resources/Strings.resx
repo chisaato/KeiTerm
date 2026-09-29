@@ -1089,6 +1089,9 @@
   <data name="IdentityEdit.VaultKeyMaterial" xml:space="preserve">
     <value>私钥材料:</value>
   </data>
+  <data name="IdentityEdit.Fingerprint" xml:space="preserve">
+    <value>指纹:</value>
+  </data>
   <data name="IdentityEdit.ImportVaultKey" xml:space="preserve">
     <value>导入私钥…</value>
   </data>
