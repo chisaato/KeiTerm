@@ -34,25 +34,8 @@ internal static class PrivateKeyImport
         }
     }
 
-    // 文本特征判断私钥是否需要口令（不引入 SSH 依赖）
-    public static bool DetectEncrypted(string content)
-    {
-        // PKCS#8 加密私钥
-        if (content.Contains("ENCRYPTED PRIVATE KEY", StringComparison.Ordinal))
-        {
-            return true;
-        }
-
-        // 传统 OpenSSH/PEM 加密头
-        if (content.Contains("Proc-Type: 4,ENCRYPTED", StringComparison.Ordinal)
-            || content.Contains("DEK-Info:", StringComparison.Ordinal))
-        {
-            return true;
-        }
-
-        // OpenSSH 新格式（openssh-key-v1）加密私钥的 KDF 名固定为 bcrypt
-        return content.Contains("bcrypt", StringComparison.OrdinalIgnoreCase);
-    }
+    // 是否需要口令：委托 Core 按格式解析（OpenSSH 新格式需解码后读 ciphername）
+    public static bool DetectEncrypted(string content) => PrivateKeyFormat.IsEncrypted(content);
 
     // UTF-8 字节数（用于材料大小展示）
     public static int ByteCount(string content) => Encoding.UTF8.GetByteCount(content);

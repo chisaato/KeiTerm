@@ -15,6 +15,7 @@ using Kei.Term.App.Helpers;
 using Kei.Term.App.Logging;
 using Kei.Term.App.Models;
 using Kei.Term.App.Services;
+using Kei.Term.App.Services.Connection;
 using Kei.Term.Core.Abstractions;
 using Kei.Term.Core.Models;
 using Kei.Term.Core.Models.Profiles;
@@ -34,20 +35,13 @@ public enum ComposeMode
     MultiLine
 }
 
-public partial class MainViewModel : ViewModelBase, IAsyncDisposable
+public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectionHost
 {
-    // 认证失败后单次弹窗重试的最大次数（总弹窗上限）
-    private const int MaxAuthRetries = 3;
-
-    // 同一次连接中主机密钥人工确认的上限（防止服务器每次呈现不同密钥导致无限弹窗）
-    private const int MaxHostKeyConfirmations = 2;
-
     private readonly ITreeRepository _treeRepo;
     private readonly IIdentityRepository _identityRepo;
     private readonly IExternalEditorRepository? _editorRepo;
     private readonly ISettingsService _settingsService;
     private readonly Services.ProfileManagerService? _profileManager;
-    private readonly ISshSessionFactory _sshFactory;
     private readonly HostKeyTrustService? _hostKeyTrust;
     private readonly ILogger<MainViewModel> _logger;
     private readonly ILoggerFactory? _loggerFactory;
@@ -153,6 +147,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     // Vault 会话（懒解锁、材料读写、口令缓存、空闲锁定判定）
     public VaultSessionService VaultSession { get; }
 
+    // 连接编排（认证收集 → 跳板 → 建连重试 → 主机密钥确认 → 文件侧栏）
+    private readonly ConnectionOrchestrator _connections;
+
     // 当前设置快照（供快速连接窗口取默认端口/用户名等）
     public AppSettings CurrentSettings => _settingsService.Current;
 
@@ -176,7 +173,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         _editorRepo = editorRepo;
         _profileManager = profileManager;
         _settingsService = settingsService;
-        _sshFactory = sshFactory;
         _logger = logger ?? NullLogger<MainViewModel>.Instance;
         _loggerFactory = loggerFactory;
         _uiDispatch = uiDispatch ?? DefaultUiDispatch;
@@ -186,6 +182,19 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             settingsService,
             () => Interaction,
             loggerFactory?.CreateLogger<VaultSessionService>());
+        _connections = new ConnectionOrchestrator(
+            sshFactory,
+            new AuthMaterialCollector(
+                identityRepo,
+                settingsService,
+                VaultSession,
+                () => Interaction,
+                loggerFactory?.CreateLogger<AuthMaterialCollector>()),
+            hostKeyTrust,
+            settingsService,
+            () => Interaction,
+            _uiDispatch,
+            loggerFactory?.CreateLogger<ConnectionOrchestrator>());
 
         // 标签集合变化时同步 HasTabs，控制标签条显隐
         Tabs.CollectionChanged += (_, _) => HasTabs = Tabs.Count > 0;
@@ -985,7 +994,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             ? null
             : new MaterializedAuthMethod(AuthMaterialKind.Password, new SecretPayload { Password = password });
 
-        await OpenResolvedAsync(resolved, useIdentity: false, preloaded);
+        await _connections.ConnectAsync(new ConnectionRequest(resolved, UseIdentity: false, preloaded), this);
     }
 
     // 断开当前标签（无选中标签时禁用）
@@ -1031,619 +1040,31 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         _logger.LogInformation("发起会话连接 会话={Session} 绑定身份={IdentityId}", sessionNode.Name, sessionNode.IdentityId);
         // 扁平解析：会话自身 → 全局设置 → 内建兜底（IdentityId 已在解析中回退到全局默认身份）
         var resolved = SessionConfigBuilder.Build(sessionNode, _settingsService.Current);
-        await OpenResolvedAsync(resolved, useIdentity: true, preloaded: null);
+        await _connections.ConnectAsync(new ConnectionRequest(resolved, UseIdentity: true), this);
     });
 
-    // 弹统一认证窗（完整模式）；identity 提供保管库密钥下拉项
-    private async Task<AuthPromptResult?> PromptAuthAsync(
-        string prefillUsername,
-        Identity? identity,
-        AuthPromptMethod? defaultMethod = null)
+    // IConnectionHost：按解析后的配置新建标签（Connecting 态）并选中
+    IConnectionTarget IConnectionHost.OpenTab(ResolvedSessionConfig config)
     {
-        var result = await Interaction.PromptAuthAsync(prefillUsername, BuildVaultKeyOptions(identity), defaultMethod);
-        _logger.LogInformation(
-            "认证窗结果 方法={Method} 用户名={Username}",
-            result?.Method.ToString() ?? "取消",
-            result?.Username ?? "(空)");
-        return result;
-    }
-
-    // 当前身份中已配置的 Vault 私钥方法 → 认证窗「保管库密钥」下拉项
-    private static IReadOnlyList<VaultKeyOption> BuildVaultKeyOptions(Identity? identity)
-    {
-        if (identity == null)
-        {
-            return [];
-        }
-
-        var options = new List<VaultKeyOption>();
-        var index = 0;
-        foreach (var method in identity.Methods.OfType<VaultPrivateKeyMethod>())
-        {
-            index++;
-            options.Add(new VaultKeyOption(method.Id, string.Format(Strings.Get("Status.Vault.KeyOptionFormat"), identity.Name, index)));
-        }
-
-        return options;
-    }
-
-    // 认证窗结果 → 认证材料；Interactive 返回零材料（交由 KI 桥应答）
-    private async Task<(MaterializedAuthMethod? Material, string? Username)> ResolvePromptResultAsync(
-        AuthPromptResult result,
-        Identity? identity)
-    {
-        switch (result.Method)
-        {
-            case AuthPromptMethod.Password:
-                return (
-                    new MaterializedAuthMethod(AuthMaterialKind.Password, new SecretPayload { Password = result.Password ?? string.Empty }),
-                    result.Username);
-
-            case AuthPromptMethod.PublicKeyFile:
-            {
-                if (string.IsNullOrWhiteSpace(result.KeyFilePath))
-                {
-                    return (null, result.Username);
-                }
-
-                var file = await PrivateKeyImport.ReadAsync(result.KeyFilePath);
-                if (file == null)
-                {
-                    return (null, result.Username);
-                }
-
-                return (
-                    new MaterializedAuthMethod(
-                        AuthMaterialKind.PrivateKey,
-                        new SecretPayload { PrivateKeyContent = file.Content, Passphrase = result.Passphrase }),
-                    result.Username);
-            }
-
-            case AuthPromptMethod.PublicKeyVault:
-            {
-                if (identity == null || result.VaultMethodId == null)
-                {
-                    return (null, result.Username);
-                }
-
-                var secrets = await VaultSession.LoadIdentitySecretsAsync(identity.Id);
-                if (!secrets.TryGetValue(result.VaultMethodId.Value.ToString(), out var payload)
-                    || string.IsNullOrEmpty(payload.PrivateKeyContent))
-                {
-                    return (null, result.Username);
-                }
-
-                return (new MaterializedAuthMethod(AuthMaterialKind.PrivateKey, payload), result.Username);
-            }
-
-            case AuthPromptMethod.Interactive:
-            default:
-                // 交互式：零材料，连接时由 KI 桥逐条问答
-                return (null, result.Username);
-        }
-    }
-
-    // 解析认证主体：会话/全局解析出的 IdentityId → 身份库；找不到返回 null
-    private async Task<Identity?> ResolveIdentityAsync(ResolvedSessionConfig resolved)
-    {
-        var identityId = resolved.IdentityId ?? _settingsService.Current.DefaultIdentityId;
-        if (identityId == null)
-        {
-            _logger.LogInformation("认证主体解析=无身份（未绑定且无全局默认）");
-            return null;
-        }
-
-        var fromSession = resolved.IdentityId != null;
-        var identity = await _identityRepo.GetByIdAsync(identityId.Value);
-        _logger.LogInformation(
-            "认证主体解析 来源={Source} 身份Id={IdentityId} 命中={Hit}",
-            fromSession ? "会话绑定" : "全局默认",
-            identityId,
-            identity != null);
-        return identity;
-    }
-
-    // 统一认证管线：解析主体 → 构建计划 → 物化（UI 弹窗）→ 建标签 → 后台连接
-    private async Task OpenResolvedAsync(
-        ResolvedSessionConfig resolved,
-        bool useIdentity,
-        MaterializedAuthMethod? preloaded)
-    {
-        var settings = _settingsService.Current;
-
-        // 1. 认证主体：会话绑定 → 全局默认 → 无
-        var identity = useIdentity ? await ResolveIdentityAsync(resolved) : null;
-
-        // 2. 认证尝试序列（显式方法 → Agent 兜底 → 单次弹窗兜底）
-        var steps = AuthPlanBuilder.Plan(identity?.Methods, settings.PreferSystemAgent, identity?.Username);
-        _logger.LogInformation(
-            "认证计划 host={Host}:{Port} 会话={Session} 身份={Identity} 步骤={Steps}",
-            resolved.Host,
-            resolved.Port,
-            resolved.SessionName,
-            identity?.Name ?? "(无)",
-            string.Join(" -> ", steps.Select(DescribeAuthStep)));
-
-        // 3. 方法物化：取 Vault 材料/读文件/问口令/交互弹窗（均在本 UI 线程上下文完成）
-        var materialized = new List<MaterializedAuthMethod>();
-        if (preloaded != null)
-        {
-            materialized.Add(preloaded);
-        }
-        materialized.AddRange(await MaterializePlanAsync(steps, identity, resolved));
-        _logger.LogInformation(
-            "认证材料物化完成 材料数={Count} 类型={Kinds}",
-            materialized.Count,
-            string.Join(",", materialized.Select(m => m.Kind)));
-
-        // 4. 无任何可用材料 → 主动弹统一认证窗兜底；取消则不建标签直接中止。
-        //    选择「交互式」时材料为空，仍继续连接（由 KI 桥逐条问答）。
-        if (materialized.Count == 0)
-        {
-            var fallback = await PromptAuthAsync(identity?.Username ?? resolved.Username, identity);
-            if (fallback == null)
-            {
-                return;
-            }
-
-            var (fallbackMaterial, fallbackUsername) = await ResolvePromptResultAsync(fallback, identity);
-            if (!string.IsNullOrWhiteSpace(fallbackUsername))
-            {
-                resolved = resolved with { Username = fallbackUsername.Trim() };
-            }
-            if (fallbackMaterial != null)
-            {
-                materialized.Add(fallbackMaterial);
-            }
-        }
-
-        // 5. 跳板链：逐跳解析配置并物化认证（每一跳都是普通会话，复用其身份）
-        IReadOnlyList<SshHop> jumpHops;
-        try
-        {
-            jumpHops = await MaterializeJumpHopsAsync(resolved);
-        }
-        catch (JumpChainException ex)
-        {
-            _logger.LogWarning("跳板链解析失败 会话={Session} 原因={Reason}", resolved.SessionName, ex.Message);
-            await Interaction.NotifyAsync(resolved.SessionName, ex.Message);
-            return;
-        }
-
-        // 6. 先建标签（Connecting），后台线程完成创建与连接
-        //    有效配色：会话显式 ID → 全局默认 → 内置默认，始终走同一适配路径
-        var effectiveProfile = ResolveEffectiveTerminalProfile(resolved.TerminalProfileId);
+        // 有效配色：会话显式 ID → 全局默认 → 内置默认，始终走同一适配路径
+        TerminalProfile effectiveProfile = ResolveEffectiveTerminalProfile(config.TerminalProfileId);
         var tab = new TerminalTabViewModel(
-            resolved.SessionName,
-            BuildAppliedFontSnapshot(settings),
+            config.SessionName,
+            BuildAppliedFontSnapshot(_settingsService.Current),
             effectiveProfile,
-            resolved.TerminalProfileId,
+            config.TerminalProfileId,
             _logger);
         // 构造只记录状态，此处显式注入配色（新标签立即生效）
         tab.ApplyTerminalProfile(effectiveProfile);
         Tabs.Add(tab);
         tab.CloseRequested += OnTabCloseRequested;
         SelectedTab = tab;
-
-        var timeout = TimeSpan.FromSeconds(Math.Max(1, settings.ConnectTimeoutSeconds));
-        await ConnectWithRetryAsync(tab, resolved, materialized, identity, timeout, jumpHops);
+        return new TerminalTabConnectionTarget(tab, _settingsService, _editorRepo, _loggerFactory);
     }
 
-    // 跳板逐跳物化：取不到任何材料时弹认证窗（预填该跳用户名）；用户取消则中止整条连接
-    private async Task<IReadOnlyList<SshHop>> MaterializeJumpHopsAsync(ResolvedSessionConfig resolved)
-    {
-        if (resolved.JumpHostSessionId == null)
-        {
-            return [];
-        }
-
-        var target = new SessionNode
-        {
-            Id = resolved.SessionId,
-            Name = resolved.SessionName,
-            JumpHostSessionId = resolved.JumpHostSessionId
-        };
-        Dictionary<Guid, SessionNode> sessions = _allNodesCache.OfType<SessionNode>().ToDictionary(n => n.Id);
-        IReadOnlyList<SessionNode> chain = JumpChainResolver.Resolve(
-            target,
-            id => sessions.TryGetValue(id, out SessionNode? node) ? node : null);
-
-        var hops = new List<SshHop>();
-        foreach (SessionNode jumpNode in chain)
-        {
-            ResolvedSessionConfig hopConfig = SessionConfigBuilder.Build(jumpNode, _settingsService.Current);
-            Identity? hopIdentity = await ResolveIdentityAsync(hopConfig);
-            IReadOnlyList<AuthStep> steps = AuthPlanBuilder.Plan(
-                hopIdentity?.Methods,
-                _settingsService.Current.PreferSystemAgent,
-                hopIdentity?.Username);
-            List<MaterializedAuthMethod> hopMaterials = await MaterializePlanAsync(steps, hopIdentity, hopConfig);
-
-            if (hopMaterials.Count == 0)
-            {
-                AuthPromptResult? prompt = await PromptAuthAsync(hopIdentity?.Username ?? hopConfig.Username, hopIdentity);
-                if (prompt == null)
-                {
-                    throw new JumpChainException($"已取消跳板机认证: {jumpNode.Name}");
-                }
-
-                (MaterializedAuthMethod? material, string? username) = await ResolvePromptResultAsync(prompt, hopIdentity);
-                if (!string.IsNullOrWhiteSpace(username))
-                {
-                    hopConfig = hopConfig with { Username = username.Trim() };
-                }
-                if (material != null)
-                {
-                    hopMaterials.Add(material);
-                }
-            }
-
-            _logger.LogInformation(
-                "跳板物化完成 跳板={Jump} host={Host}:{Port} 材料数={Count}",
-                jumpNode.Name,
-                hopConfig.Host,
-                hopConfig.Port,
-                hopMaterials.Count);
-            hops.Add(new SshHop(hopConfig, hopMaterials));
-        }
-
-        return hops;
-    }
-
-    private SshConnectOptions BuildConnectOptions(TimeSpan timeout, IReadOnlyList<SshHop> jumpHops)
-    {
-        AppSettings settings = _settingsService.Current;
-        return new SshConnectOptions
-        {
-            ConnectTimeout = timeout,
-            KeepAliveInterval = TimeSpan.FromSeconds(Math.Max(0, settings.KeepAliveIntervalSeconds)),
-            InteractivePrompt = BuildInteractivePrompt(),
-            HostKeyVerifier = _hostKeyTrust,
-            AgentSocketPath = settings.CustomAgentSocketPath,
-            JumpHosts = jumpHops
-        };
-    }
-
-    // 认证计划步骤的可读描述（仅类型，不含任何材料值）
-    private static string DescribeAuthStep(AuthStep step) => step switch
-    {
-        MethodStep methodStep => $"Method:{methodStep.Method.GetType().Name}",
-        AgentFallbackStep => "AgentFallback",
-        SingleUsePromptStep => "SingleUsePrompt",
-        _ => step.GetType().Name,
-    };
-
-    // 逐步物化认证计划；SingleUsePromptStep 不在此预先打扰用户，留作失败回弹
-    private async Task<List<MaterializedAuthMethod>> MaterializePlanAsync(
-        IReadOnlyList<AuthStep> steps,
-        Identity? identity,
-        ResolvedSessionConfig resolved)
-    {
-        var results = new List<MaterializedAuthMethod>();
-
-        // identity_secrets 整包材料缓存（按 methodId 字符串键控）
-        Dictionary<string, SecretPayload>? secrets = null;
-
-        async Task EnsureSecretsAsync()
-        {
-            if (identity == null)
-            {
-                return;
-            }
-
-            secrets ??= await VaultSession.LoadIdentitySecretsAsync(identity.Id);
-        }
-
-        var context = new AuthMaterializerContext
-        {
-            ReadPrivateKeyFileAsync = ReadPrivateKeyFileAsync,
-            Logger = _logger,
-            GetSessionPassphrase = VaultSession.GetSessionPassphrase,
-            GetVaultSecret = methodId =>
-                secrets != null && secrets.TryGetValue(methodId.ToString(), out var payload) ? payload : null,
-            PromptPassphraseAsync = (method, _) => VaultSession.PromptPassphraseAsync(method),
-            SaveVaultSecretAsync = async (methodId, payload) =>
-            {
-                if (identity == null)
-                {
-                    return;
-                }
-
-                await VaultSession.PersistSecretAsync(identity.Id, methodId, payload);
-                // 同步内存副本，后续同一连接内读取命中
-                secrets ??= new Dictionary<string, SecretPayload>();
-                secrets[methodId.ToString()] = payload;
-            },
-            PromptInteractiveAsync = async (method, username, ct) =>
-            {
-                // Interactive 方法：以交互式为默认项弹完整认证窗，取消则跳过该方法
-                var prompt = await PromptAuthAsync(username, identity, AuthPromptMethod.Interactive);
-                return prompt == null
-                    ? null
-                    : new SecretPayload { Password = prompt.Password ?? string.Empty };
-            },
-        };
-
-        foreach (var step in steps)
-        {
-            switch (step)
-            {
-                case MethodStep methodStep:
-                    await EnsureSecretsAsync();
-                    var material = await AuthMaterializer.MaterializeAsync(methodStep.Method, resolved.Username, context);
-                    if (material != null)
-                    {
-                        results.Add(material);
-                    }
-                    break;
-
-                case AgentFallbackStep:
-                    // 无身份且全局允许时，注入 Agent 全量身份尝试
-                    results.Add(new MaterializedAuthMethod(AuthMaterialKind.Agent, null));
-                    break;
-
-                case SingleUsePromptStep:
-                    // 失败回弹兜底，连接阶段处理
-                    break;
-            }
-        }
-
-        return results;
-    }
-
-    // 读取私钥文件并探测是否需要口令（不引入 SSH 依赖，按文件头特征判断）
-    private static Task<FileKeyReadResult?> ReadPrivateKeyFileAsync(string path, CancellationToken ct)
-    {
-        return Task.Run<FileKeyReadResult?>(async () =>
-        {
-            try
-            {
-                if (!File.Exists(path))
-                {
-                    return null;
-                }
-
-                var content = await File.ReadAllTextAsync(path, ct);
-                if (string.IsNullOrWhiteSpace(content))
-                {
-                    return null;
-                }
-
-                return new FileKeyReadResult(content, DetectEncryptedPrivateKey(content));
-            }
-            catch
-            {
-                // 不存在/不可读 → 跳过该方法
-                return null;
-            }
-        }, ct);
-    }
-
-    private static bool DetectEncryptedPrivateKey(string content)
-    {
-        // PKCS#8 加密私钥
-        if (content.Contains("ENCRYPTED PRIVATE KEY", StringComparison.Ordinal))
-        {
-            return true;
-        }
-
-        // 传统 OpenSSH/PEM 加密头
-        if (content.Contains("Proc-Type: 4,ENCRYPTED", StringComparison.Ordinal)
-            || content.Contains("DEK-Info:", StringComparison.Ordinal))
-        {
-            return true;
-        }
-
-        // OpenSSH 新格式（openssh-key-v1）加密私钥的 KDF 名固定为 bcrypt
-        return content.Contains("bcrypt", StringComparison.OrdinalIgnoreCase);
-    }
-
-    // SSH 连接：后台线程执行，认证失败经 Dispatcher 回弹统一认证窗重试（上限 3 次）
-    private async Task ConnectWithRetryAsync(
-        TerminalTabViewModel tab,
-        ResolvedSessionConfig resolved,
-        List<MaterializedAuthMethod> materialized,
-        Identity? identity,
-        TimeSpan timeout,
-        IReadOnlyList<SshHop> jumpHops)
-    {
-        var promptCount = 0;
-        var hostKeyConfirmations = 0;
-        var current = new List<MaterializedAuthMethod>(materialized);
-
-        while (true)
-        {
-            if (tab.IsDisposed)
-            {
-                return;
-            }
-
-            ISshSession? session = null;
-            Exception? failure = null;
-
-            _logger.LogInformation(
-                "创建 SSH 会话 host={Host}:{Port} 会话={Session} 材料数={Count}",
-                resolved.Host,
-                resolved.Port,
-                resolved.SessionName,
-                current.Count);
-
-            try
-            {
-                // 连接流程整体运行于后台线程，避免阻塞 UI
-                SshConnectOptions options = BuildConnectOptions(timeout, jumpHops);
-                session = await Task.Run(() =>
-                    _sshFactory.CreateSessionAsync(resolved, current, options, CancellationToken.None));
-            }
-            catch (Exception ex)
-            {
-                failure = ex;
-            }
-
-            if (session != null)
-            {
-                if (tab.IsDisposed)
-                {
-                    await session.DisposeAsync();
-                    return;
-                }
-
-                // 端点挂载必须在 UI 线程完成
-                tab.AttachSession(session);
-
-                await Task.Run(async () =>
-                {
-                    try
-                    {
-                        await session.ConnectAsync();
-                    }
-                    catch (Exception ex)
-                    {
-                        failure = ex;
-                    }
-                });
-            }
-
-            if (failure == null)
-            {
-                _logger.LogInformation("SSH 会话连接成功 host={Host}:{Port}", resolved.Host, resolved.Port);
-                tab.MarkConnected();
-
-                // 异步预准备并挂载文件管理器：必须用最终认证成功的材料（重试后的 current），
-                // 而非首轮材料，否则重试输入的新密码不会用于文件通道
-                IReadOnlyList<MaterializedAuthMethod> successfulMaterials = current.ToList();
-                ResolvedSessionConfig successfulConfig = resolved;
-                SshConnectOptions fileOptions = BuildConnectOptions(timeout, jumpHops);
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        var fs = await _sshFactory.CreateFileSystemAsync(successfulConfig, successfulMaterials, session, fileOptions);
-                        var trackerLogger = _loggerFactory?.CreateLogger<LocalFileTracker>() ?? (_logger as ILogger);
-                        var tracker = new LocalFileTracker(
-                            cacheBaseDirectory: _settingsService.Current.FileTransfer.CacheDirectory,
-                            mode: _settingsService.Current.FileTransfer.WatcherMode,
-                            pollingIntervalSeconds: _settingsService.Current.FileTransfer.PollingIntervalSeconds,
-                            writeDebounceMilliseconds: _settingsService.Current.FileTransfer.WriteDebounceMilliseconds,
-                            logger: trackerLogger);
-                        var rfmLogger = _loggerFactory?.CreateLogger<RemoteFileManagerViewModel>() ?? (_logger as ILogger);
-                        var launcherLogger = _loggerFactory?.CreateLogger<FileEditorLauncher>() ?? (_logger as ILogger);
-                        await tab.InitializeFileManagerAsync(fs, tracker, _settingsService, _editorRepo, launcherLogger ?? rfmLogger);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "初始化远程文件系统侧栏失败");
-                    }
-                });
-
-                return;
-            }
-
-            _logger.LogError(
-                failure,
-                "SSH 会话创建或连接失败 host={Host}:{Port} 会话={Session}",
-                resolved.Host,
-                resolved.Port,
-                resolved.SessionName);
-
-            await tab.DetachSessionAsync();
-
-            // 主机密钥需人工确认：在握手之外弹窗（不受连接超时约束），放行后直接重连
-            if (failure is HostKeyRejectedException { Outcome.RequiresConfirmation: true } hostKeyFailure
-                && _hostKeyTrust is { CanConfirm: true }
-                && hostKeyConfirmations < MaxHostKeyConfirmations)
-            {
-                hostKeyConfirmations++;
-                if (await _hostKeyTrust.ConfirmAsync(hostKeyFailure.Outcome.Evaluation))
-                {
-                    _logger.LogInformation("主机密钥已人工确认，重新连接 host={Host}:{Port}", resolved.Host, resolved.Port);
-                    continue;
-                }
-            }
-
-            // 弹窗次数达上限或非认证类失败：终端显示失败原因
-            if (promptCount >= MaxAuthRetries || !IsAuthenticationFailure(failure))
-            {
-                _logger.LogError(
-                    "认证失败终止 host={Host}:{Port} 重试次数={Retries} 原因={Reason}",
-                    resolved.Host,
-                    resolved.Port,
-                    promptCount,
-                    DescribeFailure(failure));
-                tab.ReportError(DescribeFailure(failure));
-                return;
-            }
-
-            promptCount++;
-            _logger.LogInformation("认证失败，第 {Attempt} 次弹出认证重试 host={Host}:{Port}", promptCount, resolved.Host, resolved.Port);
-            var prompt = await PromptAuthAsync(resolved.Username, identity);
-            if (prompt == null)
-            {
-                _logger.LogInformation("用户取消认证重试，连接中止 host={Host}:{Port}", resolved.Host, resolved.Port);
-                tab.ReportError(DescribeFailure(failure));
-                return;
-            }
-
-            var (newMaterial, newUsername) = await ResolvePromptResultAsync(prompt, identity);
-            if (!string.IsNullOrWhiteSpace(newUsername))
-            {
-                resolved = resolved with { Username = newUsername.Trim() };
-            }
-
-            // 按用户新选的方法重建材料：交互式 = 零材料重连（靠 KI 桥应答）
-            switch (prompt.Method)
-            {
-                case AuthPromptMethod.Password:
-                    current.RemoveAll(m => m.Kind == AuthMaterialKind.Password);
-                    break;
-                case AuthPromptMethod.PublicKeyFile:
-                case AuthPromptMethod.PublicKeyVault:
-                    current.RemoveAll(m => m.Kind == AuthMaterialKind.PrivateKey);
-                    break;
-                case AuthPromptMethod.Interactive:
-                default:
-                    current.Clear();
-                    break;
-            }
-
-            if (newMaterial != null)
-            {
-                current.Add(newMaterial);
-            }
-        }
-    }
-
-    // keyboard-interactive 真交互回调：从 SSH 后台线程经 Dispatcher 弹提示窗输入（2FA 可用）
-    private Func<string, Task<string?>> BuildInteractivePrompt()
-    {
-        return prompt =>
-        {
-            // 提示文本来自服务器，可记录；应答内容可能含密码/OTP，绝不记录
-            _logger.LogInformation("KI 认证提示弹出 提示={Prompt}", prompt);
-            var tcs = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
-            Dispatcher.UIThread.Post(async () =>
-            {
-                try
-                {
-                    var response = await Interaction.PromptKeyboardInteractiveAsync(prompt);
-                    _logger.LogInformation("KI 认证提示应答 已应答={Answered}", !string.IsNullOrEmpty(response));
-                    tcs.TrySetResult(response);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "KI 认证提示处理异常");
-                    tcs.TrySetResult(null);
-                }
-            });
-            return tcs.Task;
-        };
-    }
-
-    private static bool IsAuthenticationFailure(Exception ex)
-        => ex.GetType().Name.Contains("Authentication", StringComparison.Ordinal);
-
-    private static string DescribeFailure(Exception ex)
-        => string.IsNullOrWhiteSpace(ex.Message) ? Strings.Get("Status.Auth.Failed") : ex.Message;
+    // IConnectionHost：跳板链解析按 Id 查会话节点（取自最近一次加载的树缓存）
+    SessionNode? IConnectionHost.FindSession(Guid id)
+        => _allNodesCache.OfType<SessionNode>().FirstOrDefault(n => n.Id == id);
 
     /// <summary>
     /// 重排标签顺序，保持当前选中标签不变
