@@ -1,5 +1,6 @@
 namespace Kei.Term.Core.Services;
 
+using Kei.Term.Core.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -205,7 +206,7 @@ public class SecureCrtImporter
                     Port = port,
                     Username = user,
                     IdentityId = assignedIdentityId,
-                    Protocol = "ssh",
+                    Protocol = SessionProtocols.Ssh,
                     TerminalType = termType,
                     SortOrder = 0
                 };

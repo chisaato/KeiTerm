@@ -1,3 +1,4 @@
+using Kei.Term.Core.Abstractions;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
@@ -61,7 +62,7 @@ public class SessionNode : TreeNodeBase
     // 绑定的身份；未绑定则回退全局默认身份/弹窗
     public Guid? IdentityId { get; set; }
     // 协议骨架，一期固定 ssh，多协议预留
-    public string Protocol { get; set; } = "ssh";
+    public string Protocol { get; set; } = SessionProtocols.Ssh;
     public string TerminalType { get; set; } = "xterm-256color";
     public string? StartupScript { get; set; }
     public Guid? JumpHostSessionId { get; set; }

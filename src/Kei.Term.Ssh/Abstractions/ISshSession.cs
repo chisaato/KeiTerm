@@ -4,18 +4,9 @@ using Kei.Term.Core.Abstractions;
 using Kei.Term.Core.Models;
 using Kei.Term.Core.Security;
 
-public interface ISshSession : IAsyncDisposable
+// SSH 终端会话：在协议无关会话之上暴露 SSH 专属能力（文件通道借用跳板链等）
+public interface ISshSession : ITerminalSession
 {
-    Guid SessionId { get; }
-    bool IsConnected { get; }
-
-    event Action<byte[]>? OutputReceived;
-    event Action<Exception?>? Disconnected;
-
-    Task ConnectAsync(CancellationToken ct = default);
-    Task SendInputAsync(ReadOnlyMemory<byte> data, CancellationToken ct = default);
-    Task ResizeTerminalAsync(int columns, int rows, int widthPx, int heightPx, CancellationToken ct = default);
-
     // 获取底层 SshClient，供 Subsystem 多路复用通道使用
     object? UnderlyingClient { get; }
 }

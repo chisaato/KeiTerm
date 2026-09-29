@@ -1,5 +1,6 @@
 namespace Kei.Term.Infrastructure.Storage;
 
+using Kei.Term.Core.Abstractions;
 using System.Text.Json;
 using Dapper;
 using Microsoft.Data.Sqlite;
@@ -57,7 +58,7 @@ public class SqliteTreeRepository : ITreeRepository
         using SqliteConnection conn = await _factory.OpenAsync(ct);
         using SqliteTransaction tx = conn.BeginTransaction();
 
-        string protocol = node is SessionNode p && !string.IsNullOrWhiteSpace(p.Protocol) ? p.Protocol : "ssh";
+        string protocol = node is SessionNode p && !string.IsNullOrWhiteSpace(p.Protocol) ? p.Protocol : SessionProtocols.Ssh;
         await conn.ExecuteAsync(new CommandDefinition(@"
             INSERT INTO tree_nodes (id, parent_id, node_type, name, description, sort_order, protocol, is_expanded, created_at, updated_at)
             VALUES (@Id, @ParentId, @NodeType, @Name, @Description, @SortOrder, @Protocol, @IsExpanded, @CreatedAt, @UpdatedAt)
@@ -207,7 +208,7 @@ public class SqliteTreeRepository : ITreeRepository
             TerminalType = row.TerminalType ?? "xterm-256color",
             StartupScript = row.StartupScript,
             JumpHostSessionId = SqliteValue.ParseGuid(row.JumpHostId),
-            Protocol = row.Protocol ?? "ssh",
+            Protocol = row.Protocol ?? SessionProtocols.Ssh,
             EnvironmentVariables = envVars,
             TerminalProfileId = row.TerminalProfileId,
             FileTransferProtocol = (FileTransferProtocol)(row.FileTransferProtocol ?? 0),
