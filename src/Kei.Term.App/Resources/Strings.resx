@@ -1427,4 +1427,70 @@
   <data name="SessionEdit.CwdFollow" xml:space="preserve">
     <value>目录跟随:</value>
   </data>
+  <data name="Menu.Tools.BatchEdit" xml:space="preserve">
+    <value>批量修改会话…</value>
+  </data>
+  <data name="Tree.Menu.BatchEdit" xml:space="preserve">
+    <value>批量修改…</value>
+  </data>
+  <data name="BatchEdit.Title" xml:space="preserve">
+    <value>批量修改会话</value>
+  </data>
+  <data name="BatchEdit.SessionsSection" xml:space="preserve">
+    <value>选择会话</value>
+  </data>
+  <data name="BatchEdit.FilterPlaceholder" xml:space="preserve">
+    <value>按名称 / 主机 / 文件夹筛选</value>
+  </data>
+  <data name="BatchEdit.SelectFolder" xml:space="preserve">
+    <value>按文件夹勾选…</value>
+  </data>
+  <data name="BatchEdit.SelectVisible" xml:space="preserve">
+    <value>勾选可见</value>
+  </data>
+  <data name="BatchEdit.ClearSelection" xml:space="preserve">
+    <value>清空</value>
+  </data>
+  <data name="BatchEdit.FieldsSection" xml:space="preserve">
+    <value>要修改的属性（勾选的项才会写入）</value>
+  </data>
+  <data name="BatchEdit.EnableFieldTip" xml:space="preserve">
+    <value>勾选后，所选会话的此项统一改为右侧的值；未勾选的项保持各会话原值</value>
+  </data>
+  <data name="BatchEdit.OpenTabsHint" xml:space="preserve">
+    <value>已打开的标签不受影响，重新连接后按新设置生效。</value>
+  </data>
+  <data name="BatchEdit.Status" xml:space="preserve">
+    <value>已选 {0} 个会话，将修改 {1} 项属性</value>
+  </data>
+  <data name="BatchEdit.SaveFailed" xml:space="preserve">
+    <value>保存失败，未做任何修改：{0}</value>
+  </data>
+  <data name="BatchEdit.Summary.Mixed" xml:space="preserve">
+    <value>现为：多个不同的值</value>
+  </data>
+  <data name="BatchEdit.Summary.Current" xml:space="preserve">
+    <value>现为：{0}</value>
+  </data>
+  <data name="BatchEdit.Done" xml:space="preserve">
+    <value>批量修改完成：{0} 个会话已更新</value>
+  </data>
+  <data name="BatchEdit.Field.Identity" xml:space="preserve">
+    <value>认证身份</value>
+  </data>
+  <data name="BatchEdit.Field.Username" xml:space="preserve">
+    <value>用户名</value>
+  </data>
+  <data name="BatchEdit.Field.Username.Placeholder" xml:space="preserve">
+    <value>留空 = 使用全局默认用户名</value>
+  </data>
+  <data name="BatchEdit.Field.Username.Empty" xml:space="preserve">
+    <value>未填写（使用全局默认）</value>
+  </data>
+  <data name="BatchEdit.Field.TabTitle" xml:space="preserve">
+    <value>标签标题</value>
+  </data>
+  <data name="BatchEdit.Field.CwdFollow" xml:space="preserve">
+    <value>文件侧栏目录跟随</value>
+  </data>
 </root>

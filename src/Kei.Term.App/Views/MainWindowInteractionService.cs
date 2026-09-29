@@ -7,6 +7,7 @@ using Kei.Term.App.Logging;
 using Kei.Term.App.Models;
 using Kei.Term.App.Services;
 using Kei.Term.App.ViewModels;
+using Kei.Term.App.ViewModels.BatchEdit;
 using Kei.Term.Core.Models;
 using Kei.Term.Core.Models.Profiles;
 using Kei.Term.Core.Security;
@@ -196,6 +197,13 @@ public sealed class MainWindowInteractionService : IInteractionService
 
     // 独立确认框尚未实现：保持现有行为直接放行
     public Task<bool> ConfirmDeleteAsync(string name) => Task.FromResult(true);
+
+    public Task OpenBatchEditAsync(BatchSessionEditViewModel viewModel) => Safe.RunAsync(_log, "打开批量修改会话", async () =>
+    {
+        _log.LogInformation("批量修改会话窗口打开");
+        await new BatchSessionEditWindow(viewModel).ShowDialog(_owner);
+        _log.LogInformation("批量修改会话窗口关闭 已写入={Applied} 变更会话数={Count}", viewModel.ApplyAttempted, viewModel.ChangedCount);
+    });
 
     public Task<string?> PromptTextAsync(string title, string label, string? initialText)
         => Safe.RunAsync<string?>(_log, "打开文本输入窗口",

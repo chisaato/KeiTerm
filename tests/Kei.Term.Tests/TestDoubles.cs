@@ -90,6 +90,8 @@ internal sealed class ScriptedInteraction : IInteractionService
 
     public Queue<string?> TextAnswers { get; } = new();
 
+    public Task OpenBatchEditAsync(Kei.Term.App.ViewModels.BatchEdit.BatchSessionEditViewModel viewModel) => Task.CompletedTask;
+
     public Task<string?> PromptTextAsync(string title, string label, string? initialText)
         => Task.FromResult(TextAnswers.Count > 0 ? TextAnswers.Dequeue() : null);
 }

@@ -1,0 +1,108 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Kei.Term.App.ViewModels.BatchEdit"
+        xmlns:loc="using:Kei.Term.App.Helpers"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="940" d:DesignHeight="580"
+        x:Class="Kei.Term.App.Views.BatchSessionEditWindow"
+        x:DataType="vm:BatchSessionEditViewModel"
+        Title="{loc:KeiString BatchEdit.Title}"
+        Width="960" Height="600" MinWidth="720" MinHeight="420"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Kei.Bg.Window}">
+
+    <Grid RowDefinitions="*, Auto" Margin="16" RowSpacing="12">
+        <Grid Grid.Row="0" ColumnDefinitions="380, *" ColumnSpacing="16">
+
+            <!-- 左：会话勾选 -->
+            <Border Grid.Column="0" Background="{DynamicResource Kei.Bg.Panel}"
+                    BorderBrush="{DynamicResource Kei.Border}" BorderThickness="1"
+                    CornerRadius="{DynamicResource Kei.Radius.Card}" Padding="10">
+                <Grid RowDefinitions="Auto, Auto, Auto, *" RowSpacing="8">
+                    <TextBlock Grid.Row="0" Text="{loc:KeiString BatchEdit.SessionsSection}" FontWeight="Bold"
+                               Foreground="{DynamicResource Kei.Text.Primary}"/>
+                    <TextBox Grid.Row="1" Text="{Binding FilterText}"
+                             PlaceholderText="{loc:KeiString BatchEdit.FilterPlaceholder}"/>
+                    <Grid Grid.Row="2" ColumnDefinitions="*, Auto, Auto" ColumnSpacing="6">
+                        <ComboBox x:Name="FolderPicker" Grid.Column="0" HorizontalAlignment="Stretch"
+                                  ItemsSource="{Binding Folders}"
+                                  PlaceholderText="{loc:KeiString BatchEdit.SelectFolder}"
+                                  SelectionChanged="OnFolderPicked"/>
+                        <Button Grid.Column="1" Content="{loc:KeiString BatchEdit.SelectVisible}" Command="{Binding SelectAllVisibleCommand}"/>
+                        <Button Grid.Column="2" Content="{loc:KeiString BatchEdit.ClearSelection}" Command="{Binding ClearSelectionCommand}"/>
+                    </Grid>
+                    <ListBox Grid.Row="3" ItemsSource="{Binding FilteredSessions}" Background="Transparent">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:BatchSessionItem">
+                                <CheckBox IsChecked="{Binding IsSelected}">
+                                    <StackPanel Spacing="1">
+                                        <TextBlock Text="{Binding Node.Name}" Foreground="{DynamicResource Kei.Text.Primary}"/>
+                                        <TextBlock FontSize="11" Foreground="{DynamicResource Kei.Text.Muted}" TextTrimming="CharacterEllipsis">
+                                            <Run Text="{Binding Target}"/>
+                                            <Run Text="  "/>
+                                            <Run Text="{Binding Path}"/>
+                                        </TextBlock>
+                                    </StackPanel>
+                                </CheckBox>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </Border>
+
+            <!-- 右：要修改的字段 -->
+            <Border Grid.Column="1" Background="{DynamicResource Kei.Bg.Panel}"
+                    BorderBrush="{DynamicResource Kei.Border}" BorderThickness="1"
+                    CornerRadius="{DynamicResource Kei.Radius.Card}" Padding="14,10">
+                <Grid RowDefinitions="Auto, *, Auto" RowSpacing="8">
+                    <TextBlock Grid.Row="0" Text="{loc:KeiString BatchEdit.FieldsSection}" FontWeight="Bold"
+                               Foreground="{DynamicResource Kei.Text.Primary}"/>
+                    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+                        <ItemsControl ItemsSource="{Binding Fields}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Spacing="14"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:BatchFieldEditorViewModel">
+                                    <Grid ColumnDefinitions="150, *" RowDefinitions="Auto, Auto" ColumnSpacing="12" RowSpacing="2">
+                                        <CheckBox Grid.Row="0" Grid.Column="0" IsChecked="{Binding IsEnabled}" VerticalAlignment="Center"
+                                                  ToolTip.Tip="{loc:KeiString BatchEdit.EnableFieldTip}">
+                                            <TextBlock Text="{Binding Label}" Foreground="{DynamicResource Kei.Text.Primary}"/>
+                                        </CheckBox>
+                                        <ComboBox Grid.Row="0" Grid.Column="1" HorizontalAlignment="Stretch"
+                                                  IsVisible="{Binding IsChoice}"
+                                                  ItemsSource="{Binding Choices}"
+                                                  SelectedItem="{Binding SelectedChoice}"
+                                                  ToolTip.Tip="{Binding Hint}"/>
+                                        <TextBox Grid.Row="0" Grid.Column="1"
+                                                 IsVisible="{Binding IsText}"
+                                                 Text="{Binding Text}"
+                                                 PlaceholderText="{Binding Definition.Placeholder}"/>
+                                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Summary}" FontSize="11"
+                                                   Foreground="{DynamicResource Kei.Text.Muted}"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                    <TextBlock Grid.Row="2" Text="{loc:KeiString BatchEdit.OpenTabsHint}" FontSize="11" TextWrapping="Wrap"
+                               Foreground="{DynamicResource Kei.Text.Muted}"/>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- 底部：状态 + 操作 -->
+        <Grid Grid.Row="1" ColumnDefinitions="*, Auto" ColumnSpacing="12">
+            <TextBlock Grid.Column="0" Text="{Binding StatusText}" VerticalAlignment="Center"
+                       Foreground="{DynamicResource Kei.Text.Secondary}" TextWrapping="Wrap"/>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                <Button Content="{loc:KeiString Common.Cancel}" Command="{Binding CancelCommand}" MinWidth="80"/>
+                <Button Content="{loc:KeiString Common.Apply}" Command="{Binding ApplyCommand}" MinWidth="80"
+                        Background="{DynamicResource Kei.Accent}" Foreground="White"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Kei.Term.App.Models;
 using Kei.Term.App.ViewModels;
+using Kei.Term.App.ViewModels.BatchEdit;
 using Kei.Term.Core.Models;
 using Kei.Term.Core.Models.Profiles;
 using Kei.Term.Core.Security;
@@ -58,6 +59,9 @@ public interface IInteractionService
 
     // 单行文本输入（重命名等）；取消 = null
     Task<string?> PromptTextAsync(string title, string label, string? initialText);
+
+    // 批量修改会话：结果（是否写入、改了几个）记在视图模型上
+    Task OpenBatchEditAsync(BatchSessionEditViewModel viewModel);
 }
 
 // 无界面实现：一切交互按「用户取消」处理；删除确认保持旧行为（无确认 UI 时直接放行）
@@ -102,4 +106,6 @@ public sealed class NullInteractionService : IInteractionService
     public Task NotifyAsync(string title, string message) => Task.CompletedTask;
 
     public Task<string?> PromptTextAsync(string title, string label, string? initialText) => Task.FromResult<string?>(null);
+
+    public Task OpenBatchEditAsync(BatchSessionEditViewModel viewModel) => Task.CompletedTask;
 }

@@ -62,3 +62,4 @@ Kei.Term 遵循严格的关注点分离（Separation of Concerns）与依赖反�
 9. [跟随终端当前目录（OSC 7/133、tmux 实测） (09-cwd-tracking.md)](./09-cwd-tracking.md)
 10. [长文件扫描与拆分规划 (10-refactor-plan.md)](./10-refactor-plan.md)
 11. [双 SSH 引擎（SSH.NET + Tmds.Ssh）可行性评估 (11-dual-ssh-backend.md)](./11-dual-ssh-backend.md)
+12. [终端宿主、标签与会话级设置（含批量修改、VT 回调与输入竞态修复） (12-terminal-host-and-session-options.md)](./12-terminal-host-and-session-options.md)

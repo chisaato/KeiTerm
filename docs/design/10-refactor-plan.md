@@ -10,9 +10,10 @@
 | 1. `IInteractionService` | ✅ | 15 个 `Func<>` 弹窗属性 → 一个接口；`MainWindowInteractionService` 承接原 `WireDialogs`（MainWindow.axaml.cs 909 → 736 行） |
 | 2. `VaultSessionService` | ✅ | 懒解锁 / 材料读写 / 口令缓存 / 空闲锁定判定；6 项测试 |
 | 3. `ConnectionOrchestrator` | ✅ | 拆为 `AuthMaterialCollector`（用什么认证）+ `ConnectionOrchestrator`（怎么连）+ `IConnectionHost/IConnectionTarget`；13 项编排测试；顺带修复 OpenSSH 加密私钥误判为无口令 |
-| 4. `SessionTreeViewModel` | ⏳ 下一步 | MainViewModel 现 1176 行，其中树 ~410 行、导入 ~130 行 |
+| 4. `SessionTreeViewModel` | ⏳ 下一步 | MainViewModel 现 1180 行，其中树 ~410 行、导入 ~130 行；标签动作与批量修改入口已放在 `MainViewModel.TabActions.cs` / `.BatchEdit.cs`，拆树时一并迁出 |
 | 5. MainWindow 拖放控制器 | ⏳ | |
 | 6. `RemoteFileManagerViewModel` 拆分 | ⏳ | 目录跟随之前完成 |
+| — `TerminalTabViewModel` | ✅ | 标签功能加入后达 790 行，按职责拆为主体（会话生命周期 / 文件侧栏，357）+ `.Header.cs`（标题 / 活动 / 右键动作）+ `.Control.cs`（控件 / VT 回调 / 字体配色 / 贴底）；`ITerminalThemeSink` 独立文件 |
 
 以下为原始规划（行号为拆分前）。
 
