@@ -74,6 +74,9 @@ public class SessionNode : TreeNodeBase
     public FileTransferProtocol FileTransferProtocol { get; set; } = FileTransferProtocol.Sftp;
     // SFTP 连接模式（Auto / Subsystem / Dedicated）
     public SftpChannelMode SftpMode { get; set; } = SftpChannelMode.Auto;
+
+    // 可继承全局设置的行为覆盖项（标题跟随、目录跟随等）
+    public SessionOverrides Overrides { get; set; } = new();
 }
 
 // 展示层专用虚拟根（SecureCRT 式 "Sessions" 顶层）：不持久化，Id 固定 Empty 便于各入口守卫
@@ -105,5 +108,8 @@ public record ResolvedSessionConfig(
     FileTransferProtocol FileTransferProtocol = FileTransferProtocol.Sftp,
     SftpChannelMode SftpMode = SftpChannelMode.Auto,
     // 会话显式指定的终端配色 ID；null/空表示继承全局默认（末尾追加，保持既有构造点兼容）
-    string? TerminalProfileId = null
+    string? TerminalProfileId = null,
+    // 已按「会话覆盖 → 全局设置」解析后的行为
+    bool FollowRemoteTitle = false,
+    CwdFollowMode CwdFollow = CwdFollowMode.Off
 );

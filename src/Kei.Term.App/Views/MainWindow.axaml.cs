@@ -328,6 +328,18 @@ public partial class MainWindow : Window
         _dragTab = null;
         _dragTabPressedArgs = null;
 
+        // 中键点击关闭标签（浏览器 / SecureCRT 习惯）
+        if (e.GetCurrentPoint(TabsItemsControl).Properties.IsMiddleButtonPressed)
+        {
+            if (DataContext is MainViewModel mainVm && FindTabViewModelFromVisual(e.Source as Visual) is { } middleTab)
+            {
+                e.Handled = true;
+                _ = mainVm.CloseTabCommand.ExecuteAsync(middleTab);
+            }
+
+            return;
+        }
+
         // 仅处理鼠标左键按下
         if (!e.GetCurrentPoint(TabsItemsControl).Properties.IsLeftButtonPressed)
         {

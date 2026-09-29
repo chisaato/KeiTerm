@@ -126,4 +126,25 @@ public class SessionConfigBuilderTests
         // 显式配色 ID 同样透传，三级回退由 App 层解析
         Assert.Equal("Custom-Explicit", resolved.TerminalProfileId);
     }
+
+    [Fact]
+    public void Build_Overrides_SessionValueWins_NullInheritsSettings()
+    {
+        var settings = new AppSettings { TabTitleFollowsRemote = true, CwdFollowMode = CwdFollowMode.Always };
+        var inheriting = new SessionNode { Name = "a", Host = "h" };
+        var explicitSession = new SessionNode
+        {
+            Name = "b",
+            Host = "h",
+            Overrides = new SessionOverrides { FollowRemoteTitle = false, CwdFollow = CwdFollowMode.Off }
+        };
+
+        var inherited = SessionConfigBuilder.Build(inheriting, settings);
+        var overridden = SessionConfigBuilder.Build(explicitSession, settings);
+
+        Assert.True(inherited.FollowRemoteTitle);
+        Assert.Equal(CwdFollowMode.Always, inherited.CwdFollow);
+        Assert.False(overridden.FollowRemoteTitle);
+        Assert.Equal(CwdFollowMode.Off, overridden.CwdFollow);
+    }
 }

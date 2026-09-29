@@ -35,7 +35,10 @@ public static class SessionConfigBuilder
             JumpHostSessionId: node.JumpHostSessionId,
             EnvironmentVariables: node.EnvironmentVariables,
             // 终端配色：显式 ID 透传，交由 App 层做三级回退解析
-            TerminalProfileId: node.TerminalProfileId
+            TerminalProfileId: node.TerminalProfileId,
+            // 行为覆盖：会话显式值 → 全局设置
+            FollowRemoteTitle: node.Overrides.FollowRemoteTitle ?? settings.TabTitleFollowsRemote,
+            CwdFollow: node.Overrides.CwdFollow ?? settings.CwdFollowMode
         );
     }
 }

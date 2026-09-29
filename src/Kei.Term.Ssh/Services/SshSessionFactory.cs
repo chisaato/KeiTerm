@@ -1,6 +1,7 @@
 namespace Kei.Term.Ssh.Services;
 
 using System.Text;
+using System.Threading.Channels;
 using Renci.SshNet;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -108,6 +109,15 @@ public class SshNetSession : ISshSession
     private CancellationTokenSource? _readCts;
     private Task? _readLoopTask;
 
+    // 输入发送队列：ShellStream 的 Write/Flush 非线程安全，且其 FlushAsync 沿用 Stream 基类实现（在线程池上执行 Flush）。
+    // 连续发送时多个 Flush 会并发读写同一写缓冲区，造成字节重复或丢失——
+    // 实测 tmux 收到重复的终端查询应答，把第二份当按键转进了面板。所有输入经单消费者队列按序写出。
+    private readonly Channel<PendingInput> _inputQueue =
+        Channel.CreateUnbounded<PendingInput>(new UnboundedChannelOptions { SingleReader = true });
+    private Task? _writeLoopTask;
+
+    private sealed record PendingInput(byte[] Data, TaskCompletionSource Sent);
+
     // 释放标志：0 = 未释放，1 = 已释放（幂等 + 线程安全）
     private int _disposed;
 
@@ -168,6 +178,7 @@ public class SshNetSession : ISshSession
 
         _readCts = new CancellationTokenSource();
         _readLoopTask = Task.Run(() => ReadLoopAsync(_readCts.Token));
+        _writeLoopTask = Task.Run(() => WriteLoopAsync(_readCts.Token));
 
         await SendStartupScriptAsync(ct);
     }
@@ -186,15 +197,55 @@ public class SshNetSession : ISshSession
         _logger.LogInformation("已发送登录脚本 SessionId={SessionId} 行数={Lines}", SessionId, normalized.Split('\n').Length);
     }
 
-    public async Task SendInputAsync(ReadOnlyMemory<byte> data, CancellationToken ct = default)
+    // 入队即返回的任务在数据真正写出后完成；调用方可不等待（键盘输入），顺序由队列保证
+    public Task SendInputAsync(ReadOnlyMemory<byte> data, CancellationToken ct = default)
     {
-        if (_shellStream == null || !IsConnected)
+        if (_shellStream == null || !IsConnected || data.IsEmpty)
         {
-            return;
+            return Task.CompletedTask;
         }
 
-        await _shellStream.WriteAsync(data, ct);
-        await _shellStream.FlushAsync(ct);
+        var pending = new PendingInput(data.ToArray(), new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously));
+        if (!_inputQueue.Writer.TryWrite(pending))
+        {
+            // 会话释放中：队列已关闭
+            return Task.CompletedTask;
+        }
+
+        return pending.Sent.Task.WaitAsync(ct);
+    }
+
+    private async Task WriteLoopAsync(CancellationToken ct)
+    {
+        try
+        {
+            await foreach (PendingInput input in _inputQueue.Reader.ReadAllAsync(ct))
+            {
+                try
+                {
+                    ShellStream stream = _shellStream!;
+                    stream.Write(input.Data);
+                    stream.Flush();
+                }
+                catch (Exception ex)
+                {
+                    // 写失败即连接已坏，断开由读取循环上报；这里不把异常抛给多为"发出即不管"的调用方（避免未观察异常）
+                    _logger.LogWarning(ex, "SSH 输入写出失败 SessionId={SessionId} 字节数={Bytes}", SessionId, input.Data.Length);
+                }
+
+                input.Sent.TrySetResult();
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // 释放
+        }
+
+        // 释放后仍在队列中的输入不再发送
+        while (_inputQueue.Reader.TryRead(out PendingInput? left))
+        {
+            left.Sent.TrySetCanceled();
+        }
     }
 
     public Task ResizeTerminalAsync(int columns, int rows, int widthPx, int heightPx, CancellationToken ct = default)
@@ -248,7 +299,8 @@ public class SshNetSession : ISshSession
             return;
         }
 
-        // 1) 先发出取消信号
+        // 1) 关闭输入队列并发出取消信号
+        _inputQueue.Writer.TryComplete();
         _readCts?.Cancel();
 
         // 2) 立即释放 ShellStream 与断开底层连接，打断阻塞在 ReadAsync 上的底层网络读取
@@ -288,12 +340,14 @@ public class SshNetSession : ISshSession
             }
         }
 
-        // 3) 等待读取循环任务退出，设置 500ms 超时保护避免极端情况下死等挂起
-        if (_readLoopTask != null)
+        // 3) 等待读写循环退出，设置 500ms 超时保护避免极端情况下死等挂起
+        if (_readLoopTask != null || _writeLoopTask != null)
         {
             try
             {
-                await Task.WhenAny(_readLoopTask, Task.Delay(500));
+                await Task.WhenAny(
+                    Task.WhenAll(_readLoopTask ?? Task.CompletedTask, _writeLoopTask ?? Task.CompletedTask),
+                    Task.Delay(500));
             }
             catch
             {

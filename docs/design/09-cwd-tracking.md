@@ -1,6 +1,7 @@
 # 09 - 跟随终端当前目录（CWD Tracking）设计草案
 
-> 状态：方向已定（2026-09-29，见 §0），排在连接流程拆分之后实施。本文先讲清楚原理，再给出方案。
+> 状态：方向已定（2026-09-29，见 §0）。§5 第 0 步（全局设置 + 会话覆盖 + 批量修改）已落地，见 [12](./12-terminal-host-and-session-options.md)；
+> 跟随行为本身（第 1–2 步）排在 `RemoteFileManagerViewModel` 拆分之后。本文先讲清楚原理，再给出方案。
 > 文中 tmux 行为均为在 tmux 3.4 + zsh 5.9 上的**实测结果**（实验脚本见 §7）。
 
 ---
@@ -163,7 +164,7 @@ set -g set-titles-string '#{host}:#{pane_current_path}'
 
 ## 5. 实施拆分（排在连接流程拆分之后）
 
-0. 设置：`enum CwdFollowMode { Off, OnceOnOpen, Always }`；`AppSettings.CwdFollowMode`（默认 Off）+ `SessionNode.CwdFollowMode`（可空，null = 继承），迁移追加一列。
+0. ✅ 设置：`enum CwdFollowMode { Off, OnceOnOpen, Always }`；`AppSettings.CwdFollowMode`（默认 Off）+ `SessionOverrides.CwdFollow`（可空，null = 继承，存 `options_json`），解析结果为 `ResolvedSessionConfig.CwdFollow`。
    跟随判定为 Core 纯函数（输入：模式、侧栏是否打开、本连接是否已同步过、信号），「一次」状态挂在单个连接/标签上，重连新会话时重置。
 1. Core：`CwdTracker`（输入信号 → 输出"可信目录 + 主机"），含主机校验、去抖、两种内置标题格式解析；纯逻辑、可单测。
 2. App：`TerminalTabViewModel` 订阅 `ShellIntegrationEventReceived` / `TitleChanged` 喂给 tracker；`RemoteFileManagerViewModel` 增加跟随开关与「跳到终端目录」。

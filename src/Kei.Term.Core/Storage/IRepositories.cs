@@ -9,6 +9,15 @@ public interface ITreeRepository
     Task<IReadOnlyList<TreeNodeBase>> GetAllNodesAsync(CancellationToken ct = default);
     Task<TreeNodeBase?> GetNodeByIdAsync(Guid id, CancellationToken ct = default);
     Task SaveNodeAsync(TreeNodeBase node, CancellationToken ct = default);
+
+    // 批量保存（批量修改会话属性用）；实现应保证全部成功或全部不生效
+    async Task SaveNodesAsync(IReadOnlyCollection<TreeNodeBase> nodes, CancellationToken ct = default)
+    {
+        foreach (TreeNodeBase node in nodes)
+        {
+            await SaveNodeAsync(node, ct);
+        }
+    }
     Task DeleteNodeAsync(Guid id, CancellationToken ct = default);
     Task MoveNodeAsync(Guid nodeId, Guid? newParentId, int sortOrder, CancellationToken ct = default);
     Task UpdateFolderExpandedAsync(Guid folderId, bool isExpanded, CancellationToken ct = default);

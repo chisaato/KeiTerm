@@ -109,6 +109,7 @@
             <MenuItem Header="{loc:KeiString Menu.Tools}">
                 <MenuItem Header="{loc:KeiString Menu.Tools.IdentityManager}" Command="{Binding OpenIdentityManagerCommand}"/>
                 <MenuItem Header="{loc:KeiString Menu.Tools.KnownHosts}" Command="{Binding OpenKnownHostsCommand}"/>
+                <MenuItem Header="{loc:KeiString Menu.Tools.BatchEdit}" Command="{Binding OpenBatchEditCommand}"/>
                 <MenuItem Header="{loc:KeiString Menu.Tools.Settings}" Command="{Binding OpenSettingsCommand}"/>
             </MenuItem>
             <MenuItem Header="{loc:KeiString Menu.Help}">
@@ -247,6 +248,8 @@
                                     <Separator/>
                                     <MenuItem Header="{loc:KeiString Tree.Menu.EditSelected}" Command="{Binding EditSelectedNodeCommand}"/>
                                     <MenuItem Header="{loc:KeiString Tree.Menu.DeleteSelected}" Command="{Binding DeleteSelectedNodeCommand}"/>
+                                    <Separator/>
+                                    <MenuItem Header="{loc:KeiString Tree.Menu.BatchEdit}" Command="{Binding OpenBatchEditCommand}"/>
                                 </ContextMenu>
                             </TreeView.ContextMenu>
                             <TreeView.DataTemplates>
@@ -286,6 +289,9 @@
                                                           Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).EditSelectedNodeCommand}"/>
                                                 <MenuItem Header="{loc:KeiString Tree.Menu.Delete}"
                                                           Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).DeleteSelectedNodeCommand}"/>
+                                                <Separator/>
+                                                <MenuItem Header="{loc:KeiString Tree.Menu.BatchEdit}"
+                                                          Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).OpenBatchEditCommand}"/>
                                             </ContextMenu>
                                         </StackPanel.ContextMenu>
                                         <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Terminal}"
@@ -346,16 +352,40 @@
                                 <DataTemplate DataType="vm:TerminalTabViewModel">
                                     <Button Classes="tabItem"
                                             Classes.selected="{Binding IsSelected}"
+                                            Classes.activity="{Binding HasActivity}"
                                             DragDrop.AllowDrop="True"
                                             Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).SelectTabCommand}"
                                             CommandParameter="{Binding}"
-                                            ToolTip.Tip="{Binding StatusMessage}">
+                                            ToolTip.Tip="{Binding ToolTip}">
+                                        <Button.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="{loc:KeiString Main.Tab.Menu.Reconnect}" Command="{Binding RequestReconnectCommand}"/>
+                                                <MenuItem Header="{loc:KeiString Main.Tab.Menu.Disconnect}" Command="{Binding DisconnectCommand}"/>
+                                                <MenuItem Header="{loc:KeiString Main.Tab.Menu.Clone}" Command="{Binding RequestCloneCommand}"/>
+                                                <Separator/>
+                                                <MenuItem Header="{loc:KeiString Main.Tab.Menu.Rename}" Command="{Binding RequestRenameCommand}"/>
+                                                <MenuItem Header="{loc:KeiString Main.Tab.Menu.FollowRemoteTitle}"
+                                                          ToggleType="CheckBox"
+                                                          IsChecked="{Binding FollowRemoteTitle, Mode=OneWay}"
+                                                          Command="{Binding ToggleFollowRemoteTitleCommand}"/>
+                                                <Separator/>
+                                                <MenuItem Header="{loc:KeiString Main.Tab.Menu.Close}" Command="{Binding RequestCloseCommand}"/>
+                                                <MenuItem Header="{loc:KeiString Main.Tab.Menu.CloseOthers}" Command="{Binding RequestCloseOthersCommand}"/>
+                                                <MenuItem Header="{loc:KeiString Main.Tab.Menu.CloseToRight}" Command="{Binding RequestCloseToRightCommand}"/>
+                                            </ContextMenu>
+                                        </Button.ContextMenu>
                                         <StackPanel Orientation="Horizontal" Spacing="6" Margin="10,5">
                                             <!-- SecureCRT 风格 3px 宽状态指示竖条，替代原圆点 -->
                                             <Border Width="3" Height="16" CornerRadius="1" VerticalAlignment="Center"
                                                     Background="{Binding State, Converter={StaticResource ConnectionStateBrush}}"/>
-                                            <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontSize="12"
+                                            <!-- 远端标题可能很长（如 byobu 的 user@host (ip) - byobu）：限宽省略，完整内容见悬停提示 -->
+                                            <TextBlock Classes="tabTitle" Text="{Binding Title}" VerticalAlignment="Center" FontSize="12"
+                                                       MaxWidth="220" TextTrimming="CharacterEllipsis"
                                                        Foreground="{DynamicResource Kei.Text.Primary}"/>
+                                            <!-- 后台标签有新输出 / 响铃 -->
+                                            <Ellipse Width="6" Height="6" VerticalAlignment="Center"
+                                                     Fill="{DynamicResource Kei.Accent}"
+                                                     IsVisible="{Binding HasActivity}"/>
                                             <Button Classes="closeBtn"
                                                     Content="✕"
                                                     ToolTip.Tip="{loc:KeiString Main.Tab.CloseTip}"
@@ -403,20 +433,28 @@
                                         </ColumnDefinition>
                                     </Grid.ColumnDefinitions>
 
-                                    <!-- 终端控件：根据 IsFileManagerOnLeft 动态停靠在 Column 0 或 Column 2 -->
-                                    <ContentControl Grid.Column="{Binding IsFileManagerOnLeft, Converter={x:Static conv:FileManagerDockConverter.Instance}, ConverterParameter=Terminal}"
-                                                    Content="{Binding Terminal}"
-                                                    Background="{DynamicResource Kei.Bg.Window}">
-                                        <ContentControl.ContextMenu>
+                                    <!-- 终端控件：根据 IsFileManagerOnLeft 动态停靠在 Column 0 或 Column 2。
+                                         外层 ScrollViewer 提供回滚滚动条（TerminalControl 实现 ILogicalScrollable）；
+                                         底色取配色背景，覆盖网格贴底后顶部的余量区域 -->
+                                    <Border Grid.Column="{Binding IsFileManagerOnLeft, Converter={x:Static conv:FileManagerDockConverter.Instance}, ConverterParameter=Terminal}"
+                                            Background="{Binding TerminalBackground}">
+                                        <Border.ContextMenu>
                                             <ContextMenu>
-                                                <MenuItem Header="复制 (Copy)" Command="{Binding CopySelectionCommand}"/>
-                                                <MenuItem Header="粘贴 (Paste)" Command="{Binding PasteToTerminalCommand}"/>
+                                                <MenuItem Header="{loc:KeiString Terminal.Menu.Copy}" Command="{Binding CopySelectionCommand}"/>
+                                                <MenuItem Header="{loc:KeiString Terminal.Menu.Paste}" Command="{Binding PasteToTerminalCommand}"/>
                                                 <Separator/>
-                                                <MenuItem Header="全选 (Select All)" Command="{Binding SelectAllTerminalTextCommand}"/>
-                                                <MenuItem Header="清屏 (Clear)" Command="{Binding ClearTerminalScreenCommand}"/>
+                                                <MenuItem Header="{loc:KeiString Terminal.Menu.SelectAll}" Command="{Binding SelectAllTerminalTextCommand}"/>
+                                                <MenuItem Header="{loc:KeiString Terminal.Menu.Clear}" Command="{Binding ClearTerminalScreenCommand}"/>
+                                                <MenuItem Header="{loc:KeiString Terminal.Menu.ClearScrollback}" Command="{Binding ClearTerminalScrollbackCommand}"/>
                                             </ContextMenu>
-                                        </ContentControl.ContextMenu>
-                                    </ContentControl>
+                                        </Border.ContextMenu>
+                                        <ScrollViewer Classes="terminalScroll"
+                                                      Content="{Binding Terminal}"
+                                                      Background="Transparent"
+                                                      AllowAutoHide="False"
+                                                      VerticalScrollBarVisibility="Visible"
+                                                      HorizontalScrollBarVisibility="Disabled"/>
+                                    </Border>
 
                                     <!-- 分割条：固定在 Column 1，仅在文件管理器侧栏展开时呈现 -->
                                     <GridSplitter Grid.Column="1" Width="4"

@@ -85,6 +85,12 @@ public class AppSettings
     // 标签栏位置："Top" (置顶，默认) | "Bottom" (置底)
     public string TabPlacement { get; set; } = "Top";
 
+    // 标签标题跟随远端（OSC 0/2）标题；会话可覆盖
+    public bool TabTitleFollowsRemote { get; set; } = true;
+
+    // 文件侧栏跟随终端目录的全局默认方式；会话可覆盖
+    public CwdFollowMode CwdFollowMode { get; set; } = CwdFollowMode.Off;
+
     // 选中的 GUI 配色 Profile ID 与终端配色 Profile ID
     public string? ActiveGuiProfileId { get; set; }
     public string? ActiveTerminalProfileId { get; set; }

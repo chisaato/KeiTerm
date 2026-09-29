@@ -1,7 +1,10 @@
+using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Kei.Term.App.ViewModels;
 using Kei.Term.App.ViewModels.Settings;
+using Kei.Term.Core.Models;
 using Kei.Term.Core.Models.Profiles;
 using Kei.Term.Core.Settings;
 using Kei.Term.Infrastructure.Settings;
@@ -114,6 +117,40 @@ public class SettingsProfileAndTabPlacementTests
         finally
         {
             if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
+    public async Task ApplyChanges_SavesTerminalBehavior_AndKeepsFieldsThisWindowDoesNotEdit()
+    {
+        string tempDir = Path.Combine(Path.GetTempPath(), $"keiterm_settings_{Path.GetRandomFileName()}");
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var service = new FixedSettingsService(new AppSettings
+            {
+                LastSessionManagerVisible = false,
+                UiFontSize = 15,
+                FileTransfer = new FileTransferSettings { PollingIntervalSeconds = 17, IsFileManagerOnLeft = true }
+            });
+            var vm = new SettingsViewModel(service, tempDir);
+            TerminalSettingsPage terminal = vm.Categories.Select(c => c.Page).OfType<TerminalSettingsCombinedPage>().Single().Terminal;
+
+            terminal.TabTitleFollowsRemote = false;
+            terminal.SetCwdFollow(CwdFollowMode.Always);
+            Assert.True(await vm.ApplyChangesAsync());
+
+            Assert.False(service.Current.TabTitleFollowsRemote);
+            Assert.Equal(CwdFollowMode.Always, service.Current.CwdFollowMode);
+            // 设置窗口不编辑的字段必须原样保留（曾因整对象重建被重置为默认值）
+            Assert.False(service.Current.LastSessionManagerVisible);
+            Assert.Equal(15, service.Current.UiFontSize);
+            Assert.Equal(17, service.Current.FileTransfer.PollingIntervalSeconds);
+            Assert.True(service.Current.FileTransfer.IsFileManagerOnLeft);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
         }
     }
 }

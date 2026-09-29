@@ -87,6 +87,13 @@ internal sealed class ScriptedInteraction : IInteractionService
     public Task OpenQuickConnectAsync() => Task.CompletedTask;
 
     public Task<bool> ConfirmDeleteAsync(string name) => Task.FromResult(true);
+
+    public Queue<string?> TextAnswers { get; } = new();
+
+    public Task OpenBatchEditAsync(Kei.Term.App.ViewModels.BatchEdit.BatchSessionEditViewModel viewModel) => Task.CompletedTask;
+
+    public Task<string?> PromptTextAsync(string title, string label, string? initialText)
+        => Task.FromResult(TextAnswers.Count > 0 ? TextAnswers.Dequeue() : null);
 }
 
 // 纯内存设置服务

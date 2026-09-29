@@ -23,6 +23,9 @@ public interface IConnectionTarget
 
     // 连接成功后挂载文件侧栏（后台线程调用；实现负责回到 UI 线程与本地缓存跟踪器装配）
     Task AttachFileSystemAsync(IRemoteFileSystem fileSystem);
+
+    // 原地重连：卸下旧会话与侧栏、保留终端历史，并换上本次解析的配置（UI 线程调用）
+    Task ResetForReconnectAsync(ResolvedSessionConfig config);
 }
 
 // 编排器的宿主（主窗口 VM）：按解析后的配置开标签、按 Id 查会话节点（跳板链解析用）
@@ -33,8 +36,10 @@ public interface IConnectionHost
     SessionNode? FindSession(Guid id);
 }
 
-// 一次连接请求：是否按会话/全局默认身份认证；快速连接可预置一条密码材料
+// 一次连接请求：是否按会话/全局默认身份认证；快速连接可预置一条密码材料；
+// ReuseTarget 非空表示在该标签内原地重连，而不是新开标签
 public sealed record ConnectionRequest(
     ResolvedSessionConfig Config,
     bool UseIdentity,
-    MaterializedAuthMethod? Preloaded = null);
+    MaterializedAuthMethod? Preloaded = null,
+    IConnectionTarget? ReuseTarget = null);

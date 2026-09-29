@@ -273,6 +273,10 @@
     <Style Selector="Button.tabItem:pointerover /template/ ContentPresenter">
         <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}"/>
     </Style>
+    <!-- 后台活动标签：标题斜体提示有未读输出 -->
+    <Style Selector="Button.tabItem.activity TextBlock.tabTitle">
+        <Setter Property="FontStyle" Value="Italic"/>
+    </Style>
 
     <Style Selector="TreeViewItem">
         <Setter Property="Theme" Value="{StaticResource KeiTreeViewItem}"/>

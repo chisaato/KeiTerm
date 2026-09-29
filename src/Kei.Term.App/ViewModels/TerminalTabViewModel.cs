@@ -1,10 +1,13 @@
 namespace Kei.Term.App.ViewModels;
 
 using System;
+using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Media;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -16,6 +19,7 @@ using Kei.Term.App.Models;
 using Kei.Term.App.Services;
 using Kei.Term.App.Terminals;
 using Kei.Term.Core.Abstractions;
+using Kei.Term.Core.Models;
 using Kei.Term.Core.Models.Profiles;
 using Kei.Term.Core.Services;
 using Kei.Term.Core.Settings;
@@ -40,47 +44,9 @@ public enum TabStatus
     Error
 }
 
-// 配色应用抽象：默认走真实终端控件，纯状态测试可注入不触碰原生控件的实现
-public interface ITerminalThemeSink
-{
-    void Apply(TerminalProfile profile);
-
-    // Loaded 后 / 重新 ApplyTheme 后恢复被上游强制改写的选区 alpha；返回 false 表示 Renderer 尚未就绪
-    bool TryReapplySelectionOverride(TerminalProfile profile);
-}
-
-// 默认实现：把方案注入真实 TerminalControl（不启动任何会话）。
-// 通过访问器延迟获取控件：测试不访问 Terminal 时不会创建原生控件。
-internal sealed class TerminalControlThemeSink : ITerminalThemeSink
-{
-    private readonly Func<TerminalControl> _terminalAccessor;
-
-    public TerminalControlThemeSink(Func<TerminalControl> terminalAccessor) => _terminalAccessor = terminalAccessor;
-
-    public void Apply(TerminalProfile profile) => TerminalThemeAdapter.Apply(_terminalAccessor(), profile);
-
-    public bool TryReapplySelectionOverride(TerminalProfile profile)
-    {
-        var terminal = _terminalAccessor();
-        if (!TerminalThemeAdapter.TryReapplySelectionOverride(terminal, profile))
-        {
-            return false;
-        }
-
-        // 恢复成功后再请求重绘，避免闪一帧 0x80
-        terminal.InvalidateTerminal();
-        return true;
-    }
-}
-
+// 终端标签：会话生命周期（挂载 / 连接 / 断开 / 重连）与文件侧栏；标签头见 .Header.cs，终端控件见 .Control.cs
 public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
 {
-    // 请求关闭此标签页（如会话正常退出时触发）
-    public event Action<TerminalTabViewModel>? CloseRequested;
-
-    [ObservableProperty]
-    private string _title = Strings.Get("Main.Tab.DefaultTitle");
-
     [ObservableProperty]
     private ConnectionState _state = ConnectionState.Connecting;
 
@@ -116,28 +82,6 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
 
     [ObservableProperty]
     private RemoteFileManagerViewModel? _fileManager;
-
-    // 惰性创建：测试只验证状态/主题注入时不会构造原生 TerminalControl
-    private readonly Func<TerminalControl> _terminalFactory;
-    private TerminalControl? _terminal;
-    private TerminalFontSnapshot _fontSnapshot;
-
-    public TerminalControl Terminal
-    {
-        get
-        {
-            if (_terminal == null)
-            {
-                var terminal = _terminalFactory();
-                ApplyFontToTerminal(terminal, _fontSnapshot);
-                terminal.Loaded += OnTerminalLoaded;
-                terminal.SizeChanged += OnTerminalSizeChanged;
-                _terminal = terminal;
-            }
-
-            return _terminal;
-        }
-    }
 
     private ITerminalSession? _session;
     private TerminalSessionEndpoint? _endpoint;
@@ -178,154 +122,30 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         string? explicitProfileId,
         ILogger? logger = null,
         Func<TerminalControl>? terminalFactory = null,
-        ITerminalThemeSink? themeSink = null)
+        ITerminalThemeSink? themeSink = null,
+        int scrollbackLines = 5000)
     {
         ArgumentNullException.ThrowIfNull(font);
         ArgumentNullException.ThrowIfNull(profile);
 
+        TabName = title;
         Title = title;
         _logger = logger ?? NullLogger.Instance;
         ExplicitProfileId = explicitProfileId;
         CurrentProfile = profile;
         EffectiveProfileId = profile.Id;
+        TerminalBackground = ParseBrush(profile.Background);
         _fontSnapshot = font;
+        _scrollbackLines = Math.Max(0, scrollbackLines);
 
-        _terminalFactory = terminalFactory ?? (() => new TerminalControl
-        {
-            FontLinearMetrics = true,
-            FontSubpixelPositioning = true
-        });
+        _terminalFactory = terminalFactory ?? CreateHookedTerminal;
         // 生产默认绑定真实控件（惰性）；测试可注入无控件实现以验证纯状态
         _themeSink = themeSink ?? new TerminalControlThemeSink(() => Terminal);
     }
 
-    // 更新当前生效方案并注入目标（EffectiveProfileId 同步更新）
-    public void ApplyTerminalProfile(TerminalProfile profile)
-    {
-        ArgumentNullException.ThrowIfNull(profile);
-        CurrentProfile = profile;
-        EffectiveProfileId = profile.Id;
-        _themeSink.Apply(profile);
-    }
-
-    // 只更新字体相关属性，不触碰配色；若控件尚未创建则仅记录，待创建时应用
-    public void ApplyFontSnapshot(TerminalFontSnapshot snapshot)
-    {
-        ArgumentNullException.ThrowIfNull(snapshot);
-        _fontSnapshot = snapshot;
-        if (_terminal != null)
-        {
-            ApplyFontToTerminal(_terminal, snapshot);
-        }
-    }
-
-    // 只设置字体属性（包括主字体与回退字体链）
-    private static void ApplyFontToTerminal(TerminalControl terminal, TerminalFontSnapshot snapshot)
-    {
-        terminal.FontFamilyName = snapshot.PrimaryFontFamily;
-        terminal.TerminalFontSize = snapshot.FontSize;
-
-        // 构造回退字体链（0.6.0-preview.2 引入）
-        System.Collections.Immutable.ImmutableArray<string>.Builder regularBuilder =
-            System.Collections.Immutable.ImmutableArray.CreateBuilder<string>();
-        if (!string.IsNullOrWhiteSpace(snapshot.PrimaryFontFamily))
-        {
-            regularBuilder.Add(snapshot.PrimaryFontFamily);
-        }
-        foreach (string fallback in snapshot.FallbackFonts)
-        {
-            if (!string.IsNullOrWhiteSpace(fallback) && !regularBuilder.Contains(fallback))
-            {
-                regularBuilder.Add(fallback.Trim());
-            }
-        }
-
-        terminal.FontFamilies = new RoyalTerminal.Terminal.TerminalFontFamilySettings
-        {
-            Regular = regularBuilder.ToImmutable()
-        };
-    }
 
     [RelayCommand]
-    public async Task CopySelectionAsync()
-    {
-        try
-        {
-            await Terminal.CopySelectionAsync();
-        }
-        catch { }
-    }
-
-    [RelayCommand]
-    public async Task PasteToTerminalAsync()
-    {
-        try
-        {
-            await Terminal.PasteAsync();
-        }
-        catch { }
-    }
-
-    [RelayCommand]
-    public void SelectAllTerminalText()
-    {
-        try
-        {
-            Terminal.SelectAll();
-        }
-        catch { }
-    }
-
-    [RelayCommand]
-    public async Task ClearTerminalScreenAsync()
-    {
-        if (_session != null && _session.IsConnected)
-        {
-            await _session.SendInputAsync(Encoding.UTF8.GetBytes("clear\r"));
-        }
-    }
-
-    private void OnTerminalLoaded(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        TrySyncTerminalSize();
-        // 控件挂载后 Renderer 才存在：对最新 CurrentProfile 重放选区 alpha 恢复
-        ReapplySelectionOverride();
-    }
-
-    // 对最新 CurrentProfile 重放选区 alpha 恢复（Loaded 后、以及重新 ApplyTheme 后需要）。
-    // 返回 false 表示 Renderer 尚未就绪；此处记录诊断而非静默。
-    public bool ReapplySelectionOverride()
-    {
-        if (IsDisposed)
-        {
-            return false;
-        }
-
-        if (_themeSink.TryReapplySelectionOverride(CurrentProfile))
-        {
-            return true;
-        }
-
-        _logger.LogDebug(
-            "终端选区 alpha 恢复推迟：Renderer 尚未就绪 标题={Title} ProfileId={ProfileId}",
-            Title,
-            CurrentProfile.Id);
-        return false;
-    }
-
-    private void OnTerminalSizeChanged(object? sender, Avalonia.Controls.SizeChangedEventArgs e)
-    {
-        TrySyncTerminalSize();
-    }
-
-    // 尝试同步终端尺寸至后台 SSH 会话
-    public void TrySyncTerminalSize()
-    {
-        if (Terminal.Bounds.Width > 0 && Terminal.Bounds.Height > 0)
-        {
-            _endpoint?.SetSize((int)Terminal.Bounds.Width, (int)Terminal.Bounds.Height);
-        }
-    }
+    private Task Disconnect() => DisconnectAsync();
 
     // 挂载会话与端点（必须在 UI 线程调用）；重试时替换旧会话/端点
     public void AttachSession(ITerminalSession session)
@@ -344,6 +164,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         _endpoint = new TerminalSessionEndpoint(session, Terminal);
         Terminal.AttachEndpoint(_endpoint);
         session.Disconnected += OnSessionDisconnected;
+        session.OutputReceived += OnSessionOutput;
 
         State = ConnectionState.Connecting;
         StatusMessage = null;
@@ -360,7 +181,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         TrySyncTerminalSize();
         if (IsSelected)
         {
-            Terminal.Focus();
+            _terminal?.Focus();
         }
     }
 
@@ -377,7 +198,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
     public async Task DetachSessionAsync()
     {
         _endpoint?.Dispose();
-        Terminal.DetachEndpoint();
+        _terminal?.DetachEndpoint();
         _endpoint = null;
 
         var session = _session;
@@ -385,6 +206,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         if (session != null)
         {
             session.Disconnected -= OnSessionDisconnected;
+            session.OutputReceived -= OnSessionOutput;
             await session.DisposeAsync();
             _logger.LogInformation("终端标签释放会话 标题={Title} SessionId={SessionId}", Title, session.SessionId);
         }
@@ -465,12 +287,51 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         Dispatcher.UIThread.Post(() => TrySyncTerminalSize(), DispatcherPriority.Render);
     }
 
+    // 主动断开：只卸下会话与文件侧栏，标签与终端内容保留，可原地重连
     public async Task DisconnectAsync()
     {
-        await DisposeAsync();
+        await DetachSessionAsync();
+        await CloseFileManagerAsync();
         State = ConnectionState.Disconnected;
         StatusMessage = Strings.Get("Main.Tab.Disconnected");
         _logger.LogInformation("终端标签主动断开 标题={Title}", Title);
+    }
+
+    // 原地重连前的清理：卸下旧会话与文件侧栏，终端内保留历史并打印分隔提示
+    public async Task PrepareReconnectAsync()
+    {
+        await DetachSessionAsync();
+        await CloseFileManagerAsync();
+        RemoteTitle = null;
+        State = ConnectionState.Connecting;
+        StatusMessage = null;
+        Terminal.WriteOutput(Encoding.UTF8.GetBytes($"\r\n\x1b[90m{Strings.Get("Main.Tab.Reconnecting")}\x1b[0m\r\n"));
+    }
+
+    // 文件侧栏持有独立的 SFTP/SCP 通道（专用模式下是第二条 SSH 连接），标签断开或关闭时必须释放
+    // releaseOnly：关闭标签时在后台线程释放，不再改动已解绑界面的可观察属性
+    private async Task CloseFileManagerAsync(bool releaseOnly = false)
+    {
+        RemoteFileManagerViewModel? fileManager = FileManager;
+        if (!releaseOnly)
+        {
+            IsFileManagerVisible = false;
+            FileManager = null;
+        }
+
+        if (fileManager == null)
+        {
+            return;
+        }
+
+        try
+        {
+            await fileManager.DisposeAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "释放文件侧栏失败 标题={Title}", Title);
+        }
     }
 
     public async ValueTask DisposeAsync()
@@ -486,9 +347,11 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         {
             _terminal.Loaded -= OnTerminalLoaded;
             _terminal.SizeChanged -= OnTerminalSizeChanged;
+            _terminal.TerminalResized -= OnTerminalGridResized;
         }
 
         await DetachSessionAsync();
+        await CloseFileManagerAsync(releaseOnly: true);
         _logger.LogInformation("终端标签已释放 标题={Title}", Title);
     }
 }
