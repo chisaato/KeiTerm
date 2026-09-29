@@ -119,6 +119,18 @@ public sealed class HostKeyTrustService
         return decision != HostKeyDecision.Reject;
     }
 
+    // 批量导入（如 OpenSSH known_hosts）：按 (host, port, key) 幂等写入，返回写入条数
+    public async Task<int> ImportAsync(IReadOnlyList<KnownHostEntry> entries, CancellationToken ct = default)
+    {
+        foreach (KnownHostEntry entry in entries)
+        {
+            await _repository.SaveAsync(entry, ct);
+        }
+
+        _logger?.LogInformation("导入主机密钥 条数={Count}", entries.Count);
+        return entries.Count;
+    }
+
     private async Task ApplyDecisionAsync(HostKeyEvaluation evaluation, HostKeyDecision decision, bool prompted, CancellationToken ct)
     {
         PresentedHostKey presented = evaluation.Presented;

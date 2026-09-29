@@ -884,6 +884,68 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
     });
 
+    // 导入 ~/.ssh/config：具体 Host 别名 → 会话，IdentityFile → 身份，ProxyJump → 跳板链
+    [RelayCommand]
+    private Task ImportOpenSshConfigAsync() => Safe.RunAsync(_logger, "导入 OpenSSH 配置", async () =>
+    {
+        string path = OpenSshPaths.UserConfig;
+        if (!File.Exists(path))
+        {
+            if (ShowNotificationAsync != null)
+            {
+                await ShowNotificationAsync(Strings.Get("Menu.File.ImportOpenSshConfig"), $"未找到 {path}");
+            }
+            return;
+        }
+
+        string content = await File.ReadAllTextAsync(path);
+        var importer = new OpenSshConfigImporter(_treeRepo, _identityRepo);
+        SshConfigImportSummary summary = await importer.ImportAsync(content, OpenSshPaths.Expand, OpenSshPaths.ResolveInclude);
+        _logger.LogInformation(
+            "OpenSSH 配置导入完成 会话={Sessions} 跳过={Skipped} 身份={Identities} 警告={Warnings}",
+            summary.SessionsImported,
+            summary.SessionsSkipped,
+            summary.IdentitiesCreated,
+            summary.Warnings.Count);
+
+        await ReloadTreeAsync();
+
+        if (ShowNotificationAsync != null)
+        {
+            string message = $"导入 {summary.SessionsImported} 个会话（跳过已存在 {summary.SessionsSkipped} 个），新建 {summary.IdentitiesCreated} 个身份。";
+            if (summary.Warnings.Count > 0)
+            {
+                message += "\n" + string.Join("\n", summary.Warnings);
+            }
+            await ShowNotificationAsync(Strings.Get("Menu.File.ImportOpenSshConfig"), message);
+        }
+    });
+
+    // 导入 ~/.ssh/known_hosts：与系统 ssh 共享已建立的主机信任（含哈希条目与 @revoked）
+    [RelayCommand]
+    private Task ImportKnownHostsAsync() => Safe.RunAsync(_logger, "导入 known_hosts", async () =>
+    {
+        string path = OpenSshPaths.UserKnownHosts;
+        if (_hostKeyTrust == null || !File.Exists(path))
+        {
+            if (ShowNotificationAsync != null)
+            {
+                await ShowNotificationAsync(Strings.Get("Menu.File.ImportKnownHosts"), $"未找到 {path}");
+            }
+            return;
+        }
+
+        KnownHostsParseResult parsed = OpenSshKnownHostsParser.Parse(await File.ReadAllTextAsync(path));
+        int count = await _hostKeyTrust.ImportAsync(parsed.Entries);
+
+        if (ShowNotificationAsync != null)
+        {
+            await ShowNotificationAsync(
+                Strings.Get("Menu.File.ImportKnownHosts"),
+                $"导入 {count} 条主机密钥，跳过无法识别的行 {parsed.SkippedLines} 行。");
+        }
+    });
+
     // 导入 SecureCRT 会话：弹出目录选择框，提取层级目录与会话，并为用到的凭据建立占位 Profile
     [RelayCommand]
     private Task ImportSecureCrtAsync() => Safe.RunAsync(_logger, "导入 SecureCRT 会话", async () =>

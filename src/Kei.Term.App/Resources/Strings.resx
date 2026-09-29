@@ -217,6 +217,12 @@
   <data name="Menu.File.ImportSecureCrt" xml:space="preserve">
     <value>导入 SecureCRT 会话...</value>
   </data>
+  <data name="Menu.File.ImportOpenSshConfig" xml:space="preserve">
+    <value>导入 OpenSSH 配置 (~/.ssh/config)</value>
+  </data>
+  <data name="Menu.File.ImportKnownHosts" xml:space="preserve">
+    <value>导入主机密钥 (~/.ssh/known_hosts)</value>
+  </data>
   <data name="Menu.File.Connect" xml:space="preserve">
     <value>连接</value>
   </data>
