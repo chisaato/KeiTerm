@@ -190,7 +190,11 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         EffectiveProfileId = profile.Id;
         _fontSnapshot = font;
 
-        _terminalFactory = terminalFactory ?? (() => new TerminalControl());
+        _terminalFactory = terminalFactory ?? (() => new TerminalControl
+        {
+            FontLinearMetrics = true,
+            FontSubpixelPositioning = true
+        });
         // 生产默认绑定真实控件（惰性）；测试可注入无控件实现以验证纯状态
         _themeSink = themeSink ?? new TerminalControlThemeSink(() => Terminal);
     }

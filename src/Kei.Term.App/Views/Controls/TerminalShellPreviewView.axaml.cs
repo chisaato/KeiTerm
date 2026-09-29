@@ -104,7 +104,9 @@ public partial class TerminalShellPreviewView : UserControl
         var terminal = new TerminalControl
         {
             IsHitTestVisible = false, // 纯预览展示，不接收键盘鼠标输入
-            Focusable = false
+            Focusable = false,
+            FontLinearMetrics = true,
+            FontSubpixelPositioning = true
         };
 
         // 注册 Loaded 钩子：当控件挂载并建立真实 Renderer 后，重新应用选区 alpha 覆盖与重绘
