@@ -7,6 +7,8 @@ using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Kei.Term.Core.Vault;
+using Kei.Term.Infrastructure.Storage;
+using Kei.Term.Infrastructure.Storage.Schema;
 
 // 内置 Vault：主密码可选。明文模式下字节直通；加密模式用 AES-256-GCM。
 //
@@ -20,6 +22,9 @@ public class InternalVaultManager : IVaultManager, IVaultSecretStore
     private const string KeyPlainMode = "plain_mode";
     private const string KeyKdfSalt = "kdf_salt";
     private const string KeyVerifier = "verifier";
+    // KDF 标识与参数：缺省（早期库未写入）即视为 Pbkdf2Sha512Id，为未来切换 Argon2id 留出版本位
+    private const string KeyKdf = "kdf";
+    private const string Pbkdf2Sha512Id = "pbkdf2-sha512:600000";
 
     private const int Pbkdf2Iterations = 600_000;
     private const int MekLength = 32;
@@ -33,18 +38,24 @@ public class InternalVaultManager : IVaultManager, IVaultSecretStore
     // 解锁校验用已知明文：用候选 MEK 解密后比对
     private const string VerifierPlaintext = "keiterm-vault-verifier-v1";
 
-    private readonly string _connectionString;
+    private readonly SqliteConnectionFactory _factory;
     private readonly ILogger<InternalVaultManager> _logger;
     private readonly SemaphoreSlim _initLock = new(1, 1);
 
     private bool _initialized;
     private bool _hasMasterPassword;
     private byte[]? _kdfSalt;
+    private string _kdfId = Pbkdf2Sha512Id;
     private byte[]? _mek;
 
     public InternalVaultManager(string connectionString, ILogger<InternalVaultManager>? logger = null)
+        : this(new SqliteConnectionFactory(connectionString), logger)
     {
-        _connectionString = connectionString;
+    }
+
+    public InternalVaultManager(SqliteConnectionFactory factory, ILogger<InternalVaultManager>? logger = null)
+    {
+        _factory = factory;
         _logger = logger ?? NullLogger<InternalVaultManager>.Instance;
     }
 
@@ -54,17 +65,7 @@ public class InternalVaultManager : IVaultManager, IVaultSecretStore
     // 明文模式恒解锁；加密模式需 MEK 存在
     public bool IsUnlocked => !_hasMasterPassword || _mek != null;
 
-    private async Task<SqliteConnection> CreateConnectionAsync(CancellationToken ct)
-    {
-        var conn = new SqliteConnection(_connectionString);
-        await conn.OpenAsync(ct);
-
-        using var pragma = conn.CreateCommand();
-        pragma.CommandText = "PRAGMA foreign_keys = ON;";
-        await pragma.ExecuteNonQueryAsync(ct);
-
-        return conn;
-    }
+    private Task<SqliteConnection> CreateConnectionAsync(CancellationToken ct) => _factory.OpenAsync(ct);
 
     // 惰性初始化：确保元数据表存在并加载 plain_mode/kdf_salt；不自动解锁
     private async Task EnsureInitializedAsync(CancellationToken ct)
@@ -82,13 +83,9 @@ public class InternalVaultManager : IVaultManager, IVaultSecretStore
                 return;
             }
 
+            // Schema 由迁移器统一维护（已是最新版本时仅一次 user_version 查询）
+            await SchemaMigrator.MigrateAsync(_factory, ct);
             using var conn = await CreateConnectionAsync(ct);
-            using (var cmd = conn.CreateCommand())
-            {
-                // 与 SqliteTreeRepository 的建表幂等共存
-                cmd.CommandText = "CREATE TABLE IF NOT EXISTS vault_metadata (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL);";
-                await cmd.ExecuteNonQueryAsync(ct);
-            }
 
             var meta = await LoadMetadataAsync(conn, ct);
             if (meta.TryGetValue(KeyPlainMode, out var plain))
@@ -99,6 +96,11 @@ public class InternalVaultManager : IVaultManager, IVaultSecretStore
             if (meta.TryGetValue(KeyKdfSalt, out var saltB64))
             {
                 _kdfSalt = Convert.FromBase64String(saltB64);
+            }
+
+            if (meta.TryGetValue(KeyKdf, out var kdfId))
+            {
+                _kdfId = kdfId;
             }
 
             _initialized = true;
@@ -120,7 +122,8 @@ public class InternalVaultManager : IVaultManager, IVaultSecretStore
         await EnsureInitializedAsync(ct);
 
         var salt = RandomNumberGenerator.GetBytes(SaltLength);
-        var mek = DeriveKey(masterPassword, salt);
+        // 新设/更换主密码一律采用当前默认 KDF
+        var mek = DeriveKey(Pbkdf2Sha512Id, masterPassword, salt);
         var verifier = EncryptWithMek(mek, Encoding.UTF8.GetBytes(VerifierPlaintext));
 
         using var conn = await CreateConnectionAsync(ct);
@@ -130,6 +133,7 @@ public class InternalVaultManager : IVaultManager, IVaultSecretStore
             await UpsertMetadataAsync(conn, tx, KeyPlainMode, "0", ct);
             await UpsertMetadataAsync(conn, tx, KeyKdfSalt, Convert.ToBase64String(salt), ct);
             await UpsertMetadataAsync(conn, tx, KeyVerifier, Convert.ToBase64String(verifier), ct);
+            await UpsertMetadataAsync(conn, tx, KeyKdf, Pbkdf2Sha512Id, ct);
 
             // 明文升级：把已有的明文材料块就地重新加密，保证加密模式下可读（无损升级）
             reEncrypted = await ReEncryptPlainSecretsAsync(conn, tx, mek, ct);
@@ -137,6 +141,7 @@ public class InternalVaultManager : IVaultManager, IVaultSecretStore
         }
 
         _kdfSalt = salt;
+        _kdfId = Pbkdf2Sha512Id;
         _mek = mek;
         _hasMasterPassword = true;
         _logger.LogInformation("设置主密码完成 重加密存量明文材料={Count} 项", reEncrypted);
@@ -173,7 +178,7 @@ public class InternalVaultManager : IVaultManager, IVaultSecretStore
             throw new InvalidOperationException("Vault 元数据缺失 verifier");
         }
 
-        var candidate = DeriveKey(masterPassword, _kdfSalt);
+        var candidate = DeriveKey(_kdfId, masterPassword, _kdfSalt);
         try
         {
             var plain = DecryptWithMek(candidate, Convert.FromBase64String(verifierB64));
@@ -339,8 +344,14 @@ public class InternalVaultManager : IVaultManager, IVaultSecretStore
         return pending.Count;
     }
 
-    private static byte[] DeriveKey(string password, byte[] salt)
+    private static byte[] DeriveKey(string kdfId, string password, byte[] salt)
     {
+        // 未知 KDF 标识说明库由更新版本写入：拒绝猜测，避免用错误算法反复"密码错误"
+        if (!string.Equals(kdfId, Pbkdf2Sha512Id, StringComparison.Ordinal))
+        {
+            throw new NotSupportedException($"不支持的 Vault KDF: {kdfId}");
+        }
+
         // PBKDF2-HMAC-SHA512：替代 Argon2id（.NET 10 无内置 Argon2）
         return Rfc2898DeriveBytes.Pbkdf2(password, salt, Pbkdf2Iterations, HashAlgorithmName.SHA512, MekLength);
     }

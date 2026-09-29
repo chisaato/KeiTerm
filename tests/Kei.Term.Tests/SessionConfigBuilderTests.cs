@@ -106,14 +106,15 @@ public class SessionConfigBuilderTests
     }
 
     [Fact]
-    public void Build_JumpHostAndEnv_PassedThroughWithoutFallback()
+    public void Build_JumpHostEnvAndTerminalProfile_PassedThroughWithoutFallback()
     {
         var settings = CreateSettings();
         var node = new SessionNode
         {
             Name = "Jump",
             Host = "10.0.0.5",
-            JumpHostSessionId = Guid.NewGuid()
+            JumpHostSessionId = Guid.NewGuid(),
+            TerminalProfileId = "Custom-Explicit"
         };
         node.EnvironmentVariables["LANG"] = "zh_CN.UTF-8";
 
@@ -122,5 +123,7 @@ public class SessionConfigBuilderTests
         // 跳板机与环境变量原样透传，不参与回退
         Assert.Equal(node.JumpHostSessionId, resolved.JumpHostSessionId);
         Assert.Equal("zh_CN.UTF-8", resolved.EnvironmentVariables["LANG"]);
+        // 显式配色 ID 同样透传，三级回退由 App 层解析
+        Assert.Equal("Custom-Explicit", resolved.TerminalProfileId);
     }
 }

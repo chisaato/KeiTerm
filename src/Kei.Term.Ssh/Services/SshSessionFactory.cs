@@ -1,10 +1,7 @@
 namespace Kei.Term.Ssh.Services;
 
-using Renci.SshNet;
-using Renci.SshNet.Common;
-using SshNet.Agent;
 using System.Text;
-using System.Threading;
+using Renci.SshNet;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Kei.Term.Core.Abstractions;
@@ -23,113 +20,12 @@ public class SshSessionFactory : ISshSessionFactory
     public Task<ISshSession> CreateSessionAsync(
         ResolvedSessionConfig config,
         IReadOnlyList<MaterializedAuthMethod> methods,
-        TimeSpan? connectTimeout = null,
-        Func<string, Task<string?>>? interactivePrompt = null,
+        SshConnectOptions? options = null,
         CancellationToken ct = default)
     {
-        var authMethods = new List<AuthenticationMethod>();
-        string? fallbackPassword = null;
-
-        // 按物化顺序注册，顺序即认证尝试优先级
-        foreach (var material in methods ?? [])
-        {
-            switch (material.Kind)
-            {
-                case AuthMaterialKind.Password:
-                    if (string.IsNullOrEmpty(material.Secret?.Password))
-                    {
-                        break;
-                    }
-
-                    // 首个密码作为 keyboard-interactive 的预收集应答
-                    fallbackPassword ??= material.Secret.Password;
-                    authMethods.Add(new PasswordAuthenticationMethod(config.Username, material.Secret.Password));
-                    break;
-
-                case AuthMaterialKind.PrivateKey:
-                    if (string.IsNullOrEmpty(material.Secret?.PrivateKeyContent))
-                    {
-                        break;
-                    }
-
-                    using (var keyStream = new MemoryStream(Encoding.UTF8.GetBytes(material.Secret.PrivateKeyContent)))
-                    {
-                        var keyFile = string.IsNullOrEmpty(material.Secret.Passphrase)
-                            ? new PrivateKeyFile(keyStream)
-                            : new PrivateKeyFile(keyStream, material.Secret.Passphrase);
-
-                        authMethods.Add(new PrivateKeyAuthenticationMethod(config.Username, keyFile));
-                    }
-
-                    break;
-
-                case AuthMaterialKind.Agent:
-                    // Agent 全量身份：一期 SshNet.Agent 无法对 SK/FIDO 身份取公钥算指纹
-                    // （SshAgentPrivateKey.Key 对 sk-* 为 null），故 Fingerprint 字段预留、暂不过滤
-                    try
-                    {
-                        var agent = new SshAgent();
-                        var identities = agent.RequestIdentities();
-                        if (identities.Any())
-                        {
-                            authMethods.Add(new PrivateKeyAuthenticationMethod(config.Username, identities.ToArray()));
-                        }
-                    }
-                    catch
-                    {
-                        // Agent 不可用或未启动时忽略，继续后续方法
-                    }
-
-                    break;
-            }
-        }
-
-        // 任一密码材料或存在交互回调 → 注册 keyboard-interactive
-        // （纯交互式认证：零密码材料 + interactivePrompt 也必须注册，否则 KI 永远不触发）
-        var hasPassword = methods?.Any(m => m.Kind == AuthMaterialKind.Password
-                                           && !string.IsNullOrEmpty(m.Secret?.Password)) == true;
-        if (hasPassword || interactivePrompt != null)
-        {
-            var keyboardInteractive = new KeyboardInteractiveAuthenticationMethod(config.Username);
-            keyboardInteractive.AuthenticationPrompt += (_, e) =>
-            {
-                foreach (var prompt in e.Prompts)
-                {
-                    if (interactivePrompt != null)
-                    {
-                        // 注意：连接必须运行于非 UI 线程；事件处理器同步阻塞等待 UI 经 Dispatcher 回传输入
-                        prompt.Response = interactivePrompt(prompt.Request).GetAwaiter().GetResult() ?? string.Empty;
-                    }
-                    else
-                    {
-                        // 无交互回调时用预收集密码应答全部提示，避免无 UI 环境等待输入造成死锁
-                        prompt.Response = fallbackPassword ?? string.Empty;
-                    }
-                }
-            };
-            authMethods.Add(keyboardInteractive);
-        }
-
-        var connectionInfo = new ConnectionInfo(
-            config.Host,
-            config.Port,
-            config.Username,
-            authMethods.ToArray()
-        );
-
-        // 仅记录注册的认证方法类型（不记录任何凭据值）
-        _logger.LogInformation(
-            "注册 SSH 认证方法 host={Host}:{Port} 用户名={Username} 数量={Count} 类型={Types}",
-            config.Host,
-            config.Port,
-            config.Username,
-            authMethods.Count,
-            string.Join(",", authMethods.Select(m => m.GetType().Name)));
-
-        // 认证/连接超时，未指定时默认 15 秒
-        connectionInfo.Timeout = connectTimeout ?? TimeSpan.FromSeconds(15);
-
-        var session = new SshNetSession(config.SessionId, connectionInfo, config.TerminalType, _logger);
+        options ??= SshConnectOptions.Default;
+        SshDialer dialer = CreateDialer(config, methods, options, borrowedChain: null);
+        var session = new SshNetSession(config.SessionId, dialer, config.TerminalType, config.StartupScript, _logger);
         return Task.FromResult<ISshSession>(session);
     }
 
@@ -137,74 +33,77 @@ public class SshSessionFactory : ISshSessionFactory
         ResolvedSessionConfig config,
         IReadOnlyList<MaterializedAuthMethod> methods,
         ISshSession? activeSession = null,
-        TimeSpan? connectTimeout = null,
+        SshConnectOptions? options = null,
         CancellationToken ct = default)
     {
-        var authMethods = new List<AuthenticationMethod>();
-        foreach (var material in methods ?? [])
-        {
-            switch (material.Kind)
-            {
-                case AuthMaterialKind.Password:
-                    if (!string.IsNullOrEmpty(material.Secret?.Password))
-                    {
-                        authMethods.Add(new PasswordAuthenticationMethod(config.Username, material.Secret.Password));
-                    }
-                    break;
+        options ??= SshConnectOptions.Default;
 
-                case AuthMaterialKind.PrivateKey:
-                    if (!string.IsNullOrEmpty(material.Secret?.PrivateKeyContent))
-                    {
-                        using var keyStream = new MemoryStream(Encoding.UTF8.GetBytes(material.Secret.PrivateKeyContent));
-                        var keyFile = string.IsNullOrEmpty(material.Secret.Passphrase)
-                            ? new PrivateKeyFile(keyStream)
-                            : new PrivateKeyFile(keyStream, material.Secret.Passphrase);
-                        authMethods.Add(new PrivateKeyAuthenticationMethod(config.Username, keyFile));
-                    }
-                    break;
+        // 终端会话已建立跳板链时直接借用：文件通道不再重复登录每一跳
+        SshJumpChain? borrowed = (activeSession as SshNetSession)?.JumpChain;
+        SshDialer dialer = CreateDialer(config, methods, options, borrowed);
 
-                case AuthMaterialKind.Agent:
-                    try
-                    {
-                        var agent = new SshAgent();
-                        var identities = agent.RequestIdentities();
-                        if (identities.Any())
-                        {
-                            authMethods.Add(new PrivateKeyAuthenticationMethod(config.Username, identities.ToArray()));
-                        }
-                    }
-                    catch
-                    {
-                        // ignore
-                    }
-                    break;
-            }
-        }
-
-        var connectionInfo = new ConnectionInfo(config.Host, config.Port, config.Username, authMethods.ToArray())
-        {
-            Timeout = connectTimeout ?? TimeSpan.FromSeconds(15)
-        };
-
-        IRemoteFileSystem fileSystem;
-        if (config.FileTransferProtocol == FileTransferProtocol.Scp)
-        {
-            fileSystem = new ScpRemoteFileSystem(connectionInfo, _logger);
-        }
-        else
-        {
-            fileSystem = new SftpRemoteFileSystem(connectionInfo, config.SftpMode, activeSession, _logger);
-        }
-
+        IRemoteFileSystem fileSystem = config.FileTransferProtocol == FileTransferProtocol.Scp
+            ? new ScpRemoteFileSystem(dialer, _logger)
+            : new SftpRemoteFileSystem(dialer, config.SftpMode, _logger);
         return Task.FromResult(fileSystem);
+    }
+
+    private SshDialer CreateDialer(
+        ResolvedSessionConfig config,
+        IReadOnlyList<MaterializedAuthMethod> methods,
+        SshConnectOptions options,
+        SshJumpChain? borrowedChain)
+    {
+        SshTarget target = BuildTarget(config, methods, options, options.InteractivePrompt);
+
+        // 借用现成链时无需再构建各跳认证
+        List<SshTarget> hops = borrowedChain != null
+            ? []
+            : options.JumpHosts.Select(h => BuildTarget(h.Config, h.Methods, options, options.InteractivePrompt)).ToList();
+
+        var clientOptions = new SshClientOptions(options.ConnectTimeout, options.KeepAliveInterval, options.HostKeyVerifier);
+        return new SshDialer(target, hops, borrowedChain, clientOptions, _logger);
+    }
+
+    private SshTarget BuildTarget(
+        ResolvedSessionConfig config,
+        IReadOnlyList<MaterializedAuthMethod> methods,
+        SshConnectOptions options,
+        Func<string, Task<string?>>? interactivePrompt)
+    {
+        AuthenticationMethod[] authMethods = SshAuthMethodBuilder.Build(
+            config.Username,
+            methods,
+            interactivePrompt,
+            options.AgentSocketPath,
+            _logger);
+
+        // 零认证方法无法连接：提前失败，与 SSH.NET ConnectionInfo 的约束一致
+        if (authMethods.Length == 0)
+        {
+            throw new ArgumentException($"没有可用的认证方法: {config.Username}@{config.Host}:{config.Port}", nameof(methods));
+        }
+
+        // 仅记录注册的认证方法类型（不记录任何凭据值）
+        _logger.LogInformation(
+            "注册 SSH 认证方法 host={Host}:{Port} 用户名={Username} 数量={Count} 类型={Types}",
+            config.Host,
+            config.Port,
+            config.Username,
+            authMethods.Length,
+            string.Join(",", authMethods.Select(m => m.GetType().Name)));
+
+        return new SshTarget(config.Host, config.Port, config.Username, authMethods);
     }
 }
 
 public class SshNetSession : ISshSession
 {
-    private readonly SshClient _client;
+    private readonly SshDialer _dialer;
     private readonly string _terminalType;
+    private readonly string? _startupScript;
     private readonly ILogger _logger;
+    private SshClient? _client;
     private ShellStream? _shellStream;
     private CancellationTokenSource? _readCts;
     private Task? _readLoopTask;
@@ -214,35 +113,77 @@ public class SshNetSession : ISshSession
 
     public Guid SessionId { get; }
 
-    // 获取底层 SshClient，供 Subsystem 多路复用通道使用
+    // 获取底层 SshClient（连接前为 null）
     public object? UnderlyingClient => _client;
 
+    // 本会话注册的认证方法（诊断/测试用，不含明文材料的读取入口）
+    public IReadOnlyList<AuthenticationMethod> AuthenticationMethods => _dialer.Target.AuthMethods;
+
+    // 跳板链（直连为 null），供文件通道借用
+    internal SshJumpChain? JumpChain => _dialer.Chain;
+
     // 已释放后直接返回 false，避免 getter 访问已释放的 SshClient 抛 ObjectDisposedException
-    public bool IsConnected => _disposed != 0 ? false : _client.IsConnected && _shellStream != null;
+    public bool IsConnected => _disposed == 0 && _client is { IsConnected: true } && _shellStream != null;
 
     public event Action<byte[]>? OutputReceived;
     public event Action<Exception?>? Disconnected;
 
+    // 直连兼容构造：沿用既有 ConnectionInfo（不做主机密钥校验、无跳板）
     public SshNetSession(Guid sessionId, ConnectionInfo connectionInfo, string terminalType, ILogger? logger = null)
+        : this(
+            sessionId,
+            new SshDialer(
+                new SshTarget(connectionInfo.Host, connectionInfo.Port, connectionInfo.Username, connectionInfo.AuthenticationMethods.ToArray()),
+                [],
+                null,
+                new SshClientOptions(connectionInfo.Timeout, TimeSpan.Zero, null),
+                logger ?? NullLogger.Instance),
+            terminalType,
+            null,
+            logger)
+    {
+    }
+
+    internal SshNetSession(Guid sessionId, SshDialer dialer, string terminalType, string? startupScript, ILogger? logger = null)
     {
         SessionId = sessionId;
+        _dialer = dialer;
         _terminalType = terminalType;
+        _startupScript = startupScript;
         _logger = logger ?? NullLogger.Instance;
-        _client = new SshClient(connectionInfo);
     }
 
     public async Task ConnectAsync(CancellationToken ct = default)
     {
-        await _client.ConnectAsync(ct);
-        _logger.LogInformation("SSH 会话已连接 SessionId={SessionId}", SessionId);
+        ObjectDisposedException.ThrowIf(_disposed != 0, this);
+
+        _client = await _dialer.ConnectClientAsync(info => new SshClient(info), ct);
+        _logger.LogInformation(
+            "SSH 会话已连接 SessionId={SessionId} 经跳板={ViaJump}",
+            SessionId,
+            _dialer.UsesJumpHosts);
 
         // 初始化 PTY 尺寸默认为 80x24，由 UI 端挂载后自动触发真实尺寸的 Resize
-        _shellStream = _client.CreateShellStream(
-            _terminalType,
-            80, 24, 800, 600, 1024);
+        _shellStream = _client.CreateShellStream(_terminalType, 80, 24, 800, 600, 1024);
 
         _readCts = new CancellationTokenSource();
         _readLoopTask = Task.Run(() => ReadLoopAsync(_readCts.Token));
+
+        await SendStartupScriptAsync(ct);
+    }
+
+    // 登录后自动执行：逐行以回车提交（PTY 会把 \r 转成换行），由远端 shell 自行缓冲
+    private async Task SendStartupScriptAsync(CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(_startupScript))
+        {
+            return;
+        }
+
+        string normalized = _startupScript.Replace("\r\n", "\n").Replace('\r', '\n').TrimEnd('\n');
+        string payload = string.Join('\r', normalized.Split('\n')) + "\r";
+        await SendInputAsync(Encoding.UTF8.GetBytes(payload), ct);
+        _logger.LogInformation("已发送登录脚本 SessionId={SessionId} 行数={Lines}", SessionId, normalized.Split('\n').Length);
     }
 
     public async Task SendInputAsync(ReadOnlyMemory<byte> data, CancellationToken ct = default)
@@ -278,7 +219,7 @@ public class SshNetSession : ISshSession
         var buffer = new byte[4096];
         try
         {
-            while (!ct.IsCancellationRequested && _shellStream != null && _client.IsConnected)
+            while (!ct.IsCancellationRequested && _shellStream != null && _client is { IsConnected: true })
             {
                 int read = await _shellStream.ReadAsync(buffer, 0, buffer.Length, ct);
                 if (read <= 0)
@@ -320,32 +261,30 @@ public class SshNetSession : ISshSession
             // 释放路径防御：忽略流关闭异常
         }
 
-        // 释放路径的防御：SSH.NET 的 BaseClient 属性访问器会 CheckDisposed，
-        // 已释放后再查询/断开会抛 ObjectDisposedException，这里全部吞掉保证 Dispose 不抛
-        bool connected;
-        try
+        SshClient? client = _client;
+        if (client != null)
         {
-            connected = _client.IsConnected;
-        }
-        catch (ObjectDisposedException)
-        {
-            connected = false;
-        }
-        catch
-        {
-            // 释放路径的防御：连接状态查询的异常一律视为未连接
-            connected = false;
-        }
-
-        if (connected)
-        {
+            // SSH.NET 的 BaseClient 属性访问器会 CheckDisposed，异常一律视为未连接
+            bool connected;
             try
             {
-                _client.Disconnect();
+                connected = client.IsConnected;
             }
             catch
             {
-                // 释放路径的防御：断开连接时的网络异常吞掉，不影响释放
+                connected = false;
+            }
+
+            if (connected)
+            {
+                try
+                {
+                    client.Disconnect();
+                }
+                catch
+                {
+                    // 释放路径的防御：断开连接时的网络异常吞掉，不影响释放
+                }
             }
         }
 
@@ -364,12 +303,15 @@ public class SshNetSession : ISshSession
 
         try
         {
-            _client.Dispose();
+            client?.Dispose();
         }
         catch
         {
             // 释放路径的防御：重复 Dispose 时的异常吞掉，保证释放路径绝不抛
         }
+
+        // 4) 目标连接断开后再拆跳板链
+        await _dialer.DisposeAsync();
 
         _readCts?.Dispose();
         _logger.LogInformation("SSH 会话已释放 SessionId={SessionId}", SessionId);

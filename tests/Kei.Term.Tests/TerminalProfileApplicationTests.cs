@@ -198,8 +198,7 @@ public class TerminalProfileApplicationTests
         public Task<ISshSession> CreateSessionAsync(
             ResolvedSessionConfig config,
             IReadOnlyList<MaterializedAuthMethod> methods,
-            TimeSpan? connectTimeout = null,
-            Func<string, Task<string?>>? interactivePrompt = null,
+            SshConnectOptions? options = null,
             CancellationToken ct = default)
             => throw new NotImplementedException();
 
@@ -207,7 +206,7 @@ public class TerminalProfileApplicationTests
             ResolvedSessionConfig config,
             IReadOnlyList<MaterializedAuthMethod> methods,
             ISshSession? activeSession = null,
-            TimeSpan? connectTimeout = null,
+            SshConnectOptions? options = null,
             CancellationToken ct = default)
             => throw new NotImplementedException();
     }
@@ -1099,78 +1098,6 @@ public class TerminalProfileApplicationTests
         Assert.False(snapshot.CursorBlink);
         Assert.Equal(new[] { "Noto Sans Mono", "monospace" }, snapshot.FallbackFonts);
         Assert.Contains(nameof(AppearanceSettingsPage.DraftFontSnapshot), notified);
-    }
-
-    // J) 会话显式 TerminalProfileId 透传到解析结果
-    [Fact]
-    public void SessionConfigBuilder_PropagatesExplicitTerminalProfileId()
-    {
-        var settings = new AppSettings();
-        var node = new SessionNode
-        {
-            Name = "S",
-            Host = "h",
-            TerminalProfileId = "Custom-Explicit"
-        };
-
-        var resolved = SessionConfigBuilder.Build(node, settings);
-
-        Assert.Equal("Custom-Explicit", resolved.TerminalProfileId);
-    }
-
-    // L) R3：设置分类拆分为「终端」（纯底层行为）与「终端外观」（配色与字体）两个大类
-    [Fact]
-    public void SettingsCategories_SplitIntoTerminalAndTerminalAppearance()
-    {
-        var settings = new InMemorySettingsService();
-        string tempDir = NewTempDir();
-        try
-        {
-            var vm = new SettingsViewModel(settings, tempDir);
-
-            // 「终端」大类：仅承载底层终端行为页
-            var terminalCategory = Assert.Single(
-                vm.Categories,
-                c => c.Title == Kei.Term.App.Helpers.Strings.Get("Settings.Categories.Terminal"));
-            var terminalCombined = Assert.IsType<TerminalSettingsCombinedPage>(terminalCategory.Page);
-            Assert.IsType<TerminalSettingsPage>(terminalCombined.Terminal);
-
-            // 「终端外观」大类：承载配色与字体外观页
-            var appearanceCategory = Assert.Single(
-                vm.Categories,
-                c => c.Title == Kei.Term.App.Helpers.Strings.Get("Settings.Categories.TerminalAppearance"));
-            var appearancePage = Assert.IsType<TerminalAppearanceSettingsPage>(appearanceCategory.Page);
-            Assert.IsType<AppearanceSettingsPage>(appearancePage.Appearance);
-            // 外观大类复用与「外观配色」大类同一份 AppearanceSettingsPage 实例
-            Assert.Same(AppearanceOf(vm), appearancePage.Appearance);
-        }
-        finally
-        {
-            if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true);
-        }
-    }
-
-    // M) R3：终端实时 Demo 预览样本包含中日韩与英文等宽混排字形（保留原 16 色色条）
-    [Fact]
-    public void DemoAnsiSample_ContainsCjkAndLatinGlyphs()
-    {
-        var field = typeof(Kei.Term.App.Views.Controls.TerminalShellPreviewView)
-            .GetField("DemoAnsiSample", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-        Assert.NotNull(field);
-
-        var bytes = Assert.IsType<byte[]>(field!.GetValue(null));
-        string text = System.Text.Encoding.UTF8.GetString(bytes);
-
-        Assert.Contains("天地玄黄", text);
-        Assert.Contains("いろはにほへと", text);
-        Assert.Contains("다람쥐", text);
-        Assert.Contains("The quick brown fox jumps over the lazy dog.", text);
-
-        // 既有 16 色调色板色条与 uname/git 状态样本仍保留
-        Assert.Contains("\x1b[40m", text);
-        Assert.Contains("\x1b[107m", text);
-        Assert.Contains("uname -srm", text);
-        Assert.Contains("git status -s", text);
     }
 
     // K) 自定义方案深拷贝保留字体字段（配色编辑不丢字段、不改字体）

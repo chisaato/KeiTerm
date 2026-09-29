@@ -1,10 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Kei.Term.App.Helpers;
 using Kei.Term.App.ViewModels;
+using Kei.Term.Core.Security;
 using Kei.Term.Core.Storage;
 
 namespace Kei.Term.App.ViewModels.Settings;
@@ -58,6 +60,24 @@ public partial class SshSettingsPage : ViewModelBase
     [ObservableProperty]
     private string _customAgentSocketPath = string.Empty;
 
+    // 主机密钥校验策略下拉
+    public IReadOnlyList<HostKeyPolicyOption> HostKeyPolicies { get; } =
+    [
+        new(HostKeyPolicy.Ask, Strings.Get("Settings.Ssh.HostKeyPolicy.Ask")),
+        new(HostKeyPolicy.AcceptNew, Strings.Get("Settings.Ssh.HostKeyPolicy.AcceptNew")),
+        new(HostKeyPolicy.Strict, Strings.Get("Settings.Ssh.HostKeyPolicy.Strict"))
+    ];
+
+    [ObservableProperty]
+    private HostKeyPolicyOption? _selectedHostKeyPolicy;
+
+    // 与设置项直接对应；未匹配到选项时按默认 Ask 处理
+    public HostKeyPolicy HostKeyPolicy
+    {
+        get => SelectedHostKeyPolicy?.Policy ?? HostKeyPolicy.Ask;
+        set => SelectedHostKeyPolicy = HostKeyPolicies.FirstOrDefault(o => o.Policy == value) ?? HostKeyPolicies[0];
+    }
+
     public SshSettingsPage() : this(null)
     {
     }
@@ -99,3 +119,5 @@ public partial class SshSettingsPage : ViewModelBase
 
 // 全局默认身份下拉项（null = 不绑定）
 public sealed record IdentityOption(Guid? Id, string DisplayName);
+
+public sealed record HostKeyPolicyOption(HostKeyPolicy Policy, string DisplayName);

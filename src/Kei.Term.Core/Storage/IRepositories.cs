@@ -1,6 +1,7 @@
 namespace Kei.Term.Core.Storage;
 
 using Kei.Term.Core.Models;
+using Kei.Term.Core.Security;
 using Kei.Term.Core.Vault;
 
 public interface ITreeRepository
@@ -31,4 +32,18 @@ public interface IExternalEditorRepository
     Task<IReadOnlyList<FileAssociationRule>> GetAllAssociationsAsync(CancellationToken ct = default);
     Task SaveAssociationAsync(FileAssociationRule association, CancellationToken ct = default);
     Task DeleteAssociationAsync(Guid id, CancellationToken ct = default);
+}
+
+public interface IKnownHostRepository
+{
+    Task<IReadOnlyList<KnownHostEntry>> GetAllAsync(CancellationToken ct = default);
+
+    // 候选集：该端点的精确条目 + 全部模式条目；最终匹配由 KnownHostMatcher 在内存中判定
+    Task<IReadOnlyList<KnownHostEntry>> GetCandidatesAsync(string host, int port, CancellationToken ct = default);
+
+    // 按 (host, port, public_key) 幂等写入：已存在则更新状态/来源/备注，保留原 Id 与创建时间
+    Task SaveAsync(KnownHostEntry entry, CancellationToken ct = default);
+
+    Task TouchAsync(Guid id, DateTime seenAtUtc, CancellationToken ct = default);
+    Task DeleteAsync(Guid id, CancellationToken ct = default);
 }

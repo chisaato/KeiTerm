@@ -90,189 +90,30 @@ public partial class MainWindow : Window
         }
     }
 
-    public void WireDialogs(MainViewModel vm, IdentityManagerViewModel identityMgrVm, SettingsViewModel settingsVm, ILogger? logger = null)
+    // 注入交互服务并完成身份管理器的回调装配（弹窗实现见 MainWindowInteractionService）
+    public void WireDialogs(
+        MainViewModel vm,
+        IdentityManagerViewModel identityMgrVm,
+        SettingsViewModel settingsVm,
+        ILogger? logger = null,
+        KnownHostsManagerViewModel? knownHostsVm = null)
     {
         _logger = logger;
-        // 弹窗 lambda 统一容错：异常记录后按取消语义返回，避免 AsyncRelayCommand 静默吞异常
-        var log = logger ?? NullLogger.Instance;
-
-        vm.OpenSessionDialogAsync = (existing, parentId, identities) =>
-            Safe.RunAsync<SessionNode?>(log, "打开会话编辑窗口", async () =>
-            {
-                log.LogInformation("会话编辑窗口打开 模式={Mode}", existing == null ? "新建" : "编辑");
-                var editVm = new SessionEditViewModel(existing, parentId, identities);
-                var win = new SessionEditWindow(editVm);
-                await win.ShowDialog(this);
-                var result = editVm.IsConfirmed ? editVm.ApplyToModel(existing) : null;
-                log.LogInformation("会话编辑窗口关闭 结果={Result}", result == null ? "取消" : "确认");
-                return result;
-            });
-
-        vm.OpenFolderDialogAsync = (existing, parentId) =>
-            Safe.RunAsync<FolderNode?>(log, "打开文件夹编辑窗口", async () =>
-            {
-                log.LogInformation("文件夹编辑窗口打开 模式={Mode}", existing == null ? "新建" : "编辑");
-                var editVm = new FolderEditViewModel(existing, parentId);
-                var win = new FolderEditWindow(editVm);
-                await win.ShowDialog(this);
-                var result = editVm.IsConfirmed ? editVm.ApplyToModel(existing) : null;
-                log.LogInformation("文件夹编辑窗口关闭 结果={Result}", result == null ? "取消" : "确认");
-                return result;
-            });
-
-        vm.OpenIdentityManagerDialogAsync = () => Safe.RunAsync(log, "打开身份管理器", async () =>
-        {
-            log.LogInformation("身份管理器打开");
-            await identityMgrVm.LoadAsync();
-            var win = new IdentityManagerWindow(identityMgrVm, vm.Logger);
-            await win.ShowDialog(this);
-            log.LogInformation("身份管理器关闭");
-        });
+        vm.Interaction = new MainWindowInteractionService(
+            this,
+            vm,
+            identityMgrVm,
+            settingsVm,
+            knownHostsVm,
+            logger ?? NullLogger.Instance);
 
         // 身份管理器编辑器由管理器窗口自身以模态方式打开（保证 owner 正确）
         identityMgrVm.ConfirmDeleteAsync = _ => Task.FromResult(true);
         // 手动锁定 Vault 时一并清空 SessionOnly 口令缓存
-        identityMgrVm.LockVaultAction = vm.LockVault;
+        identityMgrVm.LockVaultAction = vm.VaultSession.Lock;
         // 编辑器回显 Vault 私钥信息 / 「应用」时写入 Vault 材料
-        identityMgrVm.VaultKeyInfoLoader = vm.GetVaultKeyInfoAsync;
-        identityMgrVm.PersistVaultKeysAsync = vm.PersistVaultKeyImportsAsync;
-
-        vm.OpenSettingsDialogAsync = () => Safe.RunAsync(log, "打开设置", async () =>
-        {
-            log.LogInformation("设置窗口打开");
-            var win = new SettingsWindow(settingsVm);
-            await win.ShowDialog(this);
-            log.LogInformation("设置窗口关闭");
-
-            // 设置确认保存后立即应用控件库主题（Apply 幂等，KeiClassic 即卸载第三方主题）
-            if (settingsVm.IsConfirmed)
-            {
-                Services.UiDesignSystemService.Apply(vm.CurrentSettings.ControlLibraryTheme);
-                // 实时热更新树显示密度与尺寸
-                Services.UiDesignSystemService.ApplyTreeDensity(
-                    vm.CurrentSettings.TreeItemHeight,
-                    vm.CurrentSettings.TreeFontSize,
-                    vm.CurrentSettings.TreeIconSize,
-                    vm.CurrentSettings.TreeIndent);
-                // 排序模式可能变更，立即刷新树排序
-                _ = vm.ReloadTreeAsync();
-
-                // 联动更新标签栏位置
-                if (Enum.TryParse<Kei.Term.Core.Models.Profiles.TabPlacement>(vm.CurrentSettings.TabPlacement, true, out var placement))
-                {
-                    vm.TabPlacement = placement;
-                    UpdateTabPlacement(placement);
-                }
-            }
-            else
-            {
-                // 若用户取消，恢复标签栏位置与主题
-                if (Enum.TryParse<Kei.Term.Core.Models.Profiles.TabPlacement>(vm.CurrentSettings.TabPlacement, true, out var origPlacement))
-                {
-                    vm.TabPlacement = origPlacement;
-                    UpdateTabPlacement(origPlacement);
-                }
-            }
-        });
-
-        vm.ConfirmDeleteAsync = async name =>
-        {
-            // 简单确认弹窗，默认返回 true，后续可挂载独立 MessageBox
-            await Task.CompletedTask;
-            return true;
-        };
-
-        // 统一认证窗（完整模式）；取消 = null
-        vm.AuthPromptDialogAsync = (prefillUsername, vaultKeys, defaultMethod) =>
-            Safe.RunAsync<AuthPromptResult?>(log, "打开认证窗口", async () =>
-            {
-                var win = new AuthPromptWindow(prefillUsername, vaultKeys, defaultMethod);
-                return await win.ShowDialog<AuthPromptResult?>(this);
-            });
-
-        // KI 真交互提示窗；取消 = 空应答
-        vm.InteractiveInputDialogAsync = prompt =>
-            Safe.RunAsync<string?>(log, "打开 KI 交互窗口", async () =>
-            {
-                var win = new AuthPromptWindow(prompt);
-                return await win.ShowDialog<string?>(this);
-            });
-
-        // 主密码懒解锁框：错误提示传入，返回 null 表示取消
-        vm.MasterPasswordDialogAsync = error =>
-            Safe.RunAsync<string?>(log, "打开主密码窗口", async () =>
-            {
-                var win = new MasterPasswordWindow(error);
-                return await win.ShowDialog<string?>(this);
-            });
-
-        // 文件私钥口令三态框
-        vm.PassphrasePromptDialogAsync = method =>
-            Safe.RunAsync<PassphrasePromptResult?>(log, "打开口令窗口", async () =>
-            {
-                var win = new PassphrasePromptWindow(method);
-                return await win.ShowDialog<PassphrasePromptResult?>(this);
-            });
-
-        // 快速连接对话框：窗口收集输入，确认后回调主 VM 完成保存与连接
-        vm.QuickConnectDialogAsync = () => Safe.RunAsync(log, "打开快速连接窗口", async () =>
-        {
-            log.LogInformation("快速连接窗口打开");
-            var quickVm = new QuickConnectViewModel(vm.CurrentSettings);
-            var win = new QuickConnectWindow(quickVm);
-            await win.ShowDialog(this);
-            if (!quickVm.IsConfirmed)
-            {
-                log.LogInformation("快速连接窗口取消");
-                return;
-            }
-
-            // 密码仅本次内存流转；勾选保存时仅落库元数据
-            await vm.ConnectQuickAsync(quickVm.Host, quickVm.Port, quickVm.Username, quickVm.Password, quickVm.SaveAsSession);
-        });
-
-        // SecureCRT 导入：使用原生 StorageProvider 弹出文件夹选择器
-        vm.PickFolderDialogAsync = async () =>
-        {
-            var folders = await StorageProvider.OpenFolderPickerAsync(new Avalonia.Platform.Storage.FolderPickerOpenOptions
-            {
-                Title = "选择 SecureCRT Sessions 目录",
-                AllowMultiple = false
-            });
-            return folders.Count > 0 ? folders[0].Path.LocalPath : null;
-        };
-
-        // Konsole 导入文件选择器与调色预览弹窗
-        vm.PickKonsoleFileDialogAsync = async () =>
-        {
-            var files = await StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
-            {
-                Title = Strings.Get("Menu.File.ImportKonsole"),
-                AllowMultiple = false,
-                FileTypeFilter = new[]
-                {
-                    new Avalonia.Platform.Storage.FilePickerFileType("Konsole Color Scheme (*.colorscheme)") { Patterns = new[] { "*.colorscheme" } },
-                    new Avalonia.Platform.Storage.FilePickerFileType("All Files (*.*)") { Patterns = new[] { "*.*" } }
-                }
-            });
-            return files.Count > 0 ? files[0].Path.LocalPath : null;
-        };
-
-        vm.OpenTerminalProfileEditDialogAsync = async (sourceProfile, fontSnapshot) =>
-        {
-            var editVm = new TerminalProfileEditViewModel(sourceProfile, fontSnapshot);
-            var dialog = new TerminalProfileEditWindow(editVm);
-            var result = await dialog.ShowDialog<bool>(this);
-            return result && editVm.IsConfirmed ? editVm.ResultProfile : null;
-        };
-
-        // 统一消息通知：更新主窗口底部/中央状态提示栏，并在日志留痕
-        vm.ShowNotificationAsync = async (title, message) =>
-        {
-            log.LogInformation("[通知] {Title}: {Message}", title, message);
-            vm.StatusMessage = $"{title}: {message.Replace("\n", " ")}";
-            await Task.CompletedTask;
-        };
+        identityMgrVm.VaultKeyInfoLoader = vm.VaultSession.GetVaultKeyInfoAsync;
+        identityMgrVm.PersistVaultKeysAsync = vm.VaultSession.PersistVaultKeyImportsAsync;
     }
 
     // 右键松开在空白处（命中点不在任何 TreeViewItem 上）→ 清除选中，使新建/粘贴落到顶级

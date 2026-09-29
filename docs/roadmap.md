@@ -1,111 +1,103 @@
 # KeiTerm 研发路线图 (Roadmap)
 
-本文档规划了 **KeiTerm** 的后续演进计划与版本路线。设计理念旨在抛弃传统工具（如 SecureCRT）冗余陈旧的历史包袱，避开 Electron 类客户端的笨重资源消耗，结合现代 DevOps 工程师的实际工作流，聚焦**高可用网络穿透、直观交互、安全凭据与轻快体验**。
+> 最近更新：2026-09-29（后端审查见 [design/08](./design/08-architecture-review-2026-09.md)，拆分规划见 [design/10](./design/10-refactor-plan.md)，目录跟随见 [design/09](./design/09-cwd-tracking.md)）
+
+KeiTerm 不追求与 Xshell / SecureCRT 1:1 复刻。设计理念：抛弃传统工具冗余陈旧的历史包袱，避开 Electron 类客户端的资源消耗，
+结合现代 DevOps 工程师的实际工作流，聚焦**高可用网络穿透、直观交互、安全凭据与轻快体验**。
 
 ---
 
-## 路线概览与阶段目标
+## 0. 当前状态快照
 
-```mermaid
-flowchart LR
-    Phase1["近期计划 (Phase 1)<br>基线安全与网络穿透"] --> Phase2["中期规划 (Phase 2)<br>多窗编排与传输扩展"]
-    Phase2 --> Phase3["后期增强 (Phase 3)<br>效率工具与生态连接"]
-```
-
----
-
-## Phase 1：近期计划（基线安全、网络穿透与终端核心体验）
-
-本阶段主要打通内网/云原生运维刚需网络链条，补全基线安全闭环，完善终端核心查找与阅读体验。
-
-### 1. 网络穿透与拓扑打通
-
-- **Jump Host（跳板机 / ProxyJump）网络链条**
-  - 基于现有的 `JumpHostSessionId` 架构定义，在 `Kei.Term.Ssh` 中打通二级隧道连接；
-  - 支持通过前置 SSH 会话建立 DirectTCPIP 通道直连目标机，解决企业内网与云堡垒机登录刚需。
-- **可视化端口转发与隧道管理器（Port Forwarding Manager）**
-  - 参考 Xshell 与 MobaXterm 的优秀操作体验（规避 SecureCRT 复杂的配置链路）；
-  - 提供直观的 Local（本地转发）、Remote（远程转发）、Dynamic（动态 SOCKS5 代理）隧道配置与状态监控面板；
-  - 支持一键启停、端口冲突检测与随会话自动挂载。
-
-### 2. 基线安全与信任管理
-
-- **主机密钥指纹校验与 `known_hosts` 信任库**
-  - 首次连接目标服务器时，弹出主机公钥指纹（SHA-256 / MD5）确认对话框；
-  - 独立持久化存储 `known_hosts` 列表；
-  - 主机密钥发生变更时强力阻断连接并弹出安全篡改警示（防范中间人攻击 MITM）。
-
-### 3. 终端核心阅读与检索
-
-- **终端内搜索查找（Find in Terminal / Ctrl+F）**
-  - 支持在终端当前屏幕与历史滚动缓冲区中即时检索；
-  - 支持大小写匹配、正则搜索、上下条高亮跳转与匹配计数展示。
-- **关键字规则着色（Keyword Highlighting）**
-  - 支持用户自定义高亮词汇与正则规则；
-  - 自动对常见日志词汇（如 `error` / `fail` 标红，`success` / `ok` 标绿，IP 地址/URL 强调显示）进行实时染色。
+| 能力 | 状态 |
+|---|---|
+| 会话树（无限层级、拖拽、复制/剪切）、身份（有序多方法认证）、Vault（可选主密码） | ✅ |
+| SFTP / SCP 文件侧栏、外部编辑器联动、终端配色（含 Konsole 导入）、撰写栏 | ✅ |
+| **主机密钥信任库**（确认 / TOFU / 严格三策略，变更阻断，算法协商偏好，已知主机管理与导入导出） | ✅ |
+| **跳板链 ProxyJump**（多级、每跳独立身份、文件通道复用跳板链） | ✅ 后端完成，会话编辑器的跳板下拉待做 |
+| **导入 `~/.ssh/config`**（Host / IdentityFile / ProxyJump / Include） | ✅ |
+| 保活、自定义 Agent（含 Pageant）、登录脚本 | ✅ 已接通（此前只存不用） |
+| Agent 转发（`ssh -A`） | ⏳ 双引擎方案已验证可行（Tmds.Ssh 主干实测转发成功），待其发版后接入，见 [design/11](./design/11-dual-ssh-backend.md) |
+| 多协议扩展点（`ITerminalSession`） | ✅ 接口就绪，提供者待接入 |
+| 持久化：版本化迁移 + Dapper + WAL | ✅ |
+| 终端内搜索、右键菜单、滚轮缩放、字体弹窗 | ⏳ 依赖 UI（见 `todo.md`） |
+| 端口转发管理器、自动重连、本地 Shell / 串口 | ⏳ 建议下一步 |
+| E2EE 同步、OS Keyring 静默解锁 | ⏳ 规划中 |
 
 ---
 
-## Phase 2：中期规划（界面编排协同、传输扩展与用户掌控的云同步）
+## 1. 竞品速览与差异化定位
 
-本阶段重点优化复合工作界面，扩充常用传输协议，并将已设计的端到端加密同步方案落地。
+| 产品 | 形态 | 值得借鉴 | KeiTerm 的取舍 |
+|---|---|---|---|
+| Xshell / SecureCRT | 原生、闭源、Windows 为主 | 会话树、撰写栏、ZMODEM、脚本 | 保留会话树与撰写栏；不做 VBScript 宏 |
+| MobaXterm | 原生、Windows、一体化 | 多协议、SFTP 侧栏随 cwd、X11 | SFTP 侧栏已有；随 cwd 需 Shell 集成 |
+| Termius | 跨端（含移动端）、订阅制 | 加密 Vault + 跨设备同步、Snippets、端口转发 UI | 同步做**用户自选存储**的 E2EE，不绑定自有云 |
+| Tabby | Electron、开源、插件 | 分屏、Zmodem、插件生态 | 原生渲染 + 更低内存 |
+| WindTerm | 原生、开源、极快 | 性能、大输出流畅度 | RoyalTerminal（Skia / Ghostty VT）同路线 |
+| XPipe | 连接中枢 | 自动发现 Docker / K8s / WSL 并统一成"可连接目标" | **可作为中长期差异点**（见 Phase 3） |
+| Warp / Wave 等 AI 终端 | 重交互 | 命令块（Blocks）、Shell 集成 | 借鉴 OSC 133 命令块；不做强制联网 AI 接管 |
 
-### 1. 界面编排与终端分屏
-
-- **终端多窗格分屏（Split Panes：横向 / 纵向）**
-  - 结合现有的平铺伴随式文件管理器（`RemoteFileManagerView`）进行统一布局编排；
-  - 支持单标签页内终端水平分割、垂直分割与等比缩放；
-  - 终端分屏网格与文件管理侧栏平滑协同，支持随窗口自适应重算 PTY 尺寸。
-
-### 2. 命令行传输协议补充
-
-- **ZMODEM（rz / sz）命令行文件传输**
-  - 拦截并解析终端数据流中的 Zmodem 握手协议；
-  - 输入 `rz` 自动唤起本地文件选择对话框并流式上传；
-  - 输入 `sz <filename>` 自动接收文件并写入默认下载目录。
-
-### 3. 用户掌控的端到端加密云同步（E2EE Cloud Sync）
-
-- **零知识加密同步引擎**
-  - 依据已制定的规范，采用 AGE 密码学算法标准（分块流式 AEAD 加密）；
-  - 将云存储介质选择权彻底交给用户：支持 WebDAV、S3 兼容对象存储、自建服务器或本地目录同步；
-  - 会话目录树与配置同步，敏感凭据仅在本地使用主密码或设备硬件解密。
-
-### 4. 终端排版与字体微调
-
-- **字体独立调节弹窗与排版优化**
-  - 弹窗形式配置字体家族、字重（FontWeight）与基线间距；
-  - 支持 Ctrl+滚轮缩放终端字号。
+**差异化结论**：KeiTerm 最有机会的定位是「**原生、安全默认、与 OpenSSH 生态无缝互通的运维终端**」——
+直接读 `~/.ssh/config` / `known_hosts` / Agent，用户零迁移成本；安全默认（主机密钥、Vault）做对；
+再用 Shell 集成（cwd 跟随、命令块）拉开与传统工具的体验差距。
 
 ---
 
-## Phase 3：后期增强（操作片段、自动化辅助与环境联动）
+## 2. 下一步建议（按优先级）
 
-本阶段作为增强型功能储备，面向需要精细化交互的进阶场景。
+### P0：补齐「连接可信 + 可达」闭环（约 1–2 周，后端已就绪，主要是小型 UI）
 
-### 1. 效率工具集
+0. **先拆 `MainViewModel` 的连接管线**（`IInteractionService` → `VaultSessionService` → `ConnectionOrchestrator`，见 [10](./design/10-refactor-plan.md)），否则下面 2–4 会继续堆进 2000 行的类。
+1. ~~主机密钥确认弹窗 + 信任库管理页~~ ✅
+2. **会话编辑器「跳板机」下拉**：选择另一会话作为跳板（后端已支持多级链与循环检测）。
+3. **端口转发管理器**（Local / Remote / Dynamic SOCKS5）：SSH.NET 原生支持三种转发，
+   在 `SshNetSession` 上挂 `ForwardedPort*` 即可；新增 `port_forwards` 表（迁移 v3），支持随会话自动挂载、端口冲突检测。
+4. **自动重连**：`Disconnected` 事件 + 指数退避 + 标签状态；重连复用已物化材料（交互式/2FA 除外）。
 
-- **快捷指令栏与命令片段（Quick Commands & Snippets）**
-  - 整合 Xshell 底部快捷按钮栏与现代 Snippets 参数化模板；
-  - 支持常用诊断命令、脚本一键发送至终端。
-- **多会话命令广播发送（Command Broadcast / Multi-Execution）**
-  - 在底部撰写栏（Compose Bar）增加广播发送切换；
-  - 支持一键将输入内容镜像发送至当前所有已连接标签页或选定标签页。
+### P1：终端核心体验（UI 为主，见 `todo.md`）
 
-### 2. 环境深度感知与轻量监控
+- 终端内搜索（Ctrl+F）、右键菜单（复制/粘贴/查找）、Ctrl+滚轮缩放、字体弹窗（字重/行距）。
+- 关键字高亮规则（error/fail/IP/URL），规则引擎可放 Core 以便单测。
 
-- **跟随终端当前工作目录（Follow Terminal CWD）**
-  - 基于 Shell Integration 或终端 OSC 7 转义序列捕获路径变更；
-  - 文件管理侧栏自动跳转至终端内 `cd` 后的实时路径。
-- **轻量级远程系统监控（System Metrics Dashboard）**
-  - 独立抽屉或轻量图表展示远程主机的实时 CPU、内存及网络负载。
+### P1：本地终端 / 串口 / Telnet（低成本、高覆盖）
+
+RoyalTerminal 已提供 `Transport.Pty`（本地 Shell，含 Windows ConPTY）、`Transport.Serial`、`Transport.Telnet`。
+接入后会话树即可统一管理本地 Shell 与网络设备串口——这是 Xshell/MobaXterm 用户的高频场景。
+`ITerminalSession` 已抽出；每种协议实现一个 `ITerminalSessionProvider` 包装 RoyalTerminal 的 `ITerminalTransport`，
+协议参数存 `session_protocol_settings` 多态 JSON（见 [10 §6](./design/10-refactor-plan.md)）。
+
+### P2：现代化差异点
+
+- **目录跟随**（低优先级便利功能）：全局 + 会话覆盖，默认关闭；只被动接收 OSC 7 与 tmux 标题，不改动远端，见 [09](./design/09-cwd-tracking.md)。
+- **Shell 集成 / 命令块**：RoyalTerminal 已解析 OSC 133，可做命令块、跳转上一条命令、复制某条命令输出。OSC 133 同时支撑命令块、跳转上一条命令、复制某条命令输出。
+- **会话录制**：asciicast v2 格式落盘（审计/复盘），纯后端能力。
+- **Snippets（参数化命令片段）+ 广播发送**：撰写栏扩展。
+- **ZMODEM（rz/sz）**：对 Xshell 迁移用户是切换阻碍项，优先级视目标用户群调整。
+
+### P3：同步与生态
+
+- **E2EE 同步**：先做迁移 v3/v4（`revision` + `deleted_at` 墓碑），再落 AGE 格式容器与 WebDAV/S3/本地目录后端。
+- **连接中枢化**：从已连主机自动发现 Docker 容器 / K8s Pod / WSL 发行版，作为可直接打开的"子会话"（`docker exec` / `kubectl exec` 经 SSH 通道执行）。
+- OS Keyring 静默解锁；1Password / Bitwarden 凭据源；SSH 证书。
 
 ---
 
-## 设计哲学与功能舍弃原则
+## 3. 架构演进（与功能并行）
 
-为了保持 KeiTerm 的专注与轻快，以下方向明确**不作为主要建设目标**：
+详见 [design/08](./design/08-architecture-review-2026-09.md) §4：
 
-1. **不做臃肿的遗留脚本堆砌**：不引入 VBScript / 复杂内部自动化宏，现代批量化运维推荐交由 Ansible/Terraform 等专业工具。
-2. **不做过度激进的破坏性交互**：保持经典的树状多层资产目录与标准终端操作习惯，不强行采用强制联网的 AI Agent 命令接管。
-3. **坚持原生桌面质感**：坚持 Avalonia 原生渲染与轻量内存开销，坚决避免引入 Web/Electron 容器。
+1. 拆分 `MainViewModel`（~1900 行）为 `ConnectionOrchestrator` / `SessionTreeService` / `VaultSessionService`，弹窗委托收敛为 `IInteractionService`。**建议在做 P0-3/4 之前完成**，否则端口转发与自动重连会继续堆进同一个类。
+2. 服务数增长后引入 `Microsoft.Extensions.DependencyInjection`。
+3. SSH.NET 能力边界（无 sftp 复用、无 agent 转发、无 env 请求）：设置页对应项标注或隐藏；必要时向上游贡献。
+
+---
+
+## 4. 设计哲学与功能舍弃原则
+
+1. **不做臃肿的遗留脚本堆砌**：不引入 VBScript / 复杂内部自动化宏，批量运维交给 Ansible/Terraform。
+2. **不做过度激进的破坏性交互**：保持经典树状资产目录与标准终端操作习惯，不强行采用强制联网的 AI Agent 命令接管。
+3. **坚持原生桌面质感**：Avalonia 原生渲染与轻量内存开销，避免 Web/Electron 容器。
+4. **安全默认**：主机密钥校验、Vault 加密、机密不落明文日志——默认开启，而不是高级选项。
+5. **与 OpenSSH 生态互通优先于自建格式**：配置、信任库、Agent 都优先读写用户已有的 OpenSSH 资产。
+6. **零远端安装（agentless）**：不在服务器上部署 helper / daemon（区别于 Warp、Wave、VS Code Remote）；需要远端信息时走 SSH exec 通道执行普通命令。

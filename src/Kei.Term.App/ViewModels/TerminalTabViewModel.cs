@@ -139,8 +139,8 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         }
     }
 
-    private ISshSession? _session;
-    private SshTerminalEndpoint? _endpoint;
+    private ITerminalSession? _session;
+    private TerminalSessionEndpoint? _endpoint;
     private readonly ILogger _logger;
     private readonly ITerminalThemeSink _themeSink;
 
@@ -328,7 +328,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
     }
 
     // 挂载会话与端点（必须在 UI 线程调用）；重试时替换旧会话/端点
-    public void AttachSession(ISshSession session)
+    public void AttachSession(ITerminalSession session)
     {
         if (IsDisposed)
         {
@@ -341,7 +341,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         Terminal.DetachEndpoint();
 
         _session = session;
-        _endpoint = new SshTerminalEndpoint(session, Terminal);
+        _endpoint = new TerminalSessionEndpoint(session, Terminal);
         Terminal.AttachEndpoint(_endpoint);
         session.Disconnected += OnSessionDisconnected;
 

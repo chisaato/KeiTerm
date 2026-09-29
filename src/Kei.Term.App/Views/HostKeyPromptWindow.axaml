@@ -1,0 +1,53 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="using:Kei.Term.App.Helpers"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="560" d:DesignHeight="320"
+        x:Class="Kei.Term.App.Views.HostKeyPromptWindow"
+        Width="580" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        ShowInTaskbar="False"
+        Background="{DynamicResource Kei.Bg.Window}">
+
+    <Grid RowDefinitions="*, Auto" Margin="20">
+        <StackPanel Grid.Row="0" Spacing="12">
+            <TextBlock x:Name="HeaderText" FontWeight="Bold" FontSize="14" TextWrapping="Wrap"
+                       Foreground="{DynamicResource Kei.Text.Primary}"/>
+            <!-- 变更场景使用错误色强调 -->
+            <TextBlock x:Name="ChangedHeaderText" FontWeight="Bold" FontSize="14" TextWrapping="Wrap" IsVisible="False"
+                       Foreground="{DynamicResource Kei.Status.Error}"/>
+
+            <Border Background="{DynamicResource Kei.Bg.Panel}" BorderBrush="{DynamicResource Kei.Border}"
+                    BorderThickness="1" CornerRadius="{DynamicResource Kei.Radius.Card}" Padding="12,10">
+                <Grid ColumnDefinitions="90, *" RowDefinitions="Auto, Auto, Auto" RowSpacing="8">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString HostKeyPrompt.KeyType}"
+                               Foreground="{DynamicResource Kei.Text.Muted}"/>
+                    <TextBlock Grid.Row="0" Grid.Column="1" x:Name="KeyTypeText"
+                               Foreground="{DynamicResource Kei.Text.Primary}"/>
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{loc:KeiString HostKeyPrompt.Fingerprint}"
+                               Foreground="{DynamicResource Kei.Text.Muted}"/>
+                    <SelectableTextBlock Grid.Row="1" Grid.Column="1" x:Name="FingerprintText" FontFamily="monospace"
+                                         TextWrapping="Wrap" Foreground="{DynamicResource Kei.Text.Primary}"/>
+                    <TextBlock Grid.Row="2" Grid.Column="0" x:Name="PreviousLabel" Text="{loc:KeiString HostKeyPrompt.Previous}"
+                               IsVisible="False" Foreground="{DynamicResource Kei.Text.Muted}"/>
+                    <SelectableTextBlock Grid.Row="2" Grid.Column="1" x:Name="PreviousText" FontFamily="monospace"
+                                         TextWrapping="Wrap" IsVisible="False" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                </Grid>
+            </Border>
+
+            <TextBlock x:Name="HintText" FontSize="12" TextWrapping="Wrap"
+                       Foreground="{DynamicResource Kei.Text.Secondary}"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,18,0,0">
+            <Button x:Name="RejectButton" Content="{loc:KeiString HostKeyPrompt.Reject}" Click="OnReject"
+                    MinWidth="96" HorizontalContentAlignment="Center"/>
+            <Button x:Name="AcceptOnceButton" Content="{loc:KeiString HostKeyPrompt.AcceptOnce}" Click="OnAcceptOnce"
+                    MinWidth="96" HorizontalContentAlignment="Center"/>
+            <Button x:Name="AcceptSaveButton" Classes="accent" Click="OnAcceptAndSave"
+                    MinWidth="96" HorizontalContentAlignment="Center"/>
+        </StackPanel>
+    </Grid>
+</Window>

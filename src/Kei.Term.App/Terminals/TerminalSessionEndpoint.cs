@@ -3,14 +3,15 @@ namespace Kei.Term.App.Terminals;
 using System;
 using RoyalTerminal.Avalonia.Controls;
 using RoyalTerminal.Terminal;
-using Kei.Term.Ssh.Abstractions;
+using Kei.Term.Core.Abstractions;
 
-public sealed class SshTerminalEndpoint : ITerminalEndpoint, IDisposable
+// 协议无关的 RoyalTerminal 端点桥：任意 ITerminalSession 的字节流 ⇄ TerminalControl
+public sealed class TerminalSessionEndpoint : ITerminalEndpoint, IDisposable
 {
-    private readonly ISshSession _session;
+    private readonly ITerminalSession _session;
     private readonly TerminalControl _terminal;
 
-    public SshTerminalEndpoint(ISshSession session, TerminalControl terminal)
+    public TerminalSessionEndpoint(ITerminalSession session, TerminalControl terminal)
     {
         _session = session;
         _terminal = terminal;

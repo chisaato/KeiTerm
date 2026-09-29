@@ -77,6 +77,8 @@
                 <MenuItem Header="{loc:KeiString Menu.File.QuickConnect}" Command="{Binding QuickConnectCommand}" InputGesture="Ctrl+Q"/>
                 <Separator/>
                 <MenuItem Header="{loc:KeiString Menu.File.ImportSecureCrt}" Command="{Binding ImportSecureCrtCommand}"/>
+                <MenuItem Header="{loc:KeiString Menu.File.ImportOpenSshConfig}" Command="{Binding ImportOpenSshConfigCommand}"/>
+                <MenuItem Header="{loc:KeiString Menu.File.ImportKnownHosts}" Command="{Binding ImportKnownHostsCommand}"/>
                 <Separator/>
                 <MenuItem Header="{loc:KeiString Menu.File.Connect}" Command="{Binding ConnectSelectedSessionCommand}"/>
                 <MenuItem Header="{loc:KeiString Menu.File.DisconnectTab}" Command="{Binding DisconnectCurrentTabCommand}"/>
@@ -106,6 +108,7 @@
             </MenuItem>
             <MenuItem Header="{loc:KeiString Menu.Tools}">
                 <MenuItem Header="{loc:KeiString Menu.Tools.IdentityManager}" Command="{Binding OpenIdentityManagerCommand}"/>
+                <MenuItem Header="{loc:KeiString Menu.Tools.KnownHosts}" Command="{Binding OpenKnownHostsCommand}"/>
                 <MenuItem Header="{loc:KeiString Menu.Tools.Settings}" Command="{Binding OpenSettingsCommand}"/>
             </MenuItem>
             <MenuItem Header="{loc:KeiString Menu.Help}">

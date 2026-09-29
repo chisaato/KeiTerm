@@ -12,7 +12,9 @@ using Kei.Term.App.Services;
 using Kei.Term.App.ViewModels;
 using Kei.Term.App.Views;
 using Kei.Term.Infrastructure.Settings;
+using Kei.Term.Core.Security;
 using Kei.Term.Infrastructure.Storage;
+using Kei.Term.Infrastructure.Storage.Schema;
 using Kei.Term.Infrastructure.Vault;
 using Kei.Term.Ssh.Services;
 using Microsoft.Extensions.Logging;
@@ -61,12 +63,24 @@ public partial class App : Application
             // 关键：全部同步构造，主窗口必须在任何 await 之前赋值。
             // lifetime 在 OnFrameworkInitializationCompleted 同步段结束后即进入 Start() 显示阶段，
             // 此时 MainWindow 若为 null，之后再赋值不会触发 Show → 进程存活但窗口永不出现。
-            var treeRepo = new SqliteTreeRepository(connStr);
-            var identityRepo = new SqliteIdentityRepository(connStr);
-            var editorRepo = new SqliteExternalEditorRepository(connStr);
-            var vault = new InternalVaultManager(connStr, _loggerFactory.CreateLogger<InternalVaultManager>());
+            // 全部仓储共用一个连接工厂（统一 PRAGMA），Schema 由迁移器在下方一次性升级
+            var db = new SqliteConnectionFactory(connStr);
+            var treeRepo = new SqliteTreeRepository(db);
+            var identityRepo = new SqliteIdentityRepository(db);
+            var editorRepo = new SqliteExternalEditorRepository(db);
+            var knownHostRepo = new SqliteKnownHostRepository(db);
+            var vault = new InternalVaultManager(db, _loggerFactory.CreateLogger<InternalVaultManager>());
             var settingsPath = Path.Combine(appDataDir, "settings.json");
             var settingsService = new JsonSettingsService(settingsPath);
+            // 主机密钥信任：确认框经主 VM 的交互服务弹出（窗口装配完成前按拒绝处理）
+            MainViewModel? interactionHost = null;
+            var hostKeyTrust = new HostKeyTrustService(
+                knownHostRepo,
+                () => settingsService.Current.HostKeyPolicy,
+                prompt: (evaluation, _) => interactionHost == null
+                    ? Task.FromResult(HostKeyDecision.Reject)
+                    : interactionHost.Interaction.PromptHostKeyAsync(evaluation),
+                logger: _loggerFactory.CreateLogger<HostKeyTrustService>());
             var profileManager = new ProfileManagerService(settingsService, appDataDir);
             var sshFactory = new SshSessionFactory(_loggerFactory.CreateLogger<SshSessionFactory>());
 
@@ -85,7 +99,8 @@ public partial class App : Application
                 editorRepo,
                 profileManager,
                 _loggerFactory.CreateLogger<MainViewModel>(),
-                _loggerFactory);
+                _loggerFactory,
+                hostKeyTrust: hostKeyTrust);
             var identityMgrVm = new IdentityManagerViewModel(
                 identityRepo,
                 vault,
@@ -97,14 +112,19 @@ public partial class App : Application
             {
                 DataContext = mainVm,
             };
-            mainWindow.WireDialogs(mainVm, identityMgrVm, settingsVm, _loggerFactory.CreateLogger<MainWindow>());
+            mainWindow.WireDialogs(
+                mainVm,
+                identityMgrVm,
+                settingsVm,
+                _loggerFactory.CreateLogger<MainWindow>(),
+                new KnownHostsManagerViewModel(knownHostRepo));
+            interactionHost = mainVm;
             desktop.MainWindow = mainWindow;
             logger.LogInformation("启动完成: 主窗口已在 await 之前同步赋值");
 
             // 异步初始化延后到窗口赋值之后：续体经 Dispatcher 回 UI 线程，安全
-            await treeRepo.InitializeAsync();
-            await identityRepo.InitializeAsync();
-            await editorRepo.InitializeAsync();
+            var schemaVersion = await SchemaMigrator.MigrateAsync(db);
+            logger.LogInformation("数据库 Schema 版本={Version}", schemaVersion);
             // 明文模式恒解锁；加密模式等待首次用到材料时懒解锁（OS Keyring 为二期）
             await vault.TryAutoUnlockAsync();
             await settingsService.LoadSettingsAsync();

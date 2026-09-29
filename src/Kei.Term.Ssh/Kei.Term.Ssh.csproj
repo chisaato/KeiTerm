@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <ProjectReference Include="..\Kei.Term.Core\Kei.Term.Core.csproj" />
@@ -8,6 +8,11 @@
     <PackageReference Include="SSH.NET" Version="2026.0.0" />
     <PackageReference Include="SshNet.Agent" Version="2026.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 测试需覆盖内部拨号/转义实现（如 ShellQuote、SshDialer） -->
+    <InternalsVisibleTo Include="Kei.Term.Tests" />
   </ItemGroup>
 
   <PropertyGroup>

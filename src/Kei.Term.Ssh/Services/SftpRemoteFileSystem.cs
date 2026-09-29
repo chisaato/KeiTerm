@@ -15,29 +15,39 @@ using Kei.Term.Ssh.Abstractions;
 
 public class SftpRemoteFileSystem : IRemoteFileSystem
 {
-    private readonly SftpClient _sftpClient;
-    private readonly ISshSession? _hostSession;
+    private readonly SshDialer _dialer;
     private readonly SftpChannelMode _mode;
     private readonly ILogger _logger;
-    private readonly bool _ownsClient;
+    private SftpClient? _client;
     private bool _isDisposed;
 
-    public bool IsConnected => !_isDisposed && _sftpClient.IsConnected;
-    public string WorkingDirectory => IsConnected ? _sftpClient.WorkingDirectory : "/";
+    public bool IsConnected => !_isDisposed && _client is { IsConnected: true };
+    public string WorkingDirectory => IsConnected ? _client!.WorkingDirectory : "/";
 
-    public SftpRemoteFileSystem(
-        ConnectionInfo connectionInfo,
-        SftpChannelMode mode = SftpChannelMode.Dedicated,
-        ISshSession? hostSession = null,
-        ILogger? logger = null)
+    // 连接前访问即为编程错误；方法入口已由 EnsureConnected 保证非空
+    private SftpClient _sftpClient => _client ?? throw new InvalidOperationException("SFTP 客户端尚未连接");
+
+    // 兼容构造：直连、不做主机密钥校验
+    public SftpRemoteFileSystem(ConnectionInfo connectionInfo, SftpChannelMode mode = SftpChannelMode.Dedicated, ILogger? logger = null)
+        : this(
+            new SshDialer(
+                new SshTarget(connectionInfo.Host, connectionInfo.Port, connectionInfo.Username, connectionInfo.AuthenticationMethods.ToArray()),
+                [],
+                null,
+                new SshClientOptions(connectionInfo.Timeout, TimeSpan.Zero, null),
+                logger ?? NullLogger.Instance),
+            mode,
+            logger)
     {
-        _mode = mode;
-        _hostSession = hostSession;
-        _logger = logger ?? NullLogger.Instance;
+    }
 
-        // 根据模式初始化 SftpClient
-        _sftpClient = new SftpClient(connectionInfo);
-        _ownsClient = true;
+    // 注：SSH.NET 公共 API 不支持在已有 SshClient 会话上开 sftp 子系统通道，
+    // Auto/Subsystem 目前均退化为独立连接（经跳板时借用终端会话的跳板链，不重复登录跳板）
+    internal SftpRemoteFileSystem(SshDialer dialer, SftpChannelMode mode, ILogger? logger)
+    {
+        _dialer = dialer;
+        _mode = mode;
+        _logger = logger ?? NullLogger.Instance;
     }
 
     public async Task ConnectAsync(CancellationToken ct = default)
@@ -51,8 +61,9 @@ public class SftpRemoteFileSystem : IRemoteFileSystem
 
         try
         {
-            await _sftpClient.ConnectAsync(ct);
-            _logger.LogInformation("SFTP 已连接 Mode={Mode} WorkingDirectory={Dir}", _mode, _sftpClient.WorkingDirectory);
+            _client?.Dispose();
+            _client = await _dialer.ConnectClientAsync(info => new SftpClient(info), ct);
+            _logger.LogInformation("SFTP 已连接 Mode={Mode} WorkingDirectory={Dir}", _mode, _client.WorkingDirectory);
         }
         catch (Exception ex)
         {
@@ -228,31 +239,28 @@ public class SftpRemoteFileSystem : IRemoteFileSystem
         ObjectDisposedException.ThrowIf(_isDisposed, this);
     }
 
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         if (_isDisposed)
         {
-            return ValueTask.CompletedTask;
+            return;
         }
 
         _isDisposed = true;
-        if (_ownsClient)
+        try
         {
-            try
+            if (_client is { IsConnected: true })
             {
-                if (_sftpClient.IsConnected)
-                {
-                    _sftpClient.Disconnect();
-                }
-                _sftpClient.Dispose();
+                _client.Disconnect();
             }
-            catch
-            {
-                // 忽略释放阶段异常
-            }
+            _client?.Dispose();
+        }
+        catch
+        {
+            // 忽略释放阶段异常
         }
 
+        await _dialer.DisposeAsync();
         GC.SuppressFinalize(this);
-        return ValueTask.CompletedTask;
     }
 }
