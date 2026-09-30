@@ -28,7 +28,7 @@
 
         <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12">
             <Button Content="{loc:KeiString Common.Cancel}" Command="{Binding CancelCommand}" Width="85" HorizontalContentAlignment="Center"/>
-            <Button Content="{loc:KeiString Common.Save}" Command="{Binding SaveCommand}" Width="85" HorizontalContentAlignment="Center" Background="#0E639C" Foreground="White"/>
+            <Button Content="{loc:KeiString Common.Save}" Command="{Binding SaveCommand}" Width="85" HorizontalContentAlignment="Center" Classes="accent"/>
         </StackPanel>
     </Grid>
 </Window>

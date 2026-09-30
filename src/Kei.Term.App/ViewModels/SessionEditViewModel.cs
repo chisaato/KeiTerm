@@ -67,6 +67,18 @@ public partial class SessionEditViewModel : ViewModelBase
     [ObservableProperty]
     private InheritableOption<CwdFollowMode>? _selectedCwdFollow;
 
+    // 选中的连接超时选项
+    [ObservableProperty]
+    private InheritableOption<int>? _selectedConnectTimeout;
+
+    public IReadOnlyList<InheritableOption<int>> ConnectTimeoutOptions { get; }
+
+    [ObservableProperty]
+    private ObservableCollection<SettingsCategoryItem> _categories = [];
+
+    [ObservableProperty]
+    private SettingsCategoryItem? _selectedCategory;
+
     public Guid NodeId { get; }
     public Guid? ParentId { get; set; }
     public bool IsConfirmed { get; private set; }
@@ -82,9 +94,11 @@ public partial class SessionEditViewModel : ViewModelBase
         AppSettings global = globalSettings ?? new AppSettings();
         TitleFollowOptions = SessionBehaviorOptions.InheritableTitleFollow(global.TabTitleFollowsRemote);
         CwdFollowOptions = SessionBehaviorOptions.InheritableCwdFollow(global.CwdFollowMode);
+        ConnectTimeoutOptions = SessionBehaviorOptions.InheritableConnectTimeout(global.ConnectTimeoutSeconds);
         SessionOverrides overrides = existing?.Overrides ?? new SessionOverrides();
         SelectedTitleFollow = TitleFollowOptions.First(o => o.Value == overrides.FollowRemoteTitle);
         SelectedCwdFollow = CwdFollowOptions.First(o => o.Value == overrides.CwdFollow);
+        SelectedConnectTimeout = ConnectTimeoutOptions.FirstOrDefault(o => o.Value == overrides.ConnectTimeoutSeconds) ?? ConnectTimeoutOptions[0];
 
         Identities.Add(new IdentityOption(null, Strings.Get("SessionEdit.IdentityNone")));
         foreach (var identity in availableIdentities)
@@ -123,6 +137,20 @@ public partial class SessionEditViewModel : ViewModelBase
             ParentId = parentId;
             Port = 22;
         }
+
+        InitCategories();
+    }
+
+    private void InitCategories()
+    {
+        Categories =
+        [
+            new SettingsCategoryItem(Strings.Get("SessionEdit.Category.Connection"), null, "Connection", SettingsIcons.Ssh),
+            new SettingsCategoryItem(Strings.Get("SessionEdit.Category.Terminal"), null, "Terminal", SettingsIcons.Terminal),
+            new SettingsCategoryItem(Strings.Get("SessionEdit.Category.FileTransfer"), null, "FileTransfer", SettingsIcons.FileTransfer),
+            new SettingsCategoryItem(Strings.Get("SessionEdit.Category.Behavior"), null, "Behavior", SettingsIcons.General)
+        ];
+        SelectedCategory = Categories[0];
     }
 
     [RelayCommand]
@@ -160,6 +188,7 @@ public partial class SessionEditViewModel : ViewModelBase
         // 只改本窗口管理的覆盖项，其余覆盖项（如批量修改设置的新项）原样保留
         model.Overrides.FollowRemoteTitle = SelectedTitleFollow?.Value;
         model.Overrides.CwdFollow = SelectedCwdFollow?.Value;
+        model.Overrides.ConnectTimeoutSeconds = SelectedConnectTimeout?.Value;
         return model;
     }
 }

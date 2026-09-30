@@ -21,5 +21,8 @@ public sealed class SessionOverrides
     // 文件侧栏目录跟随方式
     public CwdFollowMode? CwdFollow { get; set; }
 
+    // SSH 连接超时（秒，null 表示继承全局设置）
+    public int? ConnectTimeoutSeconds { get; set; }
+
     public SessionOverrides Clone() => (SessionOverrides)MemberwiseClone();
 }

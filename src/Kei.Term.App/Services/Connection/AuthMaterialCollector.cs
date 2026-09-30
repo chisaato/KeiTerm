@@ -64,20 +64,33 @@ public sealed class AuthMaterialCollector
             materials.Count,
             string.Join(",", materials.Select(m => m.Kind)));
 
-        // 无任何可用材料 → 主动弹统一认证窗；选择「交互式」时材料为空仍继续（由 KI 桥逐条问答）
+        // 无任何可用材料：
+        // 如果配置中已经有明确的用户名（例如 OpenWrt / 路由器的 root 等），先免弹窗尝试以空密码/无凭据连接；
+        // 只有在连用户名都没有时，或者如果连接失败被拒绝时，再由重试逻辑按需回退弹窗。
         if (materials.Count == 0)
         {
-            AuthPromptResult? fallback = await PromptAuthAsync(identity?.Username ?? config.Username, identity);
-            if (fallback == null)
+            string? effectiveUser = identity?.Username ?? config.Username;
+            if (!string.IsNullOrWhiteSpace(effectiveUser))
             {
-                return null;
+                _logger.LogInformation("未配置认证材料，先尝试直连免密登录 用户名={Username}", effectiveUser);
+                materials.Add(new MaterializedAuthMethod(
+                    AuthMaterialKind.Password,
+                    new SecretPayload { Password = string.Empty }));
             }
-
-            (MaterializedAuthMethod? material, string? username) = await ResolvePromptResultAsync(fallback, identity);
-            config = WithUsername(config, username);
-            if (material != null)
+            else
             {
-                materials.Add(material);
+                AuthPromptResult? fallback = await PromptAuthAsync(string.Empty, identity);
+                if (fallback == null)
+                {
+                    return null;
+                }
+
+                (MaterializedAuthMethod? material, string? username) = await ResolvePromptResultAsync(fallback, identity);
+                config = WithUsername(config, username);
+                if (material != null)
+                {
+                    materials.Add(material);
+                }
             }
         }
 

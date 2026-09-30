@@ -1,6 +1,7 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:converters="using:Avalonia.Controls.Converters">
+        xmlns:converters="using:Avalonia.Controls.Converters"
+        xmlns:controls="using:Kei.Term.App.Controls">
 
     <Styles.Resources>
         <ControlTheme x:Key="KeiTreeViewItem" TargetType="TreeViewItem">
@@ -13,10 +14,10 @@
             <Setter Property="Template">
                 <ControlTemplate>
                     <StackPanel>
+                        <!-- 外层容器：负责行高与点击焦点，不带不透明背景 -->
                         <Border Name="PART_LayoutRoot"
                                 Classes="TreeViewItemLayoutRoot"
                                 Focusable="True"
-                                Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
                                 CornerRadius="{DynamicResource Kei.Radius.Control}"
@@ -30,48 +31,54 @@
                                         <DynamicResource ResourceKey="Kei.Tree.Indent"/>
                                     </MultiBinding>
                                 </Grid.Margin>
-                                <!-- 水平分支引导线：与父级垂直对齐线相交 -->
+                                <!-- 水平分支引导线：与父级垂直对齐线 (X=Root treeLine = 6, Child header=18, 相距 12px) 精准相交 -->
                                 <Rectangle Height="1"
-                                           Width="6"
+                                           Width="16"
                                            HorizontalAlignment="Left"
                                            VerticalAlignment="Center"
-                                           Margin="-6,0,0,0"
+                                           Margin="-12,0,0,0"
                                            Fill="{DynamicResource Kei.Tree.Line}"
                                            IsHitTestVisible="False"/>
-                                <Grid ColumnDefinitions="Auto, *">
-                                    <Panel Name="PART_ExpandCollapseChevronContainer" Margin="4,0,4,0">
-                                        <ToggleButton Name="PART_ExpandCollapseChevron"
-                                                      Theme="{StaticResource FluentTreeViewExpandCollapseChevron}"
-                                                      Focusable="False"
-                                                      IsChecked="{TemplateBinding IsExpanded, Mode=TwoWay}"/>
-                                    </Panel>
-                                    <ContentPresenter Name="PART_HeaderPresenter"
-                                                      Grid.Column="1"
-                                                      Focusable="False"
-                                                      Background="Transparent"
-                                                      Content="{TemplateBinding Header}"
-                                                      ContentTemplate="{TemplateBinding HeaderTemplate}"
-                                                      HorizontalAlignment="{TemplateBinding HorizontalAlignment}"
-                                                      VerticalAlignment="{TemplateBinding VerticalAlignment}"
-                                                      Margin="{TemplateBinding Padding}"/>
-                                </Grid>
+                                <!-- 节点内容胶囊容器：背景色放在此处，使得左侧缩进层级不被整行高亮截断 -->
+                                <Border Name="PART_ContentPill"
+                                        Classes="TreeViewItemContentPill"
+                                        Background="{TemplateBinding Background}"
+                                        CornerRadius="{DynamicResource Kei.Radius.Control}">
+                                    <Grid ColumnDefinitions="Auto, *">
+                                        <Panel Name="PART_ExpandCollapseChevronContainer" Margin="0,0,2,0">
+                                            <ToggleButton Name="PART_ExpandCollapseChevron"
+                                                          Theme="{StaticResource FluentTreeViewExpandCollapseChevron}"
+                                                          Focusable="False"
+                                                          IsChecked="{TemplateBinding IsExpanded, Mode=TwoWay}"/>
+                                        </Panel>
+                                        <ContentPresenter Name="PART_HeaderPresenter"
+                                                          Grid.Column="1"
+                                                          Focusable="False"
+                                                          Background="Transparent"
+                                                          Content="{TemplateBinding Header}"
+                                                          ContentTemplate="{TemplateBinding HeaderTemplate}"
+                                                          HorizontalAlignment="{TemplateBinding HorizontalAlignment}"
+                                                          VerticalAlignment="{TemplateBinding VerticalAlignment}"
+                                                          Margin="{TemplateBinding Padding}"/>
+                                    </Grid>
+                                </Border>
                             </Grid>
                         </Border>
                         <Grid IsVisible="{TemplateBinding IsExpanded}">
-                            <Rectangle Width="1"
-                                       HorizontalAlignment="Left"
-                                       Fill="{DynamicResource Kei.Tree.Line}"
-                                       IsHitTestVisible="False">
-                                <Rectangle.Margin>
+                            <controls:KeiTreeLine Width="1"
+                                                  HorizontalAlignment="Left"
+                                                  LineBrush="{DynamicResource Kei.Tree.Line}"
+                                                  IsHitTestVisible="False">
+                                <controls:KeiTreeLine.Margin>
                                     <MultiBinding Converter="{x:Static converters:TreeViewItemIndentConverter.Instance}">
                                         <Binding Path="Level" RelativeSource="{RelativeSource TemplatedParent}"/>
                                         <DynamicResource ResourceKey="Kei.Tree.Indent"/>
                                     </MultiBinding>
-                                </Rectangle.Margin>
-                                <Rectangle.RenderTransform>
-                                    <TranslateTransform X="10"/>
-                                </Rectangle.RenderTransform>
-                            </Rectangle>
+                                </controls:KeiTreeLine.Margin>
+                                <controls:KeiTreeLine.RenderTransform>
+                                    <TranslateTransform X="6"/>
+                                </controls:KeiTreeLine.RenderTransform>
+                            </controls:KeiTreeLine>
                             <ItemsPresenter Name="PART_ItemsPresenter"
                                             ItemsPanel="{TemplateBinding ItemsPanel}"/>
                         </Grid>
@@ -79,18 +86,32 @@
                 </ControlTemplate>
             </Setter>
 
-            <!-- 交互状态定义 -->
-            <Style Selector="^ /template/ Border#PART_LayoutRoot:pointerover">
+            <!-- 交互状态定义：高亮应用于内容胶囊 PART_ContentPill，使得父级垂直引导线不被横切截断 -->
+            <Style Selector="^ /template/ Border#PART_ContentPill:pointerover">
                 <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}"/>
+            </Style>
+            <Style Selector="^:selected /template/ Border#PART_ContentPill">
+                <Setter Property="Background" Value="{DynamicResource Kei.Bg.Pressed}"/>
+            </Style>
+            <Style Selector="^:selected:focus /template/ Border#PART_ContentPill">
+                <Setter Property="Background" Value="{DynamicResource Kei.Bg.Pressed}"/>
+            </Style>
+            <Style Selector="^:selected:pointerover /template/ Border#PART_ContentPill">
+                <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}"/>
+            </Style>
+
+            <!-- 同时保留 PART_LayoutRoot 的透明继承，以便窗口级样式（如拖拽反馈）无缝生效 -->
+            <Style Selector="^ /template/ Border#PART_LayoutRoot:pointerover">
+                <Setter Property="Background" Value="Transparent"/>
             </Style>
             <Style Selector="^:selected /template/ Border#PART_LayoutRoot">
-                <Setter Property="Background" Value="{DynamicResource Kei.Bg.Pressed}"/>
+                <Setter Property="Background" Value="Transparent"/>
             </Style>
             <Style Selector="^:selected:focus /template/ Border#PART_LayoutRoot">
-                <Setter Property="Background" Value="{DynamicResource Kei.Bg.Pressed}"/>
+                <Setter Property="Background" Value="Transparent"/>
             </Style>
             <Style Selector="^:selected:pointerover /template/ Border#PART_LayoutRoot">
-                <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}"/>
+                <Setter Property="Background" Value="Transparent"/>
             </Style>
 
             <!-- 空节点时隐藏箭头，但保留占位宽度，对齐层级 -->
@@ -193,17 +214,17 @@
     <Style Selector="Button.accent">
         <Setter Property="Background" Value="{DynamicResource Kei.Accent}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource Kei.Accent}"/>
-        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Accent.Foreground}"/>
     </Style>
     <Style Selector="Button.accent:pointerover /template/ ContentPresenter">
         <Setter Property="Background" Value="{DynamicResource Kei.Accent.Hover}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource Kei.Accent.Hover}"/>
-        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Accent.Foreground}"/>
     </Style>
     <Style Selector="Button.accent:pressed /template/ ContentPresenter">
         <Setter Property="Background" Value="{DynamicResource Kei.Accent.Pressed}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource Kei.Accent.Pressed}"/>
-        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Accent.Foreground}"/>
     </Style>
 
     <!-- 工具栏图标按钮：30×30 易点尺寸，hover 高亮，圆角 3px -->

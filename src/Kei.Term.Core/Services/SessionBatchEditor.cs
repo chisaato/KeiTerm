@@ -60,7 +60,12 @@ public static class SessionBatchFields
         n => n.Overrides.CwdFollow,
         (n, v) => n.Overrides.CwdFollow = v);
 
-    public static IReadOnlyList<SessionBatchField> All { get; } = [Identity, Username, FollowRemoteTitle, CwdFollow];
+    public static readonly SessionBatchField<int?> ConnectTimeoutSeconds = new(
+        "connect-timeout",
+        n => n.Overrides.ConnectTimeoutSeconds,
+        (n, v) => n.Overrides.ConnectTimeoutSeconds = v);
+
+    public static IReadOnlyList<SessionBatchField> All { get; } = [Identity, Username, FollowRemoteTitle, CwdFollow, ConnectTimeoutSeconds];
 }
 
 public sealed record SessionBatchChange(SessionBatchField Field, object? Value);

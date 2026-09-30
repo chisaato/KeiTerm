@@ -720,7 +720,7 @@
     <value>连接超时 (秒):</value>
   </data>
   <data name="Settings.Ssh.ConnectTimeoutTip" xml:space="preserve">
-    <value>建立 SSH 连接的最长等待时间，范围 3–120 秒</value>
+    <value>建立 SSH 连接的最长等待时间，范围 3–300 秒</value>
   </data>
   <data name="Settings.Ssh.KeepAliveInterval" xml:space="preserve">
     <value>心跳间隔 (秒):</value>
@@ -971,6 +971,18 @@
   </data>
   <data name="SessionEdit.DefaultName" xml:space="preserve">
     <value>未命名会话</value>
+  </data>
+  <data name="SessionEdit.Category.Connection" xml:space="preserve">
+    <value>连接</value>
+  </data>
+  <data name="SessionEdit.Category.Terminal" xml:space="preserve">
+    <value>终端与脚本</value>
+  </data>
+  <data name="SessionEdit.Category.FileTransfer" xml:space="preserve">
+    <value>文件传输</value>
+  </data>
+  <data name="SessionEdit.Category.Behavior" xml:space="preserve">
+    <value>会话行为</value>
   </data>
 
   <!-- Quick Connect Window -->

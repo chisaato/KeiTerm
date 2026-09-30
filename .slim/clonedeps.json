@@ -1,0 +1,14 @@
+{
+  "version": "1.0.0",
+  "updatedAt": "2026-09-30T00:00:00Z",
+  "dependencies": [
+    {
+      "name": "RoyalApps.RoyalTerminal.Avalonia",
+      "resolvedVersion": "0.6.0-preview.2",
+      "repoUrl": "https://github.com/royalapplications/RoyalTerminal.git",
+      "ref": "a1957b019db19d5eba1a8d9933e84cfc5fd50abb",
+      "path": ".slim/clonedeps/repos/royalapplications__RoyalTerminal",
+      "reason": "检查终端行高度量、渲染与布局滚动同步；提交由 NuGet 元数据与 v0.6.0-preview.2 标签交叉验证。"
+    }
+  ]
+}

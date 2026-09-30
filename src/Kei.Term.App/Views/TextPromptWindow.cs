@@ -50,10 +50,10 @@ public sealed class TextPromptWindow : Window
             Content = Strings.Get("Common.Confirm"),
             Padding = new Thickness(14, 5),
             MinWidth = 76,
-            Margin = new Thickness(8, 0, 0, 0),
-            Foreground = Brushes.White
+            Margin = new Thickness(8, 0, 0, 0)
         };
         confirm.Bind(BackgroundProperty, confirm.GetResourceObservable("Kei.Accent"));
+        confirm.Bind(ForegroundProperty, confirm.GetResourceObservable("Kei.Accent.Foreground"));
         cancel.Click += (_, _) => Close(null);
         confirm.Click += (_, _) => Close(_input.Text);
 

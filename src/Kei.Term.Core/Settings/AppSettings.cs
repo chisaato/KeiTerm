@@ -73,7 +73,7 @@ public class AppSettings
     public int LockTimeoutMinutes { get; set; } = 0;
 
     // SSH 连接超时（秒）
-    public int ConnectTimeoutSeconds { get; set; } = 15;
+    public int ConnectTimeoutSeconds { get; set; } = 60;
 
     // 主机密钥校验策略：Ask（未知弹窗确认/变更强警示）| AcceptNew（TOFU）| Strict（仅已知主机）
     public HostKeyPolicy HostKeyPolicy { get; set; } = HostKeyPolicy.Ask;

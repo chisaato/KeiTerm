@@ -75,6 +75,27 @@ public class SessionBatchEditorTests
     }
 
     [Fact]
+    public void Apply_ConnectTimeout_CanBeOverriddenOrInherited()
+    {
+        var session = new SessionNode
+        {
+            Overrides = new SessionOverrides { ConnectTimeoutSeconds = 30 }
+        };
+
+        SessionBatchEditor.Apply(
+            [session],
+            [new SessionBatchChange(SessionBatchFields.ConnectTimeoutSeconds, 120)]);
+
+        Assert.Equal(120, session.Overrides.ConnectTimeoutSeconds);
+
+        SessionBatchEditor.Apply(
+            [session],
+            [new SessionBatchChange(SessionBatchFields.ConnectTimeoutSeconds, null)]);
+
+        Assert.Null(session.Overrides.ConnectTimeoutSeconds);
+    }
+
+    [Fact]
     public void DescendantSessionIds_IncludesNestedFolders_AndSurvivesCycles()
     {
         var root = new FolderNode { Name = "root" };

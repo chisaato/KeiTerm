@@ -84,6 +84,14 @@ public static class BatchFieldDefinitions
             Choices = ctx => SessionBehaviorOptions.InheritableCwdFollow(ctx.Settings.CwdFollowMode)
                 .Select(o => new BatchChoice(o.Value, o.DisplayName))
                 .ToList()
+        },
+        new()
+        {
+            Field = SessionBatchFields.ConnectTimeoutSeconds,
+            Label = Strings.Get("Settings.Ssh.ConnectTimeout"),
+            Choices = ctx => SessionBehaviorOptions.InheritableConnectTimeout(ctx.Settings.ConnectTimeoutSeconds)
+                .Select(o => new BatchChoice(o.Value, o.DisplayName))
+                .ToList()
         }
     ];
 }

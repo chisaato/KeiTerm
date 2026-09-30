@@ -45,4 +45,17 @@ public static class SessionBehaviorOptions
             new(true, Describe(true)),
             new(false, Describe(false))
         ];
+
+    // 连接超时（秒）选项：继承全局、30秒、60秒、90秒、120秒、180秒、300秒
+    public static IReadOnlyList<InheritableOption<int>> InheritableConnectTimeout(int globalDefault)
+        => [
+            new(null, Strings.Format("Behavior.Inherit", $"{globalDefault}s")),
+            new(15, "15s"),
+            new(30, "30s"),
+            new(60, "60s"),
+            new(90, "90s"),
+            new(120, "120s"),
+            new(180, "180s"),
+            new(300, "300s")
+        ];
 }

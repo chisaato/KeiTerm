@@ -280,7 +280,7 @@ public partial class SettingsViewModel : ViewModelBase
         settings.DefaultIdentityId = _ssh.SelectedIdentityId;
         settings.PreferSystemAgent = _ssh.PreferSystemAgent;
         settings.LockTimeoutMinutes = Math.Clamp(_ssh.LockTimeoutMinutes, 0, 120);
-        settings.ConnectTimeoutSeconds = Math.Clamp(_ssh.ConnectTimeoutSeconds, 3, 120);
+        settings.ConnectTimeoutSeconds = Math.Clamp(_ssh.ConnectTimeoutSeconds, 3, 300);
         settings.KeepAliveIntervalSeconds = Math.Clamp(_ssh.KeepAliveIntervalSeconds, 0, 300);
         settings.EnableAgentForwarding = _ssh.EnableAgentForwarding;
         settings.CustomAgentSocketPath = string.IsNullOrWhiteSpace(_ssh.CustomAgentSocketPath)

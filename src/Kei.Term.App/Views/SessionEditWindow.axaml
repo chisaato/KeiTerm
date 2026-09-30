@@ -2,99 +2,141 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Kei.Term.App.ViewModels"
         xmlns:loc="using:Kei.Term.App.Helpers"
+        xmlns:controls="using:Kei.Term.App.Views.Controls"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="550"
+        mc:Ignorable="d" d:DesignWidth="680" d:DesignHeight="520"
         x:Class="Kei.Term.App.Views.SessionEditWindow"
         x:DataType="vm:SessionEditViewModel"
         Title="{Binding Title}"
-        Width="520" Height="640"
+        Width="700" Height="520" MinWidth="600" MinHeight="420"
         WindowStartupLocation="CenterOwner"
-        CanResize="False"
-        Background="#1E1E1E">
+        CanResize="True"
+        FontFamily="Noto Sans CJK SC, Source Han Sans SC, Microsoft YaHei UI, Segoe UI, sans-serif"
+        RequestedThemeVariant="Dark"
+        Background="{DynamicResource Kei.Bg.Window}">
 
-    <Grid RowDefinitions="*, Auto" Margin="20">
-        <ScrollViewer Grid.Row="0">
-            <StackPanel Spacing="14">
-                <!-- 基本信息 -->
-                <TextBlock Text="{loc:KeiString SessionEdit.BasicSection}" FontWeight="Bold" Foreground="#4EC9B0" FontSize="14"/>
+    <Window.Styles>
+        <Style Selector="Button.save /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource Kei.Accent}"/>
+            <Setter Property="Foreground" Value="{DynamicResource Kei.Accent.Foreground}"/>
+        </Style>
+        <Style Selector="Button.save:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource Kei.Accent.Hover}"/>
+            <Setter Property="Foreground" Value="{DynamicResource Kei.Accent.Foreground}"/>
+        </Style>
+        <Style Selector="Button.save:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource Kei.Accent}"/>
+            <Setter Property="Foreground" Value="{DynamicResource Kei.Accent.Foreground}"/>
+        </Style>
+    </Window.Styles>
 
-                <Grid ColumnDefinitions="100, *" RowDefinitions="Auto, Auto, Auto, Auto, Auto" Margin="0,4,0,10">
-                    <!-- 显示名称 -->
-                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString SessionEdit.Name}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
-                    <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Name}" PlaceholderText="{loc:KeiString SessionEdit.Name.Placeholder}" Margin="0,4"/>
+    <Grid RowDefinitions="*, Auto">
+        <!-- 主体区域：左侧分类侧边栏，右侧根据分类切换内容 -->
+        <Grid Grid.Row="0" ColumnDefinitions="160, *">
+            <!-- 左侧：分类导航 -->
+            <Border Grid.Column="0"
+                    Background="{DynamicResource Kei.Bg.Panel}"
+                    BorderBrush="{DynamicResource Kei.Border}"
+                    BorderThickness="0,0,1,0">
+                <controls:CategoryNavListBox ItemsSource="{Binding Categories}"
+                                             SelectedItem="{Binding SelectedCategory, Mode=TwoWay}"/>
+            </Border>
 
-                    <!-- 主机地址 -->
-                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{loc:KeiString SessionEdit.Host}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
-                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Host}" PlaceholderText="{loc:KeiString SessionEdit.Host.Placeholder}" Margin="0,4"/>
+            <!-- 右侧：分类面板区 -->
+            <Border Grid.Column="1" Background="{DynamicResource Kei.Bg.Window}">
+                <ScrollViewer Margin="24,20">
+                    <StackPanel Spacing="14">
+                        <!-- 1. 连接分类 -->
+                        <StackPanel Spacing="14" IsVisible="{Binding SelectedCategory.Page, Converter={x:Static ObjectConverters.Equal}, ConverterParameter='Connection'}">
+                            <TextBlock Text="{loc:KeiString SessionEdit.BasicSection}" FontWeight="Bold" Foreground="{DynamicResource Kei.Session.Foreground}" FontSize="13"/>
 
-                    <!-- 端口 -->
-                    <TextBlock Grid.Row="2" Grid.Column="0" Text="{loc:KeiString SessionEdit.Port}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
-                    <NumericUpDown Grid.Row="2" Grid.Column="1" Value="{Binding Port}" Minimum="1" Maximum="65535" FormatString="0" Margin="0,4"/>
+                            <Grid ColumnDefinitions="120, *" ColumnSpacing="12" RowDefinitions="Auto, Auto, Auto, Auto, Auto, Auto, Auto" RowSpacing="10">
+                                <!-- 显示名称 -->
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString SessionEdit.Name}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Name}" PlaceholderText="{loc:KeiString SessionEdit.Name.Placeholder}"/>
 
-                    <!-- 用户名 -->
-                    <TextBlock Grid.Row="3" Grid.Column="0" Text="{loc:KeiString SessionEdit.Username}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
-                    <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding Username}" PlaceholderText="{loc:KeiString SessionEdit.Username.Placeholder}" Margin="0,4"/>
+                                <!-- 主机地址 -->
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="{loc:KeiString SessionEdit.Host}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Host}" PlaceholderText="{loc:KeiString SessionEdit.Host.Placeholder}"/>
 
-                    <!-- 身份绑定 -->
-                    <TextBlock Grid.Row="4" Grid.Column="0" Text="{loc:KeiString SessionEdit.Identity}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
-                    <ComboBox Grid.Row="4" Grid.Column="1" ItemsSource="{Binding Identities}" SelectedItem="{Binding SelectedIdentity}" Margin="0,4" HorizontalAlignment="Stretch">
-                        <ComboBox.ItemTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding DisplayName}"/>
-                            </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                    </ComboBox>
-                </Grid>
+                                <!-- 端口 -->
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="{loc:KeiString SessionEdit.Port}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                <NumericUpDown Grid.Row="2" Grid.Column="1" Value="{Binding Port}" Minimum="1" Maximum="65535" FormatString="0" HorizontalAlignment="Left" MinWidth="180"/>
 
-                <Separator Background="#333333"/>
+                                <!-- 用户名 -->
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="{loc:KeiString SessionEdit.Username}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding Username}" PlaceholderText="{loc:KeiString SessionEdit.Username.Placeholder}"/>
 
-                <!-- 高级设置 -->
-                <TextBlock Text="{loc:KeiString SessionEdit.AdvancedSection}" FontWeight="Bold" Foreground="#4EC9B0" FontSize="14"/>
+                                <!-- 身份绑定 -->
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="{loc:KeiString SessionEdit.Identity}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                <ComboBox Grid.Row="4" Grid.Column="1" ItemsSource="{Binding Identities}" SelectedItem="{Binding SelectedIdentity}" HorizontalAlignment="Stretch">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding DisplayName}"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
 
-                <Grid ColumnDefinitions="100, *" RowDefinitions="Auto, Auto, Auto" Margin="0,4,0,10">
-                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString SessionEdit.TerminalType}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
-                    <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding TerminalType}" PlaceholderText="{loc:KeiString SessionEdit.TerminalType.Placeholder}" Margin="0,4"/>
+                                <!-- 连接超时覆盖 -->
+                                <TextBlock Grid.Row="5" Grid.Column="0" Text="{loc:KeiString Settings.Ssh.ConnectTimeout}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                <ComboBox Grid.Row="5" Grid.Column="1" ItemsSource="{Binding ConnectTimeoutOptions}" SelectedItem="{Binding SelectedConnectTimeout}" HorizontalAlignment="Stretch"/>
 
-                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{loc:KeiString SessionEdit.StartupScript}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
-                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding StartupScript}" PlaceholderText="{loc:KeiString SessionEdit.StartupScript.Placeholder}" Margin="0,4"/>
+                                <!-- 描述说明 -->
+                                <TextBlock Grid.Row="6" Grid.Column="0" Text="{loc:KeiString SessionEdit.Description}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                <TextBox Grid.Row="6" Grid.Column="1" Text="{Binding Description}" PlaceholderText="{loc:KeiString SessionEdit.Description.Placeholder}"/>
+                            </Grid>
+                        </StackPanel>
 
-                    <TextBlock Grid.Row="2" Grid.Column="0" Text="{loc:KeiString SessionEdit.Description}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
-                    <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding Description}" PlaceholderText="{loc:KeiString SessionEdit.Description.Placeholder}" Margin="0,4"/>
-                </Grid>
+                        <!-- 2. 终端与脚本 (Terminal) -->
+                        <StackPanel Spacing="14" IsVisible="{Binding SelectedCategory.Page, Converter={x:Static ObjectConverters.Equal}, ConverterParameter='Terminal'}">
+                            <TextBlock Text="{loc:KeiString SessionEdit.AdvancedSection}" FontWeight="Bold" Foreground="{DynamicResource Kei.Session.Foreground}" FontSize="13"/>
 
-                <Separator Background="#333333"/>
+                            <Grid ColumnDefinitions="120, *" ColumnSpacing="12" RowDefinitions="Auto, Auto" RowSpacing="10">
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString SessionEdit.TerminalType}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding TerminalType}" PlaceholderText="{loc:KeiString SessionEdit.TerminalType.Placeholder}"/>
 
-                <!-- 文件传输设置 -->
-                <TextBlock Text="文件传输 (SFTP / SCP)" FontWeight="Bold" Foreground="#4EC9B0" FontSize="14"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="{loc:KeiString SessionEdit.StartupScript}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding StartupScript}" PlaceholderText="{loc:KeiString SessionEdit.StartupScript.Placeholder}" AcceptsReturn="True" Height="100"/>
+                            </Grid>
+                        </StackPanel>
 
-                <Grid ColumnDefinitions="100, *" RowDefinitions="Auto, Auto" Margin="0,4,0,10">
-                    <TextBlock Grid.Row="0" Grid.Column="0" Text="传输协议:" VerticalAlignment="Center" Foreground="#CCCCCC"/>
-                    <ComboBox Grid.Row="0" Grid.Column="1" ItemsSource="{Binding AvailableProtocols}" SelectedItem="{Binding SelectedProtocol}" Margin="0,4" HorizontalAlignment="Stretch"/>
+                        <!-- 3. 文件传输 (FileTransfer) -->
+                        <StackPanel Spacing="14" IsVisible="{Binding SelectedCategory.Page, Converter={x:Static ObjectConverters.Equal}, ConverterParameter='FileTransfer'}">
+                            <TextBlock Text="文件传输 (SFTP / SCP)" FontWeight="Bold" Foreground="{DynamicResource Kei.Session.Foreground}" FontSize="13"/>
 
-                    <TextBlock Grid.Row="1" Grid.Column="0" Text="SFTP 模式:" VerticalAlignment="Center" Foreground="#CCCCCC"/>
-                    <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding AvailableSftpModes}" SelectedItem="{Binding SelectedSftpMode}" Margin="0,4" HorizontalAlignment="Stretch"/>
-                </Grid>
+                            <Grid ColumnDefinitions="120, *" ColumnSpacing="12" RowDefinitions="Auto, Auto" RowSpacing="10">
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="传输协议:" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                <ComboBox Grid.Row="0" Grid.Column="1" ItemsSource="{Binding AvailableProtocols}" SelectedItem="{Binding SelectedProtocol}" HorizontalAlignment="Stretch"/>
 
-                <Separator Background="#333333"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="SFTP 模式:" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding AvailableSftpModes}" SelectedItem="{Binding SelectedSftpMode}" HorizontalAlignment="Stretch"/>
+                            </Grid>
+                        </StackPanel>
 
-                <!-- 会话行为：可继承全局设置的覆盖项 -->
-                <TextBlock Text="{loc:KeiString SessionEdit.BehaviorSection}" FontWeight="Bold" Foreground="#4EC9B0" FontSize="14"/>
+                        <!-- 4. 会话行为 (Behavior) -->
+                        <StackPanel Spacing="14" IsVisible="{Binding SelectedCategory.Page, Converter={x:Static ObjectConverters.Equal}, ConverterParameter='Behavior'}">
+                            <TextBlock Text="{loc:KeiString SessionEdit.BehaviorSection}" FontWeight="Bold" Foreground="{DynamicResource Kei.Session.Foreground}" FontSize="13"/>
 
-                <Grid ColumnDefinitions="100, *" RowDefinitions="Auto, Auto" Margin="0,4,0,10">
-                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString SessionEdit.TabTitle}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
-                    <ComboBox Grid.Row="0" Grid.Column="1" ItemsSource="{Binding TitleFollowOptions}" SelectedItem="{Binding SelectedTitleFollow}" Margin="0,4" HorizontalAlignment="Stretch"/>
+                            <Grid ColumnDefinitions="120, *" ColumnSpacing="12" RowDefinitions="Auto, Auto" RowSpacing="10">
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString SessionEdit.TabTitle}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                <ComboBox Grid.Row="0" Grid.Column="1" ItemsSource="{Binding TitleFollowOptions}" SelectedItem="{Binding SelectedTitleFollow}" HorizontalAlignment="Stretch"/>
 
-                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{loc:KeiString SessionEdit.CwdFollow}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
-                    <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding CwdFollowOptions}" SelectedItem="{Binding SelectedCwdFollow}" Margin="0,4" HorizontalAlignment="Stretch"/>
-                </Grid>
-            </StackPanel>
-        </ScrollViewer>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="{loc:KeiString SessionEdit.CwdFollow}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding CwdFollowOptions}" SelectedItem="{Binding SelectedCwdFollow}" HorizontalAlignment="Stretch"/>
+                            </Grid>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Grid>
 
         <!-- 底部确定/取消按钮 -->
-        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12" Margin="0,16,0,0">
-            <Button Content="{loc:KeiString Common.Cancel}" Command="{Binding CancelCommand}" Width="85" HorizontalContentAlignment="Center"/>
-            <Button Content="{loc:KeiString Common.Save}" Command="{Binding SaveCommand}" Width="85" HorizontalContentAlignment="Center" Background="#0E639C" Foreground="White"/>
-        </StackPanel>
+        <Border Grid.Row="1" Background="{DynamicResource Kei.Bg.Panel}" BorderBrush="{DynamicResource Kei.Border}" BorderThickness="0,1,0,0" Padding="16,12">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+                <Button Content="{loc:KeiString Common.Cancel}" Command="{Binding CancelCommand}" Width="85" HorizontalContentAlignment="Center"/>
+                <Button Content="{loc:KeiString Common.Save}" Command="{Binding SaveCommand}" Width="85" HorizontalContentAlignment="Center" Classes="save"/>
+            </StackPanel>
+        </Border>
     </Grid>
 </Window>

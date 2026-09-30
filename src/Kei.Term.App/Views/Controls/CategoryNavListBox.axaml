@@ -1,0 +1,68 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Kei.Term.App.Views.Controls"
+             xmlns:settings="using:Kei.Term.App.ViewModels.Settings"
+             x:Class="Kei.Term.App.Views.Controls.CategoryNavListBox"
+             x:DataType="controls:CategoryNavListBox">
+
+    <ListBox x:Name="PART_List"
+             ItemsSource="{Binding ItemsSource, RelativeSource={RelativeSource AncestorType=controls:CategoryNavListBox}}"
+             SelectedItem="{Binding SelectedItem, RelativeSource={RelativeSource AncestorType=controls:CategoryNavListBox}, Mode=TwoWay}"
+             Margin="0,8" Padding="0"
+             Background="Transparent" BorderThickness="0">
+        <ListBox.Styles>
+            <Style Selector="ListBoxItem">
+                <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Secondary}"/>
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="MinHeight" Value="42"/>
+                <Setter Property="Padding" Value="14,0"/>
+                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                <Setter Property="Template">
+                    <ControlTemplate>
+                        <Border Name="root" Background="{TemplateBinding Background}">
+                            <Grid>
+                                <!-- 选中态左侧 Accent 竖条 -->
+                                <Rectangle Name="accentBar" Width="3" HorizontalAlignment="Left"
+                                           Fill="{DynamicResource Kei.Accent}"
+                                           IsHitTestVisible="False" Opacity="0"/>
+                                <ContentPresenter ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                  Content="{TemplateBinding Content}"
+                                                  Margin="{TemplateBinding Padding}"
+                                                  HorizontalAlignment="Stretch"
+                                                  VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+                    </ControlTemplate>
+                </Setter>
+            </Style>
+            <Style Selector="ListBoxItem:pointerover /template/ Border#root">
+                <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}"/>
+            </Style>
+            <Style Selector="ListBoxItem:selected /template/ Border#root">
+                <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}"/>
+            </Style>
+            <Style Selector="ListBoxItem:selected /template/ Rectangle#accentBar">
+                <Setter Property="Opacity" Value="1"/>
+            </Style>
+            <Style Selector="ListBoxItem:selected">
+                <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}"/>
+            </Style>
+        </ListBox.Styles>
+        <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="settings:SettingsCategoryItem">
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                    <Path Width="16" Height="16"
+                          Data="{Binding Icon}"
+                          Stroke="{Binding $parent[ListBoxItem].Foreground}"
+                          StrokeThickness="1.4" StrokeLineCap="Round" StrokeJoin="Round"/>
+                    <StackPanel VerticalAlignment="Center" Spacing="1">
+                        <TextBlock Text="{Binding Title}" FontSize="13"/>
+                        <TextBlock Text="{Binding Description}" FontSize="10.5"
+                                   Foreground="{DynamicResource Kei.Text.Muted}"
+                                   IsVisible="{Binding HasDescription}"/>
+                    </StackPanel>
+                </StackPanel>
+            </DataTemplate>
+        </ListBox.ItemTemplate>
+    </ListBox>
+</UserControl>

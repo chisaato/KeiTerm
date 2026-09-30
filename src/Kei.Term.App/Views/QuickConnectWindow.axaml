@@ -48,7 +48,7 @@
 
         <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12" Margin="0,14,0,0">
             <Button Content="{loc:KeiString Common.Cancel}" Command="{Binding CancelCommand}" Width="85" HorizontalContentAlignment="Center"/>
-            <Button Content="{loc:KeiString QuickConnect.Connect}" Command="{Binding ConnectCommand}" Width="85" HorizontalContentAlignment="Center" Background="#0E639C" Foreground="White"/>
+            <Button Content="{loc:KeiString QuickConnect.Connect}" Command="{Binding ConnectCommand}" Width="85" HorizontalContentAlignment="Center" Classes="accent"/>
         </StackPanel>
     </Grid>
 </Window>

@@ -144,7 +144,14 @@ public class SessionConfigBuilderTests
 
         Assert.True(inherited.FollowRemoteTitle);
         Assert.Equal(CwdFollowMode.Always, inherited.CwdFollow);
+        Assert.Equal(settings.ConnectTimeoutSeconds, inherited.ConnectTimeoutSeconds);
+
         Assert.False(overridden.FollowRemoteTitle);
         Assert.Equal(CwdFollowMode.Off, overridden.CwdFollow);
+
+        // 测试会话显式超时覆盖
+        explicitSession.Overrides.ConnectTimeoutSeconds = 120;
+        var timeoutOverridden = SessionConfigBuilder.Build(explicitSession, settings);
+        Assert.Equal(120, timeoutOverridden.ConnectTimeoutSeconds);
     }
 }

@@ -46,7 +46,7 @@ public partial class SshSettingsPage : ViewModelBase
 
     // 建立 SSH 连接的最长等待时间（秒）
     [ObservableProperty]
-    private int _connectTimeoutSeconds = 15;
+    private int _connectTimeoutSeconds = 60;
 
     // SSH 保活心跳间隔（秒），0 表示禁用
     [ObservableProperty]

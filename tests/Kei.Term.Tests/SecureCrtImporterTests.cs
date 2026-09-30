@@ -4,6 +4,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Kei.Term.Core.Abstractions;
 using Kei.Term.Core.Models;
 using Kei.Term.Core.Services;
 using Kei.Term.Infrastructure.Storage;
@@ -54,6 +55,14 @@ S:""Credential Title""=root-master
 ";
             await File.WriteAllTextAsync(Path.Combine(sessionsDir, "gateway.ini"), ini3);
 
+            // 创建会话 4：无特定凭据且为 Serial 协议的会话，测试全量导入不被跳过
+            var ini4 = @"
+S:""Protocol Name""=Serial
+S:""Hostname""=
+S:""Username""=
+";
+            await File.WriteAllTextAsync(Path.Combine(subDir, "switch-serial.ini"), ini4);
+
             // 忽略文件
             await File.WriteAllTextAsync(Path.Combine(sessionsDir, "Default.ini"), "S:\"Hostname\"=default");
             await File.WriteAllTextAsync(Path.Combine(subDir, "__FolderData__.ini"), "D:\"Expanded\"=00000001");
@@ -66,9 +75,9 @@ S:""Credential Title""=root-master
             var importer = new SecureCrtImporter(treeRepo, idRepo);
             var summary = await importer.ImportFromDirectoryAsync(sessionsDir);
 
-            Assert.Equal(3, summary.TotalFilesScanned);
+            Assert.Equal(4, summary.TotalFilesScanned);
             Assert.Equal(2, summary.FoldersCreated); // Prod, Beijing
-            Assert.Equal(3, summary.SessionsImported);
+            Assert.Equal(4, summary.SessionsImported);
             Assert.Equal(2, summary.IdentitiesCreated); // devops-key, root-master
 
             // 验证生成的凭据
@@ -103,6 +112,11 @@ S:""Credential Title""=root-master
             Assert.Equal(2222, s2.Port); // 0x08ae = 2222
             Assert.Equal("admin", s2.Username);
             Assert.Equal(devopsId.Id, s2.IdentityId);
+
+            var s4 = Assert.Single(nodes.OfType<SessionNode>(), s => s.Name == "switch-serial");
+            Assert.Equal(beijingFolder.Id, s4.ParentId);
+            Assert.Equal(SessionProtocols.Serial, s4.Protocol);
+            Assert.Null(s4.IdentityId);
         }
         finally
         {

@@ -32,7 +32,7 @@
                 <TextBlock Grid.Column="0" Text="{loc:KeiString IdentityManager.PlainWarning}"
                            Foreground="#E0A030" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center"/>
                 <Button Grid.Column="1" Content="{loc:KeiString IdentityManager.SetMasterPassword}" Command="{Binding SetMasterPasswordCommand}"
-                        Background="#0E639C" Foreground="White"/>
+                        Classes="accent"/>
             </Grid>
         </Border>
 

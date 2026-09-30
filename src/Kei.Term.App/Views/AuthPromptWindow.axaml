@@ -84,7 +84,7 @@
         <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12" Margin="0,16,0,0">
             <Button Content="{loc:KeiString Common.Cancel}" Click="OnCancel" IsCancel="True" Width="85" HorizontalContentAlignment="Center"/>
             <Button Content="{loc:KeiString Common.Confirm}" Click="OnConfirm" IsDefault="True" Width="85"
-                    HorizontalContentAlignment="Center" Background="#0E639C" Foreground="White"/>
+                    HorizontalContentAlignment="Center" Classes="accent"/>
         </StackPanel>
     </Grid>
 </Window>

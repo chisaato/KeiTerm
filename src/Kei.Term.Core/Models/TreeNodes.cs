@@ -111,5 +111,7 @@ public record ResolvedSessionConfig(
     string? TerminalProfileId = null,
     // 已按「会话覆盖 → 全局设置」解析后的行为
     bool FollowRemoteTitle = false,
-    CwdFollowMode CwdFollow = CwdFollowMode.Off
+    CwdFollowMode CwdFollow = CwdFollowMode.Off,
+    // 已按「会话覆盖 → 全局设置」解析后的连接超时（秒）
+    int ConnectTimeoutSeconds = 60
 );

@@ -123,11 +123,30 @@ public class SecureCrtImporter
             var text = await File.ReadAllTextAsync(file, ct);
 
             var mProto = ProtoRegex.Match(text);
-            var proto = mProto.Success ? mProto.Groups[1].Value.Trim() : "SSH2";
-            // 仅导入 SSH 类会话
-            if (!proto.Equals("SSH2", StringComparison.OrdinalIgnoreCase) && !proto.Equals("SSH1", StringComparison.OrdinalIgnoreCase))
+            var protoRaw = mProto.Success ? mProto.Groups[1].Value.Trim() : "SSH2";
+            
+            // 映射或标准化协议类型
+            string protocol;
+            if (protoRaw.Equals("SSH2", StringComparison.OrdinalIgnoreCase) || protoRaw.Equals("SSH1", StringComparison.OrdinalIgnoreCase))
             {
-                continue;
+                protocol = SessionProtocols.Ssh;
+            }
+            else if (protoRaw.Equals("Telnet", StringComparison.OrdinalIgnoreCase))
+            {
+                protocol = SessionProtocols.Telnet;
+            }
+            else if (protoRaw.Equals("Serial", StringComparison.OrdinalIgnoreCase))
+            {
+                protocol = SessionProtocols.Serial;
+            }
+            else if (protoRaw.Equals("Local Shell", StringComparison.OrdinalIgnoreCase) || protoRaw.Equals("Shell", StringComparison.OrdinalIgnoreCase))
+            {
+                protocol = SessionProtocols.Local;
+            }
+            else
+            {
+                // 其他未知或自定义协议默认作为 ssh 或其原始名称小写，保证全量导入不遗漏
+                protocol = string.IsNullOrWhiteSpace(protoRaw) ? SessionProtocols.Ssh : protoRaw.ToLowerInvariant();
             }
 
             var mHost = HostRegex.Match(text);
@@ -195,6 +214,7 @@ public class SecureCrtImporter
                 sessionNode.Username = user;
                 sessionNode.IdentityId = assignedIdentityId;
                 sessionNode.TerminalType = termType;
+                sessionNode.Protocol = protocol;
             }
             else
             {
@@ -206,7 +226,7 @@ public class SecureCrtImporter
                     Port = port,
                     Username = user,
                     IdentityId = assignedIdentityId,
-                    Protocol = SessionProtocols.Ssh,
+                    Protocol = protocol,
                     TerminalType = termType,
                     SortOrder = 0
                 };

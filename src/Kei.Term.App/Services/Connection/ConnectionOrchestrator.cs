@@ -99,7 +99,7 @@ public sealed class ConnectionOrchestrator
     {
         ResolvedSessionConfig resolved = auth.Config;
         var current = new List<MaterializedAuthMethod>(auth.Materials);
-        TimeSpan timeout = TimeSpan.FromSeconds(Math.Max(1, _settings.Current.ConnectTimeoutSeconds));
+        TimeSpan timeout = TimeSpan.FromSeconds(Math.Max(1, resolved.ConnectTimeoutSeconds));
         int promptCount = 0;
         int hostKeyConfirmations = 0;
 

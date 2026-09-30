@@ -623,7 +623,7 @@ public partial class MainWindow : Window
             MinWidth = 76,
             Margin = new Thickness(8, 0, 0, 0),
             Background = GetThemeBrush("Kei.Accent"),
-            Foreground = Brushes.White
+            Foreground = GetThemeBrush("Kei.Accent.Foreground") ?? Brushes.White
         };
 
         cancelButton.Click += (_, _) => { tcs.TrySetResult(false); dialog.Close(); };

@@ -22,15 +22,15 @@
         <!-- 保存按钮：常态 Accent，悬停 AccentHover，按下回落 -->
         <Style Selector="Button.save /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="{DynamicResource Kei.Accent}"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Foreground" Value="{DynamicResource Kei.Accent.Foreground}"/>
         </Style>
         <Style Selector="Button.save:pointerover /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="{DynamicResource Kei.Accent.Hover}"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Foreground" Value="{DynamicResource Kei.Accent.Foreground}"/>
         </Style>
         <Style Selector="Button.save:pressed /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="{DynamicResource Kei.Accent}"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Foreground" Value="{DynamicResource Kei.Accent.Foreground}"/>
         </Style>
     </Window.Styles>
 
@@ -41,65 +41,8 @@
                     Background="{DynamicResource Kei.Bg.Panel}"
                     BorderBrush="{DynamicResource Kei.Border}"
                     BorderThickness="0,0,1,0">
-                <ListBox ItemsSource="{Binding Categories}"
-                         SelectedItem="{Binding SelectedCategory}"
-                         Margin="0,8" Padding="0"
-                         Background="Transparent" BorderThickness="0">
-                    <ListBox.Styles>
-                        <Style Selector="ListBoxItem">
-                            <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Secondary}"/>
-                            <Setter Property="Background" Value="Transparent"/>
-                            <Setter Property="MinHeight" Value="48"/>
-                            <Setter Property="Padding" Value="14,0"/>
-                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                            <Setter Property="Template">
-                                <ControlTemplate>
-                                    <Border Name="root" Background="{TemplateBinding Background}">
-                                        <Grid>
-                                            <!-- 选中态左侧 Accent 竖条 -->
-                                            <Rectangle Name="accentBar" Width="3" HorizontalAlignment="Left"
-                                                       Fill="{DynamicResource Kei.Accent}"
-                                                       IsHitTestVisible="False" Opacity="0"/>
-                                            <ContentPresenter ContentTemplate="{TemplateBinding ContentTemplate}"
-                                                              Content="{TemplateBinding Content}"
-                                                              Margin="{TemplateBinding Padding}"
-                                                              HorizontalAlignment="Stretch"
-                                                              VerticalAlignment="Center"/>
-                                        </Grid>
-                                    </Border>
-                                </ControlTemplate>
-                            </Setter>
-                        </Style>
-                        <Style Selector="ListBoxItem:pointerover /template/ Border#root">
-                            <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}"/>
-                        </Style>
-                        <Style Selector="ListBoxItem:selected /template/ Border#root">
-                            <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}"/>
-                        </Style>
-                        <Style Selector="ListBoxItem:selected /template/ Rectangle#accentBar">
-                            <Setter Property="Opacity" Value="1"/>
-                        </Style>
-                        <Style Selector="ListBoxItem:selected">
-                            <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}"/>
-                        </Style>
-                    </ListBox.Styles>
-                    <ListBox.ItemTemplate>
-                        <DataTemplate x:DataType="settings:SettingsCategoryItem">
-                            <StackPanel Orientation="Horizontal" Spacing="10">
-                                <!-- 单色几何图标：描边色跟随条目前景 -->
-                                <Path Width="16" Height="16"
-                                      Data="{Binding Icon}"
-                                      Stroke="{Binding $parent[ListBoxItem].Foreground}"
-                                      StrokeThickness="1.4" StrokeLineCap="Round" StrokeJoin="Round"/>
-                                <StackPanel VerticalAlignment="Center" Spacing="1">
-                                    <TextBlock Text="{Binding Title}" FontSize="13"/>
-                                    <TextBlock Text="{Binding Description}" FontSize="10.5"
-                                               Foreground="{DynamicResource Kei.Text.Muted}"/>
-                                </StackPanel>
-                            </StackPanel>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
+                <controls:CategoryNavListBox ItemsSource="{Binding Categories}"
+                                             SelectedItem="{Binding SelectedCategory, Mode=TwoWay}"/>
             </Border>
 
             <!-- 右侧：分类内容区，按页面 VM 类型分发模板（受 IsBusy 控制禁用交互） -->
@@ -568,7 +511,7 @@
                                         <TextBlock Grid.Row="3" Grid.Column="0" Text="{loc:KeiString Settings.Ssh.ConnectTimeout}" VerticalAlignment="Center"
                                                    Foreground="{DynamicResource Kei.Text.Secondary}"/>
                                         <NumericUpDown Grid.Row="3" Grid.Column="1" HorizontalAlignment="Left" MinWidth="220"
-                                                       Value="{Binding ConnectTimeoutSeconds}" Minimum="3" Maximum="120" FormatString="0"
+                                                       Value="{Binding ConnectTimeoutSeconds}" Minimum="3" Maximum="300" FormatString="0"
                                                        ToolTip.Tip="{loc:KeiString Settings.Ssh.ConnectTimeoutTip}"/>
                                         <TextBlock Grid.Row="4" Grid.Column="0" Text="{loc:KeiString Settings.Ssh.KeepAliveInterval}" VerticalAlignment="Center"
                                                    Foreground="{DynamicResource Kei.Text.Secondary}"/>
@@ -647,7 +590,7 @@
                                                                 <TextBlock Text="{Binding DisplayPath}" FontSize="11" Foreground="{DynamicResource Kei.Text.Muted}"/>
                                                             </StackPanel>
                                                             <Border Grid.Column="1" Background="{DynamicResource Kei.Accent}" CornerRadius="3" Padding="4,1" Margin="6,0" IsVisible="{Binding IsDefault}">
-                                                                <TextBlock Text="默认" FontSize="9.5" Foreground="White"/>
+                                                                <TextBlock Text="默认" FontSize="9.5" Foreground="{DynamicResource Kei.Accent.Foreground}"/>
                                                             </Border>
                                                         </Grid>
                                                     </DataTemplate>
@@ -751,7 +694,7 @@
                     <Button Content="{loc:KeiString Common.Cancel}" MinWidth="88" HorizontalContentAlignment="Center" Command="{Binding CancelCommand}"/>
                     <Button Content="{loc:KeiString Common.Apply}" MinWidth="88" HorizontalContentAlignment="Center" Command="{Binding ApplyCommand}"/>
                     <Button Content="{loc:KeiString Common.Confirm}" MinWidth="88" HorizontalContentAlignment="Center"
-                            Classes="save" Foreground="White" Command="{Binding SaveCommand}"/>
+                            Classes="save" Foreground="{DynamicResource Kei.Accent.Foreground}" Command="{Binding SaveCommand}"/>
                 </StackPanel>
             </Grid>
         </Border>

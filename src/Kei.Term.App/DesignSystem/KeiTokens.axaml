@@ -27,6 +27,7 @@
     <Color x:Key="Kei.Color.Accent">#FF3574F0</Color>
     <Color x:Key="Kei.Color.Accent.Hover">#FF4B84F5</Color>
     <Color x:Key="Kei.Color.Accent.Pressed">#FF2860D4</Color>
+    <Color x:Key="Kei.Color.Accent.Foreground">#FFFFFFFF</Color>
     <Color x:Key="Kei.Color.Session.Foreground">#FF4EC9B0</Color>
 
     <!-- 状态指示色 -->
@@ -56,6 +57,7 @@
     <SolidColorBrush x:Key="Kei.Accent" Color="{StaticResource Kei.Color.Accent}"/>
     <SolidColorBrush x:Key="Kei.Accent.Hover" Color="{StaticResource Kei.Color.Accent.Hover}"/>
     <SolidColorBrush x:Key="Kei.Accent.Pressed" Color="{StaticResource Kei.Color.Accent.Pressed}"/>
+    <SolidColorBrush x:Key="Kei.Accent.Foreground" Color="{StaticResource Kei.Color.Accent.Foreground}"/>
     <SolidColorBrush x:Key="Kei.Session.Foreground" Color="{StaticResource Kei.Color.Session.Foreground}"/>
 
     <SolidColorBrush x:Key="Kei.Status.Connecting" Color="{StaticResource Kei.Color.Status.Connecting}"/>

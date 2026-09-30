@@ -36,7 +36,7 @@
         </Style>
 
         <!-- 拖拽悬停视觉反馈样式：合法目标微亮强调 + 亮蓝左边线，禁止目标微红警示 -->
-        <Style Selector=".sessionTree TreeViewItem.drop-target-valid /template/ Border#PART_LayoutRoot">
+        <Style Selector=".sessionTree TreeViewItem.drop-target-valid /template/ Border#PART_ContentPill">
             <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource Kei.Accent}"/>
             <Setter Property="BorderThickness" Value="2,0,0,0"/>
@@ -46,7 +46,7 @@
             <Setter Property="BorderBrush" Value="{DynamicResource Kei.Accent}"/>
             <Setter Property="BorderThickness" Value="2,0,0,0"/>
         </Style>
-        <Style Selector=".sessionTree TreeViewItem.drop-target-invalid /template/ Border#PART_LayoutRoot">
+        <Style Selector=".sessionTree TreeViewItem.drop-target-invalid /template/ Border#PART_ContentPill">
             <Setter Property="Background" Value="#33E53935"/>
         </Style>
         <Style Selector=".sessionTree TreeViewItem.drop-target-invalid">
@@ -317,7 +317,7 @@
                                     Command="{Binding CreateSessionCommand}"
                                     HorizontalAlignment="Center"
                                     Background="{DynamicResource Kei.Accent}"
-                                    Foreground="White"
+                                    Foreground="{DynamicResource Kei.Accent.Foreground}"
                                     Padding="10,6"
                                     CornerRadius="4"/>
                         </StackPanel>
@@ -546,7 +546,7 @@
                                 Command="{Binding SendComposeCommand}"
                                 Classes.multiline="{Binding IsMultiLineCompose}"
                                 Background="{DynamicResource Kei.Accent}"
-                                Foreground="White"
+                                Foreground="{DynamicResource Kei.Accent.Foreground}"
                                 Margin="8,0,0,0"
                                 Padding="12,5"
                                 CornerRadius="3">

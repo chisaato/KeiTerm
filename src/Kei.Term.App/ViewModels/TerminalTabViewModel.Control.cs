@@ -125,6 +125,9 @@ public partial class TerminalTabViewModel
         {
             Regular = regularBuilder.ToImmutable()
         };
+
+        // 适配终端行高（保持实际字号与字宽不变，仅依据度量策略适配行高）
+        TerminalFontMetricAdapter.AdaptCellHeight(terminal, snapshot.PrimaryFontFamily, snapshot.FontSize);
     }
 
     [RelayCommand]
@@ -176,6 +179,12 @@ public partial class TerminalTabViewModel
 
     private void OnTerminalLoaded(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
+        // 挂载后 Renderer 建立，幂等补偿目标行高（若尚未应用）
+        if (_terminal is { } terminal)
+        {
+            TerminalFontMetricAdapter.AdaptCellHeight(terminal, _fontSnapshot.PrimaryFontFamily, _fontSnapshot.FontSize);
+        }
+
         AlignGridToBottom();
         TrySyncTerminalSize();
         // 控件挂载后 Renderer 才存在：对最新 CurrentProfile 重放选区 alpha 恢复

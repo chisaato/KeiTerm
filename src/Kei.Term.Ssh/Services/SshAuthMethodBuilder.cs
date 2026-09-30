@@ -26,10 +26,10 @@ internal static class SshAuthMethodBuilder
         {
             switch (material.Kind)
             {
-                case AuthMaterialKind.Password when !string.IsNullOrEmpty(material.Secret?.Password):
-                    // 首个密码作为 keyboard-interactive 的预收集应答
-                    fallbackPassword ??= material.Secret.Password;
-                    result.Add(new PasswordAuthenticationMethod(username, material.Secret.Password));
+                case AuthMaterialKind.Password:
+                    // 允许空密码（如 OpenWrt 免密直接回车）
+                    fallbackPassword ??= material.Secret?.Password ?? string.Empty;
+                    result.Add(new PasswordAuthenticationMethod(username, material.Secret?.Password ?? string.Empty));
                     break;
 
                 case AuthMaterialKind.PrivateKey when !string.IsNullOrEmpty(material.Secret?.PrivateKeyContent):

@@ -8,6 +8,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using Kei.Term.App.Models;
 using Kei.Term.App.Services;
+using Kei.Term.App.Terminals;
 using Kei.Term.Core.Models.Profiles;
 using RoyalTerminal.Avalonia.Controls;
 
@@ -187,6 +188,12 @@ public partial class TerminalShellPreviewView : UserControl
 
         // 挂载后 Renderer 就绪，按当前 Font 快照配置启动或同步光标闪烁
         ApplyCursorBlink();
+
+        // 挂载后 Renderer 建立，幂等补偿目标行高
+        if (Font != null)
+        {
+            TerminalFontMetricAdapter.AdaptCellHeight(_terminalControl, Font.PrimaryFontFamily, Font.FontSize);
+        }
     }
 
     private void ShowError(string message)
@@ -311,6 +318,9 @@ public partial class TerminalShellPreviewView : UserControl
                 {
                     Regular = regularBuilder.ToImmutable()
                 };
+
+                // 适配终端行高
+                TerminalFontMetricAdapter.AdaptCellHeight(_terminalControl, primaryFamily, Font.FontSize);
             }
             catch (Exception ex)
             {

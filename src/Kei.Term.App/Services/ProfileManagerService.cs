@@ -420,6 +420,16 @@ public class ProfileManagerService
         UpdateBrush(app, "Kei.Text.Secondary", profile.SecondaryText);
         UpdateBrush(app, "Kei.Accent", profile.AccentColor);
         UpdateBrush(app, "Kei.Accent.Hover", profile.AccentHover);
+
+        // 自适应计算 Accent 前景色（对比度感知：亮底配深字，暗底配白字）
+        var accentFg = CalculateContrastForeground(profile.AccentColor);
+        UpdateBrush(app, "Kei.Accent.Foreground", accentFg);
+
+        // 自适应更新侧边栏树形引导竖线与微妙边框
+        // 树引导线根据面板背景（profile.PanelBackground）与边框色（profile.BorderBrush）自适应调整，确保清晰可见
+        var (subtleBorder, treeLine) = CalculateTreeAndSubtleBorder(profile.PanelBackground, profile.BorderBrush);
+        UpdateBrush(app, "Kei.Border.Subtle", subtleBorder);
+        UpdateBrush(app, "Kei.Tree.Line", treeLine);
     }
 
     private void CaptureCommittedFromWorking()
@@ -479,5 +489,86 @@ public class ProfileManagerService
         {
             app.Resources[key] = new SolidColorBrush(color);
         }
+    }
+
+    /// <summary>
+    /// 根据背景色的感知亮度（Relative Luminance / WCAG 对比度）计算高对比度前景色。
+    /// 亮色背景（如黄、亮蓝、粉）输出深黑色 #18181B，暗色背景输出白色 #FFFFFF。
+    /// </summary>
+    public static string CalculateContrastForeground(string hexColor)
+    {
+        if (!Color.TryParse(hexColor, out var bg))
+        {
+            return "#FFFFFF";
+        }
+
+        // 标准 WCAG 相对亮度计算
+        double r = ToLinearRgb(bg.R / 255.0);
+        double g = ToLinearRgb(bg.G / 255.0);
+        double b = ToLinearRgb(bg.B / 255.0);
+        double luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+
+        // 阈值选在 0.38 左右：亮黄色（如 VeritasHare #DAEF00 亮度约 0.77）和浅色自适应为深色；中暗色自适应为白色
+        return luminance > 0.38 ? "#18181B" : "#FFFFFF";
+    }
+
+    /// <summary>
+    /// 根据面板底色与边框色，计算微弱描边 (Kei.Border.Subtle) 与树引导线 (Kei.Tree.Line)，
+    /// 保证在当前面板背景上拥有清晰可见的对比度差值，避免引导线融入背景。
+    /// </summary>
+    public static (string SubtleBorderHex, string TreeLineHex) CalculateTreeAndSubtleBorder(string panelBgHex, string borderHex)
+    {
+        if (!Color.TryParse(panelBgHex, out var panelBg))
+        {
+            return ("#2E2E35", "#2E2E35");
+        }
+
+        double panelLum = 0.2126 * ToLinearRgb(panelBg.R / 255.0) +
+                          0.7152 * ToLinearRgb(panelBg.G / 255.0) +
+                          0.0722 * ToLinearRgb(panelBg.B / 255.0);
+
+        Color border;
+        if (!Color.TryParse(borderHex, out border))
+        {
+            border = panelLum < 0.2 ? Color.FromRgb(0x40, 0x40, 0x48) : Color.FromRgb(0xC0, 0xC0, 0xC0);
+        }
+
+        // Subtle 边框：介于 panel 与 border 之间
+        byte subR = (byte)((panelBg.R * 2 + border.R) / 3);
+        byte subG = (byte)((panelBg.G * 2 + border.G) / 3);
+        byte subB = (byte)((panelBg.B * 2 + border.B) / 3);
+        string subtleHex = $"#{subR:X2}{subG:X2}{subB:X2}";
+
+        // Tree.Line：1px 线条极细，需要比 subtle 拥有更清晰的视认度
+        // 暗底提亮、亮底压暗，保证与 panel 之间有至少 20% 的通道亮度差
+        byte treeR, treeG, treeB;
+        if (panelLum < 0.5)
+        {
+            // 暗色面板：在 panel 基础上适度提亮或混合边框色
+            int targetR = Math.Max(border.R, (int)(panelBg.R + 45));
+            int targetG = Math.Max(border.G, (int)(panelBg.G + 45));
+            int targetB = Math.Max(border.B, (int)(panelBg.B + 50));
+            treeR = (byte)Math.Clamp(targetR, 0, 255);
+            treeG = (byte)Math.Clamp(targetG, 0, 255);
+            treeB = (byte)Math.Clamp(targetB, 0, 255);
+        }
+        else
+        {
+            // 亮色面板：适度压暗确保引导线可见
+            int targetR = Math.Min(border.R, (int)(panelBg.R - 55));
+            int targetG = Math.Min(border.G, (int)(panelBg.G - 55));
+            int targetB = Math.Min(border.B, (int)(panelBg.B - 55));
+            treeR = (byte)Math.Clamp(targetR, 0, 255);
+            treeG = (byte)Math.Clamp(targetG, 0, 255);
+            treeB = (byte)Math.Clamp(targetB, 0, 255);
+        }
+
+        string treeLineHex = $"#{treeR:X2}{treeG:X2}{treeB:X2}";
+        return (subtleHex, treeLineHex);
+    }
+
+    private static double ToLinearRgb(double c)
+    {
+        return c <= 0.04045 ? c / 12.92 : Math.Pow((c + 0.055) / 1.055, 2.4);
     }
 }
