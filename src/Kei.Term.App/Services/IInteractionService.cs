@@ -34,6 +34,9 @@ public interface IInteractionService
     // === 编辑器 ===
     Task<SessionNode?> EditSessionAsync(SessionNode? existing, Guid? parentId, IReadOnlyList<Identity> identities);
 
+    // 会话编辑确认后待写入的端口转发。默认空，测试替身不用实现。
+    IReadOnlyList<PortForward> TakePendingForwards() => [];
+
     Task<FolderNode?> EditFolderAsync(FolderNode? existing, Guid? parentId);
 
     Task<TerminalProfile?> EditTerminalProfileAsync(TerminalProfile? source, TerminalFontSnapshot font);

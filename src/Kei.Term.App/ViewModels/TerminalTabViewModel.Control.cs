@@ -7,6 +7,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -39,6 +41,12 @@ public partial class TerminalTabViewModel
     private TerminalFontSnapshot _fontSnapshot;
     private readonly int _scrollbackLines;
 
+    // Ctrl+滚轮缩放的余量累积器：触控板的小数 delta 需凑满一格才步进
+    private readonly WheelNotchAccumulator _zoomAccumulator = new();
+
+    // 请求缩放字号（正数放大、负数缩小）；由主 VM 统一写回全局设置，标签自身不碰设置
+    public event Action<int>? FontZoomRequested;
+
     public TerminalControl Terminal
     {
         get
@@ -48,6 +56,12 @@ public partial class TerminalTabViewModel
                 var terminal = _terminalFactory();
                 terminal.ScrollbackLimit = _scrollbackLines;
                 ApplyFontToTerminal(terminal, _fontSnapshot);
+                // 隧道阶段拦截 Ctrl+滚轮（含已处理事件），避免滚轮被当作终端滚动或发给远端鼠标跟踪
+                terminal.AddHandler(
+                    InputElement.PointerWheelChangedEvent,
+                    OnTerminalPointerWheelChanged,
+                    RoutingStrategies.Tunnel,
+                    handledEventsToo: true);
                 terminal.Loaded += OnTerminalLoaded;
                 terminal.SizeChanged += OnTerminalSizeChanged;
                 terminal.TerminalResized += OnTerminalGridResized;
@@ -56,6 +70,24 @@ public partial class TerminalTabViewModel
 
             return _terminal;
         }
+    }
+
+    // Ctrl + 垂直滚轮缩放：普通滚轮放行给终端滚动，不标记 Handled
+    private void OnTerminalPointerWheelChanged(object? sender, PointerWheelEventArgs e)
+    {
+        if (!e.KeyModifiers.HasFlag(KeyModifiers.Control) || e.Delta.Y == 0)
+        {
+            return;
+        }
+
+        int notches = _zoomAccumulator.Accumulate(e.Delta.Y);
+        if (notches != 0)
+        {
+            FontZoomRequested?.Invoke(notches);
+        }
+
+        // 命中 Ctrl 缩放即拦截，避免滚轮继续滚动或作为鼠标事件发给远端
+        e.Handled = true;
     }
 
     // VT 处理器回调：应答立即发回远端；响铃与标题投递回 UI 线程，避免在 VT 解析过程中重入改界面状态
@@ -86,6 +118,9 @@ public partial class TerminalTabViewModel
     // 不可变画刷不是 AvaloniaObject，不绑定 UI 线程：纯状态测试可在任意线程构造标签
     private static IBrush ParseBrush(string? hex)
         => new Avalonia.Media.Immutable.ImmutableSolidColorBrush(Color.TryParse(hex, out Color color) ? color : Colors.Black);
+
+    // 当前生效的字体快照（含字号）：控件尚未创建时也有效；供测试与诊断读取
+    public TerminalFontSnapshot CurrentFontSnapshot => _fontSnapshot;
 
     // 只更新字体相关属性，不触碰配色；若控件尚未创建则仅记录，待创建时应用
     public void ApplyFontSnapshot(TerminalFontSnapshot snapshot)

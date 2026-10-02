@@ -1,0 +1,49 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:models="using:Kei.Term.Core.Models"
+             x:Class="Kei.Term.App.Views.Controls.SessionTreeItemView"
+             x:DataType="models:TreeNodeBase">
+    <!-- 会话树条目视觉。主窗口和选择会话对话框共用；拖放、右键、双击连接不在这里。 -->
+    <UserControl.Styles>
+        <Style Selector="Path.folderIcon">
+            <Setter Property="IsVisible" Value="True"/>
+        </Style>
+        <Style Selector="Path.sessionIcon">
+            <Setter Property="IsVisible" Value="False"/>
+        </Style>
+        <Style Selector="TextBlock.name">
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}"/>
+        </Style>
+        <Style Selector="UserControl.session Path.folderIcon">
+            <Setter Property="IsVisible" Value="False"/>
+        </Style>
+        <Style Selector="UserControl.session Path.sessionIcon">
+            <Setter Property="IsVisible" Value="True"/>
+        </Style>
+        <Style Selector="UserControl.session TextBlock.name">
+            <Setter Property="Foreground" Value="{DynamicResource Kei.Session.Foreground}"/>
+        </Style>
+        <Style Selector="UserControl.virtualRoot TextBlock.name">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style Selector="UserControl.editing TextBlock.name">
+            <Setter Property="IsVisible" Value="False"/>
+        </Style>
+    </UserControl.Styles>
+    <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,1">
+        <Panel>
+            <Path Classes="kei-icon folderIcon" Data="{StaticResource Kei.Icon.Folder}"
+                  Width="{DynamicResource Kei.Tree.IconSize}"
+                  Height="{DynamicResource Kei.Tree.IconSize}"
+                  Fill="{DynamicResource Kei.Text.Muted}"/>
+            <Path Classes="kei-icon sessionIcon" Data="{StaticResource Kei.Icon.Terminal}"
+                  Width="{DynamicResource Kei.Tree.IconSize}"
+                  Height="{DynamicResource Kei.Tree.IconSize}"
+                  Fill="{DynamicResource Kei.Session.Foreground}"/>
+        </Panel>
+        <TextBlock Classes="name" Text="{Binding Name}"
+                   FontSize="{DynamicResource Kei.Tree.FontSize}"
+                   VerticalAlignment="Center"/>
+    </StackPanel>
+</UserControl>

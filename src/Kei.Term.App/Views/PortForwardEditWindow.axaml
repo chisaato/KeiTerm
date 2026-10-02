@@ -1,0 +1,47 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Kei.Term.App.ViewModels"
+        xmlns:models="using:Kei.Term.Core.Models"
+        xmlns:loc="using:Kei.Term.App.Helpers"
+        x:Class="Kei.Term.App.Views.PortForwardEditWindow"
+        x:DataType="vm:PortForwardEditViewModel"
+        Title="{Binding Title}"
+        Width="460" Height="380"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="{DynamicResource Kei.Bg.Window}">
+    <Grid RowDefinitions="*, Auto" Margin="20" RowSpacing="12">
+        <Grid ColumnDefinitions="110, *" RowDefinitions="Auto, Auto, Auto, Auto, Auto, Auto" RowSpacing="10" ColumnSpacing="12">
+            <TextBlock Grid.Row="0" Text="{loc:KeiString PortForward.Name}" VerticalAlignment="Center"
+                       Foreground="{DynamicResource Kei.Text.Secondary}"/>
+            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Name}"/>
+
+            <TextBlock Grid.Row="1" Text="{loc:KeiString PortForward.Mode}" VerticalAlignment="Center"
+                       Foreground="{DynamicResource Kei.Text.Secondary}"/>
+            <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding Modes}" SelectedItem="{Binding SelectedMode}"
+                      HorizontalAlignment="Stretch"/>
+
+            <TextBlock Grid.Row="2" Text="{loc:KeiString PortForward.Bind}" VerticalAlignment="Center"
+                       Foreground="{DynamicResource Kei.Text.Secondary}"/>
+            <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding BindAddress}"/>
+
+            <TextBlock Grid.Row="3" Text="{loc:KeiString PortForward.Listen}" VerticalAlignment="Center"
+                       Foreground="{DynamicResource Kei.Text.Secondary}"/>
+            <NumericUpDown Grid.Row="3" Grid.Column="1" Value="{Binding ListenPort}" Minimum="1" Maximum="65535"
+                           FormatString="0" HorizontalAlignment="Left" MinWidth="140"/>
+
+            <TextBlock Grid.Row="4" Text="{loc:KeiString PortForward.DestinationHost}" VerticalAlignment="Center"
+                       Foreground="{DynamicResource Kei.Text.Secondary}" IsVisible="{Binding NeedsDestination}"/>
+            <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding DestinationHost}" IsVisible="{Binding NeedsDestination}"/>
+
+            <TextBlock Grid.Row="5" Text="{loc:KeiString PortForward.DestinationPort}" VerticalAlignment="Center"
+                       Foreground="{DynamicResource Kei.Text.Secondary}" IsVisible="{Binding NeedsDestination}"/>
+            <NumericUpDown Grid.Row="5" Grid.Column="1" Value="{Binding DestinationPort}" Minimum="1" Maximum="65535"
+                           FormatString="0" HorizontalAlignment="Left" MinWidth="140" IsVisible="{Binding NeedsDestination}"/>
+        </Grid>
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <Button Content="{loc:KeiString Common.Cancel}" Command="{Binding CancelCommand}" MinWidth="84"/>
+            <Button Content="{loc:KeiString Common.Save}" Command="{Binding SaveCommand}" MinWidth="84"/>
+        </StackPanel>
+    </Grid>
+</Window>

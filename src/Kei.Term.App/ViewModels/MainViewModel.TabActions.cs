@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Kei.Term.App.Helpers;
 using Kei.Term.App.Logging;
@@ -42,6 +43,28 @@ public partial class MainViewModel
         return node != null
             ? (SessionConfigBuilder.Build(node, _settingsService.Current), true)
             : (previous, false);
+    }
+
+    // 读循环意外退出。开关关闭、或这次连接依赖当场输入时，策略直接不排程。
+    private Task OnUnexpectedDisconnectAsync(TerminalTabViewModel tab, int attempt, CancellationToken ct)
+    {
+        if (tab.IsDisposed || ResolveForReopen(tab) is not { } target)
+        {
+            return Task.CompletedTask;
+        }
+
+        var facts = new ReconnectFacts(
+            _settingsService.Current.AutoReconnectOnDisconnect,
+            UserDisconnected: false,
+            AuthCancelled: false,
+            HostKeyRejected: false,
+            InteractiveRequired: _connections.LastAttemptRequiredInteraction,
+            attempt);
+        return _connections.ScheduleReconnectAsync(
+            new ConnectionRequest(target.Config, target.UseIdentity, ReuseTarget: CreateConnectionTarget(tab)),
+            this,
+            facts,
+            ct);
     }
 
     // 原地重连：沿用同一标签与其终端历史

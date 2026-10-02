@@ -43,6 +43,9 @@ public class AppSettings
     // 关闭窗口前是否弹出确认
     public bool ConfirmBeforeClose { get; set; } = true;
 
+    // 意外断开后在原标签里自动重连。默认关：误锤生产机比少一次重连更糟。
+    public bool AutoReconnectOnDisconnect { get; set; }
+
     // 目录树排序规则："AsciiFirst" (英文优先，默认) | "Pinyin" (中文拼音本地化优先)
     public string TreeSortMode { get; set; } = "AsciiFirst";
 

@@ -1,0 +1,52 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Kei.Term.App.ViewModels"
+        xmlns:views="using:Kei.Term.App.Views"
+        xmlns:loc="using:Kei.Term.App.Helpers"
+        x:Class="Kei.Term.App.Views.ProxyEditWindow"
+        x:DataType="vm:ProxyEditViewModel"
+        Title="{Binding Title}"
+        Width="460" Height="360"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="{DynamicResource Kei.Bg.Window}">
+    <Grid RowDefinitions="*, Auto" Margin="20" RowSpacing="12">
+        <Grid ColumnDefinitions="100, *" RowDefinitions="Auto, Auto, Auto, Auto, Auto" RowSpacing="10" ColumnSpacing="12">
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString Proxy.Name}" VerticalAlignment="Center"
+                       Foreground="{DynamicResource Kei.Text.Secondary}"/>
+            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Name}"/>
+
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="{loc:KeiString Proxy.Type}" VerticalAlignment="Center"
+                       Foreground="{DynamicResource Kei.Text.Secondary}"/>
+            <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding Types}" SelectedItem="{Binding SelectedType}"
+                      HorizontalAlignment="Stretch">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding Converter={x:Static views:ProxyTypeLabelConverter.Instance}}"/>
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+
+            <TextBlock Grid.Row="2" Grid.Column="0" Text="{loc:KeiString Proxy.Host}" VerticalAlignment="Center"
+                       Foreground="{DynamicResource Kei.Text.Secondary}" IsVisible="{Binding IsEndpoint}"/>
+            <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding Host}" IsVisible="{Binding IsEndpoint}"/>
+
+            <TextBlock Grid.Row="3" Grid.Column="0" Text="{loc:KeiString Proxy.Port}" VerticalAlignment="Center"
+                       Foreground="{DynamicResource Kei.Text.Secondary}" IsVisible="{Binding IsEndpoint}"/>
+            <NumericUpDown Grid.Row="3" Grid.Column="1" Value="{Binding Port}" Minimum="1" Maximum="65535"
+                           FormatString="0" HorizontalAlignment="Left" MinWidth="140" IsVisible="{Binding IsEndpoint}"/>
+
+            <Button Grid.Row="2" Grid.Column="1" Content="{loc:KeiString Proxy.ChooseSession}"
+                    Command="{Binding PickSessionCommand}" IsVisible="{Binding IsSession}" HorizontalAlignment="Left"/>
+            <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SessionDisplay}" IsVisible="{Binding IsSession}"
+                       Foreground="{DynamicResource Kei.Text.Secondary}" VerticalAlignment="Center"/>
+
+            <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding TypeNotice}"
+                       Foreground="{DynamicResource Kei.Text.Muted}" TextWrapping="Wrap"/>
+        </Grid>
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <Button Content="{loc:KeiString Common.Cancel}" Command="{Binding CancelCommand}" MinWidth="84"/>
+            <Button Content="{loc:KeiString Common.Save}" Command="{Binding SaveCommand}" MinWidth="84" Classes="accent"/>
+        </StackPanel>
+    </Grid>
+</Window>

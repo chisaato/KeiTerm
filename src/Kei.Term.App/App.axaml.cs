@@ -65,7 +65,9 @@ public partial class App : Application
             // 此时 MainWindow 若为 null，之后再赋值不会触发 Show → 进程存活但窗口永不出现。
             // 全部仓储共用一个连接工厂（统一 PRAGMA），Schema 由迁移器在下方一次性升级
             var db = new SqliteConnectionFactory(connStr);
-            var treeRepo = new SqliteTreeRepository(db);
+            var treeRepo = new SqliteTreeRepository(db, _loggerFactory.CreateLogger<SqliteTreeRepository>());
+            var proxyRepo = new SqliteProxyRepository(db, _loggerFactory.CreateLogger<SqliteProxyRepository>());
+            var portForwards = new SqlitePortForwardRepository(db);
             var identityRepo = new SqliteIdentityRepository(db);
             var editorRepo = new SqliteExternalEditorRepository(db);
             var knownHostRepo = new SqliteKnownHostRepository(db);
@@ -100,13 +102,23 @@ public partial class App : Application
                 profileManager,
                 _loggerFactory.CreateLogger<MainViewModel>(),
                 _loggerFactory,
-                hostKeyTrust: hostKeyTrust);
+                hostKeyTrust: hostKeyTrust,
+                proxyRepo: proxyRepo,
+                portForwards: portForwards);
             var identityMgrVm = new IdentityManagerViewModel(
                 identityRepo,
                 vault,
                 vault,
                 _loggerFactory.CreateLogger<IdentityManagerViewModel>());
-            var settingsVm = new SettingsViewModel(settingsService, appDataDir, identityRepo, profileManager, editorRepo);
+            var settingsVm = new SettingsViewModel(
+                settingsService,
+                appDataDir,
+                identityRepo,
+                profileManager,
+                editorRepo,
+                proxyRepo,
+                () => mainVm.SnapshotSessionNodes(),
+                () => mainVm.SnapshotSessionTree());
 
             var mainWindow = new MainWindow
             {

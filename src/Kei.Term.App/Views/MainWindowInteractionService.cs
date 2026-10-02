@@ -28,6 +28,7 @@ public sealed class MainWindowInteractionService : IInteractionService
     private readonly SettingsViewModel _settings;
     private readonly KnownHostsManagerViewModel? _knownHosts;
     private readonly ILogger _log;
+    private IReadOnlyList<PortForward> _pendingForwards = [];
 
     public MainWindowInteractionService(
         MainWindow owner,
@@ -74,12 +75,62 @@ public sealed class MainWindowInteractionService : IInteractionService
         => Safe.RunAsync<SessionNode?>(_log, "打开会话编辑窗口", async () =>
         {
             _log.LogInformation("会话编辑窗口打开 模式={Mode}", existing == null ? "新建" : "编辑");
-            var editVm = new SessionEditViewModel(existing, parentId, identities, _mainVm.CurrentSettings);
+            IReadOnlyList<ProxyProfile> proxies = await _mainVm.LoadProxiesAsync();
+            IReadOnlyList<PortForward> forwards = existing == null
+                ? []
+                : await _mainVm.LoadPortForwardsAsync(existing.Id);
+            var editVm = new SessionEditViewModel(
+                existing,
+                parentId,
+                identities,
+                _mainVm.CurrentSettings,
+                _mainVm.SnapshotSessionNodes(),
+                proxies,
+                _mainVm.SnapshotSessionTree(),
+                forwards);
+            editVm.PickSessionAsync = request => PickSessionAsync(request);
+            editVm.RequestCreateProxyAsync = () => CreateProxyFromSessionAsync(editVm);
             await new SessionEditWindow(editVm).ShowDialog(_owner);
+            _pendingForwards = editVm.IsConfirmed ? editVm.CollectForwards() : [];
             SessionNode? result = editVm.IsConfirmed ? editVm.ApplyToModel(existing) : null;
             _log.LogInformation("会话编辑窗口关闭 结果={Result}", result == null ? "取消" : "确认");
             return result;
         });
+
+    private async Task<SessionNode?> PickSessionAsync(SessionPickerRequest request)
+    {
+        IReadOnlyList<TreeNodeBase> roots = request.Roots.Count > 0
+            ? request.Roots
+            : _mainVm.SnapshotSessionTree();
+        var picker = new SessionPickerViewModel(roots, request.EditingId, request.Sessions);
+        return await new SessionPickerWindow(picker).ShowDialog<SessionNode?>(_owner);
+    }
+
+    private async Task<ProxyProfile?> CreateProxyFromSessionAsync(SessionEditViewModel editVm)
+    {
+        var proxyVm = new ProxyEditViewModel(null);
+        proxyVm.PickSessionAsync = () => PickSessionAsync(new SessionPickerRequest(editVm.NodeId, editVm.Sessions, _mainVm.SnapshotSessionTree()));
+        await new ProxyEditWindow(proxyVm).ShowDialog(_owner);
+        if (!proxyVm.IsConfirmed)
+        {
+            return null;
+        }
+
+        ProxyProfile? built = proxyVm.Build();
+        if (built != null)
+        {
+            await _mainVm.SaveProxyAsync(built);
+        }
+
+        return built;
+    }
+
+    public IReadOnlyList<PortForward> TakePendingForwards()
+    {
+        IReadOnlyList<PortForward> pending = _pendingForwards;
+        _pendingForwards = [];
+        return pending;
+    }
 
     public Task<FolderNode?> EditFolderAsync(FolderNode? existing, Guid? parentId)
         => Safe.RunAsync<FolderNode?>(_log, "打开文件夹编辑窗口", async () =>

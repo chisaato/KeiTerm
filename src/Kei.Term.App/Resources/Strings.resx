@@ -197,6 +197,9 @@
   <data name="Tree.Menu.Edit" xml:space="preserve">
     <value>编辑</value>
   </data>
+  <data name="Tree.Menu.Rename" xml:space="preserve">
+    <value>重命名</value>
+  </data>
   <data name="Tree.Menu.Delete" xml:space="preserve">
     <value>删除</value>
   </data>
@@ -380,6 +383,12 @@
   </data>
   <data name="Settings.General.ConfirmBeforeCloseTip" xml:space="preserve">
     <value>启用后关闭主窗口时会要求确认，防止误触</value>
+  </data>
+  <data name="Settings.General.AutoReconnect" xml:space="preserve">
+    <value>断开后自动重连</value>
+  </data>
+  <data name="Settings.General.AutoReconnectTip" xml:space="preserve">
+    <value>只在链路意外结束时于原标签重连。不含交互式认证、2FA 和用户主动断开。</value>
   </data>
   <data name="Settings.General.TreeSortSection" xml:space="preserve">
     <value>会话树排序规则</value>
@@ -618,6 +627,42 @@
   <!-- 终端调色板与配色方案编辑/导入 -->
   <data name="TerminalProfileEdit.Title" xml:space="preserve">
     <value>终端主题与配色方案</value>
+  </data>
+  <data name="ColorChooser.Title" xml:space="preserve">
+    <value>选择颜色</value>
+  </data>
+  <data name="ColorChooser.BasicColors" xml:space="preserve">
+    <value>基本颜色</value>
+  </data>
+  <data name="ColorChooser.CustomColors" xml:space="preserve">
+    <value>自定义颜色</value>
+  </data>
+  <data name="ColorChooser.AddToCustom" xml:space="preserve">
+    <value>添加到自定义颜色</value>
+  </data>
+  <data name="ColorChooser.Hue" xml:space="preserve">
+    <value>色相(H):</value>
+  </data>
+  <data name="ColorChooser.Sat" xml:space="preserve">
+    <value>饱和度(S):</value>
+  </data>
+  <data name="ColorChooser.Val" xml:space="preserve">
+    <value>明度(V):</value>
+  </data>
+  <data name="ColorChooser.Red" xml:space="preserve">
+    <value>红(R):</value>
+  </data>
+  <data name="ColorChooser.Green" xml:space="preserve">
+    <value>绿(G):</value>
+  </data>
+  <data name="ColorChooser.Blue" xml:space="preserve">
+    <value>蓝(B):</value>
+  </data>
+  <data name="ColorChooser.Alpha" xml:space="preserve">
+    <value>透明度(A):</value>
+  </data>
+  <data name="ColorChooser.Hex" xml:space="preserve">
+    <value>Hex:</value>
   </data>
   <data name="TerminalProfileEdit.Name" xml:space="preserve">
     <value>主题名称</value>
@@ -948,6 +993,15 @@
   <data name="SessionEdit.IdentityNone" xml:space="preserve">
     <value>不绑定（使用默认身份或连接时提示）</value>
   </data>
+  <data name="SessionEdit.JumpHost" xml:space="preserve">
+    <value>跳板机:</value>
+  </data>
+  <data name="SessionEdit.JumpHostNone" xml:space="preserve">
+    <value>无</value>
+  </data>
+  <data name="SessionEdit.JumpHostMissing" xml:space="preserve">
+    <value>跳板已删除</value>
+  </data>
   <data name="SessionEdit.AdvancedSection" xml:space="preserve">
     <value>终端与脚本</value>
   </data>
@@ -983,6 +1037,42 @@
   </data>
   <data name="SessionEdit.Category.Behavior" xml:space="preserve">
     <value>会话行为</value>
+  </data>
+  <data name="SessionEdit.Category.Ports" xml:space="preserve">
+    <value>端口</value>
+  </data>
+  <data name="PortForward.Hint" xml:space="preserve">
+    <value>连接建立后启动。已打开的标签要重连后才应用。Dynamic 是本机监听，不是出站防火墙。</value>
+  </data>
+  <data name="PortForward.Title.New" xml:space="preserve">
+    <value>新建转发</value>
+  </data>
+  <data name="PortForward.Title.Edit" xml:space="preserve">
+    <value>编辑转发</value>
+  </data>
+  <data name="PortForward.Name" xml:space="preserve">
+    <value>名称</value>
+  </data>
+  <data name="PortForward.Mode" xml:space="preserve">
+    <value>模式</value>
+  </data>
+  <data name="PortForward.Bind" xml:space="preserve">
+    <value>绑定地址</value>
+  </data>
+  <data name="PortForward.Listen" xml:space="preserve">
+    <value>监听端口</value>
+  </data>
+  <data name="PortForward.DestinationHost" xml:space="preserve">
+    <value>目标主机</value>
+  </data>
+  <data name="PortForward.DestinationPort" xml:space="preserve">
+    <value>目标端口</value>
+  </data>
+  <data name="PortForward.Add" xml:space="preserve">
+    <value>添加</value>
+  </data>
+  <data name="PortForward.Edit" xml:space="preserve">
+    <value>编辑</value>
   </data>
 
   <!-- Quick Connect Window -->
@@ -1507,5 +1597,71 @@
   </data>
   <data name="BatchEdit.Field.CwdFollow" xml:space="preserve">
     <value>文件侧栏目录跟随</value>
+  </data>
+  <data name="SessionEdit.Firewall" xml:space="preserve">
+    <value>防火墙:</value>
+  </data>
+  <data name="SessionEdit.FirewallNone" xml:space="preserve">
+    <value>无</value>
+  </data>
+  <data name="SessionEdit.ChooseSession" xml:space="preserve">
+    <value>选择会话…</value>
+  </data>
+  <data name="SessionEdit.CreateProxy" xml:space="preserve">
+    <value>新建…</value>
+  </data>
+  <data name="SessionEdit.Deleted" xml:space="preserve">
+    <value>已删除</value>
+  </data>
+  <data name="SessionPicker.Title" xml:space="preserve">
+    <value>选择会话</value>
+  </data>
+  <data name="SessionPicker.Filter" xml:space="preserve">
+    <value>筛选</value>
+  </data>
+  <data name="Proxy.NotWired" xml:space="preserve">
+    <value>尚未接入拨号</value>
+  </data>
+  <data name="Proxy.Title.New" xml:space="preserve">
+    <value>新建代理</value>
+  </data>
+  <data name="Proxy.Title.Edit" xml:space="preserve">
+    <value>编辑代理</value>
+  </data>
+  <data name="Proxy.Name" xml:space="preserve">
+    <value>名称</value>
+  </data>
+  <data name="Proxy.Type" xml:space="preserve">
+    <value>类型</value>
+  </data>
+  <data name="Proxy.Host" xml:space="preserve">
+    <value>主机</value>
+  </data>
+  <data name="Proxy.Port" xml:space="preserve">
+    <value>端口</value>
+  </data>
+  <data name="Proxy.Type.Socks5" xml:space="preserve">
+    <value>SOCKS5</value>
+  </data>
+  <data name="Proxy.Type.Http" xml:space="preserve">
+    <value>HTTP</value>
+  </data>
+  <data name="Proxy.Type.Session" xml:space="preserve">
+    <value>已有会话</value>
+  </data>
+  <data name="Proxy.Add" xml:space="preserve">
+    <value>添加</value>
+  </data>
+  <data name="Proxy.Edit" xml:space="preserve">
+    <value>编辑</value>
+  </data>
+  <data name="Proxy.ChooseSession" xml:space="preserve">
+    <value>选择会话…</value>
+  </data>
+  <data name="Settings.Categories.Proxy" xml:space="preserve">
+    <value>代理</value>
+  </data>
+  <data name="Settings.Categories.ProxyDesc" xml:space="preserve">
+    <value>全局防火墙。SOCKS5 可拨号，HTTP 仅建档。</value>
   </data>
 </root>

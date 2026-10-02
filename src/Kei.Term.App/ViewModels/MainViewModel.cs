@@ -16,6 +16,7 @@ using Kei.Term.App.Logging;
 using Kei.Term.App.Models;
 using Kei.Term.App.Services;
 using Kei.Term.App.Services.Connection;
+using Kei.Term.App.Terminals;
 using Kei.Term.Core.Abstractions;
 using Kei.Term.Core.Models;
 using Kei.Term.Core.Models.Profiles;
@@ -149,6 +150,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
 
     // 连接编排（认证收集 → 跳板 → 建连重试 → 主机密钥确认 → 文件侧栏）
     private readonly ConnectionOrchestrator _connections;
+    private readonly IProxyRepository? _proxyRepo;
+    private readonly IPortForwardRepository? _portForwards;
 
     // 当前设置快照（供快速连接窗口取默认端口/用户名等）
     public AppSettings CurrentSettings => _settingsService.Current;
@@ -165,7 +168,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         ILogger<MainViewModel>? logger = null,
         ILoggerFactory? loggerFactory = null,
         Action<Action>? uiDispatch = null,
-        HostKeyTrustService? hostKeyTrust = null)
+        HostKeyTrustService? hostKeyTrust = null,
+        IProxyRepository? proxyRepo = null,
+        IPortForwardRepository? portForwards = null)
     {
         _hostKeyTrust = hostKeyTrust;
         _treeRepo = treeRepo;
@@ -182,6 +187,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
             settingsService,
             () => Interaction,
             loggerFactory?.CreateLogger<VaultSessionService>());
+        _proxyRepo = proxyRepo;
+        _portForwards = portForwards;
         _connections = new ConnectionOrchestrator(
             sshFactory,
             new AuthMaterialCollector(
@@ -194,7 +201,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
             settingsService,
             () => Interaction,
             _uiDispatch,
-            loggerFactory?.CreateLogger<ConnectionOrchestrator>());
+            loggerFactory?.CreateLogger<ConnectionOrchestrator>(),
+            _proxyRepo,
+            _portForwards);
 
         // 标签集合变化时同步 HasTabs，控制标签条显隐
         Tabs.CollectionChanged += (_, _) => HasTabs = Tabs.Count > 0;
@@ -332,6 +341,41 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
             settings.CursorBlink);
     }
 
+    // 全局字号缩放（Ctrl+滚轮）：写回设置 → 刷新所有标签字体快照 → 立即保存；已到边界则不写不改不存
+    public void ApplyGlobalFontZoom(int steps)
+    {
+        if (_disposed != 0 || steps == 0)
+        {
+            return;
+        }
+
+        var settings = _settingsService.Current;
+        double target = TerminalFontZoom.Step(settings.FontSize, steps);
+        if (target == settings.FontSize)
+        {
+            return;
+        }
+
+        settings.FontSize = target;
+        var snapshot = BuildAppliedFontSnapshot(settings);
+        foreach (var tab in Tabs.ToList())
+        {
+            if (tab.IsDisposed)
+            {
+                continue;
+            }
+
+            // 未创建 TerminalControl 的标签也更新快照，控件创建时自然沿用新字号
+            tab.ApplyFontSnapshot(snapshot);
+        }
+
+        // 与 ToggleSessionManager 相同：即发即存，不阻塞 UI
+        _ = _settingsService.SaveSettingsAsync(settings);
+    }
+
+    // 标签请求缩放（Ctrl+滚轮）→ 统一走全局缩放
+    private void OnTabFontZoomRequested(int steps) => ApplyGlobalFontZoom(steps);
+
     partial void OnFilterTextChanged(string value) => RefreshTreeFromCache();
 
     partial void OnSelectedTreeNodeChanged(TreeNodeBase? value)
@@ -342,6 +386,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         CopyNodeCommand.NotifyCanExecuteChanged();
         EditSelectedNodeCommand.NotifyCanExecuteChanged();
         DeleteSelectedNodeCommand.NotifyCanExecuteChanged();
+        RenameSelectedNodeCommand.NotifyCanExecuteChanged();
+        if (RenamingNode != null && RenamingNode != value)
+        {
+            CancelTreeRename();
+        }
     }
 
     partial void OnSelectedTabChanged(TerminalTabViewModel? value)
@@ -536,6 +585,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         if (result != null)
         {
             await _treeRepo.SaveNodeAsync(result);
+            await PersistPendingForwardsAsync(result.Id);
             await ReloadTreeAsync();
         }
     });
@@ -565,6 +615,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
             if (result != null)
             {
                 await _treeRepo.SaveNodeAsync(result);
+                await PersistPendingForwardsAsync(result.Id);
                 await ReloadTreeAsync();
             }
         }
@@ -663,6 +714,78 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
     });
 
     private bool CanUseSelectedNode() => SelectedTreeNode is not null and not VirtualRootNode;
+
+    [ObservableProperty]
+    private TreeNodeBase? _renamingNode;
+
+    [ObservableProperty]
+    private string _treeRenameText = string.Empty;
+
+    public event Action? TreeRenameStarted;
+
+    private bool _renameCommitInFlight;
+
+    // F2 与右键共用：只进入编辑，不另开对话框
+    [RelayCommand(CanExecute = nameof(CanUseSelectedNode))]
+    private void RenameSelectedNode()
+    {
+        if (SelectedTreeNode is not (SessionNode or FolderNode))
+        {
+            return;
+        }
+
+        TreeRenameText = SelectedTreeNode.Name;
+        RenamingNode = SelectedTreeNode;
+        TreeRenameStarted?.Invoke();
+    }
+
+    public void CancelTreeRename()
+    {
+        RenamingNode = null;
+    }
+
+    // 空白恢复原名且不写库。失败则名称回到保存前，并走现有错误提示。
+    public async Task CommitTreeRenameAsync(string? proposed)
+    {
+        if (_renameCommitInFlight)
+        {
+            return;
+        }
+
+        TreeNodeBase? node = RenamingNode ?? SelectedTreeNode;
+        if (node is not (SessionNode or FolderNode))
+        {
+            return;
+        }
+
+        _renameCommitInFlight = true;
+        string original = node.Name;
+        try
+        {
+            RenamingNode = null;
+            string trimmed = proposed?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(trimmed))
+            {
+                node.Name = original;
+                return;
+            }
+
+            node.Name = trimmed;
+            try
+            {
+                await _treeRepo.SaveNodeAsync(node);
+            }
+            catch (Exception ex)
+            {
+                node.Name = original;
+                await Interaction.NotifyAsync(Strings.Get("Tree.Menu.Rename"), ex.Message);
+            }
+        }
+        finally
+        {
+            _renameCommitInFlight = false;
+        }
+    }
 
     private bool CanPasteNode() => _cutSnapshot != null || _copySourceNode != null;
 
@@ -768,6 +891,52 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
 
     // 拖拽命中合法性判定用：只读透传当前扁平节点缓存（命名避免与既有字段混淆）
     public IReadOnlyList<TreeNodeBase> DebugAllNodesCache => _allNodesCache;
+
+    // 会话编辑器跳板候选：当前缓存里的会话快照，不含文件夹
+    internal IReadOnlyList<SessionNode> SnapshotSessionNodes()
+        => _allNodesCache.OfType<SessionNode>().ToArray();
+
+    // 选择会话对话框用打开时的树快照，不在对话框期间重新加载
+    internal IReadOnlyList<TreeNodeBase> SnapshotSessionTree()
+        => TreeNodes.ToArray();
+
+    internal Task<IReadOnlyList<ProxyProfile>> LoadProxiesAsync()
+        => _proxyRepo == null
+            ? Task.FromResult<IReadOnlyList<ProxyProfile>>([])
+            : _proxyRepo.GetAllAsync();
+
+    internal Task SaveProxyAsync(ProxyProfile proxy)
+        => _proxyRepo == null ? Task.CompletedTask : _proxyRepo.SaveAsync(proxy);
+
+    internal Task<IReadOnlyList<PortForward>> LoadPortForwardsAsync(Guid sessionId)
+        => _portForwards == null
+            ? Task.FromResult<IReadOnlyList<PortForward>>([])
+            : _portForwards.GetBySessionAsync(sessionId);
+
+    private async Task PersistPendingForwardsAsync(Guid sessionId)
+    {
+        if (_portForwards == null)
+        {
+            return;
+        }
+
+        IReadOnlyList<PortForward> pending = Interaction.TakePendingForwards();
+        IReadOnlyList<PortForward> existing = await _portForwards.GetBySessionAsync(sessionId);
+        var keep = pending.Select(f => f.Id).ToHashSet();
+        foreach (PortForward old in existing)
+        {
+            if (!keep.Contains(old.Id))
+            {
+                await _portForwards.DeleteAsync(old.Id);
+            }
+        }
+
+        foreach (PortForward forward in pending)
+        {
+            forward.SessionId = sessionId;
+            await _portForwards.SaveAsync(forward);
+        }
+    }
 
     // 拖拽移动：经 TreeDropResolver 校验（防环）后调用仓储 MoveNodeAsync，SortOrder 追加到目标同级末尾
     public Task MoveNodeToAsync(Guid nodeId, Guid? newParentId) => Safe.RunAsync(_logger, "移动节点", async () =>
@@ -1060,7 +1229,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         tab.BindConfig(config);
         Tabs.Add(tab);
         tab.CloseRequested += OnTabCloseRequested;
+        tab.AutoReconnectEnabled = () => _settingsService.Current.AutoReconnectOnDisconnect;
+        tab.UnexpectedDisconnectAsync = OnUnexpectedDisconnectAsync;
         tab.ActionRequested += OnTabActionRequested;
+        tab.FontZoomRequested += OnTabFontZoomRequested;
         SelectedTab = tab;
         return CreateConnectionTarget(tab);
     }
@@ -1104,6 +1276,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
 
         tab.CloseRequested -= OnTabCloseRequested;
         tab.ActionRequested -= OnTabActionRequested;
+        tab.FontZoomRequested -= OnTabFontZoomRequested;
         var isCurrentSelected = SelectedTab == tab;
         var tabIndex = Tabs.IndexOf(tab);
 

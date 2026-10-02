@@ -66,6 +66,8 @@ public class SessionNode : TreeNodeBase
     public string TerminalType { get; set; } = "xterm-256color";
     public string? StartupScript { get; set; }
     public Guid? JumpHostSessionId { get; set; }
+    // kind == proxy 时的代理档案 id。与跳板会话 id 分开放，避免两种引用塞进同一字段。
+    public Guid? ProxyProfileId { get; set; }
     public Dictionary<string, string> EnvironmentVariables { get; set; } = new(StringComparer.Ordinal);
     // 可选指定的终端 Profile ID。若为 null 或空，则继承全局默认 TerminalProfile
     public string? TerminalProfileId { get; set; }
@@ -113,5 +115,7 @@ public record ResolvedSessionConfig(
     bool FollowRemoteTitle = false,
     CwdFollowMode CwdFollow = CwdFollowMode.Off,
     // 已按「会话覆盖 → 全局设置」解析后的连接超时（秒）
-    int ConnectTimeoutSeconds = 60
+    int ConnectTimeoutSeconds = 60,
+    // 会话出口是已保存代理时的档案 id；与 JumpHostSessionId 互斥
+    Guid? ProxyProfileId = null
 );

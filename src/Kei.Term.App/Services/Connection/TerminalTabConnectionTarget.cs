@@ -40,6 +40,10 @@ public sealed class TerminalTabConnectionTarget : IConnectionTarget
 
     public void ReportError(string message) => _tab.ReportError(message);
 
+    public void ReportWarning(string message) => _tab.ReportWarning(message);
+
+    public void WriteLocalStatus(string message) => _tab.WriteLocalStatus(message);
+
     public async Task ResetForReconnectAsync(ResolvedSessionConfig config)
     {
         await _tab.PrepareReconnectAsync();

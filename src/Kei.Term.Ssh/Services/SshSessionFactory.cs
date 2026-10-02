@@ -55,22 +55,24 @@ public class SshSessionFactory : ISshSessionFactory
         SshConnectOptions options,
         SshJumpChain? borrowedChain)
     {
-        SshTarget target = BuildTarget(config, methods, options, options.InteractivePrompt);
+        SshTarget target = BuildTarget(config, methods, options, options.InteractivePrompt, options.Socks5Host, options.Socks5Port);
 
         // 借用现成链时无需再构建各跳认证
         List<SshTarget> hops = borrowedChain != null
             ? []
-            : options.JumpHosts.Select(h => BuildTarget(h.Config, h.Methods, options, options.InteractivePrompt)).ToList();
+            : options.JumpHosts.Select(h => BuildTarget(h.Config, h.Methods, options, options.InteractivePrompt, h.Socks5Host, h.Socks5Port)).ToList();
 
         var clientOptions = new SshClientOptions(options.ConnectTimeout, options.KeepAliveInterval, options.HostKeyVerifier);
-        return new SshDialer(target, hops, borrowedChain, clientOptions, _logger);
+        return new SshDialer(target, hops, borrowedChain, clientOptions, _logger, options.PortForwards);
     }
 
     private SshTarget BuildTarget(
         ResolvedSessionConfig config,
         IReadOnlyList<MaterializedAuthMethod> methods,
         SshConnectOptions options,
-        Func<string, Task<string?>>? interactivePrompt)
+        Func<string, Task<string?>>? interactivePrompt,
+        string? socks5Host = null,
+        int socks5Port = 0)
     {
         AuthenticationMethod[] authMethods = SshAuthMethodBuilder.Build(
             config.Username,
@@ -94,7 +96,7 @@ public class SshSessionFactory : ISshSessionFactory
             authMethods.Length,
             string.Join(",", authMethods.Select(m => m.GetType().Name)));
 
-        return new SshTarget(config.Host, config.Port, config.Username, authMethods);
+        return new SshTarget(config.Host, config.Port, config.Username, authMethods, socks5Host, socks5Port);
     }
 }
 
@@ -131,6 +133,8 @@ public class SshNetSession : ISshSession
 
     // 跳板链（直连为 null），供文件通道借用
     internal SshJumpChain? JumpChain => _dialer.Chain;
+
+    public IReadOnlyList<string> ForwardStartErrors => _dialer.ForwardStartErrors;
 
     // 已释放后直接返回 false，避免 getter 访问已释放的 SshClient 抛 ObjectDisposedException
     public bool IsConnected => _disposed == 0 && _client is { IsConnected: true } && _shellStream != null;

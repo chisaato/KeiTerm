@@ -59,6 +59,8 @@
                                                Foreground="{DynamicResource Kei.Session.Foreground}"/>
                                     <CheckBox IsChecked="{Binding ConfirmBeforeClose}" Content="{loc:KeiString Settings.General.ConfirmBeforeClose}"
                                               ToolTip.Tip="{loc:KeiString Settings.General.ConfirmBeforeCloseTip}"/>
+                                    <CheckBox IsChecked="{Binding AutoReconnectOnDisconnect}" Content="{loc:KeiString Settings.General.AutoReconnect}"
+                                              ToolTip.Tip="{loc:KeiString Settings.General.AutoReconnectTip}"/>
 
                                     <!-- 树排序模式 -->
                                     <TextBlock Text="{loc:KeiString Settings.General.TreeSortSection}" FontSize="13" FontWeight="Bold" Margin="0,10,0,0"
@@ -659,6 +661,49 @@
                                             </Grid>
                                         </StackPanel>
                                     </Border>
+                                </StackPanel>
+                            </DataTemplate>
+
+                            <DataTemplate DataType="settings:ProxySettingsPage" x:DataType="settings:ProxySettingsPage">
+                                <StackPanel MaxWidth="640" HorizontalAlignment="Left" Spacing="12">
+                                    <TextBlock Text="{loc:KeiString Settings.Categories.ProxyDesc}"
+                                               Foreground="{DynamicResource Kei.Text.Secondary}" TextWrapping="Wrap"/>
+                                    <Border Background="{DynamicResource Kei.Bg.PanelAlt}" BorderBrush="{DynamicResource Kei.Border}"
+                                            BorderThickness="1" CornerRadius="4" Padding="8">
+                                        <DockPanel>
+                                            <Grid DockPanel.Dock="Top" ColumnDefinitions="*, 90, *, 70" Margin="4,0,4,6">
+                                                <TextBlock Grid.Column="0" Text="{loc:KeiString Proxy.Name}" FontSize="11.5"
+                                                           Foreground="{DynamicResource Kei.Text.Muted}"/>
+                                                <TextBlock Grid.Column="1" Text="{loc:KeiString Proxy.Type}" FontSize="11.5"
+                                                           Foreground="{DynamicResource Kei.Text.Muted}"/>
+                                                <TextBlock Grid.Column="2" Text="{loc:KeiString Proxy.Host}" FontSize="11.5"
+                                                           Foreground="{DynamicResource Kei.Text.Muted}"/>
+                                                <TextBlock Grid.Column="3" Text="{loc:KeiString Proxy.Port}" FontSize="11.5"
+                                                           Foreground="{DynamicResource Kei.Text.Muted}"/>
+                                            </Grid>
+                                            <ListBox ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow}"
+                                                     MaxHeight="280" Background="Transparent">
+                                                <ListBox.ItemTemplate>
+                                                    <DataTemplate x:DataType="settings:ProxyRow">
+                                                        <Grid ColumnDefinitions="*, 90, *, 70">
+                                                            <TextBlock Grid.Column="0" Text="{Binding Name}" FontSize="12" VerticalAlignment="Center"/>
+                                                            <TextBlock Grid.Column="1" Text="{Binding TypeLabel}" FontSize="12"
+                                                                       Foreground="{DynamicResource Kei.Text.Secondary}" VerticalAlignment="Center"/>
+                                                            <TextBlock Grid.Column="2" Text="{Binding Host}" FontSize="12"
+                                                                       Foreground="{DynamicResource Kei.Text.Secondary}" VerticalAlignment="Center"/>
+                                                            <TextBlock Grid.Column="3" Text="{Binding Port}" FontSize="12"
+                                                                       Foreground="{DynamicResource Kei.Text.Secondary}" VerticalAlignment="Center"/>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ListBox.ItemTemplate>
+                                            </ListBox>
+                                        </DockPanel>
+                                    </Border>
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <Button Content="{loc:KeiString Proxy.Add}" Command="{Binding AddCommand}" MinWidth="72"/>
+                                        <Button Content="{loc:KeiString Proxy.Edit}" Command="{Binding EditCommand}" MinWidth="72"/>
+                                        <Button Content="{loc:KeiString Common.Delete}" Command="{Binding DeleteCommand}" MinWidth="72"/>
+                                    </StackPanel>
                                 </StackPanel>
                             </DataTemplate>
 

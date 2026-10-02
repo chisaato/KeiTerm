@@ -51,7 +51,7 @@
                         <StackPanel Spacing="14" IsVisible="{Binding SelectedCategory.Page, Converter={x:Static ObjectConverters.Equal}, ConverterParameter='Connection'}">
                             <TextBlock Text="{loc:KeiString SessionEdit.BasicSection}" FontWeight="Bold" Foreground="{DynamicResource Kei.Session.Foreground}" FontSize="13"/>
 
-                            <Grid ColumnDefinitions="120, *" ColumnSpacing="12" RowDefinitions="Auto, Auto, Auto, Auto, Auto, Auto, Auto" RowSpacing="10">
+                            <Grid ColumnDefinitions="120, *" ColumnSpacing="12" RowDefinitions="Auto, Auto, Auto, Auto, Auto, Auto, Auto, Auto" RowSpacing="10">
                                 <!-- 显示名称 -->
                                 <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString SessionEdit.Name}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
                                 <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Name}" PlaceholderText="{loc:KeiString SessionEdit.Name.Placeholder}"/>
@@ -78,13 +78,23 @@
                                     </ComboBox.ItemTemplate>
                                 </ComboBox>
 
+                                <!-- 防火墙：只列已保存代理，选会话/新建打开对话框 -->
+                                <TextBlock Grid.Row="5" Grid.Column="0" Text="{loc:KeiString SessionEdit.Firewall}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                <ComboBox Grid.Row="5" Grid.Column="1" ItemsSource="{Binding FirewallOptions}" SelectedItem="{Binding SelectedFirewall}" HorizontalAlignment="Stretch">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding DisplayName}"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+
                                 <!-- 连接超时覆盖 -->
-                                <TextBlock Grid.Row="5" Grid.Column="0" Text="{loc:KeiString Settings.Ssh.ConnectTimeout}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
-                                <ComboBox Grid.Row="5" Grid.Column="1" ItemsSource="{Binding ConnectTimeoutOptions}" SelectedItem="{Binding SelectedConnectTimeout}" HorizontalAlignment="Stretch"/>
+                                <TextBlock Grid.Row="6" Grid.Column="0" Text="{loc:KeiString Settings.Ssh.ConnectTimeout}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                <ComboBox Grid.Row="6" Grid.Column="1" ItemsSource="{Binding ConnectTimeoutOptions}" SelectedItem="{Binding SelectedConnectTimeout}" HorizontalAlignment="Stretch"/>
 
                                 <!-- 描述说明 -->
-                                <TextBlock Grid.Row="6" Grid.Column="0" Text="{loc:KeiString SessionEdit.Description}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
-                                <TextBox Grid.Row="6" Grid.Column="1" Text="{Binding Description}" PlaceholderText="{loc:KeiString SessionEdit.Description.Placeholder}"/>
+                                <TextBlock Grid.Row="7" Grid.Column="0" Text="{loc:KeiString SessionEdit.Description}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                <TextBox Grid.Row="7" Grid.Column="1" Text="{Binding Description}" PlaceholderText="{loc:KeiString SessionEdit.Description.Placeholder}"/>
                             </Grid>
                         </StackPanel>
 
@@ -125,6 +135,30 @@
                                 <TextBlock Grid.Row="1" Grid.Column="0" Text="{loc:KeiString SessionEdit.CwdFollow}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
                                 <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding CwdFollowOptions}" SelectedItem="{Binding SelectedCwdFollow}" HorizontalAlignment="Stretch"/>
                             </Grid>
+                        </StackPanel>
+
+                        <!-- 5. 端口转发。不改连接页的防火墙行。 -->
+                        <StackPanel Spacing="14" IsVisible="{Binding SelectedCategory.Page, Converter={x:Static ObjectConverters.Equal}, ConverterParameter='Ports'}">
+                            <TextBlock Text="{loc:KeiString SessionEdit.Category.Ports}" FontWeight="Bold" Foreground="{DynamicResource Kei.Session.Foreground}" FontSize="13"/>
+                            <TextBlock Text="{loc:KeiString PortForward.Hint}" Foreground="{DynamicResource Kei.Text.Secondary}" TextWrapping="Wrap"/>
+                            <ListBox ItemsSource="{Binding PortForwards}" SelectedItem="{Binding SelectedPortForward}" MaxHeight="220" Background="Transparent">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Text="{Binding Mode}" MinWidth="72"/>
+                                            <TextBlock Text="{Binding BindAddress}"/>
+                                            <TextBlock Text="{Binding ListenPort}"/>
+                                            <TextBlock Text="{Binding DestinationHost}"/>
+                                            <TextBlock Text="{Binding DestinationPort}"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Button Content="{loc:KeiString PortForward.Add}" Command="{Binding AddPortForwardCommand}" MinWidth="72"/>
+                                <Button Content="{loc:KeiString PortForward.Edit}" Command="{Binding EditPortForwardCommand}" MinWidth="72"/>
+                                <Button Content="{loc:KeiString Common.Delete}" Command="{Binding DeletePortForwardCommand}" MinWidth="72"/>
+                            </StackPanel>
                         </StackPanel>
                     </StackPanel>
                 </ScrollViewer>

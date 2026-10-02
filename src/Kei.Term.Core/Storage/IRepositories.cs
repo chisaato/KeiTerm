@@ -43,6 +43,21 @@ public interface IExternalEditorRepository
     Task DeleteAssociationAsync(Guid id, CancellationToken ct = default);
 }
 
+public interface IProxyRepository
+{
+    Task<IReadOnlyList<ProxyProfile>> GetAllAsync(CancellationToken ct = default);
+    Task<ProxyProfile?> GetByIdAsync(Guid id, CancellationToken ct = default);
+    Task SaveAsync(ProxyProfile proxy, CancellationToken ct = default);
+    Task DeleteAsync(Guid id, CancellationToken ct = default);
+}
+
+public interface IPortForwardRepository
+{
+    Task<IReadOnlyList<PortForward>> GetBySessionAsync(Guid sessionId, CancellationToken ct = default);
+    Task SaveAsync(PortForward forward, CancellationToken ct = default);
+    Task DeleteAsync(Guid id, CancellationToken ct = default);
+}
+
 public interface IKnownHostRepository
 {
     Task<IReadOnlyList<KnownHostEntry>> GetAllAsync(CancellationToken ct = default);

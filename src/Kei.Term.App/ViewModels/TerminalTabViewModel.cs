@@ -84,6 +84,18 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
     private RemoteFileManagerViewModel? _fileManager;
 
     private ITerminalSession? _session;
+    private CancellationTokenSource? _reconnectWait;
+    private int _reconnectAttempt;
+    private bool _userDisconnect;
+
+    // 意外断开时由主窗口接上。开关关闭时保持原有「干净断开即关标签」行为。
+    public Func<bool>? AutoReconnectEnabled { get; set; }
+    public Func<TerminalTabViewModel, int, CancellationToken, Task>? UnexpectedDisconnectAsync { get; set; }
+
+    public void CancelReconnect()
+    {
+        _reconnectWait?.Cancel();
+    }
     private TerminalSessionEndpoint? _endpoint;
     private readonly ILogger _logger;
     private readonly ITerminalThemeSink _themeSink;
@@ -177,12 +189,33 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
     {
         State = ConnectionState.Connected;
         StatusMessage = null;
+        _reconnectAttempt = 0;
+        _userDisconnect = false;
         _logger.LogInformation("终端标签已连接 标题={Title}", Title);
         TrySyncTerminalSize();
         if (IsSelected)
         {
             _terminal?.Focus();
         }
+    }
+
+    // 会话已连上，但端口转发有条目没起来。保持 Connected，只写状态。
+    public void ReportWarning(string message)
+    {
+        if (State != ConnectionState.Error)
+        {
+            State = ConnectionState.Connected;
+        }
+
+        StatusMessage = message;
+        _logger.LogWarning("终端标签提示 标题={Title} 原因={Reason}", Title, message);
+    }
+
+    // 本地状态行，不发给远端
+    public void WriteLocalStatus(string message)
+    {
+        StatusMessage = message;
+        Terminal.WriteOutput(Encoding.UTF8.GetBytes($"\r\n\x1b[90m{message}\x1b[0m\r\n"));
     }
 
     // 连接失败：状态置错并在终端输出红字（UI 线程）
@@ -217,6 +250,11 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
     {
         Dispatcher.UIThread.Post(() =>
         {
+            if (_userDisconnect || IsDisposed)
+            {
+                return;
+            }
+
             State = ex != null ? ConnectionState.Error : ConnectionState.Disconnected;
             StatusMessage = ex?.Message ?? Strings.Get("Main.Tab.ConnectionDropped");
             if (ex != null)
@@ -226,6 +264,19 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
             else
             {
                 _logger.LogInformation("终端标签会话断开 标题={Title}", Title);
+            }
+
+            if (AutoReconnectEnabled?.Invoke() == true && UnexpectedDisconnectAsync != null)
+            {
+                _reconnectAttempt++;
+                _reconnectWait?.Cancel();
+                _reconnectWait = new CancellationTokenSource();
+                _ = UnexpectedDisconnectAsync(this, _reconnectAttempt, _reconnectWait.Token);
+                return;
+            }
+
+            if (ex == null)
+            {
                 CloseRequested?.Invoke(this);
             }
         });
@@ -290,6 +341,8 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
     // 主动断开：只卸下会话与文件侧栏，标签与终端内容保留，可原地重连
     public async Task DisconnectAsync()
     {
+        _userDisconnect = true;
+        CancelReconnect();
         await DetachSessionAsync();
         await CloseFileManagerAsync();
         State = ConnectionState.Disconnected;
@@ -350,6 +403,8 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
             _terminal.TerminalResized -= OnTerminalGridResized;
         }
 
+        _userDisconnect = true;
+        CancelReconnect();
         await DetachSessionAsync();
         await CloseFileManagerAsync(releaseOnly: true);
         _logger.LogInformation("终端标签已释放 标题={Title}", Title);

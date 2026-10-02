@@ -21,6 +21,12 @@ public interface IConnectionTarget
 
     void ReportError(string message);
 
+    // 连接已成功，但某条转发没起来。不把整次 SSH 标成失败。
+    void ReportWarning(string message) { }
+
+    // 只写到本地终端，不发给远端。默认空，测试替身可忽略。
+    void WriteLocalStatus(string message) { }
+
     // 连接成功后挂载文件侧栏（后台线程调用；实现负责回到 UI 线程与本地缓存跟踪器装配）
     Task AttachFileSystemAsync(IRemoteFileSystem fileSystem);
 

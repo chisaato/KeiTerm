@@ -1,0 +1,201 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Kei.Term.App.ViewModels"
+        xmlns:loc="using:Kei.Term.App.Helpers"
+        xmlns:controls="using:Kei.Term.App.Controls"
+        xmlns:conv="using:Kei.Term.App.Converters"
+        x:Class="Kei.Term.App.Views.ColorChooserWindow"
+        x:DataType="vm:ColorChooserViewModel"
+        Title="{loc:KeiString ColorChooser.Title}"
+        Width="580"
+        Height="430"
+        CanResize="false"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Kei.Bg.Window}"
+        Foreground="{DynamicResource Kei.Text.Primary}">
+
+    <Window.Styles>
+        <Style Selector="Button.paletteSwatch">
+            <Setter Property="Width" Value="22"/>
+            <Setter Property="Height" Value="20"/>
+            <Setter Property="Margin" Value="1"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Kei.Border}"/>
+            <Setter Property="CornerRadius" Value="{DynamicResource Kei.Radius.Control}"/>
+        </Style>
+        <Style Selector="NumericUpDown">
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="Padding" Value="4,0"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="CornerRadius" Value="{DynamicResource Kei.Radius.Control}"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="*, Auto" Margin="14">
+        <!-- 主工作区：左侧色块面板 + 中右侧色盘与数值 -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto, 14, *">
+            
+            <!-- 左侧：基本色与自定义色 (KColorChooser 左半区) -->
+            <Border Grid.Column="0"
+                    Background="{DynamicResource Kei.Bg.Card}"
+                    BorderBrush="{DynamicResource Kei.Border.Subtle}"
+                    BorderThickness="1"
+                    CornerRadius="{DynamicResource Kei.Radius.Card}"
+                    Padding="10"
+                    Width="220">
+                <StackPanel Spacing="8">
+                    <!-- 基本颜色 6x8 -->
+                    <TextBlock Text="{loc:KeiString ColorChooser.BasicColors}"
+                               Foreground="{DynamicResource Kei.Text.Secondary}"
+                               FontSize="12"
+                               FontWeight="SemiBold"/>
+                    <ItemsControl ItemsSource="{Binding BasicColors}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Columns="8" Rows="6"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="x:String">
+                                <Button Classes="paletteSwatch"
+                                        Background="{Binding Converter={x:Static conv:HexStringToBrushConverter.Instance}}"
+                                        Command="{Binding $parent[Window].((vm:ColorChooserViewModel)DataContext).SelectColorCommand}"
+                                        CommandParameter="{Binding}"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <Separator Background="{DynamicResource Kei.Border.Subtle}" Height="1" Margin="0,4"/>
+
+                    <!-- 自定义颜色 2x8 -->
+                    <TextBlock Text="{loc:KeiString ColorChooser.CustomColors}"
+                               Foreground="{DynamicResource Kei.Text.Secondary}"
+                               FontSize="12"
+                               FontWeight="SemiBold"/>
+                    <ItemsControl ItemsSource="{Binding CustomColors}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Columns="8" Rows="2"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="x:String">
+                                <Button Classes="paletteSwatch"
+                                        Background="{Binding Converter={x:Static conv:HexStringToBrushConverter.Instance}}"
+                                        Command="{Binding $parent[Window].((vm:ColorChooserViewModel)DataContext).SelectColorCommand}"
+                                        CommandParameter="{Binding}"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <Button Content="{loc:KeiString ColorChooser.AddToCustom}"
+                            Command="{Binding AddToCustomColorsCommand}"
+                            Height="26"
+                            Margin="0,4,0,0"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Center"
+                            FontSize="11"/>
+                </StackPanel>
+            </Border>
+
+            <!-- 右侧：大色盘、明度条、当前颜色预览、精确数值框 -->
+            <Border Grid.Column="2"
+                    Background="{DynamicResource Kei.Bg.Card}"
+                    BorderBrush="{DynamicResource Kei.Border.Subtle}"
+                    BorderThickness="1"
+                    CornerRadius="{DynamicResource Kei.Radius.Card}"
+                    Padding="10">
+                <Grid RowDefinitions="*, 8, Auto">
+                    <!-- 色盘与明度条 -->
+                    <Grid Grid.Row="0" ColumnDefinitions="*, 10, 26">
+                        <!-- 大色板 (横向色相，纵向饱和度) -->
+                        <Border Grid.Column="0"
+                                BorderBrush="{DynamicResource Kei.Border}"
+                                BorderThickness="1"
+                                CornerRadius="{DynamicResource Kei.Radius.Control}"
+                                ClipToBounds="True">
+                            <controls:ColorPlaneControl x:Name="ColorPlane"
+                                                       Hue="{Binding Hue, Mode=TwoWay}"
+                                                       Sat="{Binding Sat, Mode=TwoWay}"/>
+                        </Border>
+
+                        <!-- 右侧明度条 -->
+                        <Border Grid.Column="2"
+                                BorderBrush="{DynamicResource Kei.Border}"
+                                BorderThickness="1"
+                                CornerRadius="{DynamicResource Kei.Radius.Control}"
+                                ClipToBounds="True">
+                            <controls:ColorValueBarControl x:Name="ValueBar"
+                                                          Val="{Binding Val, Mode=TwoWay}"
+                                                          BaseColor="{Binding PureHueColor}"/>
+                        </Border>
+                    </Grid>
+
+                    <!-- 下方：实时预览块与数值编辑 -->
+                    <Grid Grid.Row="2" ColumnDefinitions="Auto, 10, *">
+                        <!-- 纯色预览块与 Hex 框 -->
+                        <StackPanel Grid.Column="0" Spacing="6" Width="90" VerticalAlignment="Center">
+                            <Border Height="44"
+                                    Background="{Binding PreviewBrush}"
+                                    BorderBrush="{DynamicResource Kei.Border}"
+                                    BorderThickness="1"
+                                    CornerRadius="{DynamicResource Kei.Radius.Control}"/>
+                            
+                            <TextBox Text="{Binding Hex, Mode=TwoWay}"
+                                     Height="26"
+                                     FontSize="11"
+                                     FontFamily="Cascadia Mono, Consolas, monospace"
+                                     HorizontalContentAlignment="Center"
+                                     VerticalContentAlignment="Center"/>
+                        </StackPanel>
+
+                        <!-- 数值微调表单 (HSV 与 RGB 与 Alpha) -->
+                        <Grid Grid.Column="2" ColumnDefinitions="Auto, *, Auto, *" RowDefinitions="Auto, 4, Auto, 4, Auto, 4, Auto" VerticalAlignment="Center">
+                            <!-- H / R -->
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString ColorChooser.Hue}" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}" Margin="0,0,4,0"/>
+                            <NumericUpDown Grid.Row="0" Grid.Column="1" Value="{Binding Hue, Mode=TwoWay, Converter={x:Static conv:DecimalIntegerConverter.Instance}}" Minimum="0" Maximum="359" ParsingNumberStyle="Integer" FormatString="0" Margin="0,0,8,0"/>
+
+                            <TextBlock Grid.Row="0" Grid.Column="2" Text="{loc:KeiString ColorChooser.Red}" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}" Margin="0,0,4,0"/>
+                            <NumericUpDown Grid.Row="0" Grid.Column="3" Value="{Binding Red, Mode=TwoWay, Converter={x:Static conv:DecimalIntegerConverter.Instance}}" Minimum="0" Maximum="255" ParsingNumberStyle="Integer" FormatString="0"/>
+
+                            <!-- S / G -->
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="{loc:KeiString ColorChooser.Sat}" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}" Margin="0,0,4,0"/>
+                            <NumericUpDown Grid.Row="2" Grid.Column="1" Value="{Binding Sat, Mode=TwoWay, Converter={x:Static conv:DecimalIntegerConverter.Instance}}" Minimum="0" Maximum="255" ParsingNumberStyle="Integer" FormatString="0" Margin="0,0,8,0"/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="2" Text="{loc:KeiString ColorChooser.Green}" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}" Margin="0,0,4,0"/>
+                            <NumericUpDown Grid.Row="2" Grid.Column="3" Value="{Binding Green, Mode=TwoWay, Converter={x:Static conv:DecimalIntegerConverter.Instance}}" Minimum="0" Maximum="255" ParsingNumberStyle="Integer" FormatString="0"/>
+
+                            <!-- V / B -->
+                            <TextBlock Grid.Row="4" Grid.Column="0" Text="{loc:KeiString ColorChooser.Val}" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}" Margin="0,0,4,0"/>
+                            <NumericUpDown Grid.Row="4" Grid.Column="1" Value="{Binding Val, Mode=TwoWay, Converter={x:Static conv:DecimalIntegerConverter.Instance}}" Minimum="0" Maximum="255" ParsingNumberStyle="Integer" FormatString="0" Margin="0,0,8,0"/>
+
+                            <TextBlock Grid.Row="4" Grid.Column="2" Text="{loc:KeiString ColorChooser.Blue}" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}" Margin="0,0,4,0"/>
+                            <NumericUpDown Grid.Row="4" Grid.Column="3" Value="{Binding Blue, Mode=TwoWay, Converter={x:Static conv:DecimalIntegerConverter.Instance}}" Minimum="0" Maximum="255" ParsingNumberStyle="Integer" FormatString="0"/>
+
+                            <!-- Alpha -->
+                            <TextBlock Grid.Row="6" Grid.Column="2" Text="{loc:KeiString ColorChooser.Alpha}" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}" Margin="0,0,4,0"/>
+                            <NumericUpDown Grid.Row="6" Grid.Column="3" Value="{Binding Alpha, Mode=TwoWay, Converter={x:Static conv:DecimalIntegerConverter.Instance}}" Minimum="0" Maximum="255" ParsingNumberStyle="Integer" FormatString="0"/>
+                        </Grid>
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- 底部确定与取消操作栏 -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,12,0,0">
+            <Button Content="{loc:KeiString Common.Cancel}"
+                    Click="OnCancelClick"
+                    Width="80"
+                    Height="28"
+                    HorizontalContentAlignment="Center"/>
+            <Button Content="{loc:KeiString Common.Confirm}"
+                    Click="OnConfirmClick"
+                    Classes="accent"
+                    Width="80"
+                    Height="28"
+                    HorizontalContentAlignment="Center"/>
+        </StackPanel>
+    </Grid>
+</Window>

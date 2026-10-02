@@ -62,6 +62,8 @@ public partial class MainWindow : Window
         SessionTree.AddHandler(DragDrop.DropEvent, Tree_Drop);
         SessionTree.AddHandler(TreeViewItem.ExpandedEvent, Tree_ItemExpanded);
         SessionTree.AddHandler(TreeViewItem.CollapsedEvent, Tree_ItemCollapsed);
+        SessionTree.AddHandler(KeyDownEvent, Tree_KeyDown, RoutingStrategies.Tunnel, handledEventsToo: true);
+        SessionTree.AddHandler(LostFocusEvent, Tree_RenameLostFocus, RoutingStrategies.Bubble);
 
         // 标签栏拖拽与点击处理：在 TabsItemsControl 容器上附加事件
         TabsItemsControl.AddHandler(PointerPressedEvent, Tab_PointerPressed, RoutingStrategies.Tunnel | RoutingStrategies.Bubble, handledEventsToo: true);
@@ -114,6 +116,133 @@ public partial class MainWindow : Window
         // 编辑器回显 Vault 私钥信息 / 「应用」时写入 Vault 材料
         identityMgrVm.VaultKeyInfoLoader = vm.VaultSession.GetVaultKeyInfoAsync;
         identityMgrVm.PersistVaultKeysAsync = vm.VaultSession.PersistVaultKeyImportsAsync;
+        vm.TreeRenameStarted += FocusTreeRenameBox;
+    }
+
+    // 只有会话树持有焦点时才吃 F2。文本框、下拉、终端聚焦则放过。
+    private void Tree_KeyDown(object? sender, KeyEventArgs e)
+    {
+        if (DataContext is not MainViewModel vm)
+        {
+            return;
+        }
+
+        if (e.Source is TextBox { Classes: var classes } box && classes.Contains("treeRenameBox"))
+        {
+            if (e.Key == Key.Enter)
+            {
+                e.Handled = true;
+                _ = vm.CommitTreeRenameAsync(vm.TreeRenameText);
+            }
+            else if (e.Key == Key.Escape)
+            {
+                e.Handled = true;
+                vm.CancelTreeRename();
+            }
+
+            return;
+        }
+
+        if (e.Key != Key.F2 || !vm.RenameSelectedNodeCommand.CanExecute(null))
+        {
+            return;
+        }
+
+        if (!TreeHasFocus() || FocusIsTextInput())
+        {
+            return;
+        }
+
+        e.Handled = true;
+        vm.RenameSelectedNodeCommand.Execute(null);
+    }
+
+    private void Tree_RenameLostFocus(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel vm || vm.RenamingNode == null)
+        {
+            return;
+        }
+
+        if (e.Source is TextBox box && box.Classes.Contains("treeRenameBox"))
+        {
+            _ = vm.CommitTreeRenameAsync(vm.TreeRenameText);
+        }
+    }
+
+    private bool TreeHasFocus()
+    {
+        return FocusManager?.GetFocusedElement() is Visual focused && IsUnder(SessionTree, focused);
+    }
+
+    private bool FocusIsTextInput()
+    {
+        if (FocusManager?.GetFocusedElement() is not Visual focused)
+        {
+            return false;
+        }
+
+        for (Visual? node = focused; node != null; node = node.GetVisualParent())
+        {
+            if (node is TextBox or ComboBox or NumericUpDown)
+            {
+                return true;
+            }
+
+            if (node.GetType().Name.Contains("Terminal", StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsUnder(Visual ancestor, Visual node)
+    {
+        for (Visual? cursor = node; cursor != null; cursor = cursor.GetVisualParent())
+        {
+            if (cursor == ancestor)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void FocusTreeRenameBox()
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (DataContext is not MainViewModel vm || vm.RenamingNode == null)
+            {
+                return;
+            }
+
+            if (SessionTree.ContainerFromItem(vm.RenamingNode) is not Control container)
+            {
+                return;
+            }
+
+            TextBox? box = null;
+            foreach (var visual in container.GetVisualDescendants())
+            {
+                if (visual is TextBox candidate && candidate.Classes.Contains("treeRenameBox"))
+                {
+                    box = candidate;
+                    break;
+                }
+            }
+
+            if (box == null)
+            {
+                return;
+            }
+
+            box.Focus();
+            box.SelectAll();
+        }, DispatcherPriority.Loaded);
     }
 
     // 右键松开在空白处（命中点不在任何 TreeViewItem 上）→ 清除选中，使新建/粘贴落到顶级

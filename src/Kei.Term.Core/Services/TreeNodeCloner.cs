@@ -56,6 +56,7 @@ public static class TreeNodeCloner
                     TerminalType = session.TerminalType,
                     StartupScript = session.StartupScript,
                     JumpHostSessionId = session.JumpHostSessionId,
+                    ProxyProfileId = session.ProxyProfileId,
                     EnvironmentVariables = new Dictionary<string, string>(
                         session.EnvironmentVariables,
                         session.EnvironmentVariables.Comparer),

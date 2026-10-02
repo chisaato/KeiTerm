@@ -7,6 +7,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Kei.Term.App.Helpers;
 using Kei.Term.App.Models;
+using Kei.Term.App.Terminals;
 using Kei.Term.App.ViewModels.Settings;
 using Kei.Term.Core.Models;
 using Kei.Term.Core.Models.Profiles;
@@ -26,7 +27,11 @@ public partial class SettingsViewModel : ViewModelBase
     private readonly FileTransferSettingsPage _fileTransfer;
 
     // 左侧分类树数据源
-    public IReadOnlyList<SettingsCategoryItem> Categories { get; }
+    public IReadOnlyList<SettingsCategoryItem> Categories { get; private set; }
+
+    public ProxySettingsPage? ProxyPage { get; }
+
+    public Func<IReadOnlyList<TreeNodeBase>>? SessionTreeSnapshot { get; }
 
     // 当前选中的分类，决定右侧内容
     [ObservableProperty]
@@ -61,7 +66,10 @@ public partial class SettingsViewModel : ViewModelBase
         string dataDirectory = "",
         IIdentityRepository? identityRepo = null,
         Services.ProfileManagerService? profileManager = null,
-        IExternalEditorRepository? editorRepo = null)
+        IExternalEditorRepository? editorRepo = null,
+        IProxyRepository? proxyRepo = null,
+        Func<IReadOnlyList<SessionNode>>? sessionSnapshot = null,
+        Func<IReadOnlyList<TreeNodeBase>>? sessionTree = null)
     {
         _settingsService = settingsService;
         _profileManager = profileManager ?? new Services.ProfileManagerService(settingsService, dataDirectory);
@@ -70,6 +78,11 @@ public partial class SettingsViewModel : ViewModelBase
         _terminal = new TerminalSettingsPage();
         _ssh = new SshSettingsPage(identityRepo);
         _fileTransfer = new FileTransferSettingsPage(editorRepo);
+        if (proxyRepo != null)
+        {
+            ProxyPage = new ProxySettingsPage(proxyRepo, sessionSnapshot ?? (() => []));
+            SessionTreeSnapshot = sessionTree;
+        }
 
         Categories = new[]
         {
@@ -114,6 +127,15 @@ public partial class SettingsViewModel : ViewModelBase
                 _fileTransfer,
                 SettingsIcons.FileTransfer),
         };
+        if (ProxyPage != null)
+        {
+            Categories = Categories.Append(new SettingsCategoryItem(
+                Strings.Get("Settings.Categories.Proxy"),
+                Strings.Get("Settings.Categories.ProxyDesc"),
+                ProxyPage,
+                SettingsIcons.Ssh)).ToArray();
+        }
+
         SelectedCategory = Categories[0];
 
         // 选择即草稿预览：选择回调交回本 VM 统一广播，但不落盘
@@ -140,6 +162,7 @@ public partial class SettingsViewModel : ViewModelBase
     {
         var current = _settingsService.Current;
         _general.ConfirmBeforeClose = current.ConfirmBeforeClose;
+        _general.AutoReconnectOnDisconnect = current.AutoReconnectOnDisconnect;
         _general.SetTreeSortMode(current.TreeSortMode);
         _fileTransfer.CacheDirectory = current.FileTransfer.CacheDirectory;
         _fileTransfer.SelectedWatcherMode = current.FileTransfer.WatcherMode.ToString();
@@ -228,6 +251,7 @@ public partial class SettingsViewModel : ViewModelBase
 
         // 常规
         settings.ConfirmBeforeClose = _general.ConfirmBeforeClose;
+        settings.AutoReconnectOnDisconnect = _general.AutoReconnectOnDisconnect;
         settings.TreeSortMode = _general.SelectedTreeSort?.Mode ?? "AsciiFirst";
         settings.SessionManagerVisibilityMode = _general.SelectedSessionManagerMode switch
         {
@@ -260,7 +284,7 @@ public partial class SettingsViewModel : ViewModelBase
         settings.TerminalFallbackFontFamily = string.IsNullOrWhiteSpace(_appearance.FallbackFontFamily)
             ? "Noto Sans Mono CJK SC, Source Han Sans HW SC, Microsoft YaHei, monospace"
             : _appearance.FallbackFontFamily.Trim();
-        settings.FontSize = Math.Clamp(_appearance.FontSize, 8.0, 36.0);
+        settings.FontSize = Math.Clamp(_appearance.FontSize, TerminalFontZoom.MinFontSize, TerminalFontZoom.MaxFontSize);
         settings.CursorBlink = _appearance.CursorBlink;
         settings.TabPlacement = _appearance.SelectedTabPlacement?.Key ?? "Top";
         settings.ActiveGuiProfileId = _appearance.SelectedGuiProfile?.Id;

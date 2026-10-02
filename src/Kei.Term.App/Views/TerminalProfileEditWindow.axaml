@@ -168,12 +168,14 @@
                                              Height="26"
                                              VerticalContentAlignment="Center"
                                              FontFamily="Cascadia Mono, Consolas, monospace"/>
-                                    <Border Grid.Column="4"
+                                    <Button Grid.Column="4"
+                                            Classes="colorSwatch"
                                             Width="28" Height="26"
-                                            CornerRadius="{DynamicResource Kei.Radius.Control}"
-                                            BorderThickness="1"
-                                            BorderBrush="{DynamicResource Kei.Border}"
-                                            Background="{Binding ActiveBrush}"/>
+                                            Margin="0"
+                                            Click="OnOpenColorChooserClick"
+                                            IsEnabled="{Binding IsCurrentColorValid}"
+                                            Background="{Binding ActiveBrush}"
+                                            ToolTip.Tip="{loc:KeiString ColorChooser.Title}"/>
                                 </Grid>
                                 <!-- 校验错误提示 -->
                                 <TextBlock Text="{Binding ValidationMessage}"

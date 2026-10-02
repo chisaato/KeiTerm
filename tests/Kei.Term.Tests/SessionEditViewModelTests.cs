@@ -15,7 +15,7 @@ public class SessionEditViewModelTests
         var settings = new AppSettings { ConnectTimeoutSeconds = 60 };
         var vm = new SessionEditViewModel(null, null, [], settings);
 
-        Assert.Equal(4, vm.Categories.Count);
+        Assert.Equal(5, vm.Categories.Count);
         Assert.Equal("Connection", vm.Categories[0].Page);
         Assert.NotNull(vm.SelectedCategory);
         Assert.Equal("Connection", vm.SelectedCategory.Page);
@@ -50,5 +50,43 @@ public class SessionEditViewModelTests
         vm.SelectedConnectTimeout = vm.ConnectTimeoutOptions.First(o => o.Value == null);
         updated = vm.ApplyToModel(existing);
         Assert.Null(updated.Overrides.ConnectTimeoutSeconds);
+    }
+
+    [Fact]
+    public void NewSession_FirewallDefaultsToNone_AndDoesNotListSessions()
+    {
+        var bastion = new SessionNode { Name = "bastion", Host = "10.0.0.1", Username = "root", Port = 22 };
+        var vm = new SessionEditViewModel(null, null, [], jumpCandidates: [bastion]);
+
+        Assert.Equal("无", vm.SelectedFirewall?.DisplayName);
+        Assert.Null(vm.SelectedFirewall?.Id);
+        Assert.DoesNotContain(vm.FirewallOptions, option => option.Id == bastion.Id);
+        Assert.Null(vm.ApplyToModel().JumpHostSessionId);
+        Assert.Null(vm.ApplyToModel().ProxyProfileId);
+    }
+
+    [Fact]
+    public void ExcludedButPresentCurrentJump_IsKeptOnOpen_WithoutListingOtherSessions()
+    {
+        var self = new SessionNode { Name = "self", Host = "self.example" };
+        var excluded = new SessionNode
+        {
+            Name = "loopback",
+            Host = "loop.example",
+            Username = "admin",
+            Port = 2200,
+            JumpHostSessionId = self.Id
+        };
+        self.JumpHostSessionId = excluded.Id;
+        var other = new SessionNode { Name = "other", Host = "other.example" };
+
+        var vm = new SessionEditViewModel(self, null, [], jumpCandidates: [self, excluded, other]);
+
+        Assert.Equal(excluded.Id, vm.SelectedFirewall?.Id);
+        Assert.Equal("loopback", vm.SelectedFirewall?.DisplayName);
+        Assert.Equal(FirewallChoiceKind.ChosenSession, vm.SelectedFirewall?.Kind);
+        Assert.DoesNotContain(vm.FirewallOptions, option => option.Id == other.Id);
+        Assert.DoesNotContain(vm.FirewallOptions, option => option.Id == self.Id);
+        Assert.Equal(excluded.Id, vm.ApplyToModel(self).JumpHostSessionId);
     }
 }

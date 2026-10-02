@@ -3,6 +3,7 @@ namespace Kei.Term.Infrastructure.Storage.Schema;
 using System.Text.Json;
 using Dapper;
 using Kei.Term.Core.Vault;
+using Kei.Term.Infrastructure.Storage;
 using Microsoft.Data.Sqlite;
 
 // 全库 Schema 的唯一定义处。新增表/列 = 追加一条版本号 +1 的迁移，已发布的迁移永不修改。
@@ -13,6 +14,8 @@ public static class SchemaMigrations
         new(1, "baseline", ApplyBaselineAsync),
         new(2, "known_hosts", ApplyKnownHostsAsync),
         new(3, "session_options", ApplySessionOptionsAsync),
+        new(4, "proxies", ApplyProxiesAsync),
+        new(5, "port_forwards", ApplyPortForwardsAsync),
     ];
 
     // v1 基线：必须幂等，兼容三类库——全新库、user_version=0 的现行库、更早的 credentials 旧库
@@ -118,6 +121,47 @@ public static class SchemaMigrations
     // v3 会话级行为覆盖（标题跟随、目录跟随……）：整体存 JSON，后续新增覆盖项无需再迁移
     private static Task ApplySessionOptionsAsync(SqliteConnection conn, SqliteTransaction tx, CancellationToken ct)
         => AddColumnIfMissingAsync(conn, tx, "session_details", "options_json", "TEXT", ct);
+
+    // v4 全局代理表 + 会话出口。不删 jump_host_id；回填 proxy_json，保存时再清空旧列。
+    private static async Task ApplyProxiesAsync(SqliteConnection conn, SqliteTransaction tx, CancellationToken ct)
+    {
+        await ExecAsync(conn, tx, @"
+            CREATE TABLE IF NOT EXISTS proxies (
+                id TEXT PRIMARY KEY NOT NULL,
+                name TEXT NOT NULL,
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                config_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+        ", ct);
+        await AddColumnIfMissingAsync(conn, tx, "session_details", "proxy_json", "TEXT", ct);
+
+        if (!await TableExistsAsync(conn, tx, "session_details", ct))
+        {
+            return;
+        }
+
+        IEnumerable<JumpBackfillRow> rows = await conn.QueryAsync<JumpBackfillRow>(new CommandDefinition(@"
+            SELECT node_id, jump_host_id
+            FROM session_details
+            WHERE jump_host_id IS NOT NULL AND TRIM(jump_host_id) != ''
+              AND (proxy_json IS NULL OR TRIM(proxy_json) = '');
+        ", transaction: tx, cancellationToken: ct));
+
+        foreach (JumpBackfillRow row in rows)
+        {
+            await conn.ExecuteAsync(new CommandDefinition(@"
+                UPDATE session_details
+                SET proxy_json = @json
+                WHERE node_id = @id;
+            ", new
+            {
+                id = row.NodeId,
+                json = ProxyJsonCodec.WriteSessionKind(row.JumpHostId)
+            }, transaction: tx, cancellationToken: ct));
+        }
+    }
 
     // v2 主机密钥信任库：一台主机可有多把密钥（不同算法 / 轮换期新旧并存 / 被吊销）
     private static Task ApplyKnownHostsAsync(SqliteConnection conn, SqliteTransaction tx, CancellationToken ct)
@@ -251,6 +295,31 @@ public static class SchemaMigrations
 
         // 表名/列名/定义均为内部常量
         await ExecAsync(conn, tx, $"ALTER TABLE {table} ADD COLUMN {column} {definition};", ct);
+    }
+
+    // v5 端口转发。不改 proxies / proxy_json。外键级联删会话时一并删掉转发。
+    private static Task ApplyPortForwardsAsync(SqliteConnection conn, SqliteTransaction tx, CancellationToken ct)
+        => ExecAsync(conn, tx, @"
+            CREATE TABLE IF NOT EXISTS port_forwards (
+                id TEXT PRIMARY KEY NOT NULL,
+                session_id TEXT NOT NULL,
+                name TEXT,
+                mode TEXT NOT NULL,
+                bind_address TEXT NOT NULL,
+                listen_port INTEGER NOT NULL,
+                destination_host TEXT,
+                destination_port INTEGER,
+                FOREIGN KEY(session_id) REFERENCES tree_nodes(id) ON DELETE CASCADE
+            );
+
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_port_forwards_listen
+                ON port_forwards(session_id, bind_address, listen_port, mode);
+        ", ct);
+
+    private sealed class JumpBackfillRow
+    {
+        public string NodeId { get; set; } = string.Empty;
+        public string JumpHostId { get; set; } = string.Empty;
     }
 
     private sealed class LegacyCredentialRow

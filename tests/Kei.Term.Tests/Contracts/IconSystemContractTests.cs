@@ -101,12 +101,17 @@ public class IconSystemContractTests
         Assert.DoesNotContain(@"x:Key=""Icon.Folder""", text);
         Assert.DoesNotContain(@"x:Key=""Icon.Session""", text);
 
-        // 验证工具栏与树全部使用全局 Kei.Icon.*
+        // 工具栏图标仍在主窗口；树条目图标随共享模板走，主窗口引用该控件
         Assert.Contains(@"Data=""{StaticResource Kei.Icon.QuickConnect}""", text);
         Assert.Contains(@"Data=""{StaticResource Kei.Icon.Connect}""", text);
         Assert.Contains(@"Data=""{StaticResource Kei.Icon.Disconnect}""", text);
-        Assert.Contains(@"Data=""{StaticResource Kei.Icon.Folder}""", text);
-        Assert.Contains(@"Data=""{StaticResource Kei.Icon.Terminal}""", text);
+        Assert.Contains("SessionTreeItemView", text);
+
+        var itemView = Path.Combine(solutionDir, "src", "Kei.Term.App", "Views", "Controls", "SessionTreeItemView.axaml");
+        var itemText = File.ReadAllText(itemView);
+        Assert.Contains(@"Data=""{StaticResource Kei.Icon.Folder}""", itemText);
+        Assert.Contains(@"Data=""{StaticResource Kei.Icon.Terminal}""", itemText);
+        Assert.DoesNotContain("{StaticResource Icon.", itemText);
 
         // 验证不再有旧的 {StaticResource Icon. 引用
         Assert.DoesNotContain("{StaticResource Icon.", text);

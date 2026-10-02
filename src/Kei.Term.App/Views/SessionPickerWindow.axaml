@@ -1,0 +1,43 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Kei.Term.App.ViewModels"
+        xmlns:models="using:Kei.Term.Core.Models"
+        xmlns:controls="using:Kei.Term.App.Views.Controls"
+        xmlns:views="using:Kei.Term.App.Views"
+        xmlns:loc="using:Kei.Term.App.Helpers"
+        x:Class="Kei.Term.App.Views.SessionPickerWindow"
+        x:DataType="vm:SessionPickerViewModel"
+        Title="{Binding Title}"
+        Width="480" Height="520"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Kei.Bg.Window}">
+    <Grid RowDefinitions="Auto, *, Auto" Margin="16" RowSpacing="10">
+        <TextBox Grid.Row="0" Text="{Binding FilterText}" Watermark="{loc:KeiString SessionPicker.Filter}"/>
+        <TreeView Grid.Row="1" Classes="sessionTree" ItemsSource="{Binding Roots}"
+                  SelectedItem="{Binding SelectedNode}"
+                  DoubleTapped="Tree_DoubleTapped"
+                  Background="Transparent">
+            <TreeView.Styles>
+                <Style Selector="TreeViewItem" x:DataType="models:TreeNodeBase">
+                    <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+                </Style>
+            </TreeView.Styles>
+            <TreeView.DataTemplates>
+                <TreeDataTemplate DataType="models:VirtualRootNode" ItemsSource="{Binding Children}">
+                    <controls:SessionTreeItemView/>
+                </TreeDataTemplate>
+                <TreeDataTemplate DataType="models:FolderNode" ItemsSource="{Binding Children}">
+                    <controls:SessionTreeItemView/>
+                </TreeDataTemplate>
+                <DataTemplate DataType="models:SessionNode">
+                    <controls:SessionTreeItemView Opacity="{Binding Converter={x:Static views:PickerSessionOpacity.Instance}}"/>
+                </DataTemplate>
+            </TreeView.DataTemplates>
+        </TreeView>
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <Button Content="{loc:KeiString Common.Cancel}" Command="{Binding CancelCommand}" MinWidth="84"/>
+            <Button Content="{loc:KeiString Common.Confirm}" Command="{Binding ConfirmCommand}"
+                    IsEnabled="{Binding CanConfirm}" MinWidth="84" Classes="accent"/>
+        </StackPanel>
+    </Grid>
+</Window>

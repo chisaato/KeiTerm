@@ -5,6 +5,7 @@ using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using Kei.Term.App.Helpers;
 using Kei.Term.App.ViewModels;
+using Kei.Term.Core.Models;
 
 namespace Kei.Term.App.Views;
 
@@ -112,6 +113,12 @@ public partial class SettingsWindow : Window
             return Task.CompletedTask;
         };
 
+        if (vm.ProxyPage is { } proxyPage)
+        {
+            proxyPage.EditProxyAsync = existing => EditProxyAsync(vm, existing);
+            _ = proxyPage.ReloadAsync();
+        }
+
         // 窗口关闭时解绑，避免 VM 复用导致的处理器累积
         Closed += (_, _) =>
         {
@@ -155,6 +162,46 @@ public partial class SettingsWindow : Window
 
             await TriggerCancelAndCloseAsync(vm);
         }
+    }
+
+    private async Task<ProxyProfile?> EditProxyAsync(SettingsViewModel settings, ProxyProfile? existing)
+    {
+        var editVm = new ProxyEditViewModel(existing);
+        editVm.PickSessionAsync = () => PickSessionForProxyAsync(settings);
+        await new ProxyEditWindow(editVm).ShowDialog(this);
+        return editVm.IsConfirmed ? editVm.Build() : null;
+    }
+
+    private async Task<SessionNode?> PickSessionForProxyAsync(SettingsViewModel settings)
+    {
+        IReadOnlyList<TreeNodeBase> roots = settings.SessionTreeSnapshot?.Invoke() ?? [];
+        IReadOnlyList<SessionNode> sessions = FlattenSessions(roots);
+        var picker = new SessionPickerViewModel(roots, Guid.Empty, sessions);
+        SessionNode? picked = await new SessionPickerWindow(picker).ShowDialog<SessionNode?>(this);
+        return picked;
+    }
+
+    private static List<SessionNode> FlattenSessions(IEnumerable<TreeNodeBase> nodes)
+    {
+        var list = new List<SessionNode>();
+        foreach (TreeNodeBase node in nodes)
+        {
+            if (node is SessionNode session)
+            {
+                list.Add(session);
+            }
+
+            if (node is FolderNode folder)
+            {
+                list.AddRange(FlattenSessions(folder.Children));
+            }
+            else if (node is VirtualRootNode root)
+            {
+                list.AddRange(FlattenSessions(root.Children));
+            }
+        }
+
+        return list;
     }
 
     private async Task TriggerCancelAndCloseAsync(SettingsViewModel vm)

@@ -5,6 +5,8 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Dapper;
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Kei.Term.Core.Models;
 using Kei.Term.Core.Storage;
 using Kei.Term.Infrastructure.Storage.Schema;
@@ -16,7 +18,7 @@ public class SqliteTreeRepository : ITreeRepository
         SELECT t.id, t.parent_id, t.node_type, t.name, t.description, t.sort_order, t.created_at, t.updated_at,
                t.protocol, t.is_expanded,
                s.host, s.port, s.username, s.identity_id, s.terminal_type, s.startup_script, s.jump_host_id, s.env_vars_json,
-               s.terminal_profile_id, s.file_transfer_protocol, s.sftp_mode, s.options_json
+               s.terminal_profile_id, s.file_transfer_protocol, s.sftp_mode, s.options_json, s.proxy_json
         FROM tree_nodes t
         LEFT JOIN session_details s ON t.id = s.node_id";
 
@@ -28,15 +30,17 @@ public class SqliteTreeRepository : ITreeRepository
     };
 
     private readonly SqliteConnectionFactory _factory;
+    private readonly ILogger _logger;
 
-    public SqliteTreeRepository(string connectionString)
-        : this(new SqliteConnectionFactory(connectionString))
+    public SqliteTreeRepository(string connectionString, ILogger? logger = null)
+        : this(new SqliteConnectionFactory(connectionString), logger)
     {
     }
 
-    public SqliteTreeRepository(SqliteConnectionFactory factory)
+    public SqliteTreeRepository(SqliteConnectionFactory factory, ILogger? logger = null)
     {
         _factory = factory;
+        _logger = logger ?? NullLogger.Instance;
     }
 
     // Schema 统一由迁移器维护；保留该入口兼容既有调用方
@@ -114,9 +118,9 @@ public class SqliteTreeRepository : ITreeRepository
         {
             await conn.ExecuteAsync(new CommandDefinition(@"
                 INSERT INTO session_details (node_id, host, port, username, identity_id, terminal_type, startup_script, jump_host_id,
-                                             env_vars_json, terminal_profile_id, file_transfer_protocol, sftp_mode, options_json)
-                VALUES (@NodeId, @Host, @Port, @Username, @IdentityId, @TerminalType, @StartupScript, @JumpHostId,
-                        @EnvJson, @TerminalProfileId, @FileTransferProtocol, @SftpMode, @OptionsJson)
+                                             env_vars_json, terminal_profile_id, file_transfer_protocol, sftp_mode, options_json, proxy_json)
+                VALUES (@NodeId, @Host, @Port, @Username, @IdentityId, @TerminalType, @StartupScript, NULL,
+                        @EnvJson, @TerminalProfileId, @FileTransferProtocol, @SftpMode, @OptionsJson, @ProxyJson)
                 ON CONFLICT(node_id) DO UPDATE SET
                     host = excluded.host,
                     port = excluded.port,
@@ -124,12 +128,13 @@ public class SqliteTreeRepository : ITreeRepository
                     identity_id = excluded.identity_id,
                     terminal_type = excluded.terminal_type,
                     startup_script = excluded.startup_script,
-                    jump_host_id = excluded.jump_host_id,
+                    jump_host_id = NULL,
                     env_vars_json = excluded.env_vars_json,
                     terminal_profile_id = excluded.terminal_profile_id,
                     file_transfer_protocol = excluded.file_transfer_protocol,
                     sftp_mode = excluded.sftp_mode,
-                    options_json = excluded.options_json;
+                    options_json = excluded.options_json,
+                    proxy_json = excluded.proxy_json;
             ", new
             {
                 NodeId = session.Id.ToString(),
@@ -139,8 +144,8 @@ public class SqliteTreeRepository : ITreeRepository
                 IdentityId = session.IdentityId?.ToString(),
                 session.TerminalType,
                 session.StartupScript,
-                JumpHostId = session.JumpHostSessionId?.ToString(),
                 EnvJson = JsonSerializer.Serialize(session.EnvironmentVariables),
+                ProxyJson = ProxyJsonCodec.WriteExit(session.ProxyProfileId, session.JumpHostSessionId),
                 session.TerminalProfileId,
                 FileTransferProtocol = (int)session.FileTransferProtocol,
                 SftpMode = (int)session.SftpMode,
@@ -215,12 +220,13 @@ public class SqliteTreeRepository : ITreeRepository
         }, cancellationToken: ct));
     }
 
-    private static TreeNodeBase ToNode(NodeRow row)
+    private TreeNodeBase ToNode(NodeRow row)
     {
         Guid id = Guid.Parse(row.Id);
         Guid? parentId = SqliteValue.ParseGuid(row.ParentId);
         DateTime createdAt = SqliteValue.ParseUtc(row.CreatedAt);
         DateTime updatedAt = SqliteValue.ParseUtc(row.UpdatedAt);
+        (Guid? proxyId, Guid? sessionId) = ProxyJsonCodec.ReadExit(row.ProxyJson, _logger, row.Id);
 
         if ((NodeType)row.NodeType == NodeType.Folder)
         {
@@ -257,7 +263,8 @@ public class SqliteTreeRepository : ITreeRepository
             IdentityId = SqliteValue.ParseGuid(row.IdentityId),
             TerminalType = row.TerminalType ?? "xterm-256color",
             StartupScript = row.StartupScript,
-            JumpHostSessionId = SqliteValue.ParseGuid(row.JumpHostId),
+            JumpHostSessionId = sessionId,
+            ProxyProfileId = proxyId,
             Protocol = row.Protocol ?? SessionProtocols.Ssh,
             EnvironmentVariables = envVars,
             TerminalProfileId = row.TerminalProfileId,
@@ -292,5 +299,6 @@ public class SqliteTreeRepository : ITreeRepository
         public long? FileTransferProtocol { get; set; }
         public long? SftpMode { get; set; }
         public string? OptionsJson { get; set; }
+        public string? ProxyJson { get; set; }
     }
 }

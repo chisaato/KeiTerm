@@ -10,6 +10,7 @@ using Kei.Term.Core.Models;
 using Kei.Term.Core.Security;
 using Kei.Term.Core.Services;
 using Kei.Term.Core.Settings;
+using Kei.Term.Core.Storage;
 using Kei.Term.Ssh.Abstractions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -33,6 +34,8 @@ public sealed class ConnectionOrchestrator
     private readonly Func<IInteractionService> _interaction;
     private readonly Action<Action> _uiDispatch;
     private readonly ILogger _logger;
+    private readonly IProxyRepository? _proxies;
+    private readonly IPortForwardRepository? _portForwards;
 
     public ConnectionOrchestrator(
         ISshSessionFactory sshFactory,
@@ -41,7 +44,10 @@ public sealed class ConnectionOrchestrator
         ISettingsService settings,
         Func<IInteractionService> interaction,
         Action<Action> uiDispatch,
-        ILogger? logger = null)
+        ILogger? logger = null,
+        IProxyRepository? proxies = null,
+        IPortForwardRepository? portForwards = null,
+        Func<TimeSpan, CancellationToken, Task>? delay = null)
     {
         _sshFactory = sshFactory;
         _collector = collector;
@@ -50,22 +56,81 @@ public sealed class ConnectionOrchestrator
         _interaction = interaction;
         _uiDispatch = uiDispatch;
         _logger = logger ?? NullLogger.Instance;
+        _proxies = proxies;
+        _portForwards = portForwards;
+        _delay = delay ?? ((span, token) => Task.Delay(span, token));
+    }
+
+    private readonly Func<TimeSpan, CancellationToken, Task> _delay;
+    private bool _lastConnectSucceeded;
+    private bool _interactiveThisAttempt;
+
+    // 上一次成功连接是否依赖当场输入（口令重试或 KI / 2FA）
+    public bool LastAttemptRequiredInteraction { get; private set; }
+
+    // 意外断开后的下一次尝试。等待被取消则不再连接。必须复用 ReuseTarget。
+    public async Task ScheduleReconnectAsync(
+        ConnectionRequest request,
+        IConnectionHost host,
+        ReconnectFacts facts,
+        CancellationToken ct)
+    {
+        ReconnectDecision decision = ReconnectPolicy.Decide(facts);
+        if (!decision.ShouldReconnect || decision.DelaySeconds is not int seconds)
+        {
+            return;
+        }
+
+        request.ReuseTarget?.WriteLocalStatus(ReconnectMessages.Waiting(seconds, decision.Attempt));
+        try
+        {
+            await _delay(TimeSpan.FromSeconds(seconds), ct);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        if (ct.IsCancellationRequested || request.ReuseTarget is { IsDisposed: true })
+        {
+            return;
+        }
+
+        await ConnectAsync(request, host);
+        if (_lastConnectSucceeded)
+        {
+            request.ReuseTarget?.WriteLocalStatus(ReconnectMessages.Reconnected);
+        }
     }
 
     public async Task ConnectAsync(ConnectionRequest request, IConnectionHost host)
     {
+        _lastConnectSucceeded = false;
+        _interactiveThisAttempt = false;
+        // 出口不可用时不收集认证、不建标签、不拨号
+        PreparedExit exit = await PrepareExitAsync(request.Config);
+        if (exit.Error != null)
+        {
+            _logger.LogWarning("出口不可用 会话={Session} 原因={Reason}", request.Config.SessionName, exit.Error);
+            await _interaction().NotifyAsync(request.Config.SessionName, exit.Error);
+            return;
+        }
+
+        ConnectionRequest adjusted = request with { Config = exit.Config };
+
         // 1. 认证材料；用户取消兜底弹窗则不建标签
-        CollectedAuth? auth = await _collector.CollectTargetAsync(request);
+        CollectedAuth? auth = await _collector.CollectTargetAsync(adjusted);
         if (auth == null)
         {
             return;
         }
 
-        // 2. 跳板链：逐跳解析配置并物化认证
+        // 2. 跳板链：逐跳解析配置并物化认证；跳板自己的 SOCKS5 只挂在那一跳上
         IReadOnlyList<SshHop> jumpHops;
         try
         {
             jumpHops = await _collector.CollectJumpHopsAsync(auth.Config, host.FindSession);
+            jumpHops = await DecorateHopsAsync(jumpHops, host.FindSession);
         }
         catch (JumpChainException ex)
         {
@@ -92,13 +157,19 @@ public sealed class ConnectionOrchestrator
             target = host.OpenTab(auth.Config);
         }
 
-        await ConnectWithRetryAsync(target, auth, jumpHops);
+        await ConnectWithRetryAsync(target, auth, jumpHops, exit.Socks5Host, exit.Socks5Port);
     }
 
-    private async Task ConnectWithRetryAsync(IConnectionTarget target, CollectedAuth auth, IReadOnlyList<SshHop> jumpHops)
+    private async Task ConnectWithRetryAsync(
+        IConnectionTarget target,
+        CollectedAuth auth,
+        IReadOnlyList<SshHop> jumpHops,
+        string? socks5Host,
+        int socks5Port)
     {
         ResolvedSessionConfig resolved = auth.Config;
         var current = new List<MaterializedAuthMethod>(auth.Materials);
+        IReadOnlyList<PortForward> forwards = await LoadForwardsAsync(resolved.SessionId);
         TimeSpan timeout = TimeSpan.FromSeconds(Math.Max(1, resolved.ConnectTimeoutSeconds));
         int promptCount = 0;
         int hostKeyConfirmations = 0;
@@ -122,7 +193,7 @@ public sealed class ConnectionOrchestrator
             try
             {
                 // 连接流程整体运行于后台线程，避免阻塞 UI
-                SshConnectOptions options = BuildConnectOptions(timeout, jumpHops);
+                SshConnectOptions options = BuildConnectOptions(timeout, jumpHops, socks5Host, socks5Port, forwards);
                 ResolvedSessionConfig attemptConfig = resolved;
                 List<MaterializedAuthMethod> attemptMaterials = current;
                 session = await Task.Run(() => _sshFactory.CreateSessionAsync(attemptConfig, attemptMaterials, options, CancellationToken.None));
@@ -162,8 +233,14 @@ public sealed class ConnectionOrchestrator
             {
                 _logger.LogInformation("SSH 会话连接成功 host={Host}:{Port}", resolved.Host, resolved.Port);
                 target.MarkConnected();
+                _lastConnectSucceeded = true;
+                LastAttemptRequiredInteraction = _interactiveThisAttempt;
+                if (session.ForwardStartErrors.Count > 0)
+                {
+                    target.ReportWarning(string.Join("；", session.ForwardStartErrors));
+                }
                 // 文件通道必须用最终认证成功的材料（重试后的 current），而非首轮材料
-                StartFileSystem(target, resolved, current.ToList(), session!, BuildConnectOptions(timeout, jumpHops));
+                StartFileSystem(target, resolved, current.ToList(), session!, BuildConnectOptions(timeout, jumpHops, socks5Host, socks5Port, forwards));
                 return;
             }
 
@@ -203,6 +280,7 @@ public sealed class ConnectionOrchestrator
             }
 
             promptCount++;
+            _interactiveThisAttempt = true;
             _logger.LogInformation("认证失败，第 {Attempt} 次弹出认证重试 host={Host}:{Port}", promptCount, resolved.Host, resolved.Port);
             var retry = await _collector.PromptRetryAsync(resolved.Username, auth.Identity);
             if (retry == null)
@@ -267,7 +345,12 @@ public sealed class ConnectionOrchestrator
         });
     }
 
-    private SshConnectOptions BuildConnectOptions(TimeSpan timeout, IReadOnlyList<SshHop> jumpHops)
+    private SshConnectOptions BuildConnectOptions(
+        TimeSpan timeout,
+        IReadOnlyList<SshHop> jumpHops,
+        string? socks5Host,
+        int socks5Port,
+        IReadOnlyList<PortForward> forwards)
     {
         AppSettings settings = _settings.Current;
         return new SshConnectOptions
@@ -277,15 +360,110 @@ public sealed class ConnectionOrchestrator
             InteractivePrompt = BuildInteractivePrompt(),
             HostKeyVerifier = _hostKeyTrust,
             AgentSocketPath = settings.CustomAgentSocketPath,
-            JumpHosts = jumpHops
+            JumpHosts = jumpHops,
+            Socks5Host = socks5Host,
+            Socks5Port = socks5Port,
+            PortForwards = forwards
         };
     }
+
+    private async Task<IReadOnlyList<PortForward>> LoadForwardsAsync(Guid sessionId)
+    {
+        if (_portForwards == null || sessionId == Guid.Empty)
+        {
+            return [];
+        }
+
+        return await _portForwards.GetBySessionAsync(sessionId);
+    }
+
+    // 目标自己的出口。kind=proxy 的会话型档案改写成跳板，SOCKS5 只留给本会话最外层。
+    private async Task<PreparedExit> PrepareExitAsync(ResolvedSessionConfig config)
+    {
+        if (config.ProxyProfileId is not Guid proxyId)
+        {
+            return new PreparedExit(config, null, null, 0);
+        }
+
+        SessionProxyDecision decision = await ResolveProxyAsync(proxyId);
+        return decision switch
+        {
+            FailedDecision failed => new PreparedExit(config, failed.Message, null, 0),
+            Socks5Decision socks => new PreparedExit(
+                config with { ProxyProfileId = null, JumpHostSessionId = null },
+                null,
+                socks.Host,
+                socks.Port),
+            JumpDecision jump => new PreparedExit(
+                config with { ProxyProfileId = null, JumpHostSessionId = jump.SessionId },
+                null,
+                null,
+                0),
+            _ => new PreparedExit(config, SessionProxyExit.NotWiredMessage, null, 0)
+        };
+    }
+
+    // 每一跳自己的 SOCKS5 挂在该跳上；HTTP / 已删除在拨号前失败。会话型档案继续展开跳板链。
+    private async Task<IReadOnlyList<SshHop>> DecorateHopsAsync(
+        IReadOnlyList<SshHop> hops,
+        Func<Guid, SessionNode?> findSession,
+        int depth = 0)
+    {
+        var result = new List<SshHop>();
+        foreach (SshHop hop in hops)
+        {
+            if (hop.Config.ProxyProfileId is not Guid proxyId)
+            {
+                result.Add(hop);
+                continue;
+            }
+
+            SessionProxyDecision decision = await ResolveProxyAsync(proxyId);
+            switch (decision)
+            {
+                case Socks5Decision socks:
+                    result.Add(hop with { Socks5Host = socks.Host, Socks5Port = socks.Port });
+                    break;
+                case JumpDecision jump when depth < JumpChainResolver.MaxDepth:
+                    ResolvedSessionConfig via = hop.Config with
+                    {
+                        JumpHostSessionId = jump.SessionId,
+                        ProxyProfileId = null
+                    };
+                    IReadOnlyList<SshHop> extra = await _collector.CollectJumpHopsAsync(via, findSession);
+                    result.AddRange(await DecorateHopsAsync(extra, findSession, depth + 1));
+                    result.Add(hop);
+                    break;
+                case FailedDecision failed:
+                    throw new JumpChainException(failed.Message);
+                default:
+                    throw new JumpChainException(SessionProxyExit.NotWiredMessage);
+            }
+        }
+
+        return result;
+    }
+
+    private async Task<SessionProxyDecision> ResolveProxyAsync(Guid proxyId)
+    {
+        if (_proxies == null)
+        {
+            return SessionProxyDecision.Failed(SessionProxyExit.DeletedMessage);
+        }
+
+        ProxyProfile? proxy = await _proxies.GetByIdAsync(proxyId);
+        return SessionProxyExit.Resolve(proxyId, id => proxy != null && proxy.Id == id ? proxy : null);
+    }
+
+    private sealed record PreparedExit(ResolvedSessionConfig Config, string? Error, string? Socks5Host, int Socks5Port);
 
     // keyboard-interactive 真交互回调：SSH 后台线程 → UI 线程弹提示窗（2FA 可用）
     private Func<string, Task<string?>> BuildInteractivePrompt()
     {
         return prompt =>
         {
+            // 出现 KI / 2FA 弹窗的连接不要在后台自动重连
+            _interactiveThisAttempt = true;
             // 提示文本来自服务器，可记录；应答内容可能含密码/OTP，绝不记录
             _logger.LogInformation("KI 认证提示弹出 提示={Prompt}", prompt);
             var tcs = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);

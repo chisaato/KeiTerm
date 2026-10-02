@@ -3,11 +3,18 @@ namespace Kei.Term.Ssh.Services;
 using Microsoft.Extensions.Logging;
 using Renci.SshNet;
 using Renci.SshNet.Common;
+using Kei.Term.Core.Models;
 using Kei.Term.Core.Security;
 using Kei.Term.Ssh.Abstractions;
 
 // 一个逻辑 SSH 目标：主机密钥校验、日志均以逻辑地址为准（经跳板时实际拨号的是本机回环转发口）
-internal sealed record SshTarget(string Host, int Port, string Username, AuthenticationMethod[] AuthMethods);
+internal sealed record SshTarget(
+    string Host,
+    int Port,
+    string Username,
+    AuthenticationMethod[] AuthMethods,
+    string? Socks5Host = null,
+    int Socks5Port = 0);
 
 // 连接级公共参数（跳板与目标共用）
 internal sealed record SshClientOptions(
@@ -113,6 +120,9 @@ internal sealed class SshJumpChain : IAsyncDisposable
 
     public bool IsConnected => _clients.Count > 0 && _clients.TrueForAll(c => c.IsConnected);
 
+    // 跳板链上的 SSH 客户端。会话转发不挂在这里。
+    internal IReadOnlyList<SshClient> Clients => _clients;
+
     public static async Task<SshJumpChain> OpenAsync(
         IReadOnlyList<SshTarget> hops,
         SshClientOptions options,
@@ -132,6 +142,19 @@ internal sealed class SshJumpChain : IAsyncDisposable
                 (string dialHost, int dialPort) = chain._clients.Count == 0
                     ? (hop.Host, hop.Port)
                     : chain.ForwardTo(hop.Host, hop.Port);
+
+                if (chain._clients.Count == 0
+                    && !string.IsNullOrWhiteSpace(hop.Socks5Host)
+                    && !string.Equals(dialHost, IPAddressLoopback, StringComparison.Ordinal))
+                {
+                    // 只记端点。本轮没有口令，日志模板也不留密码占位。
+                    logger.LogInformation(
+                        "跳板最外层经 SOCKS5 {ProxyHost}:{ProxyPort} 拨号 {Host}:{Port}",
+                        hop.Socks5Host,
+                        hop.Socks5Port,
+                        hop.Host,
+                        hop.Port);
+                }
 
                 var client = new SshClient(BuildConnectionInfo(hop, dialHost, dialPort, options));
                 var gate = new HostKeyGate(hop.Host, hop.Port, options.HostKeyVerifier, ct);
@@ -241,10 +264,33 @@ internal sealed class SshJumpChain : IAsyncDisposable
     internal const string IPAddressLoopback = "127.0.0.1";
 
     internal static ConnectionInfo BuildConnectionInfo(SshTarget target, string dialHost, int dialPort, SshClientOptions options)
-        => new(dialHost, dialPort, target.Username, target.AuthMethods)
+    {
+        // 127.0.0.1 是跳板链的本地转发口，不能再套一层代理
+        bool forwarded = string.Equals(dialHost, IPAddressLoopback, StringComparison.Ordinal);
+        if (!forwarded
+            && !string.IsNullOrWhiteSpace(target.Socks5Host)
+            && target.Socks5Port is >= 1 and <= 65535)
+        {
+            return new ConnectionInfo(
+                dialHost,
+                dialPort,
+                target.Username,
+                ProxyTypes.Socks5,
+                target.Socks5Host,
+                target.Socks5Port,
+                string.Empty,
+                string.Empty,
+                target.AuthMethods)
+            {
+                Timeout = options.ConnectTimeout
+            };
+        }
+
+        return new ConnectionInfo(dialHost, dialPort, target.Username, target.AuthMethods)
         {
             Timeout = options.ConnectTimeout
         };
+    }
 
     internal static void ApplyKeepAlive(BaseClient client, SshClientOptions options)
     {
@@ -263,9 +309,13 @@ internal sealed class SshDialer : IAsyncDisposable
     private readonly IReadOnlyList<SshTarget> _hops;
     private readonly SshJumpChain? _borrowedChain;
     private readonly SshClientOptions _options;
+    private readonly IReadOnlyList<PortForward> _portForwards;
     private readonly ILogger _logger;
     private readonly SemaphoreSlim _chainLock = new(1, 1);
+    private readonly List<ForwardedPort> _sessionForwards = [];
+    private readonly List<string> _forwardErrors = [];
     private SshJumpChain? _ownedChain;
+    private SshClient? _forwardClient;
     private (string Host, int Port)? _dialEndpoint;
 
     public SshDialer(
@@ -273,14 +323,18 @@ internal sealed class SshDialer : IAsyncDisposable
         IReadOnlyList<SshTarget> hops,
         SshJumpChain? borrowedChain,
         SshClientOptions options,
-        ILogger logger)
+        ILogger logger,
+        IReadOnlyList<PortForward>? portForwards = null)
     {
         _target = target;
         _hops = hops;
         _borrowedChain = borrowedChain;
         _options = options;
         _logger = logger;
+        _portForwards = portForwards ?? [];
     }
+
+    public IReadOnlyList<string> ForwardStartErrors => _forwardErrors;
 
     public SshTarget Target => _target;
 
@@ -293,6 +347,17 @@ internal sealed class SshDialer : IAsyncDisposable
         where T : BaseClient
     {
         (string host, int port) = await ResolveDialEndpointAsync(ct);
+        if (!string.Equals(host, SshJumpChain.IPAddressLoopback, StringComparison.Ordinal)
+            && !string.IsNullOrWhiteSpace(_target.Socks5Host))
+        {
+            _logger.LogInformation(
+                "经 SOCKS5 拨号 {ProxyHost}:{ProxyPort} 目标={Host}:{Port}",
+                _target.Socks5Host,
+                _target.Socks5Port,
+                _target.Host,
+                _target.Port);
+        }
+
         T client = create(SshJumpChain.BuildConnectionInfo(_target, host, port, _options));
         var gate = new HostKeyGate(_target.Host, _target.Port, _options.HostKeyVerifier, ct);
         gate.Attach(client);
@@ -308,7 +373,94 @@ internal sealed class SshDialer : IAsyncDisposable
             throw;
         }
 
+        // 只挂在目标会话的 SshClient 上。跳板客户端走 SshJumpChain，不会进这里。
+        if (client is SshClient ssh)
+        {
+            StartSessionForwards(ssh);
+        }
+
         return client;
+    }
+
+    private void StartSessionForwards(SshClient client)
+    {
+        if (_sessionForwards.Count > 0 || _portForwards.Count == 0)
+        {
+            return;
+        }
+
+        _forwardClient = client;
+        foreach (PortForward rule in _portForwards)
+        {
+            ForwardedPort? port = null;
+            try
+            {
+                port = CreateForward(rule);
+                client.AddForwardedPort(port);
+                port.Start();
+                _sessionForwards.Add(port);
+                _logger.LogInformation(
+                    "端口转发已启动 名称={Name} 模式={Mode} {Bind}:{Listen}",
+                    rule.Name,
+                    rule.Mode,
+                    rule.BindAddress,
+                    rule.ListenPort);
+            }
+            catch (Exception ex)
+            {
+                // 一条失败不拆掉已经连上的 SSH
+                string label = string.IsNullOrWhiteSpace(rule.Name) ? rule.Mode.ToString() : rule.Name;
+                string message = $"端口转发未启动 {label} {rule.BindAddress}:{rule.ListenPort}";
+                _forwardErrors.Add(message);
+                _logger.LogWarning(ex, "端口转发启动失败 {Detail}", message);
+                if (port != null)
+                {
+                    try
+                    {
+                        client.RemoveForwardedPort(port);
+                    }
+                    catch (Exception removeEx)
+                    {
+                        _logger.LogWarning(removeEx, "移除失败的端口转发时出错");
+                    }
+                }
+            }
+        }
+    }
+
+    private static ForwardedPort CreateForward(PortForward rule)
+    {
+        string bind = string.IsNullOrWhiteSpace(rule.BindAddress) ? "127.0.0.1" : rule.BindAddress.Trim();
+        uint listen = (uint)rule.ListenPort;
+        return rule.Mode switch
+        {
+            PortForwardMode.Remote => new ForwardedPortRemote(bind, listen, rule.DestinationHost!, (uint)rule.DestinationPort!.Value),
+            PortForwardMode.Dynamic => new ForwardedPortDynamic(bind, listen),
+            _ => new ForwardedPortLocal(bind, listen, rule.DestinationHost!, (uint)rule.DestinationPort!.Value)
+        };
+    }
+
+    private void StopSessionForwards()
+    {
+        foreach (ForwardedPort port in _sessionForwards)
+        {
+            try
+            {
+                if (port.IsStarted)
+                {
+                    port.Stop();
+                }
+
+                _forwardClient?.RemoveForwardedPort(port);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "停止端口转发失败");
+            }
+        }
+
+        _sessionForwards.Clear();
+        _forwardClient = null;
     }
 
     private async Task<(string Host, int Port)> ResolveDialEndpointAsync(CancellationToken ct)
@@ -339,6 +491,8 @@ internal sealed class SshDialer : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        StopSessionForwards();
+
         // 借用的链由其所有者释放，这里只归还自己开的转发口
         if (_borrowedChain != null && _dialEndpoint is { } endpoint)
         {

@@ -35,6 +35,10 @@ public partial class GeneralSettingsPage : ViewModelBase
     [ObservableProperty]
     private bool _confirmBeforeClose = true;
 
+    // 意外断开后自动重连。默认关。
+    [ObservableProperty]
+    private bool _autoReconnectOnDisconnect;
+
     // 树同级排序模式
     public IReadOnlyList<TreeSortOption> TreeSortOptions { get; }
 
