@@ -6,12 +6,12 @@
         x:Class="Kei.Term.App.Views.ProxyEditWindow"
         x:DataType="vm:ProxyEditViewModel"
         Title="{Binding Title}"
-        Width="460" Height="360"
+        Width="460" Height="520"
         WindowStartupLocation="CenterOwner"
         CanResize="False"
         Background="{DynamicResource Kei.Bg.Window}">
     <Grid RowDefinitions="*, Auto" Margin="20" RowSpacing="12">
-        <Grid ColumnDefinitions="100, *" RowDefinitions="Auto, Auto, Auto, Auto, Auto" RowSpacing="10" ColumnSpacing="12">
+        <Grid ColumnDefinitions="100, *" RowDefinitions="Auto, Auto, Auto, Auto, Auto, Auto, Auto, Auto" RowSpacing="10" ColumnSpacing="12">
             <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString Proxy.Name}" VerticalAlignment="Center"
                        Foreground="{DynamicResource Kei.Text.Secondary}"/>
             <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Name}"/>
@@ -41,7 +41,19 @@
             <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SessionDisplay}" IsVisible="{Binding IsSession}"
                        Foreground="{DynamicResource Kei.Text.Secondary}" VerticalAlignment="Center"/>
 
-            <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding TypeNotice}"
+            <TextBlock Grid.Row="4" Grid.Column="0" Text="{loc:KeiString Proxy.Username}" VerticalAlignment="Center"
+                       Foreground="{DynamicResource Kei.Text.Secondary}" IsVisible="{Binding IsSocks5}"/>
+            <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding Username}" IsVisible="{Binding IsSocks5}"/>
+
+            <TextBlock Grid.Row="5" Grid.Column="0" Text="{loc:KeiString Proxy.Password}" VerticalAlignment="Center"
+                       Foreground="{DynamicResource Kei.Text.Secondary}" IsVisible="{Binding IsSocks5}"/>
+            <TextBox Grid.Row="5" Grid.Column="1" Text="{Binding Password}" PasswordChar="•"
+                     PlaceholderText="{Binding PasswordPlaceholder}" IsVisible="{Binding IsSocks5}"/>
+
+            <CheckBox Grid.Row="6" Grid.Column="1" Content="{loc:KeiString Proxy.ClearPassword}"
+                      IsChecked="{Binding ClearSavedPassword}" IsVisible="{Binding ShowClearPassword}"/>
+
+            <TextBlock Grid.Row="7" Grid.Column="1" Text="{Binding TypeNotice}"
                        Foreground="{DynamicResource Kei.Text.Muted}" TextWrapping="Wrap"/>
         </Grid>
         <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">

@@ -1,0 +1,38 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Kei.Term.App.ViewModels"
+             xmlns:loc="using:Kei.Term.App.Helpers"
+             x:Class="Kei.Term.App.Views.Controls.TerminalFindBar"
+             x:DataType="vm:TerminalTabViewModel"
+             IsVisible="{Binding IsFindBarOpen}">
+    <Border Background="{DynamicResource Kei.Bg.Panel}"
+            BorderBrush="{DynamicResource Kei.Border}"
+            BorderThickness="1"
+            CornerRadius="{DynamicResource Kei.Radius.Control}"
+            Padding="8,6"
+            MinWidth="360">
+        <Grid ColumnDefinitions="*, Auto, Auto, Auto, Auto" ColumnSpacing="6">
+            <TextBox x:Name="QueryBox"
+                     Classes="findQuery"
+                     Text="{Binding FindQuery}"
+                     PlaceholderText="{loc:KeiString Terminal.Find.Placeholder}"
+                     VerticalAlignment="Center">
+                <TextBox.KeyBindings>
+                    <KeyBinding Gesture="Enter" Command="{Binding FindNextCommand}"/>
+                    <KeyBinding Gesture="Shift+Enter" Command="{Binding FindPreviousCommand}"/>
+                    <KeyBinding Gesture="Escape" Command="{Binding CloseFindCommand}"/>
+                </TextBox.KeyBindings>
+            </TextBox>
+            <TextBlock Grid.Column="1"
+                       Text="{Binding FindStatus}"
+                       VerticalAlignment="Center"
+                       Foreground="{DynamicResource Kei.Text.Secondary}"/>
+            <Button Grid.Column="2" Content="{loc:KeiString Terminal.Find.Previous}"
+                    Command="{Binding FindPreviousCommand}" Height="28"/>
+            <Button Grid.Column="3" Content="{loc:KeiString Terminal.Find.Next}"
+                    Command="{Binding FindNextCommand}" Height="28"/>
+            <Button Grid.Column="4" Content="{loc:KeiString Terminal.Find.Close}"
+                    Command="{Binding CloseFindCommand}" Height="28"/>
+        </Grid>
+    </Border>
+</UserControl>

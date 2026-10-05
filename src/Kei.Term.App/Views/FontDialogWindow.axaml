@@ -1,0 +1,41 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Kei.Term.App.ViewModels"
+        xmlns:loc="using:Kei.Term.App.Helpers"
+        x:Class="Kei.Term.App.Views.FontDialogWindow"
+        x:DataType="vm:FontDialogViewModel"
+        Title="{loc:KeiString FontDialog.Title}"
+        Width="420" Height="220"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="{DynamicResource Kei.Bg.Window}">
+    <Grid RowDefinitions="*, Auto" Margin="20">
+        <StackPanel Spacing="12">
+            <TextBlock Text="{loc:KeiString FontDialog.Header}"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource Kei.Session.Foreground}"/>
+            <Grid ColumnDefinitions="88, *" RowDefinitions="Auto, Auto" RowSpacing="10" ColumnSpacing="8">
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString FontDialog.Weight}"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                <ComboBox Grid.Row="0" Grid.Column="1"
+                          ItemsSource="{Binding WeightOptions}"
+                          SelectedItem="{Binding FontWeight}"
+                          HorizontalAlignment="Stretch"/>
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="{loc:KeiString FontDialog.LineHeight}"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                <NumericUpDown Grid.Row="1" Grid.Column="1"
+                               Value="{Binding LineHeight}"
+                               Minimum="0.5" Maximum="3" Increment="0.05" FormatString="0.00"
+                               HorizontalAlignment="Left" MinWidth="140"/>
+            </Grid>
+        </StackPanel>
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+            <Button Content="{loc:KeiString Common.Cancel}" Click="OnCancelClick" Width="80" Height="28"
+                    HorizontalContentAlignment="Center"/>
+            <Button Content="{loc:KeiString Common.Confirm}" Click="OnConfirmClick" Classes="accent" Width="80" Height="28"
+                    HorizontalContentAlignment="Center"/>
+        </StackPanel>
+    </Grid>
+</Window>

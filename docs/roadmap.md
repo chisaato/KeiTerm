@@ -10,18 +10,18 @@
 
 | 项 | 说明 |
 |---|---|
-| 代理 / 防火墙 | ✅ 全局代理、会话防火墙下拉、目录树选会话、无认证 SOCKS5。见 [规格](./superpowers/specs/2026-10-01-proxy-firewall-and-session-tree-design.md) |
+| 代理 / 防火墙 | ✅ 全局代理、会话防火墙下拉、目录树选会话、无认证 SOCKS5，SOCKS5 可带用户名口令。见 [规格](./superpowers/specs/2026-10-01-proxy-firewall-and-session-tree-design.md) |
 | 端口转发 | ✅ Local / Remote / Dynamic，`port_forwards` 表，迁移 v5。见 [规格](./superpowers/specs/2026-10-01-port-forwards-design.md) |
 | 自动重连 | ✅ 指数退避 `1, 2, 4, 8, 16, 30`，复用 `ReuseTarget`，默认关。见 [规格](./superpowers/specs/2026-10-01-auto-reconnect-design.md) |
 | Agent 转发 | 双引擎已验证可行，等 Tmds.Ssh 发版，见 [11](./design/11-dual-ssh-backend.md) |
-| 终端搜索 | 排队。Ctrl+F。见 [终端日常](./superpowers/specs/2026-10-01-terminal-daily-design.md) |
+| 终端搜索 | ✅ Ctrl+F。见 [终端日常](./superpowers/specs/2026-10-01-terminal-daily-design.md) |
 | 连接管理器 F2 | ✅ 树聚焦时原地重命名。见 [规格](./superpowers/specs/2026-10-01-session-tree-f2-rename-design.md) |
 | 滚轮缩放 | ✅ Ctrl+滚轮每格 ±1pt，写回全局字号（8–36），已打开的标签一起变 |
 | 在线调色器 | ✅ 主题编辑器点色块弹出调色器，拖动时右侧预览跟着变。没有屏幕取色 |
-| 字体弹窗 | 排队。字重、行距。见 [终端日常](./superpowers/specs/2026-10-01-terminal-daily-design.md) |
-| 标签栏对比 | 排队。见 [终端日常](./superpowers/specs/2026-10-01-terminal-daily-design.md) |
-| 256 色 / true color | 排队。见 [终端日常](./superpowers/specs/2026-10-01-terminal-daily-design.md) |
-| 关键字高亮 | 排队。规则放 Core。见 [终端日常](./superpowers/specs/2026-10-01-terminal-daily-design.md) |
+| 字体弹窗 | ✅ 字重、行距。见 [终端日常](./superpowers/specs/2026-10-01-terminal-daily-design.md) |
+| 标签栏对比 | ✅ 未选中 / 选中 / 后台活动靠明度和字重分开。见 [终端日常](./superpowers/specs/2026-10-01-terminal-daily-design.md) |
+| 256 色 / true color | ✅ 16–255 走 xterm 色立方；真彩色不另写解析器。见 [终端日常](./superpowers/specs/2026-10-01-terminal-daily-design.md) |
+| 关键字高亮 | ✅ error / fail / IP / URL，规则在 Core。见 [终端日常](./superpowers/specs/2026-10-01-terminal-daily-design.md) |
 | 本地 Shell / 串口 / Telnet | RoyalTerminal 已有传输层。每种协议一个 `ITerminalSessionProvider`，见 [10 §6](./design/10-refactor-plan.md) |
 | 目录跟随 | 开关已有，跟随行为还没做。只收 OSC 7 和 tmux 标题，见 [09](./design/09-cwd-tracking.md) |
 | 命令块 | RoyalTerminal 已解析 OSC 133 |

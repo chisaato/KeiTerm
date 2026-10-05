@@ -8,6 +8,7 @@ using CommunityToolkit.Mvvm.Input;
 using Kei.Term.App.Helpers;
 using Kei.Term.Core.Models;
 using Kei.Term.Core.Storage;
+using Kei.Term.Core.Vault;
 
 namespace Kei.Term.App.ViewModels.Settings;
 
@@ -28,7 +29,9 @@ public partial class ProxySettingsPage : ObservableObject
     [ObservableProperty]
     private ProxyRow? _selectedRow;
 
-    public Func<ProxyProfile?, Task<ProxyProfile?>>? EditProxyAsync { get; set; }
+    public Func<ProxyProfile?, Task<ProxyEditCommit?>>? EditProxyAsync { get; set; }
+
+    public IProxySecretStore? Secrets { get; set; }
 
     public async Task ReloadAsync()
     {
@@ -52,14 +55,14 @@ public partial class ProxySettingsPage : ObservableObject
             return;
         }
 
-        ProxyProfile? created = await EditProxyAsync(null);
+        ProxyEditCommit? created = await EditProxyAsync(null);
         if (created == null)
         {
             return;
         }
 
-        created.SortOrder = Rows.Count == 0 ? 0 : Rows.Max(r => r.SortOrder) + 1;
-        await _repository.SaveAsync(created);
+        created.Profile.SortOrder = Rows.Count == 0 ? 0 : Rows.Max(r => r.SortOrder) + 1;
+        await SaveCommitAsync(created);
         await ReloadAsync();
     }
 
@@ -78,14 +81,23 @@ public partial class ProxySettingsPage : ObservableObject
             return;
         }
 
-        ProxyProfile? edited = await EditProxyAsync(current);
+        ProxyEditCommit? edited = await EditProxyAsync(current);
         if (edited == null)
         {
             return;
         }
 
-        await _repository.SaveAsync(edited);
+        await SaveCommitAsync(edited);
         await ReloadAsync();
+    }
+
+    private async Task SaveCommitAsync(ProxyEditCommit commit)
+    {
+        await _repository.SaveAsync(commit.Profile);
+        if (Secrets != null)
+        {
+            await commit.ApplyPassword(Secrets);
+        }
     }
 
     [RelayCommand]

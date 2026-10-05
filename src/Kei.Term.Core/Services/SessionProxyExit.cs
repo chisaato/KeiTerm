@@ -25,7 +25,7 @@ public static class SessionProxyExit
         return proxy.Config switch
         {
             Socks5ProxyConfig socks when IsEndpoint(socks.Host, socks.Port)
-                => SessionProxyDecision.Socks5(socks.Host.Trim(), socks.Port),
+                => SessionProxyDecision.Socks5(socks.Host.Trim(), socks.Port, NormalizeUsername(socks.Username)),
             HttpProxyConfig => SessionProxyDecision.Failed(NotWiredMessage),
             SessionProxyConfig session => SessionProxyDecision.Jump(session.SessionId),
             _ => SessionProxyDecision.Failed(NotWiredMessage)
@@ -34,13 +34,17 @@ public static class SessionProxyExit
 
     public static bool IsEndpoint(string? host, int port)
         => !string.IsNullOrWhiteSpace(host) && port is >= 1 and <= 65535;
+
+    public static string? NormalizeUsername(string? username)
+        => string.IsNullOrWhiteSpace(username) ? null : username.Trim();
 }
 
 public abstract record SessionProxyDecision
 {
     public static SessionProxyDecision None() => new NoneDecision();
     public static SessionProxyDecision Failed(string message) => new FailedDecision(message);
-    public static SessionProxyDecision Socks5(string host, int port) => new Socks5Decision(host, port);
+    public static SessionProxyDecision Socks5(string host, int port, string? username = null)
+        => new Socks5Decision(host, port, username);
     public static SessionProxyDecision Jump(Guid sessionId) => new JumpDecision(sessionId);
 }
 
@@ -48,6 +52,6 @@ public sealed record NoneDecision : SessionProxyDecision;
 
 public sealed record FailedDecision(string Message) : SessionProxyDecision;
 
-public sealed record Socks5Decision(string Host, int Port) : SessionProxyDecision;
+public sealed record Socks5Decision(string Host, int Port, string? Username = null) : SessionProxyDecision;
 
 public sealed record JumpDecision(Guid SessionId) : SessionProxyDecision;

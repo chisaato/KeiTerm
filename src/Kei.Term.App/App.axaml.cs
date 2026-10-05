@@ -104,7 +104,8 @@ public partial class App : Application
                 _loggerFactory,
                 hostKeyTrust: hostKeyTrust,
                 proxyRepo: proxyRepo,
-                portForwards: portForwards);
+                portForwards: portForwards,
+                proxySecrets: vault);
             var identityMgrVm = new IdentityManagerViewModel(
                 identityRepo,
                 vault,
@@ -118,7 +119,8 @@ public partial class App : Application
                 editorRepo,
                 proxyRepo,
                 () => mainVm.SnapshotSessionNodes(),
-                () => mainVm.SnapshotSessionTree());
+                () => mainVm.SnapshotSessionTree(),
+                proxySecrets: vault);
 
             var mainWindow = new MainWindow
             {

@@ -53,6 +53,11 @@
                             <TextBox Text="{Binding Name}"
                                      Height="28"
                                      VerticalContentAlignment="Center"/>
+                            <Button Content="{loc:KeiString FontDialog.Open}"
+                                    Click="OnOpenFontDialogClick"
+                                    HorizontalAlignment="Left"
+                                    Height="28"
+                                    Padding="10,0"/>
                         </StackPanel>
 
                         <Separator Background="{DynamicResource Kei.Border}" Height="1"/>

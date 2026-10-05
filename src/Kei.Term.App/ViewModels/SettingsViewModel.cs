@@ -13,6 +13,7 @@ using Kei.Term.Core.Models;
 using Kei.Term.Core.Models.Profiles;
 using Kei.Term.Core.Settings;
 using Kei.Term.Core.Storage;
+using Kei.Term.Core.Vault;
 
 namespace Kei.Term.App.ViewModels;
 
@@ -30,6 +31,8 @@ public partial class SettingsViewModel : ViewModelBase
     public IReadOnlyList<SettingsCategoryItem> Categories { get; private set; }
 
     public ProxySettingsPage? ProxyPage { get; }
+
+    public IProxySecretStore? ProxySecrets { get; }
 
     public Func<IReadOnlyList<TreeNodeBase>>? SessionTreeSnapshot { get; }
 
@@ -69,8 +72,10 @@ public partial class SettingsViewModel : ViewModelBase
         IExternalEditorRepository? editorRepo = null,
         IProxyRepository? proxyRepo = null,
         Func<IReadOnlyList<SessionNode>>? sessionSnapshot = null,
-        Func<IReadOnlyList<TreeNodeBase>>? sessionTree = null)
+        Func<IReadOnlyList<TreeNodeBase>>? sessionTree = null,
+        IProxySecretStore? proxySecrets = null)
     {
+        ProxySecrets = proxySecrets;
         _settingsService = settingsService;
         _profileManager = profileManager ?? new Services.ProfileManagerService(settingsService, dataDirectory);
         _general = new GeneralSettingsPage(dataDirectory);
@@ -81,6 +86,7 @@ public partial class SettingsViewModel : ViewModelBase
         if (proxyRepo != null)
         {
             ProxyPage = new ProxySettingsPage(proxyRepo, sessionSnapshot ?? (() => []));
+            ProxyPage.Secrets = proxySecrets;
             SessionTreeSnapshot = sessionTree;
         }
 
@@ -141,6 +147,7 @@ public partial class SettingsViewModel : ViewModelBase
         // 选择即草稿预览：选择回调交回本 VM 统一广播，但不落盘
         _appearance.SetDraftPreviewHandler(OnTerminalProfileDraftPreview);
 
+        SubscribeExternalFontSize();
         Reload();
     }
 
@@ -193,6 +200,7 @@ public partial class SettingsViewModel : ViewModelBase
         _appearance.FontFamily = current.FontFamily;
         _appearance.FallbackFontFamily = current.TerminalFallbackFontFamily;
         _appearance.FontSize = current.FontSize;
+        RememberSyncedFontSize(current.FontSize);
         _appearance.CursorBlink = current.CursorBlink;
         _appearance.SetTabPlacement(current.TabPlacement);
 
@@ -284,7 +292,13 @@ public partial class SettingsViewModel : ViewModelBase
         settings.TerminalFallbackFontFamily = string.IsNullOrWhiteSpace(_appearance.FallbackFontFamily)
             ? "Noto Sans Mono CJK SC, Source Han Sans HW SC, Microsoft YaHei, monospace"
             : _appearance.FallbackFontFamily.Trim();
-        settings.FontSize = Math.Clamp(_appearance.FontSize, TerminalFontZoom.MinFontSize, TerminalFontZoom.MaxFontSize);
+        // 未手改字号时采用已提交值（含外部缩放），避免打开设置时读到的旧草稿覆盖滚轮结果
+        settings.FontSize = ResolveFontSizeForSave();
+        if (IsFontSizeDraftClean)
+        {
+            ApplySyncedFontSize(settings.FontSize);
+        }
+
         settings.CursorBlink = _appearance.CursorBlink;
         settings.TabPlacement = _appearance.SelectedTabPlacement?.Key ?? "Top";
         settings.ActiveGuiProfileId = _appearance.SelectedGuiProfile?.Id;
@@ -346,6 +360,7 @@ public partial class SettingsViewModel : ViewModelBase
             }
 
             _lastAppliedSettings = CloneSettings(settings);
+            RememberSyncedFontSize(settings.FontSize);
             return true;
         }
         finally

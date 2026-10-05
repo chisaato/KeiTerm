@@ -16,6 +16,7 @@ public static class SchemaMigrations
         new(3, "session_options", ApplySessionOptionsAsync),
         new(4, "proxies", ApplyProxiesAsync),
         new(5, "port_forwards", ApplyPortForwardsAsync),
+        new(6, "proxy_secrets", ApplyProxySecretsAsync),
     ];
 
     // v1 基线：必须幂等，兼容三类库——全新库、user_version=0 的现行库、更早的 credentials 旧库
@@ -296,6 +297,18 @@ public static class SchemaMigrations
         // 表名/列名/定义均为内部常量
         await ExecAsync(conn, tx, $"ALTER TABLE {table} ADD COLUMN {column} {definition};", ct);
     }
+
+    // v6 代理口令。不改 v1–v5。不借用 identities，避免伪造身份去挂 identity_secrets。
+    private static Task ApplyProxySecretsAsync(SqliteConnection conn, SqliteTransaction tx, CancellationToken ct)
+        => ExecAsync(conn, tx, @"
+            CREATE TABLE IF NOT EXISTS proxy_secrets (
+                proxy_id TEXT PRIMARY KEY NOT NULL REFERENCES proxies(id) ON DELETE CASCADE,
+                secrets_blob BLOB NOT NULL,
+                encryption_algorithm TEXT NOT NULL,
+                nonce BLOB,
+                tag BLOB
+            );
+        ", ct);
 
     // v5 端口转发。不改 proxies / proxy_json。外键级联删会话时一并删掉转发。
     private static Task ApplyPortForwardsAsync(SqliteConnection conn, SqliteTransaction tx, CancellationToken ct)

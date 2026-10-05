@@ -170,7 +170,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         Action<Action>? uiDispatch = null,
         HostKeyTrustService? hostKeyTrust = null,
         IProxyRepository? proxyRepo = null,
-        IPortForwardRepository? portForwards = null)
+        IPortForwardRepository? portForwards = null,
+        IProxySecretStore? proxySecrets = null)
     {
         _hostKeyTrust = hostKeyTrust;
         _treeRepo = treeRepo;
@@ -189,6 +190,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
             loggerFactory?.CreateLogger<VaultSessionService>());
         _proxyRepo = proxyRepo;
         _portForwards = portForwards;
+        ProxySecrets = proxySecrets;
         _connections = new ConnectionOrchestrator(
             sshFactory,
             new AuthMaterialCollector(
@@ -203,7 +205,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
             _uiDispatch,
             loggerFactory?.CreateLogger<ConnectionOrchestrator>(),
             _proxyRepo,
-            _portForwards);
+            _portForwards,
+            proxySecrets: proxySecrets,
+            ensureUnlocked: proxySecrets == null ? null : () => VaultSession.EnsureUnlockedAsync());
 
         // 标签集合变化时同步 HasTabs，控制标签条显隐
         Tabs.CollectionChanged += (_, _) => HasTabs = Tabs.Count > 0;
@@ -369,8 +373,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
             tab.ApplyFontSnapshot(snapshot);
         }
 
-        // 与 ToggleSessionManager 相同：即发即存，不阻塞 UI
-        _ = _settingsService.SaveSettingsAsync(settings);
+        // 只提交字号：保存锁内补丁当前对象，不用这次拿到的完整快照覆盖其他字段
+        _ = _settingsService.CommitFontSizeAsync(target);
     }
 
     // 标签请求缩放（Ctrl+滚轮）→ 统一走全局缩放
@@ -401,7 +405,16 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
             tab.IsSelected = tab == value;
         }
         DisconnectCurrentTabCommand.NotifyCanExecuteChanged();
+        OpenTerminalFindCommand.NotifyCanExecuteChanged();
     }
+
+    [RelayCommand(CanExecute = nameof(CanOpenTerminalFind))]
+    private void OpenTerminalFind()
+    {
+        SelectedTab?.OpenFind();
+    }
+
+    private bool CanOpenTerminalFind() => SelectedTab != null;
 
     public async Task InitializeAsync()
     {
@@ -904,6 +917,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         => _proxyRepo == null
             ? Task.FromResult<IReadOnlyList<ProxyProfile>>([])
             : _proxyRepo.GetAllAsync();
+
+    internal IProxySecretStore? ProxySecrets { get; }
 
     internal Task SaveProxyAsync(ProxyProfile proxy)
         => _proxyRepo == null ? Task.CompletedTask : _proxyRepo.SaveAsync(proxy);

@@ -55,12 +55,28 @@ public class SshSessionFactory : ISshSessionFactory
         SshConnectOptions options,
         SshJumpChain? borrowedChain)
     {
-        SshTarget target = BuildTarget(config, methods, options, options.InteractivePrompt, options.Socks5Host, options.Socks5Port);
+        SshTarget target = BuildTarget(
+            config,
+            methods,
+            options,
+            options.InteractivePrompt,
+            options.Socks5Host,
+            options.Socks5Port,
+            options.Socks5Username,
+            options.Socks5Password);
 
         // 借用现成链时无需再构建各跳认证
         List<SshTarget> hops = borrowedChain != null
             ? []
-            : options.JumpHosts.Select(h => BuildTarget(h.Config, h.Methods, options, options.InteractivePrompt, h.Socks5Host, h.Socks5Port)).ToList();
+            : options.JumpHosts.Select(h => BuildTarget(
+                h.Config,
+                h.Methods,
+                options,
+                options.InteractivePrompt,
+                h.Socks5Host,
+                h.Socks5Port,
+                h.Socks5Username,
+                h.Socks5Password)).ToList();
 
         var clientOptions = new SshClientOptions(options.ConnectTimeout, options.KeepAliveInterval, options.HostKeyVerifier);
         return new SshDialer(target, hops, borrowedChain, clientOptions, _logger, options.PortForwards);
@@ -72,7 +88,9 @@ public class SshSessionFactory : ISshSessionFactory
         SshConnectOptions options,
         Func<string, Task<string?>>? interactivePrompt,
         string? socks5Host = null,
-        int socks5Port = 0)
+        int socks5Port = 0,
+        string? socks5Username = null,
+        string? socks5Password = null)
     {
         AuthenticationMethod[] authMethods = SshAuthMethodBuilder.Build(
             config.Username,
@@ -96,7 +114,15 @@ public class SshSessionFactory : ISshSessionFactory
             authMethods.Length,
             string.Join(",", authMethods.Select(m => m.GetType().Name)));
 
-        return new SshTarget(config.Host, config.Port, config.Username, authMethods, socks5Host, socks5Port);
+        return new SshTarget(
+            config.Host,
+            config.Port,
+            config.Username,
+            authMethods,
+            socks5Host,
+            socks5Port,
+            socks5Username,
+            socks5Password);
     }
 }
 

@@ -102,6 +102,7 @@ public partial class TerminalTabViewModel
         TerminalControl terminal = TerminalControlFactory.Create(hooks);
         terminal.FontLinearMetrics = true;
         terminal.FontSubpixelPositioning = true;
+        TerminalKeywordHighlight.Apply(terminal);
         return terminal;
     }
 

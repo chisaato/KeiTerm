@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel;
+using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -10,6 +11,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Kei.Term.App.Helpers;
+using Kei.Term.App.Views.Controls;
 using Kei.Term.App.Logging;
 using Kei.Term.App.ViewModels;
 using Kei.Term.Core.Models;
@@ -72,6 +74,9 @@ public partial class MainWindow : Window
         TabsItemsControl.AddHandler(DragDrop.DragOverEvent, Tab_DragOver);
         TabsItemsControl.AddHandler(DragDrop.DropEvent, Tab_Drop);
 
+        // 隧道阶段吃掉 Ctrl+F，避免终端控件先把按键标成已处理
+        AddHandler(KeyDownEvent, OnTerminalFindKeyDown, RoutingStrategies.Tunnel);
+
         // DataContext 变化时挂接 VM 属性监听（侧栏收起/恢复需要联动列宽）
         PropertyChanged += OnWindowPropertyChanged;
     }
@@ -117,6 +122,40 @@ public partial class MainWindow : Window
         identityMgrVm.VaultKeyInfoLoader = vm.VaultSession.GetVaultKeyInfoAsync;
         identityMgrVm.PersistVaultKeysAsync = vm.VaultSession.PersistVaultKeyImportsAsync;
         vm.TreeRenameStarted += FocusTreeRenameBox;
+    }
+
+    // 终端聚焦时 Window.KeyBindings 到不了。文本框里的 Ctrl+F 留给输入框，不抢走。
+    private void OnTerminalFindKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.F || e.KeyModifiers != KeyModifiers.Control)
+        {
+            return;
+        }
+
+        if (e.Source is TextBox box && !box.Classes.Contains("findQuery"))
+        {
+            return;
+        }
+
+        if (DataContext is not MainViewModel vm || !vm.OpenTerminalFindCommand.CanExecute(null))
+        {
+            return;
+        }
+
+        e.Handled = true;
+        vm.OpenTerminalFindCommand.Execute(null);
+        FocusOpenFindBar();
+    }
+
+    private void FocusOpenFindBar()
+    {
+        foreach (TerminalFindBar bar in this.GetVisualDescendants().OfType<TerminalFindBar>())
+        {
+            if (bar.IsVisible)
+            {
+                bar.FocusQuery();
+            }
+        }
     }
 
     // 只有会话树持有焦点时才吃 F2。文本框、下拉、终端聚焦则放过。

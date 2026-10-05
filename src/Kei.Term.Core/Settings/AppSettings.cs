@@ -128,4 +128,19 @@ public interface ISettingsService
     AppSettings Current { get; }
     Task<AppSettings> LoadSettingsAsync(CancellationToken ct = default);
     Task SaveSettingsAsync(AppSettings settings, CancellationToken ct = default);
+
+    // 只提交字号。默认实现改内存后整对象保存。
+    // 生产实现应在保存锁内补丁当前对象，避免用调用时的完整快照回滚其他字段。
+    Task CommitFontSizeAsync(double fontSize, CancellationToken ct = default)
+    {
+        Current.FontSize = fontSize;
+        return SaveSettingsAsync(Current, ct);
+    }
+}
+
+// 已提交设置的内存值已变化（当前由外部字号提交触发）。
+// 订阅方只同步自己尚未编辑的字段，禁止据此全量重载草稿。
+public interface INotifySettingsCommitted
+{
+    event EventHandler? SettingsCommitted;
 }

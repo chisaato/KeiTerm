@@ -147,6 +147,34 @@ public class TerminalThemeAdapterTests
     }
 
     [Fact]
+    public void ToRoyalTheme_Index16_IsCubeBlack_NotACopyOfAnsi0()
+    {
+        TerminalProfile profile = CreateProfile(ansi0: "#010203");
+
+        TerminalTheme theme = TerminalThemeAdapter.ToRoyalTheme(profile);
+
+        // xterm 色立方第一格是 (0,0,0)，不得把 ANSI 0 再刷一遍
+        Assert.NotEqual(theme.Palette[0], theme.Palette[16]);
+        Assert.Equal(0xFF000000u, theme.Palette[16]);
+    }
+
+    [Fact]
+    public void ToRoyalTheme_Index255_IsXtermGrayRamp_NotAnsiWhite()
+    {
+        TerminalProfile profile = CreateProfile();
+        profile.AnsiColors[15] = "#FFFFFF";
+
+        TerminalTheme theme = TerminalThemeAdapter.ToRoyalTheme(profile);
+
+        // 灰度阶 i=23：8 + 10*23 = 238。不是把 ANSI 白复制到 255。
+        const uint expected = 0xFFEEEEEE;
+        Assert.Equal(expected, theme.Palette[255]);
+        Assert.NotEqual(theme.Palette[15], theme.Palette[255]);
+        Assert.Equal((theme.Palette[255] >> 16) & 0xFF, (theme.Palette[255] >> 8) & 0xFF);
+        Assert.Equal((theme.Palette[255] >> 8) & 0xFF, theme.Palette[255] & 0xFF);
+    }
+
+    [Fact]
     public void TerminalFontSnapshot_CopiesFallbackListInsteadOfAliasingIt()
     {
         List<string> source = ["Cascadia Mono", "Noto Sans Mono"];

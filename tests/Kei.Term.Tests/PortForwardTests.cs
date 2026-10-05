@@ -62,7 +62,8 @@ public class PortForwardTests : IDisposable
         }
 
         var version = await SchemaMigrator.MigrateAsync(new SqliteConnectionFactory(ConnStr));
-        Assert.Equal(5, version);
+        // v4 之后还会跑后续迁移；这里只要求升到当前最新，且不改 proxies。
+        Assert.Equal(SchemaMigrator.LatestVersion, version);
 
         using var check = new SqliteConnection(ConnStr);
         await check.OpenAsync();
