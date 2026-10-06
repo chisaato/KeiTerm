@@ -39,6 +39,29 @@ public partial class GeneralSettingsPage : ViewModelBase
     [ObservableProperty]
     private bool _autoReconnectOnDisconnect;
 
+    // Linux 菜单导出偏好；桌面组件接管后菜单移到全局栏，否则仍显示在窗口内。
+    // 关闭时不导出。改动需重启应用生效。
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsGlobalMenuChecked))]
+    private bool _useNativeGlobalMenu = true;
+
+    // 当前平台是否可切换该开关：只有 Linux/X11 后端存在可关闭的 DBusMenu 导出器。
+    // macOS 走原生 NSMenu 且系统菜单栏为强制，Windows 无全局菜单概念——两者置灰。
+    public bool IsGlobalMenuOptionSupported { get; } = OperatingSystem.IsLinux();
+
+    // 禁用的复选框显示当前平台的行为，同时保留跨平台迁移配置中的 Linux 偏好。
+    public bool IsGlobalMenuChecked
+    {
+        get => IsGlobalMenuOptionSupported ? UseNativeGlobalMenu : OperatingSystem.IsMacOS();
+        set
+        {
+            if (IsGlobalMenuOptionSupported)
+            {
+                UseNativeGlobalMenu = value;
+            }
+        }
+    }
+
     // 树同级排序模式
     public IReadOnlyList<TreeSortOption> TreeSortOptions { get; }
 

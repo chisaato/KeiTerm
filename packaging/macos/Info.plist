@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  KeiTerm macOS .app bundle 描述文件。
+
+  CFBundleName 必须与 App.axaml 的 Application.Name 一致：
+  未打包运行时 macOS 菜单栏取 Application.Name，打包后取本文件的 CFBundleName，
+  两者不一致会导致「关于」菜单与 Dock 名称对不上。
+  CFBundleName 上限 15 字符，超出须改用 CFBundleDisplayName。
+-->
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>KeiTerm</string>
+    <key>CFBundleDisplayName</key>
+    <string>KeiTerm</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.kei.term</string>
+    <key>CFBundleExecutable</key>
+    <string>Kei.Term.App</string>
+    <key>CFBundleIconFile</key>
+    <string>KeiTerm</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0.0</string>
+    <key>CFBundleVersion</key>
+    <string>1.0.0</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>11.0</string>
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.developer-tools</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSPrincipalClass</key>
+    <string>NSApplication</string>
+</dict>
+</plist>

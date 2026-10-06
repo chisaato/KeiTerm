@@ -167,7 +167,7 @@
                                              Text="{Binding ActiveHex, Mode=TwoWay}"
                                              Height="26"
                                              VerticalContentAlignment="Center"
-                                             FontFamily="Cascadia Mono, Consolas, monospace"/>
+                                             FontFamily="{DynamicResource Kei.Font.Mono}"/>
                                     <Button Grid.Column="4"
                                             Classes="colorSwatch"
                                             Width="28" Height="26"

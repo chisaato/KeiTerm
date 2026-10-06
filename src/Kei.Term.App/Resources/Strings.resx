@@ -390,6 +390,15 @@
   <data name="Settings.General.AutoReconnectTip" xml:space="preserve">
     <value>只在链路意外结束时于原标签重连。不含交互式认证、2FA 和用户主动断开。</value>
   </data>
+  <data name="Settings.General.UseNativeGlobalMenu" xml:space="preserve">
+    <value>使用系统全局菜单栏</value>
+  </data>
+  <data name="Settings.General.UseNativeGlobalMenuTip" xml:space="preserve">
+    <value>Linux 桌面需先安装并配置全局菜单组件。开启后由该组件接管菜单；未接管时保留窗口内菜单。关闭后始终显示窗口内菜单。保存后需重启应用。</value>
+  </data>
+  <data name="Settings.General.UseNativeGlobalMenuUnsupportedTip" xml:space="preserve">
+    <value>此选项仅可在 Linux 上切换。macOS 始终使用系统菜单栏；Windows 使用窗口内菜单栏。</value>
+  </data>
   <data name="Settings.General.TreeSortSection" xml:space="preserve">
     <value>会话树排序规则</value>
   </data>

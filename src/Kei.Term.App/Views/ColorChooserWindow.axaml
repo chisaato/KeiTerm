@@ -146,7 +146,7 @@
                             <TextBox Text="{Binding Hex, Mode=TwoWay}"
                                      Height="26"
                                      FontSize="11"
-                                     FontFamily="Cascadia Mono, Consolas, monospace"
+                                     FontFamily="{DynamicResource Kei.Font.Mono}"
                                      HorizontalContentAlignment="Center"
                                      VerticalContentAlignment="Center"/>
                         </StackPanel>
