@@ -350,7 +350,7 @@
             <!-- 右：主内容区（标签条 → 终端区 → 撰写栏） -->
             <Grid x:Name="RightContentGrid" Grid.Column="2" RowDefinitions="Auto,*,Auto">
 
-                <!-- 标签条：状态指示竖条 + 标题 + 关闭；无标签时整行隐藏 -->
+                <!-- 顶层全局连接标签条：状态指示竖条 + 标题 + 关闭；无标签时整行隐藏 -->
                 <Border x:Name="TabsBarBorder"
                         Grid.Row="0"
                         Background="{DynamicResource Kei.Bg.Panel}"
@@ -391,13 +391,11 @@
                                             </ContextMenu>
                                         </Button.ContextMenu>
                                         <StackPanel Orientation="Horizontal" Spacing="6" Margin="10,5">
-                                            <!-- SecureCRT 风格 3px 宽状态指示竖条，替代原圆点 -->
+                                            <!-- SecureCRT 风格 3px 宽状态指示竖条 -->
                                             <Border Width="3" Height="16" CornerRadius="1" VerticalAlignment="Center"
                                                     Background="{Binding State, Converter={StaticResource ConnectionStateBrush}}"/>
-                                            <!-- 远端标题可能很长（如 byobu 的 user@host (ip) - byobu）：限宽省略，完整内容见悬停提示 -->
                                             <TextBlock Classes="tabTitle" Text="{Binding Title}" VerticalAlignment="Center" FontSize="12"
                                                        MaxWidth="220" TextTrimming="CharacterEllipsis"/>
-                                            <!-- 后台标签有新输出 / 响铃 -->
                                             <Ellipse Width="6" Height="6" VerticalAlignment="Center"
                                                      Fill="{DynamicResource Kei.Accent}"
                                                      IsVisible="{Binding HasActivity}"/>
@@ -414,87 +412,15 @@
                     </ScrollViewer>
                 </Border>
 
-                <!-- 终端区：无标签时纯色填充，无任何文字 -->
+                <!-- 连接内容区：无标签时纯色填充，有选中标签时展示复合终端+SFTP视图 -->
                 <Panel x:Name="TerminalContainer" Grid.Row="1">
                     <Border Background="{DynamicResource Kei.Bg.Window}"
                             IsVisible="{Binding SelectedTab, Converter={x:Static ObjectConverters.IsNull}}"/>
-                    <!-- 终端区：无标签时纯色填充，有标签时通过 ItemsControl 单独承载每个标签的 Terminal 实例，避免 ContentControl 切换带来的卸载与焦点失效 -->
-                    <ItemsControl ItemsSource="{Binding Tabs}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <Panel/>
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate DataType="vm:TerminalTabViewModel">
-                                <Grid IsVisible="{Binding IsSelected}">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition>
-                                            <ColumnDefinition.Width>
-                                                <MultiBinding Converter="{x:Static conv:FileManagerColumnWidthConverter.Instance}" ConverterParameter="Left">
-                                                    <Binding Path="IsFileManagerVisible"/>
-                                                    <Binding Path="IsFileManagerOnLeft"/>
-                                                </MultiBinding>
-                                            </ColumnDefinition.Width>
-                                        </ColumnDefinition>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition>
-                                            <ColumnDefinition.Width>
-                                                <MultiBinding Converter="{x:Static conv:FileManagerColumnWidthConverter.Instance}" ConverterParameter="Right">
-                                                    <Binding Path="IsFileManagerVisible"/>
-                                                    <Binding Path="IsFileManagerOnLeft"/>
-                                                </MultiBinding>
-                                            </ColumnDefinition.Width>
-                                        </ColumnDefinition>
-                                    </Grid.ColumnDefinitions>
-
-                                    <!-- 终端控件：根据 IsFileManagerOnLeft 动态停靠在 Column 0 或 Column 2。
-                                         外层 ScrollViewer 提供回滚滚动条（TerminalControl 实现 ILogicalScrollable）；
-                                         底色取配色背景，覆盖网格贴底后顶部的余量区域 -->
-                                    <Border Grid.Column="{Binding IsFileManagerOnLeft, Converter={x:Static conv:FileManagerDockConverter.Instance}, ConverterParameter=Terminal}"
-                                            Background="{Binding TerminalBackground}">
-                                        <Border.ContextMenu>
-                                            <ContextMenu>
-                                                <MenuItem Header="{loc:KeiString Terminal.Menu.Copy}" Command="{Binding CopySelectionCommand}"/>
-                                                <MenuItem Header="{loc:KeiString Terminal.Menu.Paste}" Command="{Binding PasteToTerminalCommand}"/>
-                                                <Separator/>
-                                                <MenuItem Header="{loc:KeiString Terminal.Menu.SelectAll}" Command="{Binding SelectAllTerminalTextCommand}"/>
-                                                <MenuItem Header="{loc:KeiString Terminal.Menu.Clear}" Command="{Binding ClearTerminalScreenCommand}"/>
-                                                <MenuItem Header="{loc:KeiString Terminal.Menu.ClearScrollback}" Command="{Binding ClearTerminalScrollbackCommand}"/>
-                                                <Separator/>
-                                                <MenuItem Header="{loc:KeiString Terminal.Find.Menu}" Command="{Binding OpenFindCommand}"/>
-                                            </ContextMenu>
-                                        </Border.ContextMenu>
-                                        <Grid>
-                                            <ScrollViewer Classes="terminalScroll"
-                                                          Content="{Binding Terminal}"
-                                                          Background="Transparent"
-                                                          AllowAutoHide="False"
-                                                          VerticalScrollBarVisibility="Visible"
-                                                          HorizontalScrollBarVisibility="Disabled"/>
-                                            <controls:TerminalFindBar VerticalAlignment="Top"
-                                                                      HorizontalAlignment="Right"
-                                                                      Margin="8"/>
-                                        </Grid>
-                                    </Border>
-
-                                    <!-- 分割条：固定在 Column 1，仅在文件管理器侧栏展开时呈现 -->
-                                    <GridSplitter Grid.Column="1" Width="4"
-                                                  Background="{DynamicResource Kei.Bg.PanelAlt}"
-                                                  ResizeDirection="Columns"
-                                                  IsVisible="{Binding IsFileManagerVisible}"/>
-
-                                    <!-- 文件管理器侧栏视图：根据 IsFileManagerOnLeft 动态停靠在 Column 0 或 Column 2 -->
-                                    <views:RemoteFileManagerView Grid.Column="{Binding $parent[Grid].((vm:TerminalTabViewModel)DataContext).IsFileManagerOnLeft, Converter={x:Static conv:FileManagerDockConverter.Instance}, ConverterParameter=FileManager}"
-                                                                 DataContext="{Binding FileManager}"
-                                                                 IsVisible="{Binding $parent[Grid].((vm:TerminalTabViewModel)DataContext).IsFileManagerVisible}"/>
-                                </Grid>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                    <views:TerminalConnectionView DataContext="{Binding SelectedTab}"
+                                                  IsVisible="{Binding $parent[Window].((vm:MainViewModel)DataContext).HasTabs}"/>
                 </Panel>
 
-                <!-- Row2 撰写栏：显示条件 = 撰写栏开关打开且有选中标签 -->
+                <!-- 撰写栏：显示条件 = 撰写栏开关打开且有选中标签 -->
                 <Border Grid.Row="2"
                         Background="{DynamicResource Kei.Bg.PanelAlt}"
                         BorderBrush="{DynamicResource Kei.Border}"

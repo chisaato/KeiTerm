@@ -41,13 +41,6 @@ public partial class MainWindow : Window
     private PointerPressedEventArgs? _dragPressedArgs;
     private Point _dragStart;
 
-    // 标签栏拖拽状态
-    private TerminalTabViewModel? _dragTab;
-    private TerminalTabViewModel? _activeDraggedTab;
-    private PointerPressedEventArgs? _dragTabPressedArgs;
-    private Point _dragTabStart;
-    private bool _isDraggingTab;
-
     public MainWindow()
     {
         InitializeComponent();
@@ -66,13 +59,6 @@ public partial class MainWindow : Window
         SessionTree.AddHandler(TreeViewItem.CollapsedEvent, Tree_ItemCollapsed);
         SessionTree.AddHandler(KeyDownEvent, Tree_KeyDown, RoutingStrategies.Tunnel, handledEventsToo: true);
         SessionTree.AddHandler(LostFocusEvent, Tree_RenameLostFocus, RoutingStrategies.Bubble);
-
-        // 标签栏拖拽与点击处理：在 TabsItemsControl 容器上附加事件
-        TabsItemsControl.AddHandler(PointerPressedEvent, Tab_PointerPressed, RoutingStrategies.Tunnel | RoutingStrategies.Bubble, handledEventsToo: true);
-        TabsItemsControl.AddHandler(Button.ClickEvent, Tab_ButtonClicked, RoutingStrategies.Bubble, handledEventsToo: true);
-        TabsItemsControl.AddHandler(PointerMovedEvent, Tab_PointerMoved, RoutingStrategies.Tunnel | RoutingStrategies.Bubble, handledEventsToo: true);
-        TabsItemsControl.AddHandler(DragDrop.DragOverEvent, Tab_DragOver);
-        TabsItemsControl.AddHandler(DragDrop.DropEvent, Tab_Drop);
 
         // 隧道阶段吃掉 Ctrl+F，避免终端控件先把按键标成已处理
         AddHandler(KeyDownEvent, OnTerminalFindKeyDown, RoutingStrategies.Tunnel);
@@ -487,167 +473,6 @@ public partial class MainWindow : Window
         _ = vm.MoveNodeToAsync(draggedId, newParentId);
     }
 
-    // ==========================================
-    // 标签栏拖拽重排 (Tab Reordering)
-    // ==========================================
-
-    private void Tab_PointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        _dragTab = null;
-        _dragTabPressedArgs = null;
-
-        // 中键点击关闭标签（浏览器 / SecureCRT 习惯）
-        if (e.GetCurrentPoint(TabsItemsControl).Properties.IsMiddleButtonPressed)
-        {
-            if (DataContext is MainViewModel mainVm && FindTabViewModelFromVisual(e.Source as Visual) is { } middleTab)
-            {
-                e.Handled = true;
-                _ = mainVm.CloseTabCommand.ExecuteAsync(middleTab);
-            }
-
-            return;
-        }
-
-        // 仅处理鼠标左键按下
-        if (!e.GetCurrentPoint(TabsItemsControl).Properties.IsLeftButtonPressed)
-        {
-            return;
-        }
-
-        // 排除关闭按钮点击触发的拖拽
-        if (e.Source is Visual sourceVisual)
-        {
-            var btn = sourceVisual.FindAncestorOfType<Button>(includeSelf: true);
-            if (btn != null && btn.Classes.Contains("closeBtn"))
-            {
-                return;
-            }
-        }
-
-        // 寻找命中的 TerminalTabViewModel
-        var tabVm = FindTabViewModelFromVisual(e.Source as Visual);
-        if (tabVm != null)
-        {
-            _dragTab = tabVm;
-            _dragTabPressedArgs = e;
-            _dragTabStart = e.GetPosition(TabsItemsControl);
-        }
-    }
-
-    private async void Tab_PointerMoved(object? sender, PointerEventArgs e)
-    {
-        if (_isDraggingTab
-            || _dragTab == null
-            || _dragTabPressedArgs == null
-            || !e.GetCurrentPoint(TabsItemsControl).Properties.IsLeftButtonPressed)
-        {
-            return;
-        }
-
-        var currentPos = e.GetPosition(TabsItemsControl);
-        // 水平位移阈值 >= 6px 启动拖拽，防止普通点击切换标签被拦截
-        if (Math.Abs(currentPos.X - _dragTabStart.X) < 6)
-        {
-            return;
-        }
-
-        var pressedArgs = _dragTabPressedArgs;
-        var tab = _dragTab;
-        _activeDraggedTab = tab;
-        _dragTab = null;
-        _dragTabPressedArgs = null;
-        _isDraggingTab = true;
-
-        try
-        {
-            var transfer = new DataTransfer();
-            transfer.Add(DataTransferItem.CreateText($"tab:{tab.Title}"));
-            await DragDrop.DoDragDropAsync(pressedArgs, transfer, DragDropEffects.Move);
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Tab DoDragDropAsync 异常");
-        }
-        finally
-        {
-            _isDraggingTab = false;
-            _activeDraggedTab = null;
-        }
-    }
-
-    private void Tab_DragOver(object? sender, DragEventArgs e)
-    {
-        if (DataContext is not MainViewModel vm || !_isDraggingTab)
-        {
-            e.DragEffects = DragDropEffects.None;
-            return;
-        }
-
-        var targetTab = FindTabViewModelFromVisual(e.Source as Visual);
-        if (targetTab != null && targetTab != _activeDraggedTab)
-        {
-            e.DragEffects = DragDropEffects.Move;
-            e.Handled = true;
-        }
-        else
-        {
-            e.DragEffects = DragDropEffects.None;
-        }
-    }
-
-    private void Tab_Drop(object? sender, DragEventArgs e)
-    {
-        if (DataContext is not MainViewModel vm)
-        {
-            return;
-        }
-
-        var targetTab = FindTabViewModelFromVisual(e.Source as Visual);
-        var sourceTab = _activeDraggedTab ?? vm.SelectedTab;
-
-        if (targetTab != null && sourceTab != null && targetTab != sourceTab)
-        {
-            var fromIdx = vm.Tabs.IndexOf(sourceTab);
-            var toIdx = vm.Tabs.IndexOf(targetTab);
-            if (fromIdx >= 0 && toIdx >= 0)
-            {
-                vm.MoveTab(fromIdx, toIdx);
-                e.DragEffects = DragDropEffects.Move;
-                e.Handled = true;
-            }
-        }
-    }
-
-    private void Tab_ButtonClicked(object? sender, RoutedEventArgs e)
-    {
-        // 显式拦截 ✕ 关闭按钮点击，阻止事件冒泡到外层 tabItem 切换标签，并直接触发关闭
-        if (e.Source is Visual visual)
-        {
-            var btn = visual.FindAncestorOfType<Button>(includeSelf: true);
-            if (btn != null && btn.Classes.Contains("closeBtn"))
-            {
-                e.Handled = true;
-                if (DataContext is MainViewModel vm && btn.DataContext is TerminalTabViewModel tab)
-                {
-                    _ = vm.CloseTabCommand.ExecuteAsync(tab);
-                }
-            }
-        }
-    }
-
-    private static TerminalTabViewModel? FindTabViewModelFromVisual(Visual? visual)
-    {
-        while (visual != null)
-        {
-            if (visual.DataContext is TerminalTabViewModel tab)
-            {
-                return tab;
-            }
-            visual = visual.GetVisualParent();
-        }
-        return null;
-    }
-
     // 双击会话节点直接连接（与右键菜单"连接"行为一致）
     private void Tree_DoubleTapped(object? sender, TappedEventArgs e)
     {
@@ -864,9 +689,7 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>
-    /// Konsole 风格标签条上下切换：调整 Grid.Row 及 RowDefinition 高度，绝不重新实例化终端控件！
-    /// </summary>
+    // 全局连接标签栏切到顶部或底部，调整 Row 及边框
     public void UpdateTabPlacement(Kei.Term.Core.Models.Profiles.TabPlacement placement)
     {
         if (TabsBarBorder == null || TerminalContainer == null || RightContentGrid == null) return;

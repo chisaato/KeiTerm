@@ -16,6 +16,10 @@
     <PackageReference Include="Avalonia.Desktop" Version="12.1.2" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.2" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.2" />
+    <!-- Dock 实验锁定 12.1.0.6。官方 Dock.Avalonia 最低 Avalonia 为 12.1.1，此处不升级也不降级现有 Avalonia 12.1.2。主题入口由后续任务接入。 -->
+    <PackageReference Include="Dock.Avalonia" Version="12.1.0.6" />
+    <PackageReference Include="Dock.Avalonia.Themes.Fluent" Version="12.1.0.6" />
+    <PackageReference Include="Dock.Model.Mvvm" Version="12.1.0.6" />
     <PackageReference Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.3">
       <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
       <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>

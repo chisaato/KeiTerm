@@ -1,0 +1,136 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Kei.Term.App.ViewModels"
+             xmlns:views="using:Kei.Term.App.Views"
+             xmlns:controls="using:Kei.Term.App.Views.Controls"
+             xmlns:conv="using:Kei.Term.App.Converters"
+             xmlns:loc="using:Kei.Term.App.Helpers"
+             x:Class="Kei.Term.App.Views.TerminalConnectionView"
+             x:DataType="vm:TerminalTabViewModel"
+             HorizontalAlignment="Stretch"
+             VerticalAlignment="Stretch"
+             Focusable="True">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition>
+                <ColumnDefinition.Width>
+                    <MultiBinding Converter="{x:Static conv:FileManagerColumnWidthConverter.Instance}" ConverterParameter="Left">
+                        <Binding Path="IsFileManagerVisible"/>
+                        <Binding Path="IsFileManagerOnLeft"/>
+                    </MultiBinding>
+                </ColumnDefinition.Width>
+            </ColumnDefinition>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition>
+                <ColumnDefinition.Width>
+                    <MultiBinding Converter="{x:Static conv:FileManagerColumnWidthConverter.Instance}" ConverterParameter="Right">
+                        <Binding Path="IsFileManagerVisible"/>
+                        <Binding Path="IsFileManagerOnLeft"/>
+                    </MultiBinding>
+                </ColumnDefinition.Width>
+            </ColumnDefinition>
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Column="{Binding IsFileManagerOnLeft, Converter={x:Static conv:FileManagerDockConverter.Instance}, ConverterParameter=Terminal}"
+                Background="{Binding TerminalBackground}">
+            <Border.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="{loc:KeiString Terminal.Menu.Copy}" Command="{Binding CopySelectionCommand}"/>
+                    <MenuItem Header="{loc:KeiString Terminal.Menu.Paste}" Command="{Binding PasteToTerminalCommand}"/>
+                    <Separator/>
+                    <MenuItem Header="{loc:KeiString Terminal.Menu.SelectAll}" Command="{Binding SelectAllTerminalTextCommand}"/>
+                    <MenuItem Header="{loc:KeiString Terminal.Menu.Clear}" Command="{Binding ClearTerminalScreenCommand}"/>
+                    <MenuItem Header="{loc:KeiString Terminal.Menu.ClearScrollback}" Command="{Binding ClearTerminalScrollbackCommand}"/>
+                    <Separator/>
+                    <MenuItem Header="{loc:KeiString Terminal.Find.Menu}" Command="{Binding OpenFindCommand}"/>
+                </ContextMenu>
+            </Border.ContextMenu>
+            <Grid RowDefinitions="Auto,*">
+                <!-- 终端面板顶部对称标题条：高 28px，与右侧文件管理器标题条完全呼应 -->
+                <Border Grid.Row="0"
+                        Height="28"
+                        Background="{DynamicResource Kei.Bg.PanelAlt}"
+                        BorderBrush="{DynamicResource Kei.Border}"
+                        BorderThickness="0,0,0,1"
+                        Padding="8,4">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <!-- 左侧：终端图标与“终端”标题 -->
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            <PathIcon Data="{DynamicResource Kei.Icon.Terminal}"
+                                      Width="13" Height="13"
+                                      Foreground="{DynamicResource Kei.Accent}"/>
+                            <TextBlock Text="终端"
+                                       Foreground="{DynamicResource Kei.Text.Primary}"
+                                       FontSize="12"
+                                       FontWeight="SemiBold"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <!-- 右侧：快捷工具操作栏（查找、复制、粘贴、清屏、折叠/展开文件管理器） -->
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+                            <Button Classes="iconBtn"
+                                    Width="24" Height="24"
+                                    Command="{Binding OpenFindCommand}"
+                                    ToolTip.Tip="查找 (Ctrl+F)">
+                                <PathIcon Data="{DynamicResource Kei.Icon.Search}" Width="11" Height="11"/>
+                            </Button>
+                            <Button Classes="iconBtn"
+                                    Width="24" Height="24"
+                                    Command="{Binding CopySelectionCommand}"
+                                    ToolTip.Tip="复制">
+                                <PathIcon Data="{DynamicResource Kei.Icon.Copy}" Width="11" Height="11"/>
+                            </Button>
+                            <Button Classes="iconBtn"
+                                    Width="24" Height="24"
+                                    Command="{Binding PasteToTerminalCommand}"
+                                    ToolTip.Tip="粘贴">
+                                <PathIcon Data="{DynamicResource Kei.Icon.Paste}" Width="11" Height="11"/>
+                            </Button>
+                            <Button Classes="iconBtn"
+                                    Width="24" Height="24"
+                                    Command="{Binding ClearTerminalScreenCommand}"
+                                    ToolTip.Tip="清屏">
+                                <PathIcon Data="{DynamicResource Kei.Icon.Trash}" Width="11" Height="11"/>
+                            </Button>
+                            <Rectangle Width="1" Height="12"
+                                       Fill="{DynamicResource Kei.Border}"
+                                       Margin="4,0"/>
+                            <Button Classes="iconBtn"
+                                    Width="24" Height="24"
+                                    Command="{Binding ToggleFileManagerCommand}"
+                                    ToolTip.Tip="文件管理">
+                                <PathIcon Data="{DynamicResource Kei.Icon.Folder}" Width="12" Height="12"/>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- 终端主体与查找悬浮条 -->
+                <Grid Grid.Row="1">
+                    <ScrollViewer x:Name="TerminalScroll"
+                                  Classes="terminalScroll"
+                                  Background="Transparent"
+                                  AllowAutoHide="False"
+                                  VerticalScrollBarVisibility="Visible"
+                                  HorizontalScrollBarVisibility="Disabled"/>
+                    <controls:TerminalFindBar VerticalAlignment="Top"
+                                              HorizontalAlignment="Right"
+                                              Margin="8"/>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <GridSplitter Grid.Column="1" Width="4"
+                      Background="{DynamicResource Kei.Bg.PanelAlt}"
+                      ResizeDirection="Columns"
+                      IsVisible="{Binding IsFileManagerVisible}"/>
+
+        <Border x:Name="SftpHost"
+                Grid.Column="{Binding IsFileManagerOnLeft, Converter={x:Static conv:FileManagerDockConverter.Instance}, ConverterParameter=FileManager}"
+                Focusable="True"
+                Background="Transparent"
+                IsVisible="{Binding IsFileManagerVisible}">
+            <views:RemoteFileManagerView DataContext="{Binding FileManager}"/>
+        </Border>
+    </Grid>
+</UserControl>

@@ -11,7 +11,9 @@ using System.Threading.Tasks;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using Kei.Term.App.Helpers;
+using Kei.Term.App.Workspaces;
 using Kei.Term.App.Logging;
 using Kei.Term.App.Models;
 using Kei.Term.App.Services;
@@ -51,6 +53,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
     private readonly Action<Action> _uiDispatch;
 
     private int _disposed;
+    private bool _syncingFromWorkspace;
 
     // 供测试观察配色刷新是否被触发（生产无副作用）
     public int TerminalProfileRefreshCount { get; private set; }
@@ -127,9 +130,15 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
     [ObservableProperty]
     private bool _hasNodes;
 
-    // 是否存在终端标签（控制标签条显隐）
+    // 是否存在终端标签（控制空态与撰写栏）
     [ObservableProperty]
     private bool _hasTabs;
+
+    // 停靠树是连接拓扑。Tabs 与协调器全集是同一个集合。
+    public WorkspaceCoordinator Workspace { get; }
+
+    // 视图在移除文档前释放对应的复合视图缓存。
+    public event Action<TerminalTabViewModel>? TabReleasing;
 
     // 标签栏停靠位置（Top 置顶 / Bottom 置底）
     [ObservableProperty]
@@ -209,8 +218,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
             proxySecrets: proxySecrets,
             ensureUnlocked: proxySecrets == null ? null : () => VaultSession.EnsureUnlockedAsync());
 
-        // 标签集合变化时同步 HasTabs，控制标签条显隐
-        Tabs.CollectionChanged += (_, _) => HasTabs = Tabs.Count > 0;
+        Workspace = new WorkspaceCoordinator();
+        Tabs = Workspace.AllTabs;
+        WeakReferenceMessenger.Default.Register<WorkspaceActiveTabChangedMessage>(this, OnWorkspaceActiveTabChanged);
+        WeakReferenceMessenger.Default.Register<WorkspaceCloseRequestedMessage>(this, OnWorkspaceCloseRequested);
 
         // 配色变更单点订阅：不为每个标签单独挂钩子
         if (_profileManager != null)
@@ -322,7 +333,57 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
             _lockTimer = null;
         }
 
+        WeakReferenceMessenger.Default.UnregisterAll(this);
+        Workspace.Dispose();
         return ValueTask.CompletedTask;
+    }
+
+    partial void OnTabsChanged(ObservableCollection<TerminalTabViewModel> value)
+    {
+        value.CollectionChanged += (_, _) => HasTabs = value.Count > 0;
+        HasTabs = value.Count > 0;
+    }
+
+    private void OnWorkspaceActiveTabChanged(object recipient, WorkspaceActiveTabChangedMessage message)
+    {
+        if (!ReferenceEquals(message.Source, Workspace) || _disposed != 0)
+        {
+            return;
+        }
+
+        if (ReferenceEquals(SelectedTab, message.Tab))
+        {
+            return;
+        }
+
+        _syncingFromWorkspace = true;
+        try
+        {
+            SelectedTab = message.Tab;
+        }
+        finally
+        {
+            _syncingFromWorkspace = false;
+        }
+    }
+
+    private void OnWorkspaceCloseRequested(object recipient, WorkspaceCloseRequestedMessage message)
+    {
+        if (!ReferenceEquals(message.Source, Workspace) || _disposed != 0)
+        {
+            return;
+        }
+
+        TerminalTabViewModel tab = message.Tab;
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (_disposed != 0)
+            {
+                return;
+            }
+
+            _ = CloseTabCommand.ExecuteAsync(tab);
+        });
     }
 
     // 有效配色解析：会话显式 ID → 全局默认 → 内置默认（管理器缺省时直接内置）
@@ -399,13 +460,20 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
 
     partial void OnSelectedTabChanged(TerminalTabViewModel? value)
     {
-        // 同步每个标签的选中态，供标签条样式使用
+        // IsSelected 只表示全局活动连接，不决定其他分屏组是否可见。
         foreach (var tab in Tabs)
         {
-            tab.IsSelected = tab == value;
+            tab.IsSelected = ReferenceEquals(tab, value);
         }
+
         DisconnectCurrentTabCommand.NotifyCanExecuteChanged();
         OpenTerminalFindCommand.NotifyCanExecuteChanged();
+        if (_syncingFromWorkspace || _disposed != 0 || value == null)
+        {
+            return;
+        }
+
+        Workspace.Activate(value);
     }
 
     [RelayCommand(CanExecute = nameof(CanOpenTerminalFind))]
@@ -1242,13 +1310,12 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         // 构造只记录状态，此处显式注入配色（新标签立即生效）
         tab.ApplyTerminalProfile(effectiveProfile);
         tab.BindConfig(config);
-        Tabs.Add(tab);
         tab.CloseRequested += OnTabCloseRequested;
         tab.AutoReconnectEnabled = () => _settingsService.Current.AutoReconnectOnDisconnect;
         tab.UnexpectedDisconnectAsync = OnUnexpectedDisconnectAsync;
         tab.ActionRequested += OnTabActionRequested;
         tab.FontZoomRequested += OnTabFontZoomRequested;
-        SelectedTab = tab;
+        Workspace.AddTab(tab);
         return CreateConnectionTarget(tab);
     }
 
@@ -1272,10 +1339,24 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         }
 
         var selected = SelectedTab;
+        TerminalTabViewModel tab = Tabs[fromIndex];
         Tabs.Move(fromIndex, toIndex);
-        if (selected != null)
+        Workspace.ReorderTab(tab, toIndex);
+        if (selected != null && !ReferenceEquals(SelectedTab, selected))
         {
             SelectedTab = selected;
+        }
+    }
+
+    private async Task DisposeClosedTabAsync(TerminalTabViewModel tab)
+    {
+        try
+        {
+            await tab.DisposeAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "后台释放终端标签异常 标题={Title}", tab.Title);
         }
     }
 
@@ -1292,38 +1373,13 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         tab.CloseRequested -= OnTabCloseRequested;
         tab.ActionRequested -= OnTabActionRequested;
         tab.FontZoomRequested -= OnTabFontZoomRequested;
-        var isCurrentSelected = SelectedTab == tab;
-        var tabIndex = Tabs.IndexOf(tab);
+        TabReleasing?.Invoke(tab);
+        // 先移出停靠树。选中回退由协调器发活动消息，这里不重复挑下一个标签。
+        Workspace.RemoveTab(tab);
 
-        // 先从集合中移除并立即更新选中态，确保 UI 响应无阻塞
-        Tabs.Remove(tab);
-
-        if (isCurrentSelected)
-        {
-            // 优先切到同位置或前一个标签，若均无则切至末尾或 null
-            if (Tabs.Count > 0)
-            {
-                var nextIndex = Math.Clamp(tabIndex - 1, 0, Tabs.Count - 1);
-                SelectedTab = Tabs[nextIndex];
-            }
-            else
-            {
-                SelectedTab = null;
-            }
-        }
-
-        // 后台异步清理底层会话与网络资源，避免任何网络读取阻塞导致 UI 卡顿
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await tab.DisposeAsync();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "后台释放终端标签异常 标题={Title}", tab.Title);
-            }
-        });
+        // 终端控件只能在 UI 线程退订。投递后立即返回，避免关闭命令本身卡住。
+        TerminalTabViewModel closing = tab;
+        Dispatcher.UIThread.Post(() => _ = DisposeClosedTabAsync(closing));
 
         return Task.CompletedTask;
     });
