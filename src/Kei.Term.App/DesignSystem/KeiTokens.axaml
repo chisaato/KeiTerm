@@ -77,4 +77,16 @@
     <x:Double x:Key="Kei.Tree.IconSize">14</x:Double>
     <x:Double x:Key="Kei.Tree.Indent">16</x:Double>
     <SolidColorBrush x:Key="Kei.Tree.Line" Color="{StaticResource Kei.Color.Border.Subtle}"/>
+
+    <!-- 跨平台界面字体栈。字体族按序回退，缺失项自动跳过，因此三平台字体可安全并列：
+         macOS -> PingFang SC（系统中文界面字体）
+         Windows -> Noto Sans CJK SC / 微软雅黑
+         Linux -> Noto Sans CJK SC / 思源黑体
+         注意：此前各窗口硬编码的 Noto Sans CJK SC 优先栈在 macOS 上会整串落空并回退到
+         Helvetica（无中文字形），等于未声明字体；故把 macOS 字体提到最前。 -->
+    <FontFamily x:Key="Kei.Font.UI">PingFang SC, Hiragino Sans GB, Noto Sans CJK SC, Source Han Sans SC, Microsoft YaHei UI, Segoe UI, sans-serif</FontFamily>
+
+    <!-- 跨平台等宽字体栈（路径、指纹、权限列等需要对齐的场景）：
+         macOS -> SF Mono / Menlo；Windows -> Cascadia Mono / Consolas；Linux -> Noto Sans Mono -->
+    <FontFamily x:Key="Kei.Font.Mono">SF Mono, Menlo, JetBrainsMonoNL Nerd Font Mono, Cascadia Mono, Consolas, Noto Sans Mono, monospace</FontFamily>
 </ResourceDictionary>

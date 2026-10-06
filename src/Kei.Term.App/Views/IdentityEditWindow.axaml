@@ -12,7 +12,7 @@
         MinWidth="540" MinHeight="480"
         WindowStartupLocation="CenterOwner"
         CanResize="True"
-        FontFamily="Noto Sans CJK SC, Source Han Sans SC, Microsoft YaHei UI, Segoe UI, sans-serif"
+        FontFamily="{DynamicResource Kei.Font.UI}"
         RequestedThemeVariant="Dark"
         Background="{DynamicResource Kei.Bg.Window}">
 
@@ -195,7 +195,7 @@
                                                                      Text="{Binding VaultKeyFingerprint}"
                                                                      Foreground="{DynamicResource Kei.Session.Foreground}"
                                                                      FontSize="11"
-                                                                     FontFamily="Cascadia Mono, Consolas, monospace"
+                                                                     FontFamily="{DynamicResource Kei.Font.Mono}"
                                                                      TextWrapping="Wrap"
                                                                      VerticalAlignment="Center"
                                                                      Margin="0,4,0,0"

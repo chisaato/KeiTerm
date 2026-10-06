@@ -14,7 +14,7 @@
         Width="980" Height="660" MinWidth="880" MinHeight="580"
         WindowStartupLocation="CenterOwner"
         CanResize="True"
-        FontFamily="Noto Sans CJK SC, Source Han Sans SC, Microsoft YaHei UI, Segoe UI, sans-serif"
+        FontFamily="{DynamicResource Kei.Font.UI}"
         RequestedThemeVariant="Dark"
         Background="{DynamicResource Kei.Bg.Window}">
 
@@ -61,6 +61,19 @@
                                               ToolTip.Tip="{loc:KeiString Settings.General.ConfirmBeforeCloseTip}"/>
                                     <CheckBox IsChecked="{Binding AutoReconnectOnDisconnect}" Content="{loc:KeiString Settings.General.AutoReconnect}"
                                               ToolTip.Tip="{loc:KeiString Settings.General.AutoReconnectTip}"/>
+                                    <!-- Linux 可切换全局菜单；平台限制和重启要求直接展示。 -->
+                                    <StackPanel Spacing="6">
+                                        <CheckBox IsChecked="{Binding IsGlobalMenuChecked}" Content="{loc:KeiString Settings.General.UseNativeGlobalMenu}"
+                                                  IsEnabled="{Binding IsGlobalMenuOptionSupported}"/>
+                                        <TextBlock Text="{loc:KeiString Settings.General.UseNativeGlobalMenuTip}"
+                                                   IsVisible="{Binding IsGlobalMenuOptionSupported}"
+                                                   FontSize="12" TextWrapping="Wrap" Margin="24,0,0,0"
+                                                   Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                        <TextBlock Text="{loc:KeiString Settings.General.UseNativeGlobalMenuUnsupportedTip}"
+                                                   IsVisible="{Binding !IsGlobalMenuOptionSupported}"
+                                                   FontSize="12" TextWrapping="Wrap" Margin="24,0,0,0"
+                                                   Foreground="{DynamicResource Kei.Text.Muted}"/>
+                                    </StackPanel>
 
                                     <!-- 树排序模式 -->
                                     <TextBlock Text="{loc:KeiString Settings.General.TreeSortSection}" FontSize="13" FontWeight="Bold" Margin="0,10,0,0"

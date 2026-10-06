@@ -1,4 +1,6 @@
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Threading.Tasks;
 using Avalonia;
@@ -50,6 +52,9 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
 
+        SetUpPlatformKeyBindings();
+        WireMenuClickHandlers();
+
         // 在 InitializeComponent 后拿到 SessionTree（先给 axaml 的 TreeView 加 x:Name="SessionTree"）
         SessionTree.PointerReleased += Tree_PointerReleased;
 
@@ -74,6 +79,101 @@ public partial class MainWindow : Window
 
         // DataContext 变化时挂接 VM 属性监听（侧栏收起/恢复需要联动列宽）
         PropertyChanged += OnWindowPropertyChanged;
+    }
+
+    // 新建会话：macOS 用 ⌘N，其余平台用 Ctrl+N
+    private static KeyGesture ShortcutNewSession => OperatingSystem.IsMacOS()
+        ? new KeyGesture(Key.N, KeyModifiers.Meta)
+        : new KeyGesture(Key.N, KeyModifiers.Control);
+
+    // 快速连接：macOS 用 ⌘K，其余平台用 Ctrl+Q。
+    // macOS 上不能沿用 Q —— ⌘Q 是系统「退出」，抢占会导致应用无法用标准方式退出。
+    private static KeyGesture ShortcutQuickConnect => OperatingSystem.IsMacOS()
+        ? new KeyGesture(Key.K, KeyModifiers.Meta)
+        : new KeyGesture(Key.Q, KeyModifiers.Control);
+
+    // 窗口级快捷键只在非 macOS 生效：macOS 的菜单经系统全局菜单栏承载，
+    // 原生 NSMenuItem 自带 keyEquivalent，窗口级绑定反而可能把 Ctrl+Q 解释成 ⌘Q 与系统退出冲突。
+    private void SetUpPlatformKeyBindings()
+    {
+        if (OperatingSystem.IsMacOS())
+        {
+            KeyBindings?.Clear();
+        }
+    }
+
+    // 菜单项手势按平台装配。菜单本体在 XAML 声明，此处不依赖索引或名称，
+    // 而是按 Command 身份匹配 —— 菜单项增删、重排或本地化都不会让它失效。
+    // 注意：NativeMenuItem.Gesture 自身不注册热键，它只是交给平台导出器
+    // （macOS -> NSMenuItem keyEquivalent；其余平台 -> 窗口内菜单的展示文本）。
+    private void ApplyMenuShortcuts(MainViewModel vm)
+    {
+        NativeMenu? menu = NativeMenu.GetMenu(this);
+        if (menu == null)
+        {
+            return;
+        }
+
+        foreach (NativeMenuItem item in EnumerateMenuItems(menu.Items))
+        {
+            if (ReferenceEquals(item.Command, vm.CreateSessionCommand))
+            {
+                item.Gesture = ShortcutNewSession;
+            }
+            else if (ReferenceEquals(item.Command, vm.QuickConnectCommand))
+            {
+                item.Gesture = ShortcutQuickConnect;
+            }
+        }
+    }
+
+    // NativeMenuItem 不是 Control，XAML 编译器不支持在其上写 Click="方法名"（只能在代码里订阅）。
+    // 这里按 Header 资源键挂接：Header 与 XAML 的 {loc:KeiString} 取自同一资源，
+    // 因此本地化切换后依然精确匹配。"退出/关于"都属视图职责（关窗口、开关于弹窗），不下沉到 ViewModel。
+    private void WireMenuClickHandlers()
+    {
+        NativeMenu? menu = NativeMenu.GetMenu(this);
+        if (menu == null)
+        {
+            return;
+        }
+
+        string exitHeader = Strings.Get("Menu.File.Exit");
+        string aboutHeader = Strings.Get("Menu.Help.About");
+
+        foreach (NativeMenuItem item in EnumerateMenuItems(menu.Items))
+        {
+            if (item.Header == exitHeader)
+            {
+                item.Click += OnExitMenuClick;
+            }
+            else if (item.Header == aboutHeader)
+            {
+                item.Click += OnAboutClick;
+            }
+        }
+    }
+
+    // 深度优先遍历菜单树（递归进入子菜单），分隔符等非 NativeMenuItem 项自动跳过
+    private static IEnumerable<NativeMenuItem> EnumerateMenuItems(IEnumerable entries)
+    {
+        foreach (object? entry in entries)
+        {
+            if (entry is not NativeMenuItem item)
+            {
+                continue;
+            }
+
+            yield return item;
+
+            if (item.Menu is { } submenu)
+            {
+                foreach (NativeMenuItem child in EnumerateMenuItems(submenu.Items))
+                {
+                    yield return child;
+                }
+            }
+        }
     }
 
     private void Tree_ItemExpanded(object? sender, RoutedEventArgs e)
@@ -623,7 +723,8 @@ public partial class MainWindow : Window
     }
 
     // 菜单"退出"：走桌面生命周期正常关闭（触发 OnClosing 确认逻辑）
-    private void OnExitMenuClick(object? sender, RoutedEventArgs e)
+    // NativeMenuItem.Click 是 EventHandler（EventArgs），签名必须与之一致才能直接订阅
+    private void OnExitMenuClick(object? sender, EventArgs e)
     {
         if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
@@ -631,8 +732,11 @@ public partial class MainWindow : Window
         }
     }
 
-    // 菜单"关于"：极简版本信息弹窗
-    private async void OnAboutClick(object? sender, RoutedEventArgs e)
+    // 菜单"关于"：Help 菜单与 macOS 应用菜单共用同一实现
+    private void OnAboutClick(object? sender, EventArgs e) => _ = ShowAboutDialogAsync();
+
+    // 极简版本信息弹窗；公开供 App 的 macOS 应用菜单调用
+    public async Task ShowAboutDialogAsync()
     {
         var version = typeof(MainWindow).Assembly.GetName().Version?.ToString() ?? "unknown";
         var about = new Window
@@ -797,6 +901,8 @@ public partial class MainWindow : Window
             newVm.PropertyChanged += OnMainViewModelPropertyChanged;
             UpdateSidebarColumn(newVm.IsSessionManagerVisible);
             UpdateTabPlacement(newVm.TabPlacement);
+            // 菜单手势依赖 VM 的 Command 实例，必须在 DataContext 就绪后装配
+            ApplyMenuShortcuts(newVm);
             if (newVm.SelectedTab != null)
             {
                 Dispatcher.UIThread.Post(() => newVm.SelectedTab?.Terminal.Focus());

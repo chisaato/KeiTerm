@@ -163,6 +163,7 @@ public partial class SettingsViewModel : ViewModelBase
         var current = _settingsService.Current;
         _general.ConfirmBeforeClose = current.ConfirmBeforeClose;
         _general.AutoReconnectOnDisconnect = current.AutoReconnectOnDisconnect;
+        _general.UseNativeGlobalMenu = current.UseNativeGlobalMenu;
         _general.SetTreeSortMode(current.TreeSortMode);
         _fileTransfer.CacheDirectory = current.FileTransfer.CacheDirectory;
         _fileTransfer.SelectedWatcherMode = current.FileTransfer.WatcherMode.ToString();
@@ -252,6 +253,7 @@ public partial class SettingsViewModel : ViewModelBase
         // 常规
         settings.ConfirmBeforeClose = _general.ConfirmBeforeClose;
         settings.AutoReconnectOnDisconnect = _general.AutoReconnectOnDisconnect;
+        settings.UseNativeGlobalMenu = _general.UseNativeGlobalMenu;
         settings.TreeSortMode = _general.SelectedTreeSort?.Mode ?? "AsciiFirst";
         settings.SessionManagerVisibilityMode = _general.SelectedSessionManagerMode switch
         {

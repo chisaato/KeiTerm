@@ -3,10 +3,12 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Styling;
 using Avalonia.Threading;
+using Kei.Term.App.Helpers;
 using Kei.Term.App.Logging;
 using Kei.Term.App.Services;
 using Kei.Term.App.ViewModels;
@@ -29,22 +31,63 @@ public partial class App : Application
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
+        WireAppMenuHandlers();
+    }
+
+    // 当前主窗口：应用菜单的点击处理需在触发时解析，因为菜单在 Initialize 阶段就绪，
+    // 而主窗口要到 OnFrameworkInitializationCompleted 才创建。
+    private static MainWindow? CurrentMainWindow =>
+        (Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow as MainWindow;
+
+    // macOS 应用菜单（App.axaml 中声明）的点击挂接。
+    // NativeMenuItem 不是 Control，XAML 不支持 Click="方法名"，只能按 Header 资源键在代码中匹配；
+    // Header 与 XAML 的 {loc:KeiString} 取自同一资源，本地化切换后依然精确。
+    private void WireAppMenuHandlers()
+    {
+        if (NativeMenu.GetMenu(this) is not { } menu)
+        {
+            return;
+        }
+
+        string aboutHeader = Strings.Get("Menu.Help.About");
+        string preferencesHeader = Strings.Get("Menu.Tools.Settings");
+
+        foreach (object? entry in menu.Items)
+        {
+            if (entry is not NativeMenuItem item)
+            {
+                continue;
+            }
+
+            if (item.Header == aboutHeader)
+            {
+                item.Click += (_, _) => _ = CurrentMainWindow?.ShowAboutDialogAsync();
+            }
+            else if (item.Header == preferencesHeader)
+            {
+                // macOS 惯例：Preferences 直接打开设置窗口
+                item.Click += (_, _) =>
+                {
+                    if (CurrentMainWindow?.DataContext is MainViewModel vm)
+                    {
+                        vm.OpenSettingsCommand.Execute(null);
+                    }
+                };
+            }
+        }
     }
 
     public override async void OnFrameworkInitializationCompleted()
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            var appDataDir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "KeiTerm"
-            );
+            var appDataDir = AppPaths.DataDirectory;
             Directory.CreateDirectory(appDataDir);
-            var dbPath = Path.Combine(appDataDir, "keiterm.db");
+            var dbPath = AppPaths.DatabaseFile;
             var connStr = $"Data Source={dbPath}";
 
             // 日志目录与数据库/设置文件同源（同一 appDataDir 下的 logs/）
-            var logDir = Path.Combine(appDataDir, "logs");
+            var logDir = AppPaths.LogDirectory;
             _loggerFactory = new SimpleLoggerFactory(new RollingFileLoggerProvider(
                 new RollingFileLoggerOptions { LogDirectory = logDir, MinimumLevel = LogLevel.Debug }));
             var logger = _loggerFactory.CreateLogger<App>();

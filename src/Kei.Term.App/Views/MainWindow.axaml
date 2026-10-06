@@ -1,4 +1,4 @@
-<Window xmlns="https://github.com/avaloniaui"
+﻿<Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Kei.Term.App.ViewModels"
         xmlns:views="using:Kei.Term.App.Views"
@@ -15,7 +15,7 @@
         Title="{loc:KeiString Main.Title}"
         Width="1280" Height="820"
         MinWidth="960" MinHeight="600"
-        FontFamily="Noto Sans CJK SC, Source Han Sans SC, Microsoft YaHei UI, Segoe UI, sans-serif"
+        FontFamily="{DynamicResource Kei.Font.UI}"
         Background="{DynamicResource Kei.Bg.Window}">
 
     <Window.Resources>
@@ -56,9 +56,103 @@
 
         <!-- 控件外观类样式（iconBtn/tabItem/closeBtn）已迁至 DesignSystem/KeiControls.axaml，
              仅 KeiClassic 档挂载，使 Semi/Material 档可由第三方库模板接管。 -->
+
+        <!-- NativeMenuBar 的默认模板只把 Background/BorderBrush 透传给内部 presenter，
+             文字色与最小高度需在此补齐，否则 Windows/Linux 上窗口内菜单栏会丢失原有观感。 -->
+        <Style Selector="NativeMenuBar /template/ MenuBase#PART_NativeMenuPresenter">
+            <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}"/>
+            <Setter Property="MinHeight" Value="30"/>
+        </Style>
     </Window.Styles>
 
-    <!-- 快捷键：Ctrl+Q 打开快速连接，Ctrl+N 新建会话 -->
+    <!-- 菜单本体：macOS 导出至系统全局菜单栏，Windows/Linux 由上方 NativeMenuBar 就地渲染。
+         快捷键不在此硬编码——修饰键随平台而异（⌘ / Ctrl），由代码后置统一装配。 -->
+    <!-- 菜单本体：macOS 导出至系统全局菜单栏，Windows/Linux 由上方 NativeMenuBar 就地渲染。
+         快捷键不在此硬编码——修饰键随平台而异（⌘ / Ctrl），由代码后置统一装配。
+         注意：子菜单必须写成显式的 <NativeMenuItem.Menu><NativeMenu>…，
+         直接嵌套 <NativeMenuItem> 子元素会在 Avalonia 12.1.2 的 XAML 填充期空引用崩溃。 -->
+    <NativeMenu.Menu>
+        <NativeMenu>
+            <NativeMenuItem Header="{loc:KeiString Menu.File}">
+                <NativeMenuItem.Menu>
+                    <NativeMenu>
+                        <NativeMenuItem Header="{loc:KeiString Menu.File.NewSession}" Command="{Binding CreateSessionCommand}"/>
+                        <NativeMenuItem Header="{loc:KeiString Menu.File.NewFolder}" Command="{Binding CreateFolderCommand}"/>
+                        <NativeMenuItem Header="{loc:KeiString Menu.File.QuickConnect}" Command="{Binding QuickConnectCommand}"/>
+                        <NativeMenuItemSeparator/>
+                        <NativeMenuItem Header="{loc:KeiString Menu.File.ImportSecureCrt}" Command="{Binding ImportSecureCrtCommand}"/>
+                        <NativeMenuItem Header="{loc:KeiString Menu.File.ImportOpenSshConfig}" Command="{Binding ImportOpenSshConfigCommand}"/>
+                        <NativeMenuItem Header="{loc:KeiString Menu.File.ImportKnownHosts}" Command="{Binding ImportKnownHostsCommand}"/>
+                        <NativeMenuItemSeparator/>
+                        <NativeMenuItem Header="{loc:KeiString Menu.File.Connect}" Command="{Binding ConnectSelectedSessionCommand}"/>
+                        <NativeMenuItem Header="{loc:KeiString Menu.File.DisconnectTab}" Command="{Binding DisconnectCurrentTabCommand}"/>
+                        <NativeMenuItemSeparator/>
+                        <NativeMenuItem Header="{loc:KeiString Menu.File.Exit}"/>
+                    </NativeMenu>
+                </NativeMenuItem.Menu>
+            </NativeMenuItem>
+            <NativeMenuItem Header="{loc:KeiString Menu.Edit}">
+                <NativeMenuItem.Menu>
+                    <NativeMenu>
+                        <NativeMenuItem Header="{loc:KeiString Menu.Edit.Cut}" Command="{Binding CutNodeCommand}"/>
+                        <NativeMenuItem Header="{loc:KeiString Menu.Edit.Copy}" Command="{Binding CopyNodeCommand}"/>
+                        <NativeMenuItem Header="{loc:KeiString Menu.Edit.Paste}" Command="{Binding PasteNodeCommand}"/>
+                        <NativeMenuItemSeparator/>
+                        <NativeMenuItem Header="{loc:KeiString Menu.Edit.DeleteSelected}" Command="{Binding DeleteSelectedNodeCommand}"/>
+                    </NativeMenu>
+                </NativeMenuItem.Menu>
+            </NativeMenuItem>
+            <NativeMenuItem Header="{loc:KeiString Menu.View}">
+                <NativeMenuItem.Menu>
+                    <NativeMenu>
+                        <NativeMenuItem Header="{loc:KeiString Menu.View.SessionManager}" ToggleType="CheckBox" IsChecked="{Binding IsSessionManagerVisible, Mode=TwoWay}"/>
+                        <NativeMenuItem Header="{loc:KeiString Menu.View.Compose}">
+                            <NativeMenuItem.Menu>
+                                <NativeMenu>
+                                    <NativeMenuItem Header="{loc:KeiString Menu.View.Compose.Show}" ToggleType="CheckBox" IsChecked="{Binding IsComposeBarVisible, Mode=TwoWay}"/>
+                                    <NativeMenuItemSeparator/>
+                                    <NativeMenuItem Header="{loc:KeiString Menu.View.Compose.SingleLine}" ToggleType="CheckBox" IsChecked="{Binding IsSingleLineCompose, Mode=TwoWay}"/>
+                                    <NativeMenuItem Header="{loc:KeiString Menu.View.Compose.MultiLine}" ToggleType="CheckBox" IsChecked="{Binding IsMultiLineCompose, Mode=TwoWay}"/>
+                                </NativeMenu>
+                            </NativeMenuItem.Menu>
+                        </NativeMenuItem>
+                    </NativeMenu>
+                </NativeMenuItem.Menu>
+            </NativeMenuItem>
+            <NativeMenuItem Header="{loc:KeiString Menu.Appearance}">
+                <NativeMenuItem.Menu>
+                    <NativeMenu>
+                        <NativeMenuItem Header="{loc:KeiString Menu.Appearance.Import}">
+                            <NativeMenuItem.Menu>
+                                <NativeMenu>
+                                    <NativeMenuItem Header="{loc:KeiString Menu.Appearance.Import.Konsole}" Command="{Binding ImportKonsoleCommand}"/>
+                                </NativeMenu>
+                            </NativeMenuItem.Menu>
+                        </NativeMenuItem>
+                    </NativeMenu>
+                </NativeMenuItem.Menu>
+            </NativeMenuItem>
+            <NativeMenuItem Header="{loc:KeiString Menu.Tools}">
+                <NativeMenuItem.Menu>
+                    <NativeMenu>
+                        <NativeMenuItem Header="{loc:KeiString Menu.Tools.IdentityManager}" Command="{Binding OpenIdentityManagerCommand}"/>
+                        <NativeMenuItem Header="{loc:KeiString Menu.Tools.KnownHosts}" Command="{Binding OpenKnownHostsCommand}"/>
+                        <NativeMenuItem Header="{loc:KeiString Menu.Tools.BatchEdit}" Command="{Binding OpenBatchEditCommand}"/>
+                        <NativeMenuItem Header="{loc:KeiString Menu.Tools.Settings}" Command="{Binding OpenSettingsCommand}"/>
+                    </NativeMenu>
+                </NativeMenuItem.Menu>
+            </NativeMenuItem>
+            <NativeMenuItem Header="{loc:KeiString Menu.Help}">
+                <NativeMenuItem.Menu>
+                    <NativeMenu>
+                        <NativeMenuItem Header="{loc:KeiString Menu.Help.About}"/>
+                    </NativeMenu>
+                </NativeMenuItem.Menu>
+            </NativeMenuItem>
+        </NativeMenu>
+    </NativeMenu.Menu>
+
+    <!-- 快捷键：修饰键随平台切换，由代码后置统一装配（见 SetUpShortcuts） -->
     <Window.KeyBindings>
         <KeyBinding Gesture="Ctrl+Q" Command="{Binding QuickConnectCommand}"/>
         <KeyBinding Gesture="Ctrl+N" Command="{Binding CreateSessionCommand}"/>
@@ -67,56 +161,13 @@
     <!-- 根布局：Row0 菜单 / Row1 全宽工具栏 / Row2 左右分栏（SecureCRT 式：菜单与工具栏横贯顶部） -->
     <Grid x:Name="RootGrid" RowDefinitions="Auto,Auto,*">
 
-        <!-- Row0 菜单栏：全宽（Avalonia 12 顶层 Menu 即菜单栏） -->
-        <Menu Grid.Row="0"
-              Background="{DynamicResource Kei.Bg.PanelAlt}"
-              Foreground="{DynamicResource Kei.Text.Primary}"
-              MinHeight="30">
-            <MenuItem Header="{loc:KeiString Menu.File}">
-                <MenuItem Header="{loc:KeiString Menu.File.NewSession}" Command="{Binding CreateSessionCommand}" InputGesture="Ctrl+N"/>
-                <MenuItem Header="{loc:KeiString Menu.File.NewFolder}" Command="{Binding CreateFolderCommand}"/>
-                <MenuItem Header="{loc:KeiString Menu.File.QuickConnect}" Command="{Binding QuickConnectCommand}" InputGesture="Ctrl+Q"/>
-                <Separator/>
-                <MenuItem Header="{loc:KeiString Menu.File.ImportSecureCrt}" Command="{Binding ImportSecureCrtCommand}"/>
-                <MenuItem Header="{loc:KeiString Menu.File.ImportOpenSshConfig}" Command="{Binding ImportOpenSshConfigCommand}"/>
-                <MenuItem Header="{loc:KeiString Menu.File.ImportKnownHosts}" Command="{Binding ImportKnownHostsCommand}"/>
-                <Separator/>
-                <MenuItem Header="{loc:KeiString Menu.File.Connect}" Command="{Binding ConnectSelectedSessionCommand}"/>
-                <MenuItem Header="{loc:KeiString Menu.File.DisconnectTab}" Command="{Binding DisconnectCurrentTabCommand}"/>
-                <Separator/>
-                <MenuItem Header="{loc:KeiString Menu.File.Exit}" Click="OnExitMenuClick"/>
-            </MenuItem>
-            <MenuItem Header="{loc:KeiString Menu.Edit}">
-                <MenuItem Header="{loc:KeiString Menu.Edit.Cut}" Command="{Binding CutNodeCommand}"/>
-                <MenuItem Header="{loc:KeiString Menu.Edit.Copy}" Command="{Binding CopyNodeCommand}"/>
-                <MenuItem Header="{loc:KeiString Menu.Edit.Paste}" Command="{Binding PasteNodeCommand}"/>
-                <Separator/>
-                <MenuItem Header="{loc:KeiString Menu.Edit.DeleteSelected}" Command="{Binding DeleteSelectedNodeCommand}"/>
-            </MenuItem>
-            <MenuItem Header="{loc:KeiString Menu.View}">
-                <MenuItem Header="{loc:KeiString Menu.View.SessionManager}" ToggleType="CheckBox" IsChecked="{Binding IsSessionManagerVisible, Mode=TwoWay}"/>
-                <MenuItem Header="{loc:KeiString Menu.View.Compose}">
-                    <MenuItem Header="{loc:KeiString Menu.View.Compose.Show}" ToggleType="CheckBox" IsChecked="{Binding IsComposeBarVisible, Mode=TwoWay}"/>
-                    <Separator/>
-                    <MenuItem Header="{loc:KeiString Menu.View.Compose.SingleLine}" ToggleType="CheckBox" IsChecked="{Binding IsSingleLineCompose, Mode=TwoWay}"/>
-                    <MenuItem Header="{loc:KeiString Menu.View.Compose.MultiLine}" ToggleType="CheckBox" IsChecked="{Binding IsMultiLineCompose, Mode=TwoWay}"/>
-                </MenuItem>
-            </MenuItem>
-            <MenuItem Header="{loc:KeiString Menu.Appearance}">
-                <MenuItem Header="{loc:KeiString Menu.Appearance.Import}">
-                    <MenuItem Header="{loc:KeiString Menu.Appearance.Import.Konsole}" Command="{Binding ImportKonsoleCommand}"/>
-                </MenuItem>
-            </MenuItem>
-            <MenuItem Header="{loc:KeiString Menu.Tools}">
-                <MenuItem Header="{loc:KeiString Menu.Tools.IdentityManager}" Command="{Binding OpenIdentityManagerCommand}"/>
-                <MenuItem Header="{loc:KeiString Menu.Tools.KnownHosts}" Command="{Binding OpenKnownHostsCommand}"/>
-                <MenuItem Header="{loc:KeiString Menu.Tools.BatchEdit}" Command="{Binding OpenBatchEditCommand}"/>
-                <MenuItem Header="{loc:KeiString Menu.Tools.Settings}" Command="{Binding OpenSettingsCommand}"/>
-            </MenuItem>
-            <MenuItem Header="{loc:KeiString Menu.Help}">
-                <MenuItem Header="{loc:KeiString Menu.Help.About}" Click="OnAboutClick"/>
-            </MenuItem>
-        </Menu>
+        <!-- Row0 菜单栏：NativeMenuBar 从本窗口的 NativeMenu.Menu（见文件末尾）取菜单，
+             并按 TopLevel 的 IsNativeMenuExported 自动切换：
+               macOS          -> 菜单导出至系统全局菜单栏，此处整条隐藏（不再占用窗口高度）
+               Windows/Linux  -> 无原生菜单栏，此处就地渲染，保持与替换前一致
+             行为依据 Avalonia 12 的 NativeMenuBar.SubscribeToToplevel。 -->
+        <NativeMenuBar Grid.Row="0"
+                       Background="{DynamicResource Kei.Bg.PanelAlt}"/>
 
         <!-- Row1 全局工具栏：会话/应用操作组在左，状态消息居中，视图开关在右 -->
         <Border Grid.Row="1"

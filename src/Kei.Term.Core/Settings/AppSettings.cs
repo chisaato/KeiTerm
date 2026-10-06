@@ -46,6 +46,13 @@ public class AppSettings
     // 意外断开后在原标签里自动重连。默认关：误锤生产机比少一次重连更糟。
     public bool AutoReconnectOnDisconnect { get; set; }
 
+    // Linux 菜单栏显示偏好：true = 允许桌面全局菜单组件接管，未接管时仍显示窗口内菜单；
+    // false = 不导出，菜单固定显示在应用窗口内。
+    // 仅 Linux/X11 可切换（对应 X11PlatformOptions.UseDBusMenu）；macOS 系统菜单栏为强制、
+    // 无对应开关，Windows 无全局菜单概念，两端均为无操作。
+    // 该值在 AppBuilder 阶段被读取，改动需重启应用才生效。
+    public bool UseNativeGlobalMenu { get; set; } = true;
+
     // 目录树排序规则："AsciiFirst" (英文优先，默认) | "Pinyin" (中文拼音本地化优先)
     public string TreeSortMode { get; set; } = "AsciiFirst";
 

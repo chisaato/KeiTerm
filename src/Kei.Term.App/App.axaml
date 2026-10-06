@@ -2,8 +2,24 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="Kei.Term.App.App"
              xmlns:local="using:Kei.Term.App"
+             xmlns:loc="using:Kei.Term.App.Helpers"
+             Name="KeiTerm"
              RequestedThemeVariant="Default">
              <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
+
+    <!-- macOS 应用菜单（Apple 菜单右侧第一项）。
+         必须在 Application 上显式声明：未配置时 Avalonia 会注入内置的 "About Avalonia"，
+         且该项标题是后端硬编码、无法通过属性改写（见 Avalonia 文档 macOS 排错页）。
+         其余平台不消费 Application 级 NativeMenu，故此节仅影响 macOS。
+         点击处理在 App.axaml.cs 中挂接——NativeMenuItem 不是 Control，
+         XAML 不支持在其上写 Click="方法名"。 -->
+    <NativeMenu.Menu>
+        <NativeMenu>
+            <NativeMenuItem Header="{loc:KeiString Menu.Help.About}"/>
+            <NativeMenuItemSeparator/>
+            <NativeMenuItem Header="{loc:KeiString Menu.Tools.Settings}"/>
+        </NativeMenu>
+    </NativeMenu.Menu>
 
     <Application.DataTemplates>
         <local:ViewLocator />
