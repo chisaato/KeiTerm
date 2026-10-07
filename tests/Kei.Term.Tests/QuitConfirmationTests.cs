@@ -153,6 +153,11 @@ public class QuitConfirmationTests
             RawInputModifiers modifiers = OperatingSystem.IsMacOS() ? RawInputModifiers.Meta : RawInputModifiers.Control;
             prompt.KeyPress(Key.W, modifiers, PhysicalKey.None, null);
             HeadlessAvalonia.Pump();
+            Assert.Same(prompt, Assert.Single(window.OwnedWindows.OfType<QuitConfirmationWindow>()));
+            Assert.True(window.IsVisible);
+            Assert.Equal(hasTerminal ? 1 : 0, model.WorkspaceTabs.Count);
+            prompt.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.None, null);
+            HeadlessAvalonia.Pump();
             Assert.Empty(window.OwnedWindows);
             Assert.True(window.IsVisible);
             Assert.Equal(hasTerminal ? 1 : 0, model.WorkspaceTabs.Count);
@@ -195,6 +200,11 @@ public class QuitConfirmationTests
                 await model.CloseCurrentWorkspaceTabCommand.ExecuteAsync(null);
                 Assert.Single(model.WorkspaceTabs);
                 Assert.Empty(window.OwnedWindows);
+                await model.CloseCurrentWorkspaceTabCommand.ExecuteAsync(null);
+                HeadlessAvalonia.Pump();
+                Assert.Empty(model.WorkspaceTabs);
+                Assert.Empty(window.OwnedWindows);
+                Assert.True(window.IsVisible);
             }
             await model.CloseCurrentWorkspaceTabCommand.ExecuteAsync(null);
             HeadlessAvalonia.Pump();
@@ -217,7 +227,7 @@ public class QuitConfirmationTests
     });
 
     [Fact]
-    public Task CloseCommand_CancelsQuitPrompt_WithoutClosingTheTabBehindIt() => HeadlessAvalonia.RunAsync(async () =>
+    public Task CloseShortcut_IsIgnoredInQuitPrompt_WithoutClosingTheTabBehindIt() => HeadlessAvalonia.RunAsync(async () =>
     {
         UiDesignSystemService.Apply();
         (MainWindow window, MainViewModel model, IInteractionService interaction) = CreateWindow();
@@ -230,7 +240,19 @@ public class QuitConfirmationTests
             NewTabViewModel tab = Assert.Single(model.NewTabs);
             Task first = quit.RequestAsync();
             HeadlessAvalonia.Pump();
+            QuitConfirmationWindow prompt = Assert.Single(window.OwnedWindows.OfType<QuitConfirmationWindow>());
             await model.CloseCurrentWorkspaceTabCommand.ExecuteAsync(null);
+            HeadlessAvalonia.Pump();
+            Assert.False(first.IsCompleted);
+            Assert.Same(prompt, Assert.Single(window.OwnedWindows.OfType<QuitConfirmationWindow>()));
+            RawInputModifiers modifiers = OperatingSystem.IsMacOS() ? RawInputModifiers.Meta : RawInputModifiers.Control;
+            prompt.KeyPress(Key.W, modifiers, PhysicalKey.None, null);
+            HeadlessAvalonia.Pump();
+            Assert.False(first.IsCompleted);
+            Assert.Same(prompt, Assert.Single(window.OwnedWindows.OfType<QuitConfirmationWindow>()));
+            Assert.Equal(Strings.Get("Quit.Confirm.Detail"), prompt.GetVisualDescendants().OfType<TextBlock>()
+                .Single(text => text.Name == "ConfirmationDetail").Text);
+            prompt.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.None, null);
             await first.WaitAsync(TimeSpan.FromSeconds(5));
             Assert.Same(tab, Assert.Single(model.WorkspaceTabs));
             Assert.Empty(window.OwnedWindows);
@@ -308,7 +330,6 @@ public class QuitConfirmationTests
 
     [Theory]
     [InlineData(QuitTrigger.Application, Key.Escape)]
-    [InlineData(QuitTrigger.Application, Key.W)]
     [InlineData(QuitTrigger.CloseWindow, Key.Escape)]
     public Task CancelKeys_CancelConfirmation_AndNextRequestStartsAgain(QuitTrigger trigger, Key key) => HeadlessAvalonia.RunAsync(async () =>
     {

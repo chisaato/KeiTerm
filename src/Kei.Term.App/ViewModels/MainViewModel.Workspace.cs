@@ -63,8 +63,14 @@ public partial class MainViewModel
         // 确认框优先接收 ⌘W，不能关闭它背后的标签页。
         if (await Interaction.HandleCloseShortcutInQuitConfirmationAsync()) return;
         ViewModelBase? tab = ActiveWorkspaceTab ?? WorkspaceTabs.LastOrDefault();
-        if (tab != null) await CloseWorkspaceTabCommand.ExecuteAsync(tab);
-        if (WorkspaceTabs.Count == 0) await Interaction.CloseWindowAsync();
+        if (tab != null)
+        {
+            // 本次只关闭标签；最后一页关闭后由空工作区显示欢迎页。
+            await CloseWorkspaceTabCommand.ExecuteAsync(tab);
+            return;
+        }
+
+        await Interaction.CloseWindowAsync();
     }
 
     private void OnWorkspaceItemsChanged(object? sender, NotifyCollectionChangedEventArgs args)

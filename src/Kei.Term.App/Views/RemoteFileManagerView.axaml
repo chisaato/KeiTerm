@@ -3,6 +3,7 @@
              xmlns:vm="using:Kei.Term.App.ViewModels"
              xmlns:models="using:Kei.Term.Core.Models"
              xmlns:loc="using:Kei.Term.App.Helpers"
+             xmlns:conv="using:Kei.Term.App.Converters"
              x:Class="Kei.Term.App.Views.RemoteFileManagerView"
              x:DataType="vm:RemoteFileManagerViewModel"
              Background="{DynamicResource Kei.Bg.Panel}">
@@ -124,7 +125,15 @@
                             <TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource Kei.Text.Primary}" TextTrimming="CharacterEllipsis"/>
 
                             <!-- 大小 -->
-                            <TextBlock Grid.Column="2" Text="{Binding Size}" IsVisible="{Binding !IsDirectory}" VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}" Margin="8,0"/>
+                            <TextBlock Grid.Column="2" IsVisible="{Binding !IsDirectory}" VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}" Margin="8,0"
+                                       ToolTip.Tip="{Binding Size, StringFormat='{}{0} B'}">
+                                <TextBlock.Text>
+                                    <MultiBinding Converter="{x:Static conv:FileSizeConverter.Instance}">
+                                        <Binding Path="Size"/>
+                                        <Binding Path="$parent[UserControl].((vm:RemoteFileManagerViewModel)DataContext).SizeDisplayMode"/>
+                                    </MultiBinding>
+                                </TextBlock.Text>
+                            </TextBlock>
 
                             <!-- 权限 -->
                             <TextBlock Grid.Column="3" Text="{Binding Permissions}" VerticalAlignment="Center" FontSize="12" FontFamily="{DynamicResource Kei.Font.Mono}" Foreground="{DynamicResource Kei.Text.Muted}" Margin="6,0,2,0"/>

@@ -147,7 +147,7 @@ public class WorkspaceTabsTests
     });
 
     [Fact]
-    public Task DockCloseStartPage_PreservesOtherGroupAndRoutesLastShortcutToExit() => HeadlessAvalonia.RunAsync(async () =>
+    public Task DockCloseStartPage_ReturnsToWelcome_AndOnlyNextShortcutRequestsExit() => HeadlessAvalonia.RunAsync(async () =>
     {
         UiDesignSystemService.Apply();
         MainViewModel model = CreateModel();
@@ -173,13 +173,19 @@ public class WorkspaceTabsTests
             await model.CloseCurrentWorkspaceTabCommand.ExecuteAsync(null);
             Assert.Empty(model.WorkspaceTabs);
             Assert.False(model.HasTabs);
+            HeadlessAvalonia.Pump();
+            Assert.True(window.IsVisible);
+            Assert.Empty(window.OwnedWindows);
+            Assert.Contains(window.GetVisualDescendants().OfType<NewTabView>(), view => view.IsEffectivelyVisible);
+            Assert.Equal(0, closeRequests);
+            await model.CloseCurrentWorkspaceTabCommand.ExecuteAsync(null);
             Assert.Equal(1, closeRequests);
         }
         finally { window.Close(); await model.DisposeAsync(); }
     });
 
     [Fact]
-    public Task CloseLastTerminal_WaitsForSessionRelease_BeforeRequestingWindowClose() => HeadlessAvalonia.RunAsync(async () =>
+    public Task CloseLastTerminal_ReleasesSession_AndKeepsWelcomeWindowOpen() => HeadlessAvalonia.RunAsync(async () =>
     {
         UiDesignSystemService.Apply();
         MainViewModel model = CreateModel();
@@ -200,7 +206,10 @@ public class WorkspaceTabsTests
             Assert.False(close.IsCompleted);
             session.AllowDisposal.TrySetResult();
             await close.WaitAsync(TimeSpan.FromSeconds(5));
-            Assert.False(window.IsVisible);
+            HeadlessAvalonia.Pump();
+            Assert.True(window.IsVisible);
+            Assert.False(model.HasTabs);
+            Assert.Contains(window.GetVisualDescendants().OfType<NewTabView>(), view => view.IsEffectivelyVisible);
             Assert.False(session.IsConnected);
         }
         finally { session.AllowDisposal.TrySetResult(); window.Close(); await model.DisposeAsync(); }

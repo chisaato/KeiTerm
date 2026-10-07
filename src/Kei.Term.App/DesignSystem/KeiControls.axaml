@@ -154,7 +154,14 @@
     <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
         <Setter Property="BorderBrush" Value="{DynamicResource Kei.Border.Focus}"/>
         <Setter Property="Background" Value="{DynamicResource Kei.Bg.Input}"/>
-        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="BorderThickness" Value="{TemplateBinding BorderThickness}"/>
+    </Style>
+    <Style Selector="TextBox:disabled /template/ Border#PART_BorderElement">
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Border.Subtle}"/>
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Input}"/>
+    </Style>
+    <Style Selector="TextBox:error /template/ Border#PART_BorderElement">
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Status.Error}"/>
     </Style>
 
     <!-- 通用下拉框：28px 紧凑高度、3px 圆角、实体背景 -->
@@ -174,8 +181,24 @@
         <Setter Property="BorderBrush" Value="{DynamicResource Kei.Text.Muted}"/>
         <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}"/>
     </Style>
-    <Style Selector="ComboBox:focus /template/ Border#Background">
+    <Style Selector="ComboBox:pressed /template/ Border#Background">
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Text.Muted}"/>
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Pressed}"/>
+    </Style>
+    <Style Selector="ComboBox:focus-within /template/ Border#Background">
         <Setter Property="BorderBrush" Value="{DynamicResource Kei.Border.Focus}"/>
+    </Style>
+    <!-- Fluent 的键盘焦点层位于 Background 之上，不能留下另一套渐变描边。 -->
+    <Style Selector="ComboBox:focus-visible /template/ Border#HighlightBackground">
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Border.Focus}"/>
+        <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    <Style Selector="ComboBox:disabled /template/ Border#Background, ComboBox:disabled /template/ Border#HighlightBackground">
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Border.Subtle}"/>
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Input}"/>
+    </Style>
+    <Style Selector="ComboBox:error /template/ Border#Background, ComboBox:error /template/ Border#HighlightBackground">
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Status.Error}"/>
     </Style>
 
     <!-- 数字微调框：28px 紧凑高度 -->
@@ -188,6 +211,45 @@
         <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource Kei.Border}"/>
         <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="8,3"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <!-- 外层 28px，但 Fluent 的 Spinner 默认最少 32px，会把上下描边放在控件之外。 -->
+    <Style Selector="NumericUpDown /template/ ButtonSpinner#PART_Spinner">
+        <Setter Property="MinHeight" Value="0"/>
+    </Style>
+    <Style Selector="NumericUpDown:pointerover /template/ ButtonSpinner#PART_Spinner">
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Text.Muted}"/>
+    </Style>
+    <Style Selector="NumericUpDown:focus-within /template/ ButtonSpinner#PART_Spinner">
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Border.Focus}"/>
+    </Style>
+    <Style Selector="NumericUpDown:disabled /template/ ButtonSpinner#PART_Spinner">
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Border.Subtle}"/>
+    </Style>
+    <Style Selector="NumericUpDown:error /template/ ButtonSpinner#PART_Spinner">
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Status.Error}"/>
+    </Style>
+
+    <!-- 复合输入的内嵌编辑器只负责文字，外层统一绘制实体背景和完整边框。 -->
+    <Style Selector="NumericUpDown /template/ TextBox#PART_TextBox, ComboBox /template/ TextBox#PART_EditableTextBox">
+        <Setter Property="MinHeight" Value="0"/>
+        <Setter Property="Height" Value="NaN"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Style Selector="^ /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <!-- 状态选择器单独保留触发优先级，覆盖共用 TextBox 状态的背景。 -->
+        <Style Selector="^:pointerover /template/ Border#PART_BorderElement,
+                         ^:focus /template/ Border#PART_BorderElement,
+                         ^:disabled /template/ Border#PART_BorderElement,
+                         ^:error /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
     </Style>
 
     <!-- 高级设置折叠栏采用与表单一致的紧凑尺寸，避免默认大标题抢占层级。 -->

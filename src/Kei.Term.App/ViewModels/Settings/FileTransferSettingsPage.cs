@@ -11,10 +11,27 @@ using CommunityToolkit.Mvvm.Input;
 using Kei.Term.App.ViewModels;
 using Kei.Term.Core.Models;
 using Kei.Term.Core.Storage;
+using Kei.Term.Core.Settings;
+using Kei.Term.App.Helpers;
+
+public record FileSizeDisplayOption(FileSizeDisplayMode Mode, string Label);
 
 public partial class FileTransferSettingsPage : ViewModelBase
 {
     private readonly IExternalEditorRepository? _editorRepo;
+
+    public IReadOnlyList<FileSizeDisplayOption> SizeDisplayOptions { get; } =
+    [
+        new(FileSizeDisplayMode.Iec, Strings.Get("Settings.FileTransfer.SizeIec")),
+        new(FileSizeDisplayMode.Si, Strings.Get("Settings.FileTransfer.SizeSi")),
+        new(FileSizeDisplayMode.Bytes, Strings.Get("Settings.FileTransfer.SizeBytes"))
+    ];
+
+    [ObservableProperty]
+    private FileSizeDisplayOption _selectedSizeDisplay;
+
+    public void SetSizeDisplayMode(FileSizeDisplayMode mode)
+        => SelectedSizeDisplay = SizeDisplayOptions.FirstOrDefault(option => option.Mode == mode) ?? SizeDisplayOptions[0];
 
     // 文件传输缓存目录与监视模式
     [ObservableProperty]
@@ -66,6 +83,7 @@ public partial class FileTransferSettingsPage : ViewModelBase
     public FileTransferSettingsPage(IExternalEditorRepository? editorRepo = null)
     {
         _editorRepo = editorRepo;
+        _selectedSizeDisplay = SizeDisplayOptions[0];
     }
 
     partial void OnSelectedEditorChanged(ExternalEditorItemViewModel? value)

@@ -111,6 +111,7 @@ public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposabl
         _fileSystem = fileSystem;
         _fileTracker = fileTracker;
         _settingsService = settingsService;
+        InitializeSizeDisplay();
         _editorRepo = editorRepo;
         _logger = logger ?? NullLogger.Instance;
         RemoteDirectoryNodeViewModel.SetLogger(_logger);
@@ -740,6 +741,7 @@ public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposabl
 
     public async ValueTask DisposeAsync()
     {
+        DisposeSizeDisplay();
         _fileTracker.FileChanged -= OnTrackedFileChanged;
         await _fileSystem.DisposeAsync();
         GC.SuppressFinalize(this);

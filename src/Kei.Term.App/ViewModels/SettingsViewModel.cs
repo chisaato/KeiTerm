@@ -177,6 +177,7 @@ public partial class SettingsViewModel : ViewModelBase
         _general.SessionManagerPinned = current.SessionManagerPinned;
         _fileTransfer.CacheDirectory = current.FileTransfer.CacheDirectory;
         _fileTransfer.SelectedWatcherMode = current.FileTransfer.WatcherMode.ToString();
+        LoadFileDisplaySettings(current);
         _ = _fileTransfer.ReloadAsync();
         _general.SelectedSessionManagerMode = current.SessionManagerVisibilityMode switch
         {
@@ -282,6 +283,7 @@ public partial class SettingsViewModel : ViewModelBase
             _ => PanelVisibilityMode.RememberLastState
         };
         settings.FileTransfer.CacheDirectory = _fileTransfer.CacheDirectory;
+        ApplyFileDisplaySettings(settings);
         settings.FileTransfer.WatcherMode = Enum.TryParse<FileWatcherMode>(_fileTransfer.SelectedWatcherMode, out var wm) ? wm : FileWatcherMode.Auto;
 
         // 外观：主题值归一化，仅接受 Dark/System
@@ -369,6 +371,7 @@ public partial class SettingsViewModel : ViewModelBase
 
             _lastAppliedSettings = CloneSettings(settings);
             RememberSyncedFontSize(settings.FontSize);
+            NotifyFileDisplaySettings();
             return true;
         }
         finally

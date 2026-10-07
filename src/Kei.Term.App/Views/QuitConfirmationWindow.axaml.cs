@@ -19,15 +19,17 @@ public partial class QuitConfirmationWindow : Window
         InitializeComponent();
         ConfirmationMessage.Text = Strings.Format("Quit.Confirm.Message", AppShortcuts.Label(
             trigger == QuitTrigger.CloseWindow ? AppShortcuts.CloseTab : AppShortcuts.QuitApplication));
-        ConfirmationDetail.Text = trigger == QuitTrigger.Application
-            ? Strings.Format("Quit.Confirm.Detail.CloseToCancel", AppShortcuts.Label(AppShortcuts.CloseTab))
-            : Strings.Get("Quit.Confirm.Detail");
+        ConfirmationDetail.Text = Strings.Get("Quit.Confirm.Detail");
         AddHandler(KeyDownEvent, OnKeyDown, RoutingStrategies.Tunnel);
         Opened += (_, _) => CancelButton.Focus();
     }
 
     // 原生菜单可能把 ⌘W 发给主窗口；与弹窗内的按键共用同一行为。
-    public void HandleCloseShortcut() => Close(_trigger == QuitTrigger.CloseWindow);
+    public void HandleCloseShortcut()
+    {
+        // ⌘W 只确认由它自己打开的提示；⌘Q 提示中忽略它，也不关闭背后的标签。
+        if (_trigger == QuitTrigger.CloseWindow) Close(true);
+    }
 
     private void OnCancelClick(object? sender, RoutedEventArgs args) => Close(false);
 

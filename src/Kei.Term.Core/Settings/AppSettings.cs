@@ -10,6 +10,13 @@ public enum PanelVisibilityMode
     RememberLastState = 2
 }
 
+public enum FileSizeDisplayMode
+{
+    Iec = 0,
+    Si = 1,
+    Bytes = 2
+}
+
 public class AppSettings
 {
     // 连接管理器显示模式与最后状态
@@ -119,6 +126,9 @@ public class AppSettings
 
 public class FileTransferSettings
 {
+    // 文件列表大小的显示单位；不影响远程文件大小或传输字节计数。
+    public FileSizeDisplayMode SizeDisplayMode { get; set; } = FileSizeDisplayMode.Iec;
+
     // 本地缓存基目录，为空时默认使用应用标准缓存路径
     public string CacheDirectory { get; set; } = string.Empty;
 

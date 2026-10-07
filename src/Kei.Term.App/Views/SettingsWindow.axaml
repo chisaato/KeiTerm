@@ -667,6 +667,18 @@
                                 <StackPanel MaxWidth="580" HorizontalAlignment="Left" Spacing="10">
                                     <TextBlock Text="{loc:KeiString Settings.Categories.FileTransferPageDescription}" FontSize="12" TextWrapping="Wrap"
                                                Foreground="{DynamicResource Kei.Text.Secondary}" Margin="0,0,0,6"/>
+                                    <Grid ColumnDefinitions="150,*" ColumnSpacing="12">
+                                        <TextBlock Text="{loc:KeiString Settings.FileTransfer.SizeDisplay}" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                        <ComboBox Grid.Column="1" x:Name="FileSizeDisplayComboBox" MinWidth="280" HorizontalAlignment="Stretch"
+                                                  ItemsSource="{Binding SizeDisplayOptions}" SelectedItem="{Binding SelectedSizeDisplay}">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate x:DataType="settings:FileSizeDisplayOption">
+                                                    <TextBlock Text="{Binding Label}"/>
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+                                    </Grid>
                                     <!-- 传输基础设置 -->
                                     <TextBlock Text="文件传输与缓存" FontSize="13" FontWeight="Bold"
                                                Foreground="{DynamicResource Kei.Text.Primary}"/>

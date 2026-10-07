@@ -327,9 +327,6 @@
   <data name="Quit.Confirm.Detail" xml:space="preserve">
     <value>退出将断开所有连接。按 Esc 可取消。</value>
   </data>
-  <data name="Quit.Confirm.Detail.CloseToCancel" xml:space="preserve">
-    <value>退出将断开所有连接。按 Esc 或 {0} 可取消。</value>
-  </data>
   <data name="Quit.Confirm.Cancel" xml:space="preserve">
     <value>取消</value>
   </data>
@@ -1934,5 +1931,17 @@
   </data>
   <data name="FontDialog.Open" xml:space="preserve">
     <value>字重与行距…</value>
+  </data>
+  <data name="Settings.FileTransfer.SizeDisplay" xml:space="preserve">
+    <value>文件大小单位</value>
+  </data>
+  <data name="Settings.FileTransfer.SizeIec" xml:space="preserve">
+    <value>IEC（1024：KiB、MiB、GiB）</value>
+  </data>
+  <data name="Settings.FileTransfer.SizeSi" xml:space="preserve">
+    <value>SI（1000：kB、MB、GB）</value>
+  </data>
+  <data name="Settings.FileTransfer.SizeBytes" xml:space="preserve">
+    <value>原始字节数（B）</value>
   </data>
 </root>
