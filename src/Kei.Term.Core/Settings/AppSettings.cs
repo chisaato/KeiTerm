@@ -53,6 +53,9 @@ public class AppSettings
     // 该值在 AppBuilder 阶段被读取，改动需重启应用才生效。
     public bool UseNativeGlobalMenu { get; set; } = true;
 
+    // 支持的平台使用系统原生上下文菜单，其余平台回退应用菜单；默认关闭，保存后立即生效。
+    public bool UseNativeContextMenus { get; set; }
+
     // 目录树排序规则："AsciiFirst" (英文优先，默认) | "Pinyin" (中文拼音本地化优先)
     public string TreeSortMode { get; set; } = "AsciiFirst";
 

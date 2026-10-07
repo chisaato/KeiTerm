@@ -27,6 +27,7 @@ public partial class App : Application
 {
     // 进程级日志工厂：退出时统一 flush/释放
     private SimpleLoggerFactory? _loggerFactory;
+    private Services.ContextMenus.SystemContextMenuService? _systemContextMenus;
 
     public override void Initialize()
     {
@@ -117,6 +118,9 @@ public partial class App : Application
             var vault = new InternalVaultManager(db, _loggerFactory.CreateLogger<InternalVaultManager>());
             var settingsPath = Path.Combine(appDataDir, "settings.json");
             var settingsService = new JsonSettingsService(settingsPath);
+            _systemContextMenus = new Services.ContextMenus.SystemContextMenuService(
+                () => settingsService.Current.UseNativeContextMenus,
+                logger: _loggerFactory.CreateLogger<Services.ContextMenus.SystemContextMenuService>());
             // 主机密钥信任：确认框经主 VM 的交互服务弹出（窗口装配完成前按拒绝处理）
             MainViewModel? interactionHost = null;
             var hostKeyTrust = new HostKeyTrustService(
@@ -235,6 +239,7 @@ public partial class App : Application
         desktop.Exit += (_, _) =>
         {
             logger.LogInformation("应用正常退出");
+            _systemContextMenus?.Dispose();
             _loggerFactory?.Dispose();
         };
 

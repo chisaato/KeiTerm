@@ -74,6 +74,12 @@
                                                    FontSize="12" TextWrapping="Wrap" Margin="24,0,0,0"
                                                    Foreground="{DynamicResource Kei.Text.Muted}"/>
                                     </StackPanel>
+                                    <StackPanel Spacing="6">
+                                        <CheckBox IsChecked="{Binding UseNativeContextMenus}" Content="{loc:KeiString Settings.General.UseNativeContextMenus}"/>
+                                        <TextBlock Text="{loc:KeiString Settings.General.UseNativeContextMenusTip}"
+                                                   FontSize="12" TextWrapping="Wrap" Margin="24,0,0,0"
+                                                   Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                    </StackPanel>
 
                                     <!-- 树排序模式 -->
                                     <TextBlock Text="{loc:KeiString Settings.General.TreeSortSection}" FontSize="13" FontWeight="Bold" Margin="0,10,0,0"

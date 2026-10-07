@@ -62,6 +62,10 @@ public partial class GeneralSettingsPage : ViewModelBase
         }
     }
 
+    // 保留跨平台偏好；支持的平台启用系统原生上下文菜单，其他平台沿用应用菜单。
+    [ObservableProperty]
+    private bool _useNativeContextMenus;
+
     // 树同级排序模式
     public IReadOnlyList<TreeSortOption> TreeSortOptions { get; }
 

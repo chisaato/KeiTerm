@@ -399,6 +399,12 @@
   <data name="Settings.General.UseNativeGlobalMenuUnsupportedTip" xml:space="preserve">
     <value>此选项仅可在 Linux 上切换。macOS 始终使用系统菜单栏；Windows 使用窗口内菜单栏。</value>
   </data>
+  <data name="Settings.General.UseNativeContextMenus" xml:space="preserve">
+    <value>使用系统原生上下文菜单</value>
+  </data>
+  <data name="Settings.General.UseNativeContextMenusTip" xml:space="preserve">
+    <value>支持的平台使用系统右键菜单，其余平台沿用应用菜单。保存后立即生效。</value>
+  </data>
   <data name="Settings.General.TreeSortSection" xml:space="preserve">
     <value>会话树排序规则</value>
   </data>
