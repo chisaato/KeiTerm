@@ -29,7 +29,6 @@ public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposabl
     private readonly FileEditorLauncher _editorLauncher;
     private readonly ILogger _logger;
 
-    public event Action? PromoteToTabRequested;
     public event Action? CloseRequested;
     public event Action? ToggleDockPositionRequested;
 
@@ -653,18 +652,6 @@ public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposabl
             _logger.LogError(ex, "删除失败");
             TransferStatusMessage = $"删除失败: {ex.Message}";
         }
-    }
-
-    [RelayCommand]
-    public void PromoteToTab()
-    {
-        PromoteToTabRequested?.Invoke();
-    }
-
-    [RelayCommand]
-    public void Close()
-    {
-        CloseRequested?.Invoke();
     }
 
     private void UpdateTrackedStatusMessage()

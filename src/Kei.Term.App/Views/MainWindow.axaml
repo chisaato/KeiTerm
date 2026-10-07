@@ -468,7 +468,7 @@
                     <Border.IsVisible>
                         <MultiBinding Converter="{x:Static BoolConverters.And}">
                             <Binding Path="IsComposeBarVisible"/>
-                            <Binding Path="SelectedTab" Converter="{x:Static ObjectConverters.IsNotNull}"/>
+                            <Binding Path="IsTerminalWorkspaceActive"/>
                         </MultiBinding>
                     </Border.IsVisible>
                     <Grid ColumnDefinitions="Auto,*,Auto">

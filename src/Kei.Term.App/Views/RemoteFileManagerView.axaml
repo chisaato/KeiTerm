@@ -31,16 +31,18 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
-                    <Button Classes="iconBtn" Width="28" Height="28" ToolTip.Tip="切换左/右侧停靠" Command="{Binding ToggleDockPositionCommand}">
+                    <Button x:Name="FileManagerDockButton" Classes="iconBtn" Width="28" Height="28" ToolTip.Tip="切换左/右侧停靠" Command="{Binding ToggleDockPositionCommand}" IsVisible="{Binding !IsWorkspaceTab}">
                         <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.DockSwap}" Width="11" Height="11"/>
                     </Button>
-                    <Button Classes="iconBtn" Width="28" Height="28" ToolTip.Tip="在新标签页中打开" Command="{Binding PromoteToTabCommand}">
+                    <Button x:Name="FileManagerOpenInTabButton" Classes="iconBtn" Width="28" Height="28" ToolTip.Tip="{loc:KeiString FileManager.OpenInTab}"
+                            AutomationProperties.Name="{loc:KeiString FileManager.OpenInTab}" Command="{Binding PromoteToTabCommand}" IsVisible="{Binding !IsWorkspaceTab}">
                         <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.ExternalLink}" Width="11" Height="11" Fill="{DynamicResource Kei.Accent}"/>
                     </Button>
                     <Button Classes="iconBtn" Width="28" Height="28" ToolTip.Tip="刷新" Command="{Binding RefreshDirectoryCommand}">
                         <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Refresh}" Width="11" Height="11"/>
                     </Button>
-                    <Button Classes="iconBtn" Width="28" Height="28" ToolTip.Tip="关闭侧栏" Command="{Binding CloseCommand}">
+                    <Button x:Name="FileManagerCloseButton" Classes="iconBtn" Width="28" Height="28" ToolTip.Tip="{Binding CloseToolTip}"
+                            AutomationProperties.Name="{Binding CloseToolTip}" Command="{Binding CloseCommand}">
                         <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Close}" Width="9" Height="9"/>
                     </Button>
                 </StackPanel>
@@ -53,7 +55,7 @@
                 <Button Classes="iconBtn" Width="28" Height="28" ToolTip.Tip="上一级" Command="{Binding NavigateUpCommand}" Margin="0,0,4,0">
                     <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.ArrowUp}" Width="12" Height="12"/>
                 </Button>
-                <TextBox Grid.Column="1" Text="{Binding CurrentPath}" Height="28" Padding="6,2" FontSize="12" VerticalContentAlignment="Center">
+                <TextBox x:Name="FileManagerPathInput" Grid.Column="1" Text="{Binding CurrentPath}" Height="28" Padding="6,2" FontSize="12" VerticalContentAlignment="Center">
                     <TextBox.KeyBindings>
                         <KeyBinding Gesture="Enter" Command="{Binding RefreshDirectoryCommand}"/>
                     </TextBox.KeyBindings>

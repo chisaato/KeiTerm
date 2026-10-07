@@ -82,6 +82,7 @@ public partial class MainViewModel
         tab.CloseRequested -= OnTabCloseRequested;
         tab.ActionRequested -= OnTabActionRequested;
         tab.FontZoomRequested -= OnTabFontZoomRequested;
+        CloseOwnedFileManagerTabs(tab);
         TabReleasing?.Invoke(tab);
         // Dock 选择同组相邻项，包含启动页；只显式关闭时释放连接。
         Workspace.RemoveTab(tab);

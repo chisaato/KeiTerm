@@ -27,7 +27,16 @@ public partial class MainViewModel
     partial void OnActiveWorkspaceTabChanged(ViewModelBase? value)
     {
         foreach (NewTabViewModel tab in NewTabs) tab.IsSelected = tab == value;
-        SelectedTab = value as TerminalTabViewModel;
+        SelectedTab = value switch
+        {
+            TerminalTabViewModel terminal => terminal,
+            FileManagerTabViewModel files => files.Owner,
+            _ => null
+        };
+        OnPropertyChanged(nameof(IsTerminalWorkspaceActive));
+        OpenTerminalFindCommand.NotifyCanExecuteChanged();
+        ToggleComposeBarCommand.NotifyCanExecuteChanged();
+        SendComposeCommand.NotifyCanExecuteChanged();
         if (!_syncingFromWorkspace && value != null) Workspace.Activate(value);
     }
 
@@ -49,6 +58,7 @@ public partial class MainViewModel
     private Task CloseWorkspaceTabAsync(ViewModelBase? tab)
     {
         if (tab is TerminalTabViewModel terminal) return CloseTabCommand.ExecuteAsync(terminal);
+        if (tab is FileManagerTabViewModel files) CloseFileManagerTab(files);
         if (tab is NewTabViewModel starter)
         {
             NewTabs.Remove(starter);

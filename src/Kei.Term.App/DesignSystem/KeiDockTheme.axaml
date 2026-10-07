@@ -122,6 +122,24 @@
                                 </StackPanel>
                             </Grid>
                         </DataTemplate>
+                        <DataTemplate DataType="vm:FileManagerTabViewModel" x:DataType="vm:FileManagerTabViewModel">
+                            <Grid Background="Transparent" ToolTip.Tip="{Binding ToolTip}">
+                                <Grid.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="{loc:KeiString Main.Tab.Menu.Close}" Command="{Binding RequestCloseCommand}"/>
+                                    </ContextMenu>
+                                </Grid.ContextMenu>
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Viewbox Width="16" Height="16" Stretch="Uniform" VerticalAlignment="Center">
+                                        <Grid Width="24" Height="24">
+                                            <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Folder}"/>
+                                        </Grid>
+                                    </Viewbox>
+                                    <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontSize="12"
+                                               MaxWidth="220" TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+                            </Grid>
+                        </DataTemplate>
                         <DataTemplate DataType="vm:NewTabViewModel" x:DataType="vm:NewTabViewModel">
                             <Grid x:Name="NewTabHeader" Background="Transparent" ToolTip.Tip="{Binding ToolTip}">
                                 <Grid.ContextMenu>

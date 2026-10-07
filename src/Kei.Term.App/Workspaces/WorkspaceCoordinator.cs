@@ -53,7 +53,12 @@ public sealed class WorkspaceCoordinator : IDisposable
 
     public ViewModelBase? ActiveItem { get; private set; }
 
-    public TerminalTabViewModel? ActiveTab => ActiveItem as TerminalTabViewModel;
+    public TerminalTabViewModel? ActiveTab => ActiveItem switch
+    {
+        TerminalTabViewModel terminal => terminal,
+        FileManagerTabViewModel files => files.Owner,
+        _ => null
+    };
 
     public ObservableCollection<ViewModelBase> AllItems { get; } = [];
 
@@ -64,6 +69,7 @@ public sealed class WorkspaceCoordinator : IDisposable
     {
         if (item is TerminalTabViewModel terminal) terminal.IsSelected = selected;
         else if (item is NewTabViewModel starter) starter.IsSelected = selected;
+        else if (item is FileManagerTabViewModel files) files.IsSelected = selected;
     }
 
     // 连接对话框期间可能切到另一组，仍须替换发起连接的启动页原位置。
@@ -93,6 +99,7 @@ public sealed class WorkspaceCoordinator : IDisposable
         {
             TerminalTabViewModel terminal => new TerminalWorkspaceDocument(terminal),
             NewTabViewModel starter => new NewTabWorkspaceDocument(starter),
+            FileManagerTabViewModel files => new FileManagerWorkspaceDocument(files),
             _ => throw new ArgumentException("Unsupported workspace tab.", nameof(tab))
         };
         _documents.Add(tab, document);
@@ -373,16 +380,11 @@ public sealed class WorkspaceCoordinator : IDisposable
             return;
         }
 
-        ViewModelBase? previous = ActiveItem;
         ActiveItem = tab;
         foreach (ViewModelBase open in AllItems)
         {
-            SetSelected(open, ReferenceEquals(open, tab));
-        }
-
-        if (previous != null && !ReferenceEquals(previous, tab))
-        {
-            SetSelected(previous, false);
+            SetSelected(open, ReferenceEquals(open, tab)
+                || tab is FileManagerTabViewModel files && ReferenceEquals(open, files.Owner));
         }
 
         _messenger.Send(new WorkspaceActiveTabChangedMessage(this, ActiveTab));

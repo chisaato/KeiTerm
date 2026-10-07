@@ -41,10 +41,13 @@ public partial class MainViewModel
             // 启动页和空工作区没有终端，不能显示只会改变隐藏状态的终端操作。
             if (SelectedTab is { IsDisposed: false } terminal)
             {
-                items.Add(new(Strings.Get(IsComposeBarVisible ? "CommandPalette.HideComposeBar" : "CommandPalette.ShowComposeBar"), "", "", PaletteAction.ToggleComposeBar));
-                items.Add(new(Strings.Get("Terminal.Find.Menu"), "", AppShortcuts.Label(AppShortcuts.Find), PaletteAction.FindTerminal));
-                if (terminal.FileManager != null)
-                    items.Add(new(Strings.Get(terminal.IsFileManagerVisible ? "CommandPalette.HideFileManager" : "CommandPalette.ShowFileManager"), "", "", PaletteAction.ToggleFileManager));
+                if (IsTerminalWorkspaceActive)
+                {
+                    items.Add(new(Strings.Get(IsComposeBarVisible ? "CommandPalette.HideComposeBar" : "CommandPalette.ShowComposeBar"), "", "", PaletteAction.ToggleComposeBar));
+                    items.Add(new(Strings.Get("Terminal.Find.Menu"), "", AppShortcuts.Label(AppShortcuts.Find), PaletteAction.FindTerminal));
+                    if (terminal.FileManager != null)
+                        items.Add(new(Strings.Get(terminal.IsFileManagerVisible ? "CommandPalette.HideFileManager" : "CommandPalette.ShowFileManager"), "", "", PaletteAction.ToggleFileManager));
+                }
                 if (terminal.State is ConnectionState.Connecting or ConnectionState.Connected)
                     items.Add(new(Strings.Get("Main.Tab.Menu.Disconnect"), "", "", PaletteAction.Disconnect));
                 if (terminal.Config != null && terminal.State != ConnectionState.Connecting)
@@ -123,10 +126,10 @@ public partial class MainViewModel
         PaletteAction.NewSession => CreateSessionCommand.ExecuteAsync(null),
         PaletteAction.Settings => OpenSettingsCommand.ExecuteAsync(null),
         PaletteAction.ToggleSessionManager => ExecuteImmediate(ToggleSessionManagerCommand),
-        PaletteAction.ToggleComposeBar when SelectedTab != null => ExecuteImmediate(ToggleComposeBarCommand),
+        PaletteAction.ToggleComposeBar when IsTerminalWorkspaceActive => ExecuteImmediate(ToggleComposeBarCommand),
         PaletteAction.CloseTab when ActiveWorkspaceTab != null => CloseCurrentWorkspaceTabCommand.ExecuteAsync(null),
-        PaletteAction.FindTerminal when SelectedTab != null => ExecuteImmediate(OpenTerminalFindCommand),
-        PaletteAction.ToggleFileManager when SelectedTab?.FileManager != null => ExecuteImmediate(ToggleFileManagerCommand),
+        PaletteAction.FindTerminal when IsTerminalWorkspaceActive => ExecuteImmediate(OpenTerminalFindCommand),
+        PaletteAction.ToggleFileManager when IsTerminalWorkspaceActive && SelectedTab?.FileManager != null => ExecuteImmediate(ToggleFileManagerCommand),
         PaletteAction.Disconnect when SelectedTab?.State is ConnectionState.Connecting or ConnectionState.Connected => DisconnectCurrentTabCommand.ExecuteAsync(null),
         PaletteAction.Reconnect when SelectedTab is { Config: not null, State: not ConnectionState.Connecting } terminal => ReconnectTabAsync(terminal),
         PaletteAction.ConnectSession => OpenSessionCommand.ExecuteAsync(_allNodesCache.OfType<SessionNode>().FirstOrDefault(session => session.Id == item.SessionId)),

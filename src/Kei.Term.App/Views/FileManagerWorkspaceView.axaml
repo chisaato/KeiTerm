@@ -1,0 +1,11 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Kei.Term.App.ViewModels"
+             xmlns:views="using:Kei.Term.App.Views"
+             x:Class="Kei.Term.App.Views.FileManagerWorkspaceView"
+             x:DataType="vm:FileManagerTabViewModel"
+             FontFamily="{DynamicResource Kei.Font.UI}"
+             HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+             Focusable="True">
+    <views:RemoteFileManagerView x:Name="FilesView" DataContext="{Binding FileManager}"/>
+</UserControl>

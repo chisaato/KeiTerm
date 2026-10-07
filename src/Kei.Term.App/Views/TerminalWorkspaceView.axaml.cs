@@ -9,7 +9,6 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using Dock.Avalonia.Controls;
-using Dock.Model.Core;
 using Kei.Term.App.ViewModels;
 using Kei.Term.App.Workspaces;
 using TabPlacement = Kei.Term.Core.Models.Profiles.TabPlacement;
@@ -75,7 +74,7 @@ public partial class TerminalWorkspaceView : UserControl
         }
     }
 
-    public void RememberView(TerminalWorkspaceDocument document, Control view)
+    public void RememberView(WorkspaceDocument document, Control view)
     {
         if (ControlRecyclingDataTemplate.GetControlRecycling(DockHost) is not ControlRecycling recycling)
         {
@@ -91,6 +90,12 @@ public partial class TerminalWorkspaceView : UserControl
             RememberView(document, view);
     }
 
+    public void RememberView(FileManagerTabViewModel tab, Control view)
+    {
+        if (_bound?.Workspace.FindDocument(tab) is FileManagerWorkspaceDocument document)
+            RememberView(document, view);
+    }
+
     public void ActivateConnection(TerminalTabViewModel tab)
     {
         _bound?.Workspace.Activate(tab);
@@ -99,14 +104,16 @@ public partial class TerminalWorkspaceView : UserControl
     public void ActivateItem(ViewModelBase item) => _bound?.Workspace.Activate(item);
 
     // 关闭前按文档实例移出回收缓存。不清空其他连接。
-    public bool ReleaseTab(TerminalTabViewModel tab)
+    public bool ReleaseTab(TerminalTabViewModel tab) => ReleaseItem(tab);
+
+    private bool ReleaseItem(ViewModelBase tab)
     {
         if (_bound == null)
         {
             return false;
         }
 
-        TerminalWorkspaceDocument? document = FindDocument(_bound.Workspace.Layout, tab);
+        WorkspaceDocument? document = _bound.Workspace.FindDocument(tab);
         if (document == null)
         {
             return false;
@@ -125,7 +132,7 @@ public partial class TerminalWorkspaceView : UserControl
         return recycling.Remove(document);
     }
 
-    public bool IsCached(TerminalWorkspaceDocument document)
+    public bool IsCached(WorkspaceDocument document)
     {
         if (ControlRecyclingDataTemplate.GetControlRecycling(DockHost) is not ControlRecycling recycling)
         {
@@ -141,6 +148,7 @@ public partial class TerminalWorkspaceView : UserControl
         if (_bound != null)
         {
             _bound.TabReleasing -= OnTabReleasing;
+            _bound.WorkspaceItemReleasing -= OnWorkspaceItemReleasing;
             _bound.PropertyChanged -= OnViewModelPropertyChanged;
         }
 
@@ -151,6 +159,7 @@ public partial class TerminalWorkspaceView : UserControl
         }
 
         _bound.TabReleasing += OnTabReleasing;
+        _bound.WorkspaceItemReleasing += OnWorkspaceItemReleasing;
         _bound.PropertyChanged += OnViewModelPropertyChanged;
         ApplyPlacement(_bound.TabPlacement);
     }
@@ -164,6 +173,8 @@ public partial class TerminalWorkspaceView : UserControl
     }
 
     private void OnTabReleasing(TerminalTabViewModel tab) => ReleaseTab(tab);
+
+    private void OnWorkspaceItemReleasing(ViewModelBase tab) => ReleaseItem(tab);
 
     private void OnPointerPressed(object? sender, PointerPressedEventArgs e)
     {
@@ -191,30 +202,6 @@ public partial class TerminalWorkspaceView : UserControl
             }
 
             visual = visual.GetVisualParent();
-        }
-
-        return null;
-    }
-
-    private static TerminalWorkspaceDocument? FindDocument(IDockable node, TerminalTabViewModel tab)
-    {
-        if (node is TerminalWorkspaceDocument document && ReferenceEquals(document.Tab, tab))
-        {
-            return document;
-        }
-
-        if (node is not IDock dock || dock.VisibleDockables == null)
-        {
-            return null;
-        }
-
-        foreach (IDockable child in dock.VisibleDockables)
-        {
-            TerminalWorkspaceDocument? found = FindDocument(child, tab);
-            if (found != null)
-            {
-                return found;
-            }
         }
 
         return null;

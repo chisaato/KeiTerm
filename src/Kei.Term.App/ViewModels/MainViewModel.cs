@@ -217,6 +217,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         Tabs = Workspace.AllTabs;
         WeakReferenceMessenger.Default.Register<WorkspaceActiveItemChangedMessage>(this, OnWorkspaceActiveTabChanged);
         WeakReferenceMessenger.Default.Register<WorkspaceItemCloseRequestedMessage>(this, OnWorkspaceCloseRequested);
+        WeakReferenceMessenger.Default.Register<FileManagerTabRequestedMessage>(this, OnFileManagerTabRequested);
+        WeakReferenceMessenger.Default.Register<FileManagerTabCloseRequestedMessage>(this, OnFileManagerTabCloseRequested);
         Workspace.AllItems.CollectionChanged += OnWorkspaceItemsChanged;
 
         // 配色变更单点订阅：不为每个标签单独挂钩子
@@ -415,7 +417,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         {
             tab.IsSelected = ReferenceEquals(tab, value);
         }
-        if (value != null) ActiveWorkspaceTab = value;
+        if (value != null && !(ActiveWorkspaceTab is FileManagerTabViewModel files && ReferenceEquals(files.Owner, value))) ActiveWorkspaceTab = value;
         else if (ActiveWorkspaceTab is TerminalTabViewModel) ActiveWorkspaceTab = null;
         DisconnectCurrentTabCommand.NotifyCanExecuteChanged();
         OpenTerminalFindCommand.NotifyCanExecuteChanged();
@@ -424,16 +426,16 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
             return;
         }
 
-        Workspace.Activate(value);
+        Workspace.Activate(ActiveWorkspaceTab ?? value);
     }
 
     [RelayCommand(CanExecute = nameof(CanOpenTerminalFind))]
     private void OpenTerminalFind()
     {
-        SelectedTab?.OpenFind();
+        if (IsTerminalWorkspaceActive) SelectedTab?.OpenFind();
     }
 
-    private bool CanOpenTerminalFind() => SelectedTab != null;
+    private bool CanOpenTerminalFind() => IsTerminalWorkspaceActive;
 
     public async Task InitializeAsync()
     {
@@ -1206,10 +1208,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         await RunConnectionFromWorkspaceAsync(() => _connections.ConnectAsync(new ConnectionRequest(resolved, UseIdentity: true), this));
     });
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(IsTerminalWorkspaceActive))]
     private Task SendComposeAsync() => Safe.RunAsync(_logger, "发送快捷命令", async () =>
     {
-        if (string.IsNullOrEmpty(ComposeText) || SelectedTab == null)
+        if (string.IsNullOrEmpty(ComposeText) || SelectedTab == null || !IsTerminalWorkspaceActive)
         {
             return;
         }
@@ -1218,9 +1220,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         ComposeText = string.Empty;
     });
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(IsTerminalWorkspaceActive))]
     private void ToggleComposeBar()
     {
+        if (!IsTerminalWorkspaceActive) return;
         IsComposeBarVisible = !IsComposeBarVisible;
         if (_settingsService.Current.ComposeBarVisibilityMode == PanelVisibilityMode.RememberLastState)
         {
@@ -1234,7 +1237,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
     {
         if (SelectedTab != null)
         {
-            SelectedTab.ToggleFileManager();
+            if (SelectedTab.FileManager is { } manager && FindFileManagerTab(manager) is { } files)
+                Workspace.Activate(files);
+            else
+                SelectedTab.ToggleFileManager();
         }
     }
 

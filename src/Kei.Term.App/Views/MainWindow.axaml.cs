@@ -569,7 +569,7 @@ public partial class MainWindow : Window
             ApplyMenuShortcuts(newVm);
             if (newVm.SelectedTab != null)
             {
-                Dispatcher.UIThread.Post(() => newVm.SelectedTab?.Terminal.Focus());
+                QueueWorkspaceFocus(newVm);
             }
         }
     }
@@ -590,22 +590,14 @@ public partial class MainWindow : Window
         {
             if (vm.SelectedTab != null)
             {
-                Dispatcher.UIThread.Post(() => vm.SelectedTab?.Terminal.Focus());
+                QueueWorkspaceFocus(vm);
             }
         }
         else if (e.PropertyName == nameof(MainViewModel.CommandPaletteShortcutLabel))
         {
             ApplyMenuShortcuts(vm);
         }
-        else if (e.PropertyName == nameof(MainViewModel.ActiveWorkspaceTab) && vm.ActiveWorkspaceTab is NewTabViewModel starter)
-        {
-            Dispatcher.UIThread.Post(() =>
-            {
-                if (vm.ActiveWorkspaceTab == starter)
-                    foreach (NewTabView view in this.GetVisualDescendants().OfType<NewTabView>())
-                        if (ReferenceEquals(view.DataContext, starter)) view.FocusDefaultAction();
-            }, DispatcherPriority.Loaded);
-        }
+        else if (e.PropertyName == nameof(MainViewModel.ActiveWorkspaceTab)) QueueWorkspaceFocus(vm);
     }
 
     // 每个 Dock 窗格组遵循同一个标签停靠设置。

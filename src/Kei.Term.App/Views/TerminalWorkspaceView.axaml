@@ -24,6 +24,9 @@
             <DataTemplate DataType="ws:NewTabWorkspaceDocument" x:DataType="ws:NewTabWorkspaceDocument">
                 <views:NewTabView DataContext="{Binding Tab}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
             </DataTemplate>
+            <DataTemplate DataType="ws:FileManagerWorkspaceDocument" x:DataType="ws:FileManagerWorkspaceDocument">
+                <views:FileManagerWorkspaceView DataContext="{Binding Tab}"/>
+            </DataTemplate>
         </dc:DockControl.DataTemplates>
     </dc:DockControl>
 </UserControl>

@@ -13,8 +13,12 @@ using Kei.Term.Core.Models;
 
 public partial class RemoteFileManagerView : UserControl
 {
+    private readonly Func<Task<string?>> _pickExecutable;
+    private RemoteFileManagerViewModel? _dialogOwner;
+
     public RemoteFileManagerView()
     {
+        _pickExecutable = PickExecutableFileAsync;
         InitializeComponent();
         AddHandler(DragDrop.DropEvent, OnDrop);
         AddHandler(DragDrop.DragOverEvent, OnDragOver);
@@ -34,31 +38,41 @@ public partial class RemoteFileManagerView : UserControl
 
     private void SetupPickExecutableDialog()
     {
+        ReleasePickExecutableDialog();
         if (DataContext is RemoteFileManagerViewModel vm)
         {
-            vm.PickExecutableFileDialogAsync = async () =>
-            {
-                var topLevel = TopLevel.GetTopLevel(this) ?? TopLevel.GetTopLevel(FileListBox);
-                if (topLevel?.StorageProvider == null)
-                {
-                    // 兜底尝试从 Application 桌面生命周期获取 MainWindow
-                    if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
-                    {
-                        topLevel = desktop.MainWindow;
-                    }
-                }
-
-                if (topLevel?.StorageProvider == null) return null;
-
-                var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-                {
-                    Title = "选择可执行程序",
-                    AllowMultiple = false
-                });
-
-                return files.Count > 0 ? files[0].Path.LocalPath : null;
-            };
+            _dialogOwner = vm;
+            vm.PickExecutableFileDialogAsync = _pickExecutable;
         }
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs args)
+    {
+        ReleasePickExecutableDialog();
+        base.OnDetachedFromVisualTree(args);
+    }
+
+    private void ReleasePickExecutableDialog()
+    {
+        // 侧栏和文档交替承载同一个 VM，旧视图不得清掉新视图刚登记的选择器。
+        if (_dialogOwner != null && ReferenceEquals(_dialogOwner.PickExecutableFileDialogAsync, _pickExecutable))
+            _dialogOwner.PickExecutableFileDialogAsync = null;
+        _dialogOwner = null;
+    }
+
+    private async Task<string?> PickExecutableFileAsync()
+    {
+        TopLevel? topLevel = TopLevel.GetTopLevel(this) ?? TopLevel.GetTopLevel(FileListBox);
+        if (topLevel?.StorageProvider == null
+            && Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
+            topLevel = desktop.MainWindow;
+        if (topLevel?.StorageProvider == null) return null;
+        var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "选择可执行程序",
+            AllowMultiple = false
+        });
+        return files.Count > 0 ? files[0].Path.LocalPath : null;
     }
 
     private void OnListBoxDoubleTapped(object? sender, TappedEventArgs e)
