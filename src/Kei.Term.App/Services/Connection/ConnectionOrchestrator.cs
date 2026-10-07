@@ -105,6 +105,19 @@ public sealed class ConnectionOrchestrator
 
     public async Task ConnectAsync(ConnectionRequest request, IConnectionHost host)
     {
+        try
+        {
+            await ConnectCoreAsync(request, host);
+        }
+        catch (OperationCanceledException)
+        {
+            // 目标或跳板解锁被取消：不开新标签，也不复位待重连的标签。
+            _logger.LogInformation("认证准备已取消，连接中止 会话={Session}", request.Config.SessionName);
+        }
+    }
+
+    private async Task ConnectCoreAsync(ConnectionRequest request, IConnectionHost host)
+    {
         _lastConnectSucceeded = false;
         _interactiveThisAttempt = false;
         // 出口不可用时不收集认证、不建标签、不拨号
@@ -282,10 +295,21 @@ public sealed class ConnectionOrchestrator
             promptCount++;
             _interactiveThisAttempt = true;
             _logger.LogInformation("认证失败，第 {Attempt} 次弹出认证重试 host={Host}:{Port}", promptCount, resolved.Host, resolved.Port);
-            var retry = await _collector.PromptRetryAsync(resolved.Username, auth.Identity);
+            (AuthPromptMethod Method, MaterializedAuthMethod? Material, string? Username)? retry;
+            try
+            {
+                retry = await _collector.PromptRetryAsync(resolved.Username, auth.Identity);
+            }
+            catch (OperationCanceledException)
+            {
+                // 重试中取消解锁也不得复用上一轮材料重新拨号。
+                target.ReportError(DescribeFailure(failure));
+                return;
+            }
+
             if (retry == null)
             {
-                _logger.LogInformation("用户取消认证重试，连接中止 host={Host}:{Port}", resolved.Host, resolved.Port);
+                _logger.LogInformation("未继续认证重试，连接中止 host={Host}:{Port}", resolved.Host, resolved.Port);
                 target.ReportError(DescribeFailure(failure));
                 return;
             }

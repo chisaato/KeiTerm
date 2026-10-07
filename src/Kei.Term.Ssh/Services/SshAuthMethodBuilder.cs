@@ -55,9 +55,9 @@ internal static class SshAuthMethodBuilder
             }
         }
 
-        // 任一密码材料或存在交互回调 → 注册 keyboard-interactive
-        // （纯交互式认证：零密码材料 + interactivePrompt 也必须注册，否则 KI 永远不触发）
-        if (fallbackPassword != null || interactivePrompt != null)
+        // 密码材料允许 KI 应答；零材料加回调表示用户明确选择纯交互认证。
+        // 密钥/Agent 材料不能仅因应用提供了通用回调，就额外启用未配置的认证方式。
+        if (fallbackPassword != null || (interactivePrompt != null && (methods == null || methods.Count == 0)))
         {
             var keyboardInteractive = new KeyboardInteractiveAuthenticationMethod(username);
             keyboardInteractive.AuthenticationPrompt += (_, e) =>

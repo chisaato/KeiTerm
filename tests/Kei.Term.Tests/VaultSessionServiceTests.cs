@@ -52,15 +52,35 @@ public class VaultSessionServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task LoadSecrets_WhenUserCancelsUnlock_ReturnsEmptyAndStaysLocked()
+    public async Task LoadSecrets_WhenUserCancelsUnlock_CancelsAndStaysLocked()
     {
         var (vault, session) = await CreateLockedAsync();
 
-        var secrets = await session.LoadIdentitySecretsAsync(_identityId);
-
-        Assert.Empty(secrets);
+        await Assert.ThrowsAsync<OperationCanceledException>(() => session.LoadIdentitySecretsAsync(_identityId));
         Assert.False(vault.IsUnlocked);
         Assert.Equal(1, _ui.MasterPasswordPrompts);
+    }
+
+    [Fact]
+    public async Task PersistSecret_WhenUnlockCancelled_CancelsWithoutWriting()
+    {
+        var (vault, session) = await CreateLockedAsync();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            session.PersistSecretAsync(_identityId, Guid.NewGuid(), new SecretPayload { Passphrase = "test" }));
+
+        Assert.False(vault.IsUnlocked);
+        await vault.UnlockAsync("correct", rememberOnThisDevice: false);
+        Assert.Empty(await vault.GetSecretsAsync(_identityId));
+    }
+
+    [Fact]
+    public async Task KeyInfoPreview_WhenUnlockCancelled_ReturnsNoPreviewAndStaysLocked()
+    {
+        var (vault, session) = await CreateLockedAsync();
+
+        Assert.Null(await session.GetVaultKeyInfoAsync(_identityId, Guid.NewGuid()));
+        Assert.False(vault.IsUnlocked);
     }
 
     [Fact]

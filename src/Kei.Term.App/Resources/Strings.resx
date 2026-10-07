@@ -317,6 +317,9 @@
   <data name="Status.Auth.Failed" xml:space="preserve">
     <value>认证失败</value>
   </data>
+  <data name="Status.Auth.ConfiguredMethodsUnavailable" xml:space="preserve">
+    <value>已配置的认证方法不可用。请检查身份中的密钥或凭据后重试。</value>
+  </data>
   <data name="Status.Vault.UnlockPrompt" xml:space="preserve">
     <value>请输入主密码以解锁保管库</value>
   </data>

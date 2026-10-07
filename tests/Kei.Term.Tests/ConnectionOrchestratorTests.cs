@@ -20,7 +20,7 @@ using Xunit;
 namespace Kei.Term.Tests;
 
 // 连接编排：认证失败回弹重试、取消、主机密钥握手外确认、跳板物化、文件通道材料、KI 桥
-public class ConnectionOrchestratorTests
+public partial class ConnectionOrchestratorTests
 {
     private readonly ScriptedInteraction _ui = new();
     private readonly FakeSshFactory _factory = new();
@@ -114,9 +114,22 @@ public class ConnectionOrchestratorTests
     }
 
     [Fact]
-    public async Task NoMaterials_AndFallbackCancelled_OpensNoTab()
+    public async Task NoIdentity_WithUsername_StillAllowsExplicitEmptyPasswordLogin()
     {
         await Create().ConnectAsync(new ConnectionRequest(Config(), UseIdentity: false), _host);
+
+        MaterializedAuthMethod method = Assert.Single(Assert.Single(_factory.SessionCalls).Materials);
+        Assert.Equal(AuthMaterialKind.Password, method.Kind);
+        Assert.Equal(string.Empty, method.Secret!.Password);
+        Assert.True(Assert.Single(_host.Tabs).Connected);
+        Assert.Empty(_ui.AuthPromptUsernames);
+        await _factory.WaitForFileSystemAsync();
+    }
+
+    [Fact]
+    public async Task NoMaterials_AndFallbackCancelled_OpensNoTab()
+    {
+        await Create().ConnectAsync(new ConnectionRequest(Config() with { Username = string.Empty }, UseIdentity: false), _host);
 
         Assert.Single(_ui.AuthPromptUsernames);
         Assert.Empty(_host.Tabs);
@@ -143,7 +156,7 @@ public class ConnectionOrchestratorTests
         var existing = new FakeTarget();
 
         // 无预置材料且兜底认证框被取消：不得复位旧标签（保留断开前的状态与错误信息）
-        await Create().ConnectAsync(new ConnectionRequest(Config(), UseIdentity: false, ReuseTarget: existing), _host);
+        await Create().ConnectAsync(new ConnectionRequest(Config() with { Username = string.Empty }, UseIdentity: false, ReuseTarget: existing), _host);
 
         Assert.Empty(existing.Resets);
         Assert.Empty(_factory.SessionCalls);
