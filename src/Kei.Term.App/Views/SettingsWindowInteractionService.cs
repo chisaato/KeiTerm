@@ -134,7 +134,8 @@ internal sealed class SettingsWindowInteractionService(Window owner, SettingsVie
 
     public Task NotifyAsync(string title, string message) => Task.CompletedTask;
 
-    public Task<string?> PromptTextAsync(string title, string label, string? initialText) => Task.FromResult<string?>(null);
+    public Task<string?> PromptTextAsync(string title, string label, string? initialText)
+        => new TextPromptWindow(title, label, initialText).ShowDialog<string?>(DialogOwner);
 
     public Task OpenBatchEditAsync(BatchSessionEditViewModel viewModel) => Task.CompletedTask;
 }

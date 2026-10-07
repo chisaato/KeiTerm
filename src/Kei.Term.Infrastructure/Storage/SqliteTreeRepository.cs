@@ -261,7 +261,7 @@ public class SqliteTreeRepository : ITreeRepository
             Port = row.Port is { } port ? (int)port : null,
             Username = row.Username,
             IdentityId = SqliteValue.ParseGuid(row.IdentityId),
-            TerminalType = row.TerminalType ?? "xterm-256color",
+            TerminalType = row.TerminalType ?? string.Empty,
             StartupScript = row.StartupScript,
             JumpHostSessionId = sessionId,
             ProxyProfileId = proxyId,

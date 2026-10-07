@@ -5,9 +5,12 @@ public sealed class TreeSettingsProxyPage : ViewModelBase
 {
     public AppearanceSettingsPage Appearance { get; }
 
-    public TreeSettingsProxyPage(AppearanceSettingsPage appearance)
+    public GeneralSettingsPage General { get; }
+
+    public TreeSettingsProxyPage(AppearanceSettingsPage appearance, GeneralSettingsPage? general = null)
     {
         Appearance = appearance;
+        General = general ?? new GeneralSettingsPage(string.Empty);
     }
 }
 
@@ -28,13 +31,16 @@ public sealed class TerminalAppearanceSettingsPage(AppearanceSettingsPage appear
     public AppearanceSettingsPage Appearance { get; } = appearance;
 }
 
-// 标签栏设置分类项容器（代理 AppearanceSettingsPage 中的标签栏与配置包导入导出）
+// 标签栏设置分类项容器：位置与全局标题行为共用原页面草稿。
 public sealed class TabBarSettingsProxyPage : ViewModelBase
 {
     public AppearanceSettingsPage Appearance { get; }
 
-    public TabBarSettingsProxyPage(AppearanceSettingsPage appearance)
+    public TerminalSettingsPage Terminal { get; }
+
+    public TabBarSettingsProxyPage(AppearanceSettingsPage appearance, TerminalSettingsPage? terminal = null)
     {
         Appearance = appearance;
+        Terminal = terminal ?? new TerminalSettingsPage();
     }
 }

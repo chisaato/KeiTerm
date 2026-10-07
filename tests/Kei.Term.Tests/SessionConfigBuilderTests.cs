@@ -87,6 +87,19 @@ public class SessionConfigBuilderTests
         Assert.Null(resolved.IdentityId);
     }
 
+    [Theory]
+    [InlineData("", "screen-256color", "screen-256color")]
+    [InlineData("  ", "vt100", "vt100")]
+    [InlineData("ansi", "vt100", "ansi")]
+    [InlineData("", "  ", "xterm-256color")]
+    public void Build_TerminalType_UsesSessionThenGlobalThenBuiltin(string sessionType, string globalType, string expected)
+    {
+        SessionNode node = new() { Host = "host", TerminalType = sessionType };
+        AppSettings settings = new() { DefaultTerminalType = globalType };
+
+        Assert.Equal(expected, SessionConfigBuilder.Build(node, settings).TerminalType);
+    }
+
     [Fact]
     public void Build_IdentityId_NodeOverridesSettings()
     {

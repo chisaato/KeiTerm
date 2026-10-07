@@ -63,7 +63,8 @@ public class SessionNode : TreeNodeBase
     public Guid? IdentityId { get; set; }
     // 协议骨架，一期固定 ssh，多协议预留
     public string Protocol { get; set; } = SessionProtocols.Ssh;
-    public string TerminalType { get; set; } = "xterm-256color";
+    // 空白继承全局默认 TERM；已保存的显式终端类型保持不变。
+    public string TerminalType { get; set; } = string.Empty;
     public string? StartupScript { get; set; }
     public Guid? JumpHostSessionId { get; set; }
     // kind == proxy 时的代理档案 id。与跳板会话 id 分开放，避免两种引用塞进同一字段。

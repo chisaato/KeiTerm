@@ -33,6 +33,24 @@ public partial class FileTransferSettingsPage : ViewModelBase
     public void SetSizeDisplayMode(FileSizeDisplayMode mode)
         => SelectedSizeDisplay = SizeDisplayOptions.FirstOrDefault(option => option.Mode == mode) ?? SizeDisplayOptions[0];
 
+    // 会话覆盖的目录跟随默认值，复用设置窗口的同一份草稿。
+    public TerminalSettingsPage Terminal { get; }
+
+    [ObservableProperty]
+    private bool _isFileManagerOnLeft;
+
+    [ObservableProperty]
+    private int _pollingIntervalSeconds = 3;
+
+    [ObservableProperty]
+    private int _writeDebounceMilliseconds = 800;
+
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(DisplayCustomEditorPath))]
+    private string _customEditorPath = string.Empty;
+
+    public string DisplayCustomEditorPath => string.IsNullOrWhiteSpace(CustomEditorPath)
+        ? Strings.Get("Settings.FileTransfer.CustomEditorPathPlaceholder") : CustomEditorPath;
+
     // 文件传输缓存目录与监视模式
     [ObservableProperty]
     private string _cacheDirectory = string.Empty;
@@ -60,9 +78,10 @@ public partial class FileTransferSettingsPage : ViewModelBase
     public bool HasEditors => Editors.Count > 0;
     public bool HasAssociations => Associations.Count > 0;
 
-    public FileTransferSettingsPage(IExternalEditorRepository? editorRepo = null)
+    public FileTransferSettingsPage(IExternalEditorRepository? editorRepo = null, TerminalSettingsPage? terminal = null)
     {
         _editorRepo = editorRepo;
+        Terminal = terminal ?? new TerminalSettingsPage();
         _selectedSizeDisplay = SizeDisplayOptions[0];
     }
 
@@ -122,6 +141,16 @@ public partial class FileTransferSettingsPage : ViewModelBase
     private bool HasSelectedEditor() => SelectedEditor != null;
     private bool HasSelectedAssociation() => SelectedAssociation != null;
     private bool CanAddAssociation() => HasEditors;
+
+    [RelayCommand]
+    private Task EditCustomEditorPathAsync() => RunAsync(async () =>
+    {
+        string? path = await Interaction.PromptTextAsync(
+            Strings.Get("Settings.FileTransfer.CustomEditorPath"),
+            Strings.Get("Settings.FileTransfer.CustomEditorPathTip"), CustomEditorPath);
+        // null 是取消，空字符串则明确恢复系统关联；这里只改草稿，统一应用后才落盘。
+        if (path != null) CustomEditorPath = path.Trim();
+    });
 
     [RelayCommand]
     private Task AddEditorAsync() => EditEditorCoreAsync(null);

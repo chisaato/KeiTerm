@@ -16,6 +16,8 @@ public partial class SshSettingsPage : ViewModelBase
 {
     private readonly IIdentityRepository? _identityRepo;
 
+    public GeneralSettingsPage General { get; }
+
     // 新会话默认 SSH 端口
     [ObservableProperty]
     private int _defaultPort = 22;
@@ -82,9 +84,10 @@ public partial class SshSettingsPage : ViewModelBase
     {
     }
 
-    public SshSettingsPage(IIdentityRepository? identityRepo)
+    public SshSettingsPage(IIdentityRepository? identityRepo, GeneralSettingsPage? general = null)
     {
         _identityRepo = identityRepo;
+        General = general ?? new GeneralSettingsPage(string.Empty);
     }
 
     // 加载身份列表；首项「无」值 null

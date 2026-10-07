@@ -362,10 +362,10 @@
     <value>常规</value>
   </data>
   <data name="Settings.Categories.GeneralDesc" xml:space="preserve">
-    <value>窗口与存储</value>
+    <value>窗口、菜单与快捷键</value>
   </data>
   <data name="Settings.Categories.GeneralPageDescription" xml:space="preserve">
-    <value>应用行为与数据存储</value>
+    <value>窗口与面板显示、系统菜单、快捷键和数据存储</value>
   </data>
   <data name="Settings.Categories.Appearance" xml:space="preserve">
     <value>外观配色</value>
@@ -374,22 +374,22 @@
     <value>主题与界面字体</value>
   </data>
   <data name="Settings.Categories.AppearancePageDescription" xml:space="preserve">
-    <value>界面主题、配色方案与全局字体</value>
+    <value>界面主题、字体与外观配置备份</value>
   </data>
   <data name="Settings.Categories.Tree" xml:space="preserve">
     <value>会话树</value>
   </data>
   <data name="Settings.Categories.TreeDesc" xml:space="preserve">
-    <value>密度与尺寸</value>
+    <value>排序、密度与尺寸</value>
   </data>
   <data name="Settings.Categories.TreePageDescription" xml:space="preserve">
-    <value>会话树显示密度与尺寸微调</value>
+    <value>会话树排序、显示密度与尺寸微调</value>
   </data>
   <data name="Settings.Categories.Terminal" xml:space="preserve">
     <value>终端</value>
   </data>
   <data name="Settings.Categories.TerminalDesc" xml:space="preserve">
-    <value>缓冲区与行为</value>
+    <value>仿真与回滚缓冲</value>
   </data>
   <data name="Settings.Categories.TerminalPageDescription" xml:space="preserve">
     <value>回滚缓冲区与默认终端仿真类型</value>
@@ -410,16 +410,16 @@
     <value>位置与标题</value>
   </data>
   <data name="Settings.Categories.TabBarPageDescription" xml:space="preserve">
-    <value>标签栏停靠位置与指示设置</value>
+    <value>标签栏位置与标签标题的全局默认行为</value>
   </data>
   <data name="Settings.Categories.Ssh" xml:space="preserve">
     <value>SSH</value>
   </data>
   <data name="Settings.Categories.SshDesc" xml:space="preserve">
-    <value>连接与认证</value>
+    <value>连接、认证与安全</value>
   </data>
   <data name="Settings.Categories.SshPageDescription" xml:space="preserve">
-    <value>连接、保活与 Agent</value>
+    <value>默认连接参数、身份、保活与恢复、Agent、主机密钥和保险库锁定</value>
   </data>
 
   <!-- Settings: General -->
@@ -430,7 +430,7 @@
     <value>退出前确认</value>
   </data>
   <data name="Settings.General.ConfirmBeforeCloseTip" xml:space="preserve">
-    <value>关闭窗口、退出快捷键和最后一个标签页关闭后退出时显示确认。可在此重新启用退出提示。</value>
+    <value>关闭窗口或使用退出快捷键退出应用时显示确认。可在此重新启用退出提示。</value>
   </data>
   <data name="Settings.General.AutoReconnect" xml:space="preserve">
     <value>断开后自动重连</value>
@@ -813,7 +813,7 @@
 
   <!-- Settings: SSH -->
   <data name="Settings.Ssh.ConnectionSection" xml:space="preserve">
-    <value>连接</value>
+    <value>连接默认值</value>
   </data>
   <data name="Settings.Ssh.DefaultPort" xml:space="preserve">
     <value>默认端口:</value>
@@ -1087,7 +1087,7 @@
     <value>终端类型:</value>
   </data>
   <data name="SessionEdit.TerminalType.Placeholder" xml:space="preserve">
-    <value>默认 xterm-256color</value>
+    <value>留空继承全局终端类型</value>
   </data>
   <data name="SessionEdit.StartupScript" xml:space="preserve">
     <value>启动脚本:</value>
@@ -1560,10 +1560,10 @@
     <value>远端程序（shell、tmux、byobu 等）通过 OSC 0/2 设置的标题显示在标签上；远端未设置标题时仍显示会话名</value>
   </data>
   <data name="Settings.Terminal.CwdFollow" xml:space="preserve">
-    <value>文件侧栏跟随目录</value>
+    <value>目录跟随</value>
   </data>
   <data name="Settings.Terminal.CwdFollowTip" xml:space="preserve">
-    <value>需要远端报告当前目录（OSC 7，或 tmux 标题设为 主机:路径）；详见 docs/design/09</value>
+    <value>远端报告当前目录时，文件管理器同步切换目录。支持 OSC 7 或 tmux 的“主机:路径”标题。</value>
   </data>
   <data name="Settings.Terminal.SessionOverrideHint" xml:space="preserve">
     <value>以上为全局默认，可在会话属性或「批量修改会话」中逐会话覆盖。</value>
@@ -1755,10 +1755,10 @@
     <value>代理</value>
   </data>
   <data name="Settings.Categories.ProxyDesc" xml:space="preserve">
-    <value>全局连接代理</value>
+    <value>代理档案管理</value>
   </data>
   <data name="Settings.Categories.ProxyPageDescription" xml:space="preserve">
-    <value>设置全局连接代理。当前支持 SOCKS5 连接；HTTP 代理暂不支持连接。</value>
+    <value>管理会话可选择的代理档案。当前支持 SOCKS5 连接；HTTP 代理暂不支持连接。</value>
   </data>
   <data name="Menu.Edit.SelectAll" xml:space="preserve">
     <value>全选</value>
@@ -1773,10 +1773,10 @@
     <value>文件传输</value>
   </data>
   <data name="Settings.Categories.FileTransferDesc" xml:space="preserve">
-    <value>缓存与编辑器</value>
+    <value>文件管理与编辑器</value>
   </data>
   <data name="Settings.Categories.FileTransferPageDescription" xml:space="preserve">
-    <value>传输缓存、变动监视与外部编辑器关联</value>
+    <value>文件管理的全局默认行为、缓存与文件监视、外部编辑器和文件关联</value>
   </data>
   <data name="Settings.Appearance.AdvancedFallbackFonts" xml:space="preserve">
     <value>高级：回退字体</value>
@@ -1954,5 +1954,82 @@ Latin: AaBb CcDd GgYy gypq
   </data>
   <data name="FileManager.Tab.Title" xml:space="preserve">
     <value>{0} · 文件管理</value>
+  </data>
+
+  <!-- Settings: grouped global options -->
+  <data name="Settings.General.NativeMenusSection" xml:space="preserve">
+    <value>系统菜单</value>
+  </data>
+  <data name="Settings.Appearance.TreeGeometrySection" xml:space="preserve">
+    <value>尺寸微调</value>
+  </data>
+  <data name="Settings.Appearance.ExternalSchemesSection" xml:space="preserve">
+    <value>导入外部配色方案</value>
+  </data>
+  <data name="Settings.Appearance.LivePreview" xml:space="preserve">
+    <value>实时效果预览</value>
+  </data>
+  <data name="Settings.TabBar.TitleSection" xml:space="preserve">
+    <value>标签标题</value>
+  </data>
+  <data name="Settings.Ssh.IdentitySection" xml:space="preserve">
+    <value>默认身份</value>
+  </data>
+  <data name="Settings.Ssh.RecoverySection" xml:space="preserve">
+    <value>保活与恢复</value>
+  </data>
+  <data name="Settings.Ssh.AgentSection" xml:space="preserve">
+    <value>SSH Agent</value>
+  </data>
+  <data name="Settings.Ssh.VaultSection" xml:space="preserve">
+    <value>保险库锁定</value>
+  </data>
+  <data name="Settings.FileTransfer.FileManagerSection" xml:space="preserve">
+    <value>文件管理</value>
+  </data>
+  <data name="Settings.FileTransfer.DockLeft" xml:space="preserve">
+    <value>默认停靠在左侧</value>
+  </data>
+  <data name="Settings.FileTransfer.CacheWatcherSection" xml:space="preserve">
+    <value>缓存与文件监视</value>
+  </data>
+  <data name="Settings.FileTransfer.CacheDirectory" xml:space="preserve">
+    <value>本地缓存目录</value>
+  </data>
+  <data name="Settings.FileTransfer.WatcherMode" xml:space="preserve">
+    <value>文件变动监视模式</value>
+  </data>
+  <data name="Settings.FileTransfer.AdvancedWatcherSection" xml:space="preserve">
+    <value>高级文件监视</value>
+  </data>
+  <data name="Settings.FileTransfer.PollingInterval" xml:space="preserve">
+    <value>轮询间隔（秒）</value>
+  </data>
+  <data name="Settings.FileTransfer.PollingIntervalTip" xml:space="preserve">
+    <value>使用轮询模式时，检查本地编辑文件变动的间隔。</value>
+  </data>
+  <data name="Settings.FileTransfer.WriteDebounce" xml:space="preserve">
+    <value>保存防抖（毫秒）</value>
+  </data>
+  <data name="Settings.FileTransfer.WriteDebounceTip" xml:space="preserve">
+    <value>文件停止变化后，等待此时长再触发回传，合并连续写入。</value>
+  </data>
+  <data name="Settings.FileTransfer.EditorsSection" xml:space="preserve">
+    <value>外部编辑器</value>
+  </data>
+  <data name="Settings.FileTransfer.CustomEditorPath" xml:space="preserve">
+    <value>备用编辑器命令/路径</value>
+  </data>
+  <data name="Settings.FileTransfer.EditCustomEditorPath" xml:space="preserve">
+    <value>编辑…</value>
+  </data>
+  <data name="Settings.FileTransfer.CustomEditorPathPlaceholder" xml:space="preserve">
+    <value>留空使用系统文件关联</value>
+  </data>
+  <data name="Settings.FileTransfer.CustomEditorPathTip" xml:space="preserve">
+    <value>文件关联或默认编辑器不可用时使用；留空使用系统文件关联。</value>
+  </data>
+  <data name="Settings.FileTransfer.AssociationsSection" xml:space="preserve">
+    <value>文件类型关联</value>
   </data>
 </root>
