@@ -1,0 +1,39 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Kei.Term.App.ViewModels"
+        xmlns:settings="using:Kei.Term.App.ViewModels.Settings"
+        xmlns:loc="using:Kei.Term.App.Helpers"
+        x:Class="Kei.Term.App.Views.FileAssociationEditWindow"
+        x:DataType="vm:FileAssociationEditViewModel"
+        Title="{Binding Title}"
+        Width="500" SizeToContent="Height" CanResize="False"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
+        Background="{DynamicResource Kei.Bg.Window}"
+        FontFamily="{DynamicResource Kei.Font.UI}" FontSize="13">
+    <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="12" Margin="18">
+        <Grid ColumnDefinitions="100,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="8" ColumnSpacing="12">
+            <TextBlock Text="扩展名 / 模式" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+            <TextBox x:Name="AssociationPatternTextBox" Grid.Column="1" Text="{Binding Pattern}" PlaceholderText="如 *.py;*.json 或 *.log"/>
+
+            <TextBlock Grid.Row="1" Text="关联编辑器" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+            <ComboBox x:Name="AssociationEditorComboBox" Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch"
+                      ItemsSource="{Binding Editors}" SelectedItem="{Binding SelectedEditor}">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="settings:ExternalEditorItemViewModel">
+                        <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding DisplayPath}"/>
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+
+            <TextBlock Grid.Row="2" Text="优先级" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+            <NumericUpDown x:Name="AssociationPriorityInput" Grid.Row="2" Grid.Column="1" Value="{Binding Priority}"
+                           FormatString="0" Increment="1" MinWidth="120" HorizontalAlignment="Left"/>
+        </Grid>
+        <SelectableTextBlock Grid.Row="1" Text="{Binding ErrorMessage}" IsVisible="{Binding HasError}"
+                             FontSize="12" Foreground="{DynamicResource Kei.Status.Error}" TextWrapping="Wrap"/>
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <Button x:Name="CancelButton" Content="{loc:KeiString Common.Cancel}" Command="{Binding CancelCommand}" MinWidth="76" IsCancel="True"/>
+            <Button x:Name="SaveButton" Content="{loc:KeiString Common.Save}" Command="{Binding SaveCommand}" MinWidth="76" Classes="accent" IsDefault="True"/>
+        </StackPanel>
+    </Grid>
+</Window>

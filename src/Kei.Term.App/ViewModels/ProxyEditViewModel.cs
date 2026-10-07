@@ -12,7 +12,7 @@ using Kei.Term.Core.Vault;
 namespace Kei.Term.App.ViewModels;
 
 // 代理编辑对话框。HTTP 允许保存，说明文字标明尚未接入拨号。口令不回填，也不进 ProxyProfile。
-public partial class ProxyEditViewModel : ObservableObject
+public partial class ProxyEditViewModel : ViewModelBase
 {
     private readonly Guid _id;
     private readonly int _sortOrder;
@@ -100,6 +100,10 @@ public partial class ProxyEditViewModel : ObservableObject
         ? Strings.Get("Proxy.NotWired")
         : string.Empty;
 
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasError))]
+    private string _errorMessage = string.Empty;
+    public bool HasError => !string.IsNullOrEmpty(ErrorMessage);
+
     public bool IsConfirmed { get; private set; }
     public event Action? RequestClose;
 
@@ -166,8 +170,10 @@ public partial class ProxyEditViewModel : ObservableObject
     {
         if (Build() == null)
         {
+            ErrorMessage = IsSession ? "请选择用于代理的已保存会话。" : "请填写有效的代理地址，端口范围为 1–65535。";
             return;
         }
+        ErrorMessage = string.Empty;
 
         IsConfirmed = true;
         RequestClose?.Invoke();

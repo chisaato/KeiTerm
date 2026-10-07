@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Presenters;
 using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Layout;
@@ -18,11 +19,40 @@ namespace Kei.Term.Tests;
 // 验证实际模板布局和 Skia 绘制的四条边，不只检查控件自身声明的 BorderThickness。
 public class InputBorderRenderingTests
 {
+    [Fact]
+    public Task FontAutoComplete_LeavesRoomForChineseAndDescendersInEveryState() => HeadlessAvalonia.RunAsync(() =>
+    {
+        UiDesignSystemService.Apply();
+        AutoCompleteBox input = new() { Text = "界面字体 AaBb gypq 012345", Width = 240 };
+        Button outside = new() { Content = "Outside" };
+        Window window = new()
+        {
+            Width = 320, Height = 180,
+            FontFamily = (FontFamily)Application.Current!.FindResource("Kei.Font.UI")!,
+            Content = new StackPanel { Margin = new Thickness(20), Spacing = 12, Children = { input, outside } }
+        };
+        try
+        {
+            window.Show();
+            outside.Focus();
+            Move(window, outside);
+            AssertTextFits(input);
+            Move(window, input);
+            AssertTextFits(input);
+            TextBox editor = input.GetVisualDescendants().OfType<TextBox>().Single(text => text.Name == "PART_TextBox");
+            editor.Focus();
+            HeadlessAvalonia.Pump();
+            AssertTextFits(input);
+        }
+        finally { window.Close(); }
+    });
+
     [Theory]
     [InlineData("text")]
     [InlineData("multiline")]
     [InlineData("combo")]
     [InlineData("editableCombo")]
+    [InlineData("autocomplete")]
     [InlineData("number")]
     [InlineData("numberLeft")]
     public Task InputFrame_RemainsClosedInNormalHoverFocusAndDisabledStates(string kind) => HeadlessAvalonia.RunAsync(() =>
@@ -69,19 +99,35 @@ public class InputBorderRenderingTests
         "multiline" => new TextBox { Text = "First line\nSecond line", AcceptsReturn = true, Height = 72 },
         "combo" => new ComboBox { ItemsSource = new[] { "First", "Second" }, SelectedIndex = 0 },
         "editableCombo" => new ComboBox { ItemsSource = new[] { "First", "Second" }, SelectedIndex = 0, IsEditable = true },
+        "autocomplete" => new AutoCompleteBox { Text = "PingFang SC · AaBb gypq 中文", ItemsSource = new[] { "PingFang SC", "DejaVu Sans" } },
         "number" => new NumericUpDown { Value = 14, Minimum = 8, Maximum = 36 },
         "numberLeft" => new NumericUpDown { Value = 14, Minimum = 8, Maximum = 36, ButtonSpinnerLocation = Location.Left },
         _ => throw new ArgumentOutOfRangeException(nameof(kind))
     };
 
+    private static void AssertTextFits(AutoCompleteBox input)
+    {
+        TextBox editor = input.GetVisualDescendants().OfType<TextBox>().Single(text => text.Name == "PART_TextBox");
+        ScrollViewer viewport = editor.GetVisualDescendants().OfType<ScrollViewer>().Single(scroll => scroll.Name == "PART_ScrollViewer");
+        TextPresenter text = editor.GetVisualDescendants().OfType<TextPresenter>().Single();
+        Assert.True(viewport.Viewport.Height + 0.01 >= text.TextLayout.Height,
+            $"AutoCompleteBox text is clipped: viewport={viewport.Viewport.Height}, text={text.TextLayout.Height}, padding={editor.Padding}");
+        AssertFrameFits(input);
+    }
+
     private static void AssertFrameFits(Control input)
     {
-        Control owner = input is NumericUpDown
-            ? input.GetVisualDescendants().OfType<ButtonSpinner>().Single(spinner => spinner.Name == "PART_Spinner") : input;
+        Control owner = input switch
+        {
+            NumericUpDown => input.GetVisualDescendants().OfType<ButtonSpinner>().Single(spinner => spinner.Name == "PART_Spinner"),
+            AutoCompleteBox => input.GetVisualDescendants().OfType<TextBox>().Single(text => text.Name == "PART_TextBox"),
+            _ => input
+        };
         Border frame = input switch
         {
             TextBox => owner.GetVisualDescendants().OfType<Border>().Single(border => border.Name == "PART_BorderElement"),
             ComboBox => owner.GetVisualDescendants().OfType<Border>().Single(border => border.Name == "Background"),
+            AutoCompleteBox => owner.GetVisualDescendants().OfType<Border>().Single(border => border.Name == "PART_BorderElement"),
             _ => owner.GetVisualDescendants().OfType<Border>().Single(border => ReferenceEquals(border.TemplatedParent, owner))
         };
         Point top = frame.TranslatePoint(default, input)!.Value;

@@ -42,6 +42,17 @@ public interface IInteractionService
 
     Task<TerminalProfile?> EditTerminalProfileAsync(TerminalProfile? source, TerminalFontSnapshot font);
 
+    Task<ExternalEditor?> EditExternalEditorAsync(ExternalEditor? existing)
+        => Task.FromResult<ExternalEditor?>(null);
+
+    Task<FileAssociationRule?> EditFileAssociationAsync(FileAssociationRule? existing, IReadOnlyList<ExternalEditor> editors)
+        => Task.FromResult<FileAssociationRule?>(null);
+
+    Task<ProxyEditCommit?> EditProxyAsync(ProxyProfile? existing, bool hasSavedPassword)
+        => Task.FromResult<ProxyEditCommit?>(null);
+
+    Task<string?> PickEditorExecutableAsync() => Task.FromResult<string?>(null);
+
     // === 选择器 ===
     Task<string?> PickSecureCrtFolderAsync();
 

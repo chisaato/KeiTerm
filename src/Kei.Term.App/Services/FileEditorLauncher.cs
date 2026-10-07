@@ -217,29 +217,7 @@ public class FileEditorLauncher
         {
             try
             {
-                string template = string.IsNullOrWhiteSpace(argumentsTemplate) ? "\"{path}\"" : argumentsTemplate;
-                string args = template;
-                if (string.Equals(customEditor, "code", StringComparison.OrdinalIgnoreCase) ||
-                    customEditor.EndsWith("/code", StringComparison.OrdinalIgnoreCase) ||
-                    customEditor.EndsWith("\\code.exe", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(customEditor, "subl", StringComparison.OrdinalIgnoreCase) ||
-                    customEditor.EndsWith("/subl", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(customEditor, "kate", StringComparison.OrdinalIgnoreCase))
-                {
-                    if (!args.Contains("-w") && !args.Contains("--wait"))
-                    {
-                        args = "--wait " + args;
-                    }
-                }
-
-                args = args.Replace("{path}", filePath);
-
-                var psi = new ProcessStartInfo
-                {
-                    FileName = customEditor,
-                    Arguments = args,
-                    UseShellExecute = false
-                };
+                ProcessStartInfo psi = CreateEditorStartInfo(filePath, customEditor, argumentsTemplate);
                 return Process.Start(psi);
             }
             catch (Exception ex)
@@ -249,6 +227,48 @@ public class FileEditorLauncher
         }
 
         return LaunchDefaultEditor(filePath);
+    }
+
+    public static ProcessStartInfo CreateEditorStartInfo(string filePath, string customEditor, string? argumentsTemplate = null)
+    {
+        string template = string.IsNullOrWhiteSpace(argumentsTemplate) ? "\"{path}\"" : argumentsTemplate;
+        if (OperatingSystem.IsMacOS() && customEditor.EndsWith(".app", StringComparison.OrdinalIgnoreCase))
+        {
+            // VS Code 的 CLI 能等待当前文件关闭，避免启动应用后立即停止回写监视。
+            string bundledCode = Path.Combine(customEditor, "Contents", "Resources", "app", "bin", "code");
+            if (File.Exists(bundledCode)) customEditor = bundledCode;
+            else
+            {
+                ProcessStartInfo app = new("/usr/bin/open") { UseShellExecute = false };
+                app.ArgumentList.Add("-W");
+                app.ArgumentList.Add("-a");
+                app.ArgumentList.Add(customEditor);
+                app.ArgumentList.Add(filePath);
+                if (template != "\"{path}\"")
+                {
+                    // 自定义参数保持原模板语义；open 的文件参数负责文档关联。
+                    app.ArgumentList.Clear();
+                    app.Arguments = $"-W -a \"{customEditor.Replace("\"", "\\\"")}\" \"{filePath.Replace("\"", "\\\"")}\" --args " + template.Replace("{path}", filePath);
+                }
+                return app;
+            }
+        }
+
+        string args = template;
+        if (string.Equals(customEditor, "code", StringComparison.OrdinalIgnoreCase)
+            || customEditor.EndsWith("/code", StringComparison.OrdinalIgnoreCase)
+            || customEditor.EndsWith("\\code.exe", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(customEditor, "subl", StringComparison.OrdinalIgnoreCase)
+            || customEditor.EndsWith("/subl", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(customEditor, "kate", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!args.Split(' ', StringSplitOptions.RemoveEmptyEntries).Any(a => a is "-w" or "--wait")) args = "--wait " + args;
+        }
+        return new ProcessStartInfo(customEditor)
+        {
+            Arguments = args.Replace("{path}", filePath),
+            UseShellExecute = false
+        };
     }
 
     public static Process? LaunchDefaultEditor(string filePath)

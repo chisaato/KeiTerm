@@ -18,6 +18,7 @@ public partial class ProxyEditWindow : Window
     {
         DataContext = vm;
         vm.RequestClose += Close;
+        Closed += (_, _) => vm.RequestClose -= Close;
     }
 }
 

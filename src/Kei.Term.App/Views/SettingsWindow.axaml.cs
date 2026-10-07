@@ -26,6 +26,7 @@ public partial class SettingsWindow : Window
     public SettingsWindow(SettingsViewModel vm) : this()
     {
         DataContext = vm;
+        vm.SetInteraction(new SettingsWindowInteractionService(this, vm));
         // 每次打开都从当前设置重读，丢弃上次未保存的改动
         vm.Reload();
 
@@ -119,13 +120,13 @@ public partial class SettingsWindow : Window
 
         if (vm.ProxyPage is { } proxyPage)
         {
-            proxyPage.EditProxyAsync = existing => EditProxyAsync(vm, existing);
             _ = proxyPage.ReloadAsync();
         }
 
         // 窗口关闭时解绑，避免 VM 复用导致的处理器累积
         Closed += (_, _) =>
         {
+            vm.SetInteraction(Kei.Term.App.Services.NullInteractionService.Instance);
             if (onRequestClose != null)
             {
                 vm.RequestClose -= onRequestClose;
@@ -179,64 +180,6 @@ public partial class SettingsWindow : Window
         // 改正在编辑的终端方案。设置窗口取消会用已提交副本覆盖，不会落盘。
         var dialogVm = new FontDialogViewModel(profile);
         await new FontDialogWindow(dialogVm).ShowDialog(this);
-    }
-
-    private async Task<ProxyEditCommit?> EditProxyAsync(SettingsViewModel settings, ProxyProfile? existing)
-    {
-        bool hasSavedPassword = existing != null
-            && settings.ProxySecrets != null
-            && await settings.ProxySecrets.HasPasswordAsync(existing.Id);
-        var editVm = new ProxyEditViewModel(existing, hasSavedPassword: hasSavedPassword);
-        editVm.PickSessionAsync = () => PickSessionForProxyAsync(settings);
-        await new ProxyEditWindow(editVm).ShowDialog(this);
-        if (!editVm.IsConfirmed)
-        {
-            return null;
-        }
-
-        ProxyProfile? built = editVm.Build();
-        if (built == null)
-        {
-            return null;
-        }
-
-        return new ProxyEditCommit
-        {
-            Profile = built,
-            ApplyPassword = store => editVm.ApplyPasswordAsync(store)
-        };
-    }
-
-    private async Task<SessionNode?> PickSessionForProxyAsync(SettingsViewModel settings)
-    {
-        IReadOnlyList<TreeNodeBase> roots = settings.SessionTreeSnapshot?.Invoke() ?? [];
-        IReadOnlyList<SessionNode> sessions = FlattenSessions(roots);
-        var picker = new SessionPickerViewModel(roots, Guid.Empty, sessions);
-        SessionNode? picked = await new SessionPickerWindow(picker).ShowDialog<SessionNode?>(this);
-        return picked;
-    }
-
-    private static List<SessionNode> FlattenSessions(IEnumerable<TreeNodeBase> nodes)
-    {
-        var list = new List<SessionNode>();
-        foreach (TreeNodeBase node in nodes)
-        {
-            if (node is SessionNode session)
-            {
-                list.Add(session);
-            }
-
-            if (node is FolderNode folder)
-            {
-                list.AddRange(FlattenSessions(folder.Children));
-            }
-            else if (node is VirtualRootNode root)
-            {
-                list.AddRange(FlattenSessions(root.Children));
-            }
-        }
-
-        return list;
     }
 
     private async Task TriggerCancelAndCloseAsync(SettingsViewModel vm)

@@ -164,6 +164,23 @@
         <Setter Property="BorderBrush" Value="{DynamicResource Kei.Status.Error}"/>
     </Style>
 
+    <!-- 自动补全框将宿主 Padding 传给内嵌 TextBox，必须与 28px 行高一起收紧。 -->
+    <Style Selector="AutoCompleteBox">
+        <Setter Property="MinHeight" Value="28"/>
+        <Setter Property="Height" Value="28"/>
+        <Setter Property="Padding" Value="8,3"/>
+        <Setter Property="FontSize" Value="12.5"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource Kei.Radius.Control}"/>
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Input}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Border}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+    </Style>
+    <Style Selector="AutoCompleteBox /template/ TextBox#PART_TextBox">
+        <Setter Property="MinHeight" Value="0"/>
+        <Setter Property="Height" Value="NaN"/>
+    </Style>
+
     <!-- 通用下拉框：28px 紧凑高度、3px 圆角、实体背景 -->
     <Style Selector="ComboBox">
         <Setter Property="MinHeight" Value="28"/>

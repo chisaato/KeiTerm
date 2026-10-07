@@ -1782,8 +1782,10 @@
     <value>高级：回退字体</value>
   </data>
   <data name="Settings.Appearance.UiFontPreviewSample" xml:space="preserve">
-    <value>界面字体预览 · AaBb 012345
-菜单、会话名称与设置说明</value>
+    <value>中文：远程连接与文件传输
+Latin: AaBb CcDd GgYy gypq
+数字：0123456789 · 1.25 GiB
+符号：@ # $ % &amp; * + = / \ ( ) [ ] { }</value>
   </data>
   <data name="Settings.Appearance.FallbackFontsHint" xml:space="preserve">
     <value>主字体缺少字符时，按以下顺序尝试回退字体。</value>
