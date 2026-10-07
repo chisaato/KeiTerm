@@ -31,17 +31,18 @@
             <Setter Property="IsVisible" Value="False"/>
         </Style>
     </UserControl.Styles>
-    <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,1">
-        <Panel>
-            <Path Classes="kei-icon folderIcon" Data="{StaticResource Kei.Icon.Folder}"
-                  Width="{DynamicResource Kei.Tree.IconSize}"
-                  Height="{DynamicResource Kei.Tree.IconSize}"
-                  Fill="{DynamicResource Kei.Text.Muted}"/>
-            <Path Classes="kei-icon sessionIcon" Data="{StaticResource Kei.Icon.Terminal}"
-                  Width="{DynamicResource Kei.Tree.IconSize}"
-                  Height="{DynamicResource Kei.Tree.IconSize}"
-                  Fill="{DynamicResource Kei.Session.Foreground}"/>
-        </Panel>
+    <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,1">
+        <Viewbox Width="{DynamicResource Kei.Tree.IconSize}" Height="{DynamicResource Kei.Tree.IconSize}"
+                 Stretch="Uniform" VerticalAlignment="Center">
+            <Grid Width="24" Height="24">
+                <Path Classes="kei-icon folderIcon" Data="{StaticResource Kei.Icon.Folder}"
+                      Width="24" Height="24" Stretch="None"
+                      Fill="{DynamicResource Kei.Text.Muted}"/>
+                <Path Classes="kei-icon sessionIcon" Data="{StaticResource Kei.Icon.Terminal}"
+                      Width="24" Height="24" Stretch="None"
+                      Fill="{DynamicResource Kei.Session.Foreground}"/>
+            </Grid>
+        </Viewbox>
         <TextBlock Classes="name" Text="{Binding Name}"
                    FontSize="{DynamicResource Kei.Tree.FontSize}"
                    VerticalAlignment="Center"/>

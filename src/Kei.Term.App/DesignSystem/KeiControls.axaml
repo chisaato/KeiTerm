@@ -31,23 +31,18 @@
                                         <DynamicResource ResourceKey="Kei.Tree.Indent"/>
                                     </MultiBinding>
                                 </Grid.Margin>
-                                <!-- 水平分支引导线：与父级垂直对齐线 (X=Root treeLine = 6, Child header=18, 相距 12px) 精准相交 -->
-                                <Rectangle Height="1"
-                                           Width="16"
-                                           HorizontalAlignment="Left"
-                                           VerticalAlignment="Center"
-                                           Margin="-12,0,0,0"
-                                           Fill="{DynamicResource Kei.Tree.Line}"
-                                           IsHitTestVisible="False"/>
                                 <!-- 节点内容胶囊容器：背景色放在此处，使得左侧缩进层级不被整行高亮截断 -->
                                 <Border Name="PART_ContentPill"
                                         Classes="TreeViewItemContentPill"
                                         Background="{TemplateBinding Background}"
                                         CornerRadius="{DynamicResource Kei.Radius.Control}">
                                     <Grid ColumnDefinitions="Auto, *">
-                                        <Panel Name="PART_ExpandCollapseChevronContainer" Margin="0,0,2,0">
+                                        <Panel Name="PART_ExpandCollapseChevronContainer" Width="16" Height="16" Margin="0,0,6,0" VerticalAlignment="Center">
                                             <ToggleButton Name="PART_ExpandCollapseChevron"
                                                           Theme="{StaticResource FluentTreeViewExpandCollapseChevron}"
+                                                          Foreground="{DynamicResource Kei.Text.Secondary}"
+                                                          Width="12" Height="12" MinWidth="0" MinHeight="0"
+                                                          HorizontalAlignment="Center" VerticalAlignment="Center"
                                                           Focusable="False"
                                                           IsChecked="{TemplateBinding IsExpanded, Mode=TwoWay}"/>
                                         </Panel>
@@ -65,20 +60,10 @@
                             </Grid>
                         </Border>
                         <Grid IsVisible="{TemplateBinding IsExpanded}">
-                            <controls:KeiTreeLine Width="1"
-                                                  HorizontalAlignment="Left"
+                            <!-- 父箭头轴和直接子项横支线共用实际布局坐标，随密度设置一起更新。 -->
+                            <controls:KeiTreeLine
                                                   LineBrush="{DynamicResource Kei.Tree.Line}"
-                                                  IsHitTestVisible="False">
-                                <controls:KeiTreeLine.Margin>
-                                    <MultiBinding Converter="{x:Static converters:TreeViewItemIndentConverter.Instance}">
-                                        <Binding Path="Level" RelativeSource="{RelativeSource TemplatedParent}"/>
-                                        <DynamicResource ResourceKey="Kei.Tree.Indent"/>
-                                    </MultiBinding>
-                                </controls:KeiTreeLine.Margin>
-                                <controls:KeiTreeLine.RenderTransform>
-                                    <TranslateTransform X="6"/>
-                                </controls:KeiTreeLine.RenderTransform>
-                            </controls:KeiTreeLine>
+                                                  IsHitTestVisible="False"/>
                             <ItemsPresenter Name="PART_ItemsPresenter"
                                             ItemsPanel="{TemplateBinding ItemsPanel}"/>
                         </Grid>
@@ -118,13 +103,19 @@
             <Style Selector="^:empty /template/ ToggleButton#PART_ExpandCollapseChevron">
                 <Setter Property="IsVisible" Value="False"/>
             </Style>
-            <Style Selector="^:empty /template/ Panel#PART_ExpandCollapseChevronContainer">
-                <Setter Property="Width" Value="12"/>
-            </Style>
         </ControlTheme>
     </Styles.Resources>
 
     <!-- Kei 桌面工具紧凑控件外观样式（基于 FluentTheme，覆盖紧凑度、小圆角与沉稳边框） -->
+
+    <!-- 两层模板选择器须放在应用样式中，ControlTheme 内只允许穿过自身的一层模板。 -->
+    <Style Selector="TreeViewItem /template/ ToggleButton#PART_ExpandCollapseChevron[IsEnabled=True] /template/ Path">
+        <!-- 状态样式优先于 Fluent 模板内的独立 Fill，保持字形与 Kei 前景一致。 -->
+        <Setter Property="Fill" Value="{DynamicResource Kei.Text.Secondary}"/>
+    </Style>
+    <Style Selector="TreeViewItem /template/ ToggleButton#PART_ExpandCollapseChevron:disabled /template/ Path">
+        <Setter Property="Fill" Value="{DynamicResource Kei.Text.Muted}"/>
+    </Style>
 
     <!-- 通用输入框：封闭实体框、28px 紧凑高度、3px 圆角、细腻微弱描边、聚焦高亮 -->
     <Style Selector="TextBox">
