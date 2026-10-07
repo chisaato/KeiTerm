@@ -1006,13 +1006,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
 
     private bool CanConnectSelectedSession() => SelectedTreeNode is SessionNode;
 
-    // 快速连接：经委托打开快速连接窗口，确认后的保存/连接逻辑集中在 ConnectQuickAsync
-    [RelayCommand]
-    private Task QuickConnectAsync() => Safe.RunAsync(_logger, "快速连接", async () =>
-    {
-        await RunConnectionFromWorkspaceAsync(() => Interaction.OpenQuickConnectAsync());
-    });
-
     // 导入 ~/.ssh/config：具体 Host 别名 → 会话，IdentityFile → 身份，ProxyJump → 跳板链
     [RelayCommand]
     private Task ImportOpenSshConfigAsync() => Safe.RunAsync(_logger, "导入 OpenSSH 配置", async () =>

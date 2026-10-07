@@ -26,11 +26,14 @@ public partial class MainWindow
     private IPointer? _sessionManagerPointer;
     private bool _sessionManagerContextRequestActive;
     private bool _sessionManagerClosed;
-    private bool _sessionManagerAnimationVisible;
-    private bool _sessionManagerAnimationPinned;
+    private SidebarTransition? _sessionManagerTransition;
+    private bool _sessionManagerPresentationInitialized;
+    private bool _sessionManagerTargetVisible;
+    private bool _sessionManagerPresentedDocked;
 
     private void SetUpSessionManager()
     {
+        _sessionManagerTransition = new SidebarTransition(SessionManagerSurface);
         AddHandler(PointerPressedEvent, SessionManager_PointerPressed, RoutingStrategies.Tunnel, handledEventsToo: true);
         AddHandler(PointerMovedEvent, SessionManager_PointerMoved, RoutingStrategies.Tunnel, handledEventsToo: true);
         AddHandler(PointerReleasedEvent, SessionManager_PointerReleased, RoutingStrategies.Tunnel, handledEventsToo: true);
@@ -50,18 +53,23 @@ public partial class MainWindow
 
     private void UpdateSessionManagerLayout(MainViewModel model)
     {
+        if (_sessionManagerClosed || _sessionManagerTransition == null) return;
         ColumnDefinition sidebarColumn = MainSplitGrid.ColumnDefinitions[0];
         if (sidebarColumn.Width.IsAbsolute && sidebarColumn.Width.Value > 1)
             _lastSidebarWidth = sidebarColumn.Width.Value;
 
-        bool docked = model.IsSessionManagerDocked;
-        sidebarColumn.Width = new GridLength(docked ? _lastSidebarWidth : 0);
-        // 面板收起和悬浮时都彻底释放分割条占用的宽度。
-        MainSplitGrid.ColumnDefinitions[1].Width = new GridLength(docked ? 4 : 0);
-        Grid.SetColumnSpan(SessionManagerBorder, docked ? 1 : 3);
-        SessionManagerBorder.HorizontalAlignment = docked ? HorizontalAlignment.Stretch : HorizontalAlignment.Left;
-        SessionManagerBorder.Width = docked ? double.NaN : _lastSidebarWidth;
-        SessionManagerBorder.ZIndex = docked ? 0 : 10;
+        bool visible = model.IsSessionManagerVisible;
+        bool initiallyPresented = _sessionManagerPresentationInitialized;
+        bool fromHidden = !SessionManagerBorder.IsVisible;
+        // 固定面板收起期间保留布局宽度，直到退出动画完成才释放。
+        bool presentedDocked = visible ? model.IsSessionManagerPinned
+            : SessionManagerBorder.IsVisible && _sessionManagerPresentedDocked;
+        bool placementChanged = presentedDocked != _sessionManagerPresentedDocked;
+        ApplySessionManagerPlacement(presentedDocked);
+        if (visible) SessionManagerBorder.IsVisible = true;
+        SessionManagerBorder.IsHitTestVisible = visible;
+        SessionManagerSplitter.IsVisible = presentedDocked;
+        SessionManagerSplitter.IsHitTestVisible = visible && presentedDocked;
 
         bool floatingOpen = model.IsSessionManagerVisible && !model.IsSessionManagerPinned;
         bool canReveal = !model.IsSessionManagerPinned && !model.IsSessionManagerVisible;
@@ -82,23 +90,47 @@ public partial class MainWindow
             _previousSessionManagerFocus = null;
         }
         _floatingSessionManagerOpen = floatingOpen;
-        UpdateSessionManagerEntranceAnimation(model);
+        if (!initiallyPresented)
+        {
+            _sessionManagerTransition.SetImmediate(visible);
+            SessionManagerBorder.IsVisible = visible;
+            if (!visible) CompleteSessionManagerHide();
+        }
+        else if (visible != _sessionManagerTargetVisible)
+        {
+            _sessionManagerTransition.Start(visible, -12, fromHidden, () =>
+            {
+                if (!visible) CompleteSessionManagerHide();
+            });
+        }
+        else if (placementChanged)
+        {
+            // 同一面板固定/解除固定只改停靠，取消原来的位移动画并立即归位。
+            _sessionManagerTransition.SetImmediate(visible);
+        }
+        _sessionManagerTargetVisible = visible;
+        _sessionManagerPresentationInitialized = true;
         if (!floatingOpen || IsPointerInSessionManager()) _sessionManagerHoverTimer.Stop();
         else ScheduleSessionManagerHoverHide();
     }
 
-    private void UpdateSessionManagerEntranceAnimation(MainViewModel model)
+    private void ApplySessionManagerPlacement(bool docked)
     {
-        bool visible = model.IsSessionManagerVisible;
-        bool pinned = model.IsSessionManagerPinned;
-        if (visible == _sessionManagerAnimationVisible && pinned == _sessionManagerAnimationPinned) return;
+        MainSplitGrid.ColumnDefinitions[0].Width = new GridLength(docked ? _lastSidebarWidth : 0);
+        MainSplitGrid.ColumnDefinitions[1].Width = new GridLength(docked ? 4 : 0);
+        Grid.SetColumnSpan(SessionManagerBorder, docked ? 1 : 3);
+        SessionManagerBorder.HorizontalAlignment = docked ? HorizontalAlignment.Stretch : HorizontalAlignment.Left;
+        SessionManagerBorder.Width = docked ? double.NaN : _lastSidebarWidth;
+        SessionManagerBorder.ZIndex = docked ? 0 : 10;
+        _sessionManagerPresentedDocked = docked;
+    }
 
-        // 移除样式立即取消原生动画，恢复基础 Opacity/Transform，不留下异步任务。
-        SessionManagerSurface.Classes.Remove("revealing");
-        if (visible && !_sessionManagerAnimationVisible && !_sessionManagerClosed)
-            SessionManagerSurface.Classes.Add("revealing");
-        _sessionManagerAnimationVisible = visible;
-        _sessionManagerAnimationPinned = pinned;
+    private void CompleteSessionManagerHide()
+    {
+        if (_sessionManagerClosed) return;
+        SessionManagerBorder.IsVisible = false;
+        SessionManagerSplitter.IsVisible = false;
+        ApplySessionManagerPlacement(false);
     }
 
     private bool IsPointerInSessionManager() => SessionManagerToggleButton.IsPointerOver
@@ -199,7 +231,7 @@ public partial class MainWindow
     private void SessionManager_Closed(object? sender, EventArgs args)
     {
         _sessionManagerClosed = true;
-        SessionManagerSurface.Classes.Remove("revealing");
+        _sessionManagerTransition?.Dispose();
         _sessionManagerHoverTimer.Stop();
         _sessionManagerHoverTimer.Tick -= SessionManager_HoverTimerTick;
         SessionManagerToggleButton.PointerEntered -= SessionManager_PointerEntered;

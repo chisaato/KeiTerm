@@ -14,6 +14,7 @@ public partial class MainWindow
     private TaskCompletionSource<CommandPaletteItem?>? _paletteCompletion;
     private CommandPaletteViewModel? _paletteModel;
     private Control? _palettePreviousFocus;
+    public bool IsCommandPaletteOpen => _paletteCompletion != null;
 
     public Task<CommandPaletteItem?> ShowCommandPaletteAsync(CommandPaletteViewModel viewModel)
     {

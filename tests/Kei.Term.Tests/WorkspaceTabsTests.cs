@@ -53,7 +53,7 @@ public class WorkspaceTabsTests
             await model.CloseWorkspaceTabCommand.ExecuteAsync(Assert.Single(model.Tabs));
             model.NewTabCommand.Execute(null);
             HeadlessAvalonia.Pump();
-            NewTabView starter = Assert.Single(window.GetVisualDescendants().OfType<NewTabView>());
+            NewTabView starter = Assert.Single(window.GetVisualDescendants().OfType<NewTabView>(), view => view.IsEffectivelyVisible);
             Assert.True(starter.IsEffectivelyVisible);
             Assert.True(starter.Bounds.Width > 0 && starter.Bounds.Height > 0);
         }
@@ -114,11 +114,12 @@ public class WorkspaceTabsTests
             Assert.Single(window.GetVisualDescendants().OfType<TerminalWorkspaceView>());
             model.SelectTabCommand.Execute(existing);
             HeadlessAvalonia.Pump();
-            Assert.True(window.GetVisualDescendants().OfType<NewTabView>().Single().IsEffectivelyVisible);
+            Assert.Single(window.GetVisualDescendants().OfType<NewTabView>(), view => view.IsEffectivelyVisible);
             Assert.True(window.GetVisualDescendants().OfType<TerminalConnectionView>().Single().IsEffectivelyVisible);
 
             model.Interaction = new ScriptedInteraction
             {
+                PaletteSelection = palette => palette.Results.First(item => item.Action == PaletteAction.NewConnection),
                 QuickConnectAction = () =>
                 {
                     // 对话框打开期间用户切到左组；新连接必须仍替换右组的启动页。
@@ -135,7 +136,7 @@ public class WorkspaceTabsTests
             Assert.Empty(model.NewTabs);
             Assert.Same(replacement, model.SelectedTab);
             Assert.Equal(2, window.GetVisualDescendants().OfType<TerminalConnectionView>().Count());
-            Assert.Empty(window.GetVisualDescendants().OfType<NewTabView>());
+            Assert.DoesNotContain(window.GetVisualDescendants().OfType<NewTabView>(), view => view.IsEffectivelyVisible);
         }
         finally
         {
@@ -251,6 +252,7 @@ public class WorkspaceTabsTests
                 ((IConnectionHost)model).OpenTab(Config("connected"));
                 return Task.CompletedTask;
             };
+            interaction.PaletteSelection = palette => palette.Results.First(item => item.Action == PaletteAction.NewConnection);
             await starter.QuickConnectCommand.ExecuteAsync(null);
             TerminalTabViewModel terminal = Assert.Single(model.Tabs);
             Assert.Same(terminal, model.WorkspaceTabs[0]);
@@ -318,8 +320,8 @@ public class WorkspaceTabsTests
             Assert.Same(second, model.ActiveWorkspaceTab);
             Assert.False(first.IsSelected);
             Assert.True(second.IsSelected);
-            Assert.Single(window.GetVisualDescendants().OfType<NewTabView>(), view => view.IsVisible);
-            Assert.Equal("ConnectSavedSessionButton", ((Control)window.FocusManager!.GetFocusedElement()!).Name);
+            Assert.Single(window.GetVisualDescendants().OfType<NewTabView>(), view => view.IsEffectivelyVisible);
+            Assert.Equal("QuickConnectButton", ((Control)window.FocusManager!.GetFocusedElement()!).Name);
             model.SelectWorkspaceTabCommand.Execute(first);
             model.MoveWorkspaceTab(0, 1);
             Assert.Same(first, model.ActiveWorkspaceTab);

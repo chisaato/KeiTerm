@@ -28,7 +28,8 @@ public partial class NewTabView : UserControl
     {
         // 模板可能晚于模态弹窗挂载，此时不能把键盘焦点抢回主窗口。
         if (IsEffectivelyVisible && TopLevel.GetTopLevel(this) is Window window
-            && !window.OwnedWindows.Any(child => child.IsVisible)) ConnectSavedSessionButton.Focus();
+            && (window is not MainWindow main || !main.IsCommandPaletteOpen)
+            && !window.OwnedWindows.Any(child => child.IsVisible)) QuickConnectButton.Focus();
     }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs args)
@@ -37,7 +38,7 @@ public partial class NewTabView : UserControl
         // Dock 的文档模板在选择消息之后挂载，焦点必须等实际视图出现。
         Dispatcher.UIThread.Post(() =>
         {
-            if (IsEffectivelyVisible && DataContext is NewTabViewModel { IsSelected: true }) FocusDefaultAction();
+            if (IsEffectivelyVisible && DataContext is NewTabViewModel tab && (tab.IsSelected || tab.IsWelcome)) FocusDefaultAction();
         }, DispatcherPriority.Loaded);
     }
 }

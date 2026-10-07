@@ -5,6 +5,9 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
+using Avalonia.VisualTree;
+using Avalonia.Headless;
+using Avalonia.Input;
 using CommunityToolkit.Mvvm.Input;
 using Kei.Term.App.Services;
 using Kei.Term.App.ViewModels;
@@ -30,10 +33,16 @@ public class WelcomeActionsTests
     public Task QuickConnect_OpensTerminalDirectly_OrLeavesWelcomeOnCancel(bool confirm) => HeadlessAvalonia.RunAsync(async () =>
     {
         await using Fixture fixture = await Fixture.CreateAsync();
-        Button button = fixture.Window.FindControl<Button>("WelcomeQuickConnectButton")!;
+        Button button = fixture.Window.FindControl<NewTabView>("WelcomeView")!.FindControl<Button>("QuickConnectButton")!;
         Assert.True(button.IsEffectivelyVisible);
         IAsyncRelayCommand command = Assert.IsAssignableFrom<IAsyncRelayCommand>(button.Command);
         Task operation = command.ExecuteAsync(null);
+        HeadlessAvalonia.Pump();
+        CommandPaletteView picker = Assert.IsType<CommandPaletteView>(fixture.Window.FindControl<ContentControl>("CommandPaletteHost")!.Content);
+        CommandPaletteViewModel choices = Assert.IsType<CommandPaletteViewModel>(picker.DataContext);
+        Assert.Equal(PaletteAction.NewConnection, choices.SelectedResult!.Action);
+        Assert.Empty(fixture.Window.OwnedWindows);
+        choices.ExecuteSelectedCommand.Execute(null);
         HeadlessAvalonia.Pump();
         QuickConnectWindow dialog = Assert.Single(fixture.Window.OwnedWindows.OfType<QuickConnectWindow>());
         QuickConnectViewModel edit = Assert.IsType<QuickConnectViewModel>(dialog.DataContext);
@@ -48,12 +57,20 @@ public class WelcomeActionsTests
     });
 
     [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public Task NewSession_SavesAndOpensTerminalDirectly_OrLeavesWelcomeOnCancel(bool confirm) => HeadlessAvalonia.RunAsync(async () =>
+    [InlineData(true, false)]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    [InlineData(false, true)]
+    public Task NewSession_SavesAndOpensTerminalDirectly_OrLeavesPageOnCancel(bool confirm, bool fromNewTab) => HeadlessAvalonia.RunAsync(async () =>
     {
         await using Fixture fixture = await Fixture.CreateAsync();
-        Button button = fixture.Window.FindControl<Button>("WelcomeNewSessionButton")!;
+        if (fromNewTab)
+        {
+            fixture.Model.NewTabCommand.Execute(null);
+            HeadlessAvalonia.Pump();
+        }
+        NewTabView page = fixture.Window.GetVisualDescendants().OfType<NewTabView>().Single(view => view.IsEffectivelyVisible);
+        Button button = page.FindControl<Button>("CreateSessionButton")!;
         Assert.True(button.IsEffectivelyVisible);
         IAsyncRelayCommand command = Assert.IsAssignableFrom<IAsyncRelayCommand>(button.Command);
         Task operation = command.ExecuteAsync(null);
@@ -66,7 +83,13 @@ public class WelcomeActionsTests
         (confirm ? edit.SaveCommand : edit.CancelCommand).Execute(null);
         await operation.WaitAsync(TimeSpan.FromSeconds(5));
         HeadlessAvalonia.Pump();
-        AssertWorkspace(fixture, button, confirm, "New LAN");
+        if (fromNewTab && !confirm)
+        {
+            Assert.Single(fixture.Model.NewTabs);
+            Assert.Empty(fixture.Model.Tabs);
+            Assert.True(button.IsEffectivelyVisible);
+        }
+        else AssertWorkspace(fixture, button, confirm, "New LAN");
         IReadOnlyList<TreeNodeBase> saved = await fixture.Tree.GetAllNodesAsync();
         if (confirm)
         {
@@ -75,6 +98,85 @@ public class WelcomeActionsTests
             Assert.Equal(session.Id, Assert.Single(fixture.Model.Tabs).Config!.SessionId);
         }
         else Assert.Empty(saved);
+    });
+
+    [Fact]
+    public Task QuickConnect_SelectsSavedSessionBelowNewConnection_AndReplacesStartPage() => HeadlessAvalonia.RunAsync(async () =>
+    {
+        await using Fixture fixture = await Fixture.CreateAsync();
+        SessionNode saved = new() { Name = "LAN server", Host = "lan.example", Username = "ops" };
+        await fixture.Tree.SaveNodeAsync(saved);
+        await fixture.Model.ReloadTreeAsync();
+        fixture.Model.NewTabCommand.Execute(null);
+        HeadlessAvalonia.Pump();
+        NewTabView starter = fixture.Window.GetVisualDescendants().OfType<NewTabView>().Single(view => view.IsEffectivelyVisible);
+        Button quick = starter.FindControl<Button>("QuickConnectButton")!;
+        Task operation = ((IAsyncRelayCommand)quick.Command!).ExecuteAsync(null);
+        HeadlessAvalonia.Pump();
+        CommandPaletteView picker = Assert.IsType<CommandPaletteView>(fixture.Window.FindControl<ContentControl>("CommandPaletteHost")!.Content);
+        CommandPaletteViewModel choices = Assert.IsType<CommandPaletteViewModel>(picker.DataContext);
+        Assert.Equal(PaletteAction.NewConnection, choices.Results[0].Action);
+        Assert.Equal(saved.Id, choices.Results[1].SessionId);
+        fixture.Window.KeyPress(Key.Down, RawInputModifiers.None, PhysicalKey.None, null);
+        fixture.Window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.None, null);
+        await operation.WaitAsync(TimeSpan.FromSeconds(5));
+        HeadlessAvalonia.Pump();
+        Assert.Empty(fixture.Model.NewTabs);
+        Assert.Equal(saved.Id, Assert.Single(fixture.Model.Tabs).Config!.SessionId);
+        Assert.True(fixture.Window.GetVisualDescendants().OfType<TerminalConnectionView>().Single().IsEffectivelyVisible);
+        Assert.DoesNotContain(fixture.Window.OwnedWindows, window => window is QuickConnectWindow);
+    });
+
+    [Fact]
+    public Task EmptyWorkspaceAndNewTab_ShareActions_AndPaletteCancelKeepsThePage() => HeadlessAvalonia.RunAsync(async () =>
+    {
+        await using Fixture fixture = await Fixture.CreateAsync();
+        NewTabView welcome = fixture.Window.FindControl<NewTabView>("WelcomeView")!;
+        fixture.Model.NewTabCommand.Execute(null);
+        HeadlessAvalonia.Pump();
+        NewTabView starter = fixture.Window.GetVisualDescendants().OfType<NewTabView>().Single(view => view.IsEffectivelyVisible);
+        Assert.IsType<NewTabViewModel>(welcome.DataContext);
+        Assert.False(welcome.IsEffectivelyVisible);
+        Assert.Equal("QuickConnectButton", ((Control)fixture.Window.FocusManager!.GetFocusedElement()!).Name);
+        Button quick = starter.FindControl<Button>("QuickConnectButton")!;
+        Task operation = ((IAsyncRelayCommand)quick.Command!).ExecuteAsync(null);
+        HeadlessAvalonia.Pump();
+        fixture.Window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.None, null);
+        await operation.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Single(fixture.Model.NewTabs);
+        Assert.Empty(fixture.Model.Tabs);
+        Assert.True(starter.IsEffectivelyVisible);
+    });
+
+    [Fact]
+    public Task CommandPalette_OffersOnlyActionsForTheActiveDocument() => HeadlessAvalonia.RunAsync(async () =>
+    {
+        await using Fixture fixture = await Fixture.CreateAsync();
+        Assert.DoesNotContain(fixture.Model.CreateCommandPalette().Results, item => item.Action == PaletteAction.ToggleComposeBar);
+        fixture.Model.NewTabCommand.Execute(null);
+        NewTabViewModel starter = Assert.Single(fixture.Model.NewTabs);
+        Assert.Contains(fixture.Model.CreateCommandPalette().Results, item => item.Action == PaletteAction.CloseTab);
+        Assert.DoesNotContain(fixture.Model.CreateCommandPalette().Results, item => item.Action == PaletteAction.FindTerminal);
+        Task connect = fixture.Model.NewConnectionCommand.ExecuteAsync(null);
+        HeadlessAvalonia.Pump();
+        QuickConnectWindow dialog = Assert.Single(fixture.Window.OwnedWindows.OfType<QuickConnectWindow>());
+        QuickConnectViewModel edit = Assert.IsType<QuickConnectViewModel>(dialog.DataContext);
+        edit.Host = "palette.example";
+        edit.Password = "test-only";
+        edit.ConnectCommand.Execute(null);
+        await connect.WaitAsync(TimeSpan.FromSeconds(5));
+        HeadlessAvalonia.Pump();
+        CommandPaletteViewModel terminalActions = fixture.Model.CreateCommandPalette();
+        Assert.Contains(terminalActions.Results, item => item.Action == PaletteAction.ToggleComposeBar);
+        Assert.Contains(terminalActions.Results, item => item.Action == PaletteAction.FindTerminal);
+        Assert.DoesNotContain(terminalActions.Results, item => item.Action == PaletteAction.Disconnect);
+        Assert.DoesNotContain(terminalActions.Results, item => item.Action == PaletteAction.ToggleFileManager);
+        // 即便面板打开后目标变成了启动页，也不能执行旧结果中的终端操作。
+        fixture.Model.NewTabCommand.Execute(null);
+        bool composeVisible = fixture.Model.IsComposeBarVisible;
+        await fixture.Model.ExecutePaletteItemAsync(terminalActions.Results.Single(item => item.Action == PaletteAction.ToggleComposeBar));
+        Assert.Equal(composeVisible, fixture.Model.IsComposeBarVisible);
+        Assert.DoesNotContain(fixture.Model.CreateCommandPalette().Results, item => item.Action == PaletteAction.ToggleComposeBar);
     });
 
     private static void AssertWorkspace(Fixture fixture, Button welcomeButton, bool opened, string title)
@@ -87,7 +189,10 @@ public class WelcomeActionsTests
             Assert.Equal(title, terminal.Config!.SessionName);
             Assert.Same(terminal, Assert.Single(fixture.Model.WorkspaceTabs));
             Assert.Same(terminal, fixture.Model.ActiveWorkspaceTab);
-            Assert.False(welcomeButton.IsEffectivelyVisible);
+            // Dock 会移除启动页；已脱离窗口的控件自身可见标志不代表仍被显示。
+            Assert.DoesNotContain(fixture.Window.GetVisualDescendants().OfType<Button>(),
+                button => ReferenceEquals(button, welcomeButton) && button.IsEffectivelyVisible);
+            Assert.Single(fixture.Window.GetVisualDescendants().OfType<TerminalConnectionView>(), view => view.IsEffectivelyVisible);
         }
         else
         {

@@ -17,6 +17,8 @@ public partial class MainViewModel
 {
     public ObservableCollection<ViewModelBase> WorkspaceTabs => Workspace.AllItems;
     public ObservableCollection<NewTabViewModel> NewTabs { get; } = [];
+    private NewTabViewModel? _welcomePage;
+    public NewTabViewModel WelcomePage => _welcomePage ??= new(this, isWelcome: true);
     private readonly AsyncLocal<NewTabViewModel?> _launchingTab = new();
     private bool _syncingFromWorkspace;
 

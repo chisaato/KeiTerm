@@ -1813,10 +1813,34 @@
     <value>选择连接方式</value>
   </data>
   <data name="NewTab.Description" xml:space="preserve">
-    <value>选择此标签页要执行的操作</value>
+    <value>连接到远程主机，或新建会话以保存连接配置。</value>
   </data>
   <data name="NewTab.QuickConnectDescription" xml:space="preserve">
-    <value>输入主机地址并建立临时连接</value>
+    <value>新建连接，或选择已保存的会话</value>
+  </data>
+  <data name="QuickConnect.NewConnection" xml:space="preserve">
+    <value>新建连接</value>
+  </data>
+  <data name="QuickConnect.NewConnectionDescription" xml:space="preserve">
+    <value>输入主机地址并建立连接</value>
+  </data>
+  <data name="CommandPalette.PinSessionManager" xml:space="preserve">
+    <value>固定会话侧栏</value>
+  </data>
+  <data name="CommandPalette.UnpinSessionManager" xml:space="preserve">
+    <value>取消固定会话侧栏</value>
+  </data>
+  <data name="CommandPalette.ShowComposeBar" xml:space="preserve">
+    <value>显示撰写栏</value>
+  </data>
+  <data name="CommandPalette.HideComposeBar" xml:space="preserve">
+    <value>隐藏撰写栏</value>
+  </data>
+  <data name="CommandPalette.ShowFileManager" xml:space="preserve">
+    <value>显示文件侧栏</value>
+  </data>
+  <data name="CommandPalette.HideFileManager" xml:space="preserve">
+    <value>隐藏文件侧栏</value>
   </data>
   <data name="NewTab.ConnectSavedDescription" xml:space="preserve">
     <value>搜索并选择已保存的连接配置。</value>

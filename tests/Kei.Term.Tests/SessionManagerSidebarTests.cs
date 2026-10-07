@@ -101,6 +101,9 @@ public class SessionManagerSidebarTests
             Assert.True(sidebar.IsVisible);
             window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.None, null);
             HeadlessAvalonia.Pump();
+            Assert.False(model.IsSessionManagerVisible);
+            Assert.False(sidebar.IsHitTestVisible);
+            await WaitForTransitionAsync(240);
             Assert.False(sidebar.IsVisible);
             Move(window, toggle);
             Assert.True(sidebar.IsVisible);
@@ -296,8 +299,18 @@ public class SessionManagerSidebarTests
 
     private static async Task WaitForHoverHideAsync()
     {
-        await Task.Delay(TimeSpan.FromMilliseconds(300));
-        HeadlessAvalonia.Pump();
+        // 等待悬停宽限和退出动画，持续推进真实渲染时钟。
+        await WaitForTransitionAsync(460);
+    }
+
+    private static async Task WaitForTransitionAsync(int milliseconds)
+    {
+        DateTime end = DateTime.UtcNow.AddMilliseconds(milliseconds);
+        while (DateTime.UtcNow < end)
+        {
+            await Task.Delay(16);
+            HeadlessAvalonia.Pump();
+        }
     }
 
     private static ResolvedSessionConfig Config(SessionNode session) => new(session.Id, session.Name, session.Host, 22, "ops", null,

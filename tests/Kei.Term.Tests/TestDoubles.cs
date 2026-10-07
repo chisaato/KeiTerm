@@ -85,6 +85,9 @@ internal sealed class ScriptedInteraction : IInteractionService
     public Task OpenSettingsAsync() => Task.CompletedTask;
 
     public Func<Task>? QuickConnectAction { get; set; }
+    public Func<Kei.Term.App.ViewModels.CommandPaletteViewModel, Kei.Term.App.ViewModels.CommandPaletteItem?>? PaletteSelection { get; set; }
+    public Task<Kei.Term.App.ViewModels.CommandPaletteItem?> ShowCommandPaletteAsync(Kei.Term.App.ViewModels.CommandPaletteViewModel model)
+        => Task.FromResult(PaletteSelection?.Invoke(model));
     public Task OpenQuickConnectAsync() => QuickConnectAction?.Invoke() ?? Task.CompletedTask;
     public Action? CloseWindowAction { get; set; }
     public Task CloseWindowAsync()

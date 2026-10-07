@@ -7,7 +7,12 @@ using Kei.Term.App.Helpers;
 
 namespace Kei.Term.App.ViewModels;
 
-public enum PaletteAction { NewTab, QuickConnect, ConnectSavedSession, NewSession, Settings, ToggleSessionManager, ToggleComposeBar, ConnectSession }
+public enum PaletteAction
+{
+    NewTab, QuickConnect, NewConnection, ConnectSavedSession, NewSession, Settings,
+    ToggleSessionManager, ToggleComposeBar, ConnectSession, CloseTab, FindTerminal,
+    ToggleFileManager, Disconnect, Reconnect
+}
 
 public sealed record CommandPaletteItem(string Title, string Description, string ShortcutLabel,
     PaletteAction Action, Guid? SessionId = null)
@@ -20,12 +25,13 @@ public partial class CommandPaletteViewModel : ViewModelBase
 {
     private readonly IReadOnlyList<CommandPaletteItem> _items;
 
-    public CommandPaletteViewModel(IReadOnlyList<CommandPaletteItem> items, bool savedSessionsOnly = false)
+    public CommandPaletteViewModel(IReadOnlyList<CommandPaletteItem> items, bool savedSessionsOnly = false,
+        string? title = null, bool startWithCommandPrefix = true)
     {
         _items = items;
-        Title = Strings.Get(savedSessionsOnly ? "Menu.File.ConnectSavedSession" : "Menu.Tools.CommandPalette");
+        Title = title ?? Strings.Get(savedSessionsOnly ? "Menu.File.ConnectSavedSession" : "Menu.Tools.CommandPalette");
         EmptyMessage = Strings.Get(savedSessionsOnly && items.Count == 0 ? "CommandPalette.NoSavedSessions" : "CommandPalette.NoResults");
-        _query = savedSessionsOnly ? string.Empty : ">";
+        _query = savedSessionsOnly || !startWithCommandPrefix ? string.Empty : ">";
         ApplyFilter();
     }
 

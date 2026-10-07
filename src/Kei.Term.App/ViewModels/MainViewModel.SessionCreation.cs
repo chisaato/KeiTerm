@@ -11,13 +11,13 @@ namespace Kei.Term.App.ViewModels;
 public partial class MainViewModel
 {
     [RelayCommand]
-    private Task CreateSessionAsync() => Safe.RunAsync(_logger, "新建会话", async () =>
+    private Task CreateSessionAsync() => Safe.RunAsync(_logger, "新建会话", () => RunConnectionFromWorkspaceAsync(async () =>
     {
         // 欢迎页按钮和 ⌘N 共用此命令，避免提示的快捷键与实际行为不同。
-        bool connectAfterSave = WorkspaceTabs.Count == 0;
+        bool connectAfterSave = WorkspaceTabs.Count == 0 || _launchingTab.Value is NewTabViewModel;
         SessionNode? session = await CreateSessionCoreAsync();
         if (connectAfterSave && session != null) await OpenSessionCommand.ExecuteAsync(session);
-    });
+    }));
 
     private async Task<SessionNode?> CreateSessionCoreAsync()
     {

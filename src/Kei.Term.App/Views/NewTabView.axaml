@@ -12,26 +12,36 @@
                        Foreground="{DynamicResource Kei.Text.Primary}"/>
             <TextBlock Text="{loc:KeiString NewTab.Description}" FontSize="12" TextWrapping="Wrap"
                        Foreground="{DynamicResource Kei.Text.Secondary}" Margin="0,0,0,8"/>
-            <Button x:Name="ConnectSavedSessionButton" Classes="accent" Command="{Binding ConnectSavedSessionCommand}"
+            <Button x:Name="QuickConnectButton" Classes="accent" Command="{Binding QuickConnectCommand}"
                     HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
-                    <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Folder}" Fill="{DynamicResource Kei.Accent.Foreground}"/>
-                    <TextBlock Grid.Column="1" Text="{loc:KeiString Menu.File.ConnectSavedSession}" VerticalAlignment="Center"/>
-                    <TextBlock Grid.Column="2" Text="{Binding ConnectSavedSessionShortcutLabel}" FontSize="12" VerticalAlignment="Center"/>
-                </Grid>
-            </Button>
-            <TextBlock Text="{loc:KeiString NewTab.SavedSessionDescription}" FontSize="12" TextWrapping="Wrap"
-                       Foreground="{DynamicResource Kei.Text.Secondary}" Margin="0,0,0,8"/>
-            <Button Command="{Binding QuickConnectCommand}"
-                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
-                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
-                    <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.QuickConnect}"/>
+                    <Viewbox Width="16" Height="16" VerticalAlignment="Center">
+                        <Grid Width="24" Height="24">
+                            <Path Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.QuickConnect}"
+                                  Fill="{DynamicResource Kei.Accent.Foreground}"/>
+                        </Grid>
+                    </Viewbox>
                     <TextBlock Grid.Column="1" Text="{loc:KeiString Menu.File.QuickConnect}" VerticalAlignment="Center"/>
-                    <TextBlock Grid.Column="2" Text="{Binding QuickConnectShortcutLabel}" FontSize="12"
-                               Foreground="{DynamicResource Kei.Text.Secondary}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="2" Text="{Binding QuickConnectShortcutLabel}" FontSize="12" VerticalAlignment="Center"/>
                 </Grid>
             </Button>
             <TextBlock Text="{loc:KeiString NewTab.QuickConnectDescription}" FontSize="12" TextWrapping="Wrap"
+                       Foreground="{DynamicResource Kei.Text.Secondary}" Margin="0,0,0,8"/>
+            <Button x:Name="CreateSessionButton" Command="{Binding CreateSessionCommand}"
+                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                    <Viewbox Width="16" Height="16" VerticalAlignment="Center">
+                        <Grid Width="24" Height="24">
+                            <Path Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Add}"
+                                  Fill="{DynamicResource Kei.Text.Primary}"/>
+                        </Grid>
+                    </Viewbox>
+                    <TextBlock Grid.Column="1" Text="{loc:KeiString Menu.File.NewSession}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="2" Text="{Binding NewSessionShortcutLabel}" FontSize="12"
+                               Foreground="{DynamicResource Kei.Text.Secondary}" VerticalAlignment="Center"/>
+                </Grid>
+            </Button>
+            <TextBlock Text="{loc:KeiString CommandPalette.NewSessionDescription}" FontSize="12" TextWrapping="Wrap"
                        Foreground="{DynamicResource Kei.Text.Secondary}"/>
         </StackPanel>
     </Border>

@@ -11,27 +11,7 @@
              VerticalAlignment="Stretch"
              Focusable="True"
              FontFamily="{DynamicResource Kei.Font.UI}">
-    <Grid>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition>
-                <ColumnDefinition.Width>
-                    <MultiBinding Converter="{x:Static conv:FileManagerColumnWidthConverter.Instance}" ConverterParameter="Left">
-                        <Binding Path="IsFileManagerVisible"/>
-                        <Binding Path="IsFileManagerOnLeft"/>
-                    </MultiBinding>
-                </ColumnDefinition.Width>
-            </ColumnDefinition>
-            <ColumnDefinition Width="Auto"/>
-            <ColumnDefinition>
-                <ColumnDefinition.Width>
-                    <MultiBinding Converter="{x:Static conv:FileManagerColumnWidthConverter.Instance}" ConverterParameter="Right">
-                        <Binding Path="IsFileManagerVisible"/>
-                        <Binding Path="IsFileManagerOnLeft"/>
-                    </MultiBinding>
-                </ColumnDefinition.Width>
-            </ColumnDefinition>
-        </Grid.ColumnDefinitions>
-
+    <Grid x:Name="ConnectionLayout" ColumnDefinitions="*,Auto,0">
         <Border Grid.Column="{Binding IsFileManagerOnLeft, Converter={x:Static conv:FileManagerDockConverter.Instance}, ConverterParameter=Terminal}"
                 Background="{Binding TerminalBackground}">
             <Border.ContextMenu>
@@ -94,15 +74,6 @@
                                     </Grid>
                                 </Viewbox>
                             </Button>
-                            <Rectangle Width="1" Height="12" Fill="{DynamicResource Kei.Border}" Margin="4,0"/>
-                            <Button Classes="iconBtn" Width="28" Height="28" Command="{Binding ToggleFileManagerCommand}"
-                                    ToolTip.Tip="{loc:KeiString Terminal.FileManager.Toggle}" AutomationProperties.Name="{loc:KeiString Terminal.FileManager.Toggle}">
-                                <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                    <Grid Width="24" Height="24">
-                                        <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.SidebarRight}"/>
-                                    </Grid>
-                                </Viewbox>
-                            </Button>
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -122,17 +93,22 @@
             </Grid>
         </Border>
 
-        <GridSplitter Grid.Column="1" Width="4"
+        <GridSplitter x:Name="FileManagerSplitter" Grid.Column="1" Width="4"
                       Background="{DynamicResource Kei.Bg.PanelAlt}"
                       ResizeDirection="Columns"
-                      IsVisible="{Binding IsFileManagerVisible}"/>
+                      IsVisible="False" IsHitTestVisible="False"/>
 
         <Border x:Name="SftpHost"
                 Grid.Column="{Binding IsFileManagerOnLeft, Converter={x:Static conv:FileManagerDockConverter.Instance}, ConverterParameter=FileManager}"
                 Focusable="True"
-                Background="Transparent"
-                IsVisible="{Binding IsFileManagerVisible}">
-            <views:RemoteFileManagerView DataContext="{Binding FileManager}"/>
+                Background="Transparent" ClipToBounds="True"
+                IsVisible="False" IsHitTestVisible="False">
+            <Border x:Name="SftpSurface" Background="Transparent">
+                <Border.RenderTransform>
+                    <TranslateTransform/>
+                </Border.RenderTransform>
+                <views:RemoteFileManagerView DataContext="{Binding FileManager}"/>
+            </Border>
         </Border>
     </Grid>
 </UserControl>

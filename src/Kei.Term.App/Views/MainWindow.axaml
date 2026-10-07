@@ -25,22 +25,6 @@
     </Window.Resources>
 
     <Window.Styles>
-        <!-- 仅显示时播放；移除类即取消，外层命中范围和固定列宽不参与动画。 -->
-        <Style Selector="Border#SessionManagerSurface.revealing">
-            <Style.Animations>
-                <Animation Duration="0:0:0.150" Easing="CubicEaseOut">
-                    <KeyFrame Cue="0%">
-                        <Setter Property="Opacity" Value="0"/>
-                        <Setter Property="TranslateTransform.X" Value="-12"/>
-                    </KeyFrame>
-                    <KeyFrame Cue="100%">
-                        <Setter Property="Opacity" Value="1"/>
-                        <Setter Property="TranslateTransform.X" Value="0"/>
-                    </KeyFrame>
-                </Animation>
-            </Style.Animations>
-        </Style>
-
         <!-- 侧栏树：统一由基类 TreeNodeBase 绑定 IsExpanded，消除子类型强转与样式冲突。
              注意：必须用 .sessionTree 限定作用域，否则会级联命中文件管理面板的 TreeViewItem，
              导致其 RemoteDirectoryNodeViewModel 被强转为 TreeNodeBase 而抛绑定异常。 -->
@@ -275,7 +259,7 @@
 
             <!-- 左：连接管理器（树操作工具栏 → 过滤框 → 目录树/空态） -->
             <Border x:Name="SessionManagerBorder" Grid.Column="0" Background="Transparent" ClipToBounds="True"
-                    IsVisible="{Binding IsSessionManagerVisible}">
+                    IsVisible="False" IsHitTestVisible="False">
                 <Border x:Name="SessionManagerSurface" Background="{DynamicResource Kei.Bg.Panel}"
                         BorderBrush="{DynamicResource Kei.Border}" BorderThickness="0,0,1,0">
                     <Border.RenderTransform>
@@ -442,34 +426,15 @@
             <GridSplitter x:Name="SessionManagerSplitter" Grid.Column="1"
                           Background="{DynamicResource Kei.Bg.PanelAlt}"
                           ResizeDirection="Columns"
-                          IsVisible="{Binding IsSessionManagerDocked}"/>
+                          IsVisible="False" IsHitTestVisible="False"/>
 
             <!-- 右：Dock 工作区包含各组标签；底部保留共享撰写栏。 -->
             <Grid x:Name="RightContentGrid" Grid.Column="2" RowDefinitions="*,Auto">
 
-                <!-- 空态提供与菜单相同的操作和平台快捷键。 -->
+                <!-- 空工作区与新标签共用连接入口，操作成功后直接替换为终端。 -->
                 <Panel x:Name="TerminalContainer" Grid.Row="0">
-                    <Border Background="{DynamicResource Kei.Bg.Window}"
-                            IsVisible="{Binding !HasTabs}">
-                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10" Margin="24" MaxWidth="400">
-                            <TextBlock Text="{loc:KeiString Main.Empty.Title}" FontSize="14" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource Kei.Text.Primary}" HorizontalAlignment="Center"/>
-                            <TextBlock Text="{loc:KeiString Main.Empty.Description}" FontSize="12" TextWrapping="Wrap"
-                                       Foreground="{DynamicResource Kei.Text.Secondary}" TextAlignment="Center" Margin="0,0,0,6"/>
-                            <Button x:Name="WelcomeQuickConnectButton" Classes="accent" Command="{Binding QuickConnectCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
-                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-                                    <TextBlock Text="{loc:KeiString Menu.File.QuickConnect}"/>
-                                    <TextBlock Grid.Column="1" Text="{Binding QuickConnectShortcutLabel}" FontSize="12"/>
-                                </Grid>
-                            </Button>
-                            <Button x:Name="WelcomeNewSessionButton" Command="{Binding CreateSessionCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
-                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-                                    <TextBlock Text="{loc:KeiString Menu.File.NewSession}"/>
-                                    <TextBlock Grid.Column="1" Text="{Binding NewSessionShortcutLabel}" FontSize="12"
-                                               Foreground="{DynamicResource Kei.Text.Secondary}"/>
-                                </Grid>
-                            </Button>
-                        </StackPanel>
+                    <Border IsVisible="{Binding !HasTabs}">
+                        <views:NewTabView x:Name="WelcomeView" DataContext="{Binding WelcomePage}"/>
                     </Border>
                     <views:TerminalWorkspaceView x:Name="WorkspaceHost" IsVisible="{Binding HasTabs}"/>
                 </Panel>
