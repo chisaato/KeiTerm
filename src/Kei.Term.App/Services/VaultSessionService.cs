@@ -151,9 +151,15 @@ public sealed class VaultSessionService
     }
 
     // 读取身份整包材料；加密且锁定时先懒解锁，取消或读取失败返回空（方法顺延跳过）
-    public async Task<Dictionary<string, SecretPayload>> LoadIdentitySecretsAsync(Guid identityId)
+    public async Task<Dictionary<string, SecretPayload>> LoadIdentitySecretsAsync(Guid identityId, bool allowInteraction = true)
     {
-        if (!await EnsureUnlockedAsync())
+        // 自动重连只能使用当前已解锁的材料，不能在后台弹出主密码框。
+        if (!allowInteraction && !_vault.IsUnlocked)
+        {
+            throw new OperationCanceledException("保管库已锁定，自动认证已停止。");
+        }
+
+        if (allowInteraction && !await EnsureUnlockedAsync())
         {
             return new Dictionary<string, SecretPayload>();
         }

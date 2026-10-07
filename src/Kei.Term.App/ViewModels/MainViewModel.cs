@@ -66,10 +66,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
     // 自动锁定计时器（每分钟检查一次，默认 0 分钟不启用）
     private DispatcherTimer? _lockTimer;
 
-    // 剪贴板状态：剪切 = 已从树中删除的子树快照（等待粘贴恢复）；复制 = 待克隆的源节点（仍保留在树中）
-    private TreeNodeBase? _cutSnapshot;
-    private TreeNodeBase? _copySourceNode;
-
     [ObservableProperty]
     private ObservableCollection<TreeNodeBase> _treeNodes = [];
 
@@ -659,73 +655,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         await ReloadTreeAsync();
     });
 
-    // === 剪贴板：剪切 / 复制 / 粘贴 ===
-
-    // 复制：记录剪贴板源节点，并立即在源位置克隆一份（克隆根名称追加 “ 副本”）
-    [RelayCommand(CanExecute = nameof(CanUseSelectedNode))]
-    private Task CopyNodeAsync() => Safe.RunAsync(_logger, "复制节点", async () =>
-    {
-        if (SelectedTreeNode == null) return;
-
-        _copySourceNode = SelectedTreeNode;
-        _cutSnapshot = null;
-        PasteNodeCommand.NotifyCanExecuteChanged();
-
-        await CloneSubtreeIntoAsync(SelectedTreeNode, SelectedTreeNode.ParentId);
-    });
-
-    // 剪切语义：记录节点 Id 并立即 DeleteNodeAsync 从树中移除（子树随外键级联删除，存储不留行）；
-    // 之后粘贴时以同 Id 重建整棵子树挂到目标位置，等效“移动到目标”；若始终未粘贴，数据不会恢复。
-    [RelayCommand(CanExecute = nameof(CanUseSelectedNode))]
-    private Task CutNodeAsync() => Safe.RunAsync(_logger, "剪切节点", async () =>
-    {
-        if (SelectedTreeNode == null) return;
-
-        // 剪切前快照完整子树（含被过滤隐藏的子节点），保证粘贴可完整恢复
-        var snapshot = await SnapshotSubtreeAsync(SelectedTreeNode.Id);
-        if (snapshot == null) return;
-
-        _cutSnapshot = snapshot;
-        _copySourceNode = null;
-        PasteNodeCommand.NotifyCanExecuteChanged();
-
-        await _treeRepo.DeleteNodeAsync(snapshot.Id);
-        SelectedTreeNode = null;
-        await ReloadTreeAsync();
-    });
-
-    // 粘贴：剪切态 = 以同 Id 重建快照子树挂到目标（等效移动）；复制态 = 克隆源子树挂到目标（追加 “ 副本”）。
-    // 目标 = 当前选中的文件夹，否则为根；粘贴后清空剪贴板状态。
-    [RelayCommand(CanExecute = nameof(CanPasteNode))]
-    private Task PasteNodeAsync() => Safe.RunAsync(_logger, "粘贴节点", async () =>
-    {
-        var targetId = SelectedTreeNode is FolderNode targetFolder ? targetFolder.Id : (Guid?)null;
-
-        if (_cutSnapshot != null)
-        {
-            // 剪切态：源行已被级联删除，故以同 Id 重插整棵子树并改父到目标（MoveNodeAsync 无行可移，故不适用）
-            _cutSnapshot.ParentId = targetId;
-            await SaveSubtreeAsync(_cutSnapshot);
-            ClearClipboard();
-            await ReloadTreeAsync();
-            return;
-        }
-
-        if (_copySourceNode != null)
-        {
-            // 复制态：目标无效（把文件夹粘到自身后代）时忽略并给出状态提示
-            if (!IsValidCloneTarget(_copySourceNode, targetId))
-            {
-                StatusMessage = Strings.Get("Status.Paste.InvalidTarget");
-                return;
-            }
-
-            await CloneSubtreeIntoAsync(_copySourceNode, targetId);
-            ClearClipboard();
-            await ReloadTreeAsync();
-        }
-    });
-
     private bool CanUseSelectedNode() => SelectedTreeNode is not null and not VirtualRootNode;
 
     [ObservableProperty]
@@ -798,93 +727,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         {
             _renameCommitInFlight = false;
         }
-    }
-
-    private bool CanPasteNode() => _cutSnapshot != null || _copySourceNode != null;
-
-    private void ClearClipboard()
-    {
-        _cutSnapshot = null;
-        _copySourceNode = null;
-        PasteNodeCommand.NotifyCanExecuteChanged();
-    }
-
-    // 从存储重建指定节点的完整子树（不依赖当前过滤状态），返回携带 Children 的子树根
-    private async Task<TreeNodeBase?> SnapshotSubtreeAsync(Guid rootId)
-    {
-        var all = await _treeRepo.GetAllNodesAsync();
-        var byId = all.ToDictionary(n => n.Id);
-        if (!byId.TryGetValue(rootId, out var root))
-        {
-            return null;
-        }
-
-        // 临时列表为新实例，重建父子关系不影响当前展示缓存
-        foreach (var node in all)
-        {
-            if (node is FolderNode folder)
-            {
-                folder.Children.Clear();
-            }
-        }
-        foreach (var node in all)
-        {
-            if (node.ParentId.HasValue && byId.TryGetValue(node.ParentId.Value, out var parent) && parent is FolderNode folder)
-            {
-                folder.Children.Add(node);
-            }
-        }
-
-        return root;
-    }
-
-    // 克隆 source 子树并挂到 targetParentId 下：先父后子逐节点落库，克隆根名称追加 “ 副本”，随后重载树
-    private async Task CloneSubtreeIntoAsync(TreeNodeBase source, Guid? targetParentId)
-    {
-        var cloneRoot = TreeNodeCloner.DeepClone(source);
-        cloneRoot.ParentId = targetParentId;
-        cloneRoot.Name = string.Format(Strings.Get("Common.CopySuffix"), source.Name);
-        await SaveSubtreeAsync(cloneRoot);
-        await ReloadTreeAsync();
-    }
-
-    // 先父后子（前序）逐节点落库，满足外键约束
-    private async Task SaveSubtreeAsync(TreeNodeBase node)
-    {
-        await _treeRepo.SaveNodeAsync(node);
-        if (node is FolderNode folder)
-        {
-            foreach (var child in folder.Children)
-            {
-                await SaveSubtreeAsync(child);
-            }
-        }
-    }
-
-    // 克隆目标校验：目标不能是源节点自身或其后代（否则会形成环）；目标为根时始终合法
-    private bool IsValidCloneTarget(TreeNodeBase source, Guid? targetId)
-    {
-        if (targetId == null)
-        {
-            return true;
-        }
-
-        var byId = _allNodesCache.ToDictionary(n => n.Id);
-        var cursorId = targetId.Value;
-        while (byId.TryGetValue(cursorId, out var node))
-        {
-            if (node.Id == source.Id)
-            {
-                return false;
-            }
-            if (node.ParentId == null)
-            {
-                break;
-            }
-            cursorId = node.ParentId.Value;
-        }
-
-        return true;
     }
 
     // 全部折叠：收起所有文件夹后刷新树展示，并同步持久化

@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using System.Threading;
 using Kei.Term.Core.Abstractions;
 using Kei.Term.Core.Models;
 
@@ -17,7 +18,14 @@ public interface IConnectionTarget
     // 认证失败重试前卸下失败会话
     Task DetachSessionAsync();
 
+    // 取消旧的自动重连时，不能卸下已经由手动重连替换的新会话。
+    Task DetachSessionAsync(ITerminalSession session) => DetachSessionAsync();
+
     void MarkConnected();
+
+    // 跟随具体标签保存，不能使用窗口中另一条连接的认证状态。
+    bool RequiresInteractiveAuthentication => false;
+    void SetRequiresInteractiveAuthentication(bool value) { }
 
     void ReportError(string message);
 
@@ -30,8 +38,15 @@ public interface IConnectionTarget
     // 连接成功后挂载文件侧栏（后台线程调用；实现负责回到 UI 线程与本地缓存跟踪器装配）
     Task AttachFileSystemAsync(IRemoteFileSystem fileSystem);
 
+    // 文件通道可能晚于断开/重连完成，必须核对创建它的源会话。
+    Task AttachFileSystemAsync(IRemoteFileSystem fileSystem, ITerminalSession session)
+        => AttachFileSystemAsync(fileSystem);
+
     // 原地重连：卸下旧会话与侧栏、保留终端历史，并换上本次解析的配置（UI 线程调用）
     Task ResetForReconnectAsync(ResolvedSessionConfig config);
+
+    Task ResetForReconnectAsync(ResolvedSessionConfig config, CancellationToken ct)
+        => ResetForReconnectAsync(config);
 }
 
 // 编排器的宿主（主窗口 VM）：按解析后的配置开标签、按 Id 查会话节点（跳板链解析用）

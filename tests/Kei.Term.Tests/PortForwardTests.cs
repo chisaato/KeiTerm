@@ -205,7 +205,7 @@ public class PortForwardTests : IDisposable
         Assert.Empty(await repo.GetBySessionAsync(sessionId));
     }
 
-    [Fact]
+    [SshdFact]
     public async Task Dialer_StartsForwardsOnTargetClient_NotJumpClient_AndStopsOnDispose()
     {
         using var sshd = new LocalSshd();

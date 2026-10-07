@@ -129,43 +129,20 @@ public class FileEditorLauncher
 
         try
         {
-            _logger.LogInformation("Editor process started: Id={ProcessId}, Name={ProcessName}, HasExited={HasExited}",
-                process.Id, process.ProcessName, process.HasExited);
+            _logger.LogInformation("Editor process started: Id={ProcessId}, Name={ProcessName}, HasExited={HasExited}, File={LocalPath}",
+                process.Id, process.ProcessName, process.HasExited, localPath);
 
-            // 监听进程退出事件
-            process.EnableRaisingEvents = true;
-            process.Exited += async (s, e) =>
-            {
-                _logger.LogInformation("Editor process exited: Id={ProcessId}, ExitCode={ExitCode}. Cleaning up tracking for {LocalPath}...",
-                    process.Id, process.ExitCode, localPath);
-
-                try
-                {
-                    await _tracker.UnregisterTrackedFileAsync(localPath);
-                }
-                catch (Exception unregEx)
-                {
-                    _logger.LogWarning(unregEx, "Unregistering tracked file failed on process exit: {LocalPath}", localPath);
-                }
-
-                // 清理本地临时缓存文件
-                try
-                {
-                    if (File.Exists(localPath))
-                    {
-                        File.Delete(localPath);
-                        _logger.LogInformation("Deleted local cache file on process exit: {LocalPath}", localPath);
-                    }
-                }
-                catch (Exception delEx)
-                {
-                    _logger.LogWarning(delEx, "Deleting local cache file failed on process exit: {LocalPath}", localPath);
-                }
-            };
+            // open / xdg-open 和单实例编辑器的启动进程可提前退出。
+            // 文件监视由用户显式停止或会话释放结束，不能用进程退出推断编辑完成。
         }
         catch (Exception ex)
         {
             _logger.LogInformation("Editor process started, but cannot query info: {Message}", ex.Message);
+        }
+        finally
+        {
+            // 仅释放本地进程句柄，不终止外部编辑器。
+            process.Dispose();
         }
     }
 

@@ -67,7 +67,7 @@ public partial class MainViewModel
             UserDisconnected: false,
             AuthCancelled: false,
             HostKeyRejected: false,
-            InteractiveRequired: _connections.LastAttemptRequiredInteraction,
+            InteractiveRequired: tab.RequiresInteractiveAuthentication,
             attempt);
         return _connections.ScheduleReconnectAsync(
             new ConnectionRequest(target.Config, target.UseIdentity, ReuseTarget: CreateConnectionTarget(tab)),
@@ -84,6 +84,7 @@ public partial class MainViewModel
             return;
         }
 
+        tab.CancelReconnect();
         _logger.LogInformation("标签原地重连 标题={Title}", tab.Title);
         SelectedTab = tab;
         await _connections.ConnectAsync(

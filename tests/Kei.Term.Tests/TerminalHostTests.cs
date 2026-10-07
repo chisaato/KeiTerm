@@ -254,35 +254,37 @@ public class TerminalHostTests
     });
 
     [Fact]
-    public Task Reparent_MissingPreferredFont_UsesFirstInstalledFallback() => HeadlessAvalonia.RunAsync(() =>
+    public Task Reparent_InstalledProbeFont_PreservesFaceAndCellMetrics() => HeadlessAvalonia.RunAsync(() =>
     {
-        // 选择器若忽略这条链、仍返回写死的 JetBrainsMono Nerd Font，或把缺失族名交给终端，本测试失败。
         const string missing = "KeiTerm Missing Preferred Mono";
         string witness = FindInstalledMonospaceWitness(missing);
         string[] chain = [missing, witness, "JetBrainsMono Nerd Font"];
-
-        string selected = SelectProbeMonospace(chain);
-        Assert.Equal(witness, selected);
-
-        Window? fallbackWindow = null;
-        Window? missingWindow = null;
+        Window? firstWindow = null;
+        Window? secondWindow = null;
         try
         {
-            (fallbackWindow, TerminalTabViewModel fallbackTab) = ProbeHost(800, 505, chain);
-            Assert.Equal(witness, fallbackTab.CurrentFontSnapshot.PrimaryFontFamily);
-            Assert.NotEqual(missing, fallbackTab.CurrentFontSnapshot.PrimaryFontFamily);
-            AssertRealCellMetrics(fallbackTab.Terminal);
+            (firstWindow, TerminalTabViewModel tab) = ProbeHost(800, 505, chain);
+            Assert.Equal(witness, tab.CurrentFontSnapshot.PrimaryFontFamily);
+            AssertRealCellMetrics(tab.Terminal);
+            float width = tab.Terminal.Renderer!.CellWidth;
+            float height = tab.Terminal.Renderer.CellHeight;
+            ScrollViewer first = Assert.IsType<ScrollViewer>(firstWindow.Content);
+            ScrollViewer second = CreatePaneScroll();
+            secondWindow = new Window { Width = 620, Height = 415, Content = second };
+            secondWindow.Show();
 
-            (missingWindow, TerminalTabViewModel missingTab) = OpenProbe(800, 505, missing);
-            SkiaTerminalRenderer missingRenderer = missingTab.Terminal.Renderer!;
-            Assert.True(
-                missingRenderer.CellWidth < 4 || missingRenderer.CellHeight < 8,
-                $"missing font collapsed to a real face: CellWidth={missingRenderer.CellWidth} CellHeight={missingRenderer.CellHeight}");
+            // 缺失字体是否由平台隐式回退不属于应用契约；验证真实控件换宿主后的字体和网格。
+            DetachThenAttach(first, second, tab.Terminal);
+            Assert.Equal(witness, tab.CurrentFontSnapshot.PrimaryFontFamily);
+            Assert.Equal(width, tab.Terminal.Renderer!.CellWidth);
+            Assert.Equal(height, tab.Terminal.Renderer.CellHeight);
+            AssertRealCellMetrics(tab.Terminal);
+            Assert.Equal(ExpectedGrid(tab.Terminal), (tab.Terminal.Columns, tab.Terminal.Rows));
         }
         finally
         {
-            missingWindow?.Close();
-            fallbackWindow?.Close();
+            secondWindow?.Close();
+            firstWindow?.Close();
         }
     });
 

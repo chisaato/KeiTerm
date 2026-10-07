@@ -125,7 +125,8 @@ public class SftpRemoteFileSystem : IRemoteFileSystem
 
         return Task.Run<Stream>(() =>
         {
-            return _sftpClient.OpenWrite(path);
+            // OpenWrite 使用 OpenOrCreate，短文件覆盖会留下旧尾部；覆盖操作必须截断。
+            return _sftpClient.Open(path, FileMode.Create, FileAccess.Write);
         }, ct);
     }
 

@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using Renci.SshNet.Common;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -144,14 +146,80 @@ public class ReconnectTests
         Assert.Equal(0, Factory.Sessions);
     }
 
+    [Fact]
+    public async Task TransientDialFailures_RetryUntilTheSameTargetConnects()
+    {
+        List<TimeSpan> delays = [];
+        ConnectionOrchestrator orchestrator = Create((delay, _) => { delays.Add(delay); return Task.CompletedTask; }, true);
+        Factory.Outcomes.Enqueue(new IOException("offline"));
+        Factory.Outcomes.Enqueue(new IOException("offline"));
+        ReconnectTarget target = new();
+        ReconnectHost host = new();
+
+        await orchestrator.ScheduleReconnectAsync(new ConnectionRequest(Config(), false, Password("p1"), target), host, Unexpected(1), CancellationToken.None);
+
+        Assert.Equal([1, 2, 4], delays.Select(delay => delay.TotalSeconds));
+        Assert.Equal(3, Factory.Sessions);
+        Assert.Equal(3, target.Reconnects);
+        Assert.Empty(host.Opened);
+        Assert.Contains(ReconnectMessages.Reconnected, target.LocalLines);
+    }
+
+    [Fact]
+    public async Task PersistentDialFailure_StopsAfterSixActualAttempts()
+    {
+        List<TimeSpan> delays = [];
+        ConnectionOrchestrator orchestrator = Create((delay, _) => { delays.Add(delay); return Task.CompletedTask; }, true);
+        for (int i = 0; i < 8; i++) Factory.Outcomes.Enqueue(new IOException("offline"));
+        ReconnectTarget target = new();
+
+        await orchestrator.ScheduleReconnectAsync(new ConnectionRequest(Config(), false, Password("p1"), target), new ReconnectHost(), Unexpected(1), CancellationToken.None);
+
+        Assert.Equal([1, 2, 4, 8, 16, 30], delays.Select(delay => delay.TotalSeconds));
+        Assert.Equal(6, Factory.Sessions);
+        Assert.DoesNotContain(ReconnectMessages.Reconnected, target.LocalLines);
+    }
+
+    [Fact]
+    public async Task AuthenticationFailure_DoesNotPromptOrRetryAutomatically()
+    {
+        ScriptedInteraction interaction = new();
+        ConnectionOrchestrator orchestrator = Create((_, _) => Task.CompletedTask, true, interaction);
+        Factory.Outcomes.Enqueue(new SshAuthenticationException("denied"));
+        ReconnectTarget target = new();
+
+        await orchestrator.ScheduleReconnectAsync(new ConnectionRequest(Config(), false, Password("p1"), target), new ReconnectHost(), Unexpected(1), CancellationToken.None);
+
+        Assert.Equal(1, Factory.Sessions);
+        Assert.Empty(interaction.AuthPromptUsernames);
+        Assert.DoesNotContain(ReconnectMessages.Reconnected, target.LocalLines);
+    }
+
+    [Fact]
+    public async Task CancelDuringDial_CancelsTheConnectionAndStopsFurtherAttempts()
+    {
+        ConnectionOrchestrator orchestrator = Create((_, _) => Task.CompletedTask, true);
+        TaskCompletionSource started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        Factory.OnConnect = async ct => { started.TrySetResult(); await Task.Delay(Timeout.Infinite, ct); };
+        using CancellationTokenSource cancellation = new();
+        ReconnectTarget target = new();
+        Task reconnect = orchestrator.ScheduleReconnectAsync(new ConnectionRequest(Config(), false, Password("p1"), target), new ReconnectHost(), Unexpected(1), cancellation.Token);
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        cancellation.Cancel();
+        await reconnect.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Equal(1, Factory.Sessions);
+        Assert.DoesNotContain(ReconnectMessages.Reconnected, target.LocalLines);
+    }
+
     private static ReconnectFacts Unexpected(int attempt) => new(true, false, false, false, false, attempt);
 
     private static RecordingFactory Factory { get; set; } = new();
 
-    private static ConnectionOrchestrator Create(Func<TimeSpan, CancellationToken, Task> delay, bool enabled)
+    private static ConnectionOrchestrator Create(Func<TimeSpan, CancellationToken, Task> delay, bool enabled, ScriptedInteraction? interaction = null)
     {
         Factory = new RecordingFactory();
-        var ui = new ScriptedInteraction();
+        var ui = interaction ?? new ScriptedInteraction();
         var settings = new FixedSettingsService(new AppSettings { AutoReconnectOnDisconnect = enabled, PreferSystemAgent = false });
         var vault = new VaultSessionService(new PlainVault(), new PlainVault(), settings, () => ui);
         var collector = new AuthMaterialCollector(new EmptyIdentities(), settings, vault, () => ui);
@@ -175,6 +243,8 @@ public class ReconnectTests
     private sealed class RecordingFactory : ISshSessionFactory
     {
         public int Sessions { get; private set; }
+        public Queue<Exception?> Outcomes { get; } = new();
+        public Func<CancellationToken, Task>? OnConnect { get; set; }
 
         public Task<ISshSession> CreateSessionAsync(
             ResolvedSessionConfig config,
@@ -183,7 +253,7 @@ public class ReconnectTests
             CancellationToken ct = default)
         {
             Sessions++;
-            return Task.FromResult<ISshSession>(new IdleSession());
+            return Task.FromResult<ISshSession>(new IdleSession(Outcomes.Count > 0 ? Outcomes.Dequeue() : null, OnConnect));
         }
 
         public Task<IRemoteFileSystem> CreateFileSystemAsync(
@@ -196,14 +266,15 @@ public class ReconnectTests
 
     }
 
-    private sealed class IdleSession : ISshSession
+    private sealed class IdleSession(Exception? failure, Func<CancellationToken, Task>? onConnect) : ISshSession
     {
         public Guid SessionId { get; } = Guid.NewGuid();
         public bool IsConnected => true;
         public object? UnderlyingClient => null;
         public event Action<byte[]>? OutputReceived { add { } remove { } }
         public event Action<Exception?>? Disconnected { add { } remove { } }
-        public Task ConnectAsync(CancellationToken ct = default) => Task.CompletedTask;
+        public Task ConnectAsync(CancellationToken ct = default)
+            => failure != null ? Task.FromException(failure) : onConnect?.Invoke(ct) ?? Task.CompletedTask;
         public Task SendInputAsync(ReadOnlyMemory<byte> data, CancellationToken ct = default) => Task.CompletedTask;
         public Task ResizeTerminalAsync(int columns, int rows, int widthPx, int heightPx, CancellationToken ct = default) => Task.CompletedTask;
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;

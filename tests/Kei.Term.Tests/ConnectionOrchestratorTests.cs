@@ -114,13 +114,60 @@ public class ConnectionOrchestratorTests
     }
 
     [Fact]
-    public async Task NoMaterials_AndFallbackCancelled_OpensNoTab()
+    public async Task NoMaterialsOrUsername_AndFallbackCancelled_OpensNoTab()
     {
-        await Create().ConnectAsync(new ConnectionRequest(Config(), UseIdentity: false), _host);
+        await Create().ConnectAsync(new ConnectionRequest(Config() with { Username = "" }, UseIdentity: false), _host);
 
         Assert.Single(_ui.AuthPromptUsernames);
         Assert.Empty(_host.Tabs);
         Assert.Empty(_factory.SessionCalls);
+    }
+
+    [Fact]
+    public async Task UsernameWithoutMaterials_TriesEmptyPasswordBeforePrompting()
+    {
+        await Create().ConnectAsync(new ConnectionRequest(Config(), UseIdentity: false), _host);
+
+        Assert.True(Assert.Single(_host.Tabs).Connected);
+        Assert.Empty(_ui.AuthPromptUsernames);
+        Assert.Equal(string.Empty, Assert.Single(Assert.Single(_factory.SessionCalls).Materials).Secret!.Password);
+    }
+
+    [Fact]
+    public async Task AuthenticationInteraction_RemainsWithItsTargetAfterAnotherConnection()
+    {
+        ConnectionOrchestrator orchestrator = Create();
+        _factory.Outcomes.Enqueue(new SshAuthenticationException("denied"));
+        _ui.AuthResults.Enqueue(PasswordPrompt("retry"));
+        await orchestrator.ConnectAsync(WithPassword("first"), _host);
+        FakeTarget interactive = Assert.Single(_host.Tabs);
+        await orchestrator.ConnectAsync(WithPassword("second"), _host);
+
+        Assert.True(interactive.RequiresInteractiveAuthentication);
+        Assert.False(_host.Tabs[1].RequiresInteractiveAuthentication);
+    }
+
+    [Fact]
+    public async Task ConcurrentKeyboardInteractive_DoesNotMarkTheOtherConnectionInteractive()
+    {
+        ConnectionOrchestrator orchestrator = Create();
+        TaskCompletionSource prompted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource resume = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        _factory.OnConnect = async (config, options) =>
+        {
+            if (config.Host != "interactive.example") return;
+            await options.InteractivePrompt!("OTP");
+            prompted.TrySetResult();
+            await resume.Task;
+        };
+        Task first = orchestrator.ConnectAsync(new ConnectionRequest(Config("interactive.example"), false, Password("p1")), _host);
+        await prompted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await orchestrator.ConnectAsync(WithPassword("p2"), _host);
+        resume.TrySetResult();
+        await first;
+
+        Assert.True(_host.Tabs[0].RequiresInteractiveAuthentication);
+        Assert.False(_host.Tabs[1].RequiresInteractiveAuthentication);
     }
 
     [Fact]
@@ -142,8 +189,8 @@ public class ConnectionOrchestratorTests
     {
         var existing = new FakeTarget();
 
-        // 无预置材料且兜底认证框被取消：不得复位旧标签（保留断开前的状态与错误信息）
-        await Create().ConnectAsync(new ConnectionRequest(Config(), UseIdentity: false, ReuseTarget: existing), _host);
+        // 无预置材料、无用户名且兜底认证框被取消：不得复位旧标签（保留断开前的状态与错误信息）
+        await Create().ConnectAsync(new ConnectionRequest(Config() with { Username = "" }, UseIdentity: false, ReuseTarget: existing), _host);
 
         Assert.Empty(existing.Resets);
         Assert.Empty(_factory.SessionCalls);
@@ -256,6 +303,7 @@ public class ConnectionOrchestratorTests
         public List<SessionCall> SessionCalls { get; } = [];
         public List<FakeSession> CreatedSessions { get; } = [];
         public Action? OnCreate { get; set; }
+        public Func<ResolvedSessionConfig, SshConnectOptions, Task>? OnConnect { get; set; }
 
         public Task<ISshSession> CreateSessionAsync(
             ResolvedSessionConfig config,
@@ -265,7 +313,7 @@ public class ConnectionOrchestratorTests
         {
             SessionCalls.Add(new SessionCall(config, methods.ToList(), options!));
             OnCreate?.Invoke();
-            var session = new FakeSession(Outcomes.Count > 0 ? Outcomes.Dequeue() : null);
+            var session = new FakeSession(Outcomes.Count > 0 ? Outcomes.Dequeue() : null, () => OnConnect?.Invoke(config, options!) ?? Task.CompletedTask);
             CreatedSessions.Add(session);
             return Task.FromResult<ISshSession>(session);
         }
@@ -286,7 +334,7 @@ public class ConnectionOrchestratorTests
             => await _fileSystem.Task.WaitAsync(TimeSpan.FromSeconds(5));
     }
 
-    private sealed class FakeSession(Exception? connectFailure) : ISshSession
+    private sealed class FakeSession(Exception? connectFailure, Func<Task>? onConnect = null) : ISshSession
     {
         public bool Disposed { get; private set; }
         public Guid SessionId { get; } = Guid.NewGuid();
@@ -297,7 +345,7 @@ public class ConnectionOrchestratorTests
         public event Action<Exception?>? Disconnected { add { } remove { } }
 
         public Task ConnectAsync(CancellationToken ct = default)
-            => connectFailure == null ? Task.CompletedTask : Task.FromException(connectFailure);
+            => connectFailure == null ? onConnect?.Invoke() ?? Task.CompletedTask : Task.FromException(connectFailure);
 
         public Task SendInputAsync(ReadOnlyMemory<byte> data, CancellationToken ct = default) => Task.CompletedTask;
 
@@ -313,6 +361,8 @@ public class ConnectionOrchestratorTests
     private sealed class FakeTarget : IConnectionTarget
     {
         public bool IsDisposed { get; set; }
+        public bool RequiresInteractiveAuthentication { get; private set; }
+        public void SetRequiresInteractiveAuthentication(bool value) => RequiresInteractiveAuthentication = value;
         public ITerminalSession? AttachedSession { get; private set; }
         public bool Connected { get; private set; }
         public string? Error { get; private set; }

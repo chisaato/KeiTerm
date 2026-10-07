@@ -1,9 +1,7 @@
 namespace Kei.Term.Ssh.Services;
 
 using System;
-using System.Globalization;
 using System.IO;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -16,6 +14,7 @@ public partial class ScpRemoteFileSystem : IRemoteFileSystem
 {
     private readonly SshDialer _dialer;
     private readonly ILogger _logger;
+    private readonly ScpShellFileSystem _shell;
     private ScpClient? _scp;
     private SshClient? _exec;
     private bool _isDisposed;
@@ -43,6 +42,7 @@ public partial class ScpRemoteFileSystem : IRemoteFileSystem
     {
         _dialer = dialer;
         _logger = logger ?? NullLogger.Instance;
+        _shell = new ScpShellFileSystem(ExecuteCommandAsync);
     }
 
     public async Task ConnectAsync(CancellationToken ct = default)
@@ -59,8 +59,7 @@ public partial class ScpRemoteFileSystem : IRemoteFileSystem
         // 获取远程工作目录 pwd
         try
         {
-            var cmd = _sshCommandClient.CreateCommand("pwd");
-            var result = await Task.Run(() => cmd.Execute(), ct);
+            string result = await _shell.ExecuteCheckedAsync("pwd", ct);
             if (!string.IsNullOrWhiteSpace(result))
             {
                 WorkingDirectory = result.Trim();
@@ -78,27 +77,7 @@ public partial class ScpRemoteFileSystem : IRemoteFileSystem
         EnsureConnected();
 
         string target = string.IsNullOrWhiteSpace(path) ? WorkingDirectory : path;
-        // 使用标准 ls -la 命令辅助获取目录列表
-        string commandText = $"ls -la --time-style=+%s -- {ShellQuote(target)} 2>/dev/null || ls -la -- {ShellQuote(target)}";
-        var cmd = _sshCommandClient.CreateCommand(commandText);
-
-        string output = await Task.Run(() => cmd.Execute(), ct);
-        var lines = output.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-        var list = new List<RemoteFileItem>();
-
-        foreach (var rawLine in lines)
-        {
-            string line = rawLine.Trim();
-            if (line.StartsWith("total", StringComparison.OrdinalIgnoreCase)) continue;
-
-            var item = ParseLsLine(line, target);
-            if (item != null && item.Name is not "." and not "..")
-            {
-                list.Add(item);
-            }
-        }
-
-        return list.OrderByDescending(x => x.IsDirectory).ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase).ToList();
+        return await _shell.ListDirectoryAsync(target, ct);
     }
 
     public async Task<Stream> OpenReadAsync(string path, CancellationToken ct = default)
@@ -118,14 +97,19 @@ public partial class ScpRemoteFileSystem : IRemoteFileSystem
         ThrowIfDisposed();
         EnsureConnected();
 
-        // 返回代理流：关闭时触发 SCP 上传
-        var proxyStream = new ScpUploadProxyStream(async (stream) =>
-        {
-            stream.Position = 0;
-            await Task.Run(() => _scpClient.Upload(stream, path));
-        });
+        ct.ThrowIfCancellationRequested();
+        var buffer = new ScpUploadBuffer((stream, commitToken) =>
+            Task.Run(() => _scpClient.Upload(stream, path), commitToken));
+        return Task.FromResult<Stream>(buffer);
+    }
 
-        return Task.FromResult<Stream>(proxyStream);
+    public Task CommitWriteAsync(Stream stream, CancellationToken ct = default)
+    {
+        ThrowIfDisposed();
+        EnsureConnected();
+        return stream is ScpUploadBuffer buffer
+            ? buffer.CommitAsync(ct)
+            : throw new ArgumentException("写入流不属于 SCP 上传", nameof(stream));
     }
 
     public async Task DeleteAsync(string path, bool isDirectory, CancellationToken ct = default)
@@ -133,9 +117,7 @@ public partial class ScpRemoteFileSystem : IRemoteFileSystem
         ThrowIfDisposed();
         EnsureConnected();
 
-        string cmdText = isDirectory ? $"rm -rf -- {ShellQuote(path)}" : $"rm -f -- {ShellQuote(path)}";
-        var cmd = _sshCommandClient.CreateCommand(cmdText);
-        await Task.Run(() => cmd.Execute(), ct);
+        await _shell.DeleteAsync(path, isDirectory, ct);
     }
 
     public async Task RenameAsync(string oldPath, string newPath, CancellationToken ct = default)
@@ -143,9 +125,7 @@ public partial class ScpRemoteFileSystem : IRemoteFileSystem
         ThrowIfDisposed();
         EnsureConnected();
 
-        string cmdText = $"mv -- {ShellQuote(oldPath)} {ShellQuote(newPath)}";
-        var cmd = _sshCommandClient.CreateCommand(cmdText);
-        await Task.Run(() => cmd.Execute(), ct);
+        await _shell.RenameAsync(oldPath, newPath, ct);
     }
 
     public async Task CreateDirectoryAsync(string path, CancellationToken ct = default)
@@ -153,9 +133,7 @@ public partial class ScpRemoteFileSystem : IRemoteFileSystem
         ThrowIfDisposed();
         EnsureConnected();
 
-        string cmdText = $"mkdir -p -- {ShellQuote(path)}";
-        var cmd = _sshCommandClient.CreateCommand(cmdText);
-        await Task.Run(() => cmd.Execute(), ct);
+        await _shell.CreateDirectoryAsync(path, ct);
     }
 
     public async Task ChangePermissionsAsync(string path, int octalPermissions, CancellationToken ct = default)
@@ -163,10 +141,7 @@ public partial class ScpRemoteFileSystem : IRemoteFileSystem
         ThrowIfDisposed();
         EnsureConnected();
 
-        string octal = Convert.ToString(octalPermissions, 8);
-        string cmdText = $"chmod {octal} -- {ShellQuote(path)}";
-        var cmd = _sshCommandClient.CreateCommand(cmdText);
-        await Task.Run(() => cmd.Execute(), ct);
+        await _shell.ChangePermissionsAsync(path, octalPermissions, ct);
     }
 
     public async Task<RemoteFileItem?> GetItemAsync(string path, CancellationToken ct = default)
@@ -185,38 +160,11 @@ public partial class ScpRemoteFileSystem : IRemoteFileSystem
     internal static string ShellQuote(string path)
         => "'" + path.Replace("'", "'\\''") + "'";
 
-    private static RemoteFileItem? ParseLsLine(string line, string directory)
+    private async Task<RemoteCommandResult> ExecuteCommandAsync(string text, CancellationToken ct)
     {
-        // 典型格式: drwxr-xr-x 2 root root 4096 1695880000 filename
-        var parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length < 7) return null;
-
-        string permissions = parts[0];
-        bool isDirectory = permissions.StartsWith('d');
-        long size = 0;
-        long.TryParse(parts[4], out size);
-
-        // 解析时间戳或普通日期
-        DateTimeOffset mtime = DateTimeOffset.UtcNow;
-        int nameStartIndex;
-        if (long.TryParse(parts[5], out long unixSeconds))
-        {
-            mtime = DateTimeOffset.FromUnixTimeSeconds(unixSeconds);
-            nameStartIndex = 6;
-        }
-        else if (parts.Length >= 8)
-        {
-            nameStartIndex = 8;
-        }
-        else
-        {
-            nameStartIndex = parts.Length - 1;
-        }
-
-        string name = string.Join(" ", parts.Skip(nameStartIndex));
-        string fullPath = directory.TrimEnd('/') + "/" + name;
-
-        return new RemoteFileItem(name, fullPath, isDirectory, size, mtime, permissions);
+        using SshCommand command = _sshCommandClient.CreateCommand(text);
+        await command.ExecuteAsync(ct);
+        return new RemoteCommandResult(command.Result, command.Error, command.ExitStatus, command.ExitSignal);
     }
 
     private void EnsureConnected()
@@ -255,35 +203,4 @@ public partial class ScpRemoteFileSystem : IRemoteFileSystem
         GC.SuppressFinalize(this);
     }
 
-    // 用于代理上传的临时内存写入流
-    private sealed class ScpUploadProxyStream : MemoryStream
-    {
-        private readonly Func<Stream, Task> _onDisposeAsync;
-        private bool _disposed;
-
-        public ScpUploadProxyStream(Func<Stream, Task> onDisposeAsync)
-        {
-            _onDisposeAsync = onDisposeAsync;
-        }
-
-        public override async ValueTask DisposeAsync()
-        {
-            if (!_disposed)
-            {
-                _disposed = true;
-                await _onDisposeAsync(this);
-            }
-            await base.DisposeAsync();
-        }
-
-        protected override void Dispose(bool disposing)
-        {
-            if (!_disposed && disposing)
-            {
-                _disposed = true;
-                _onDisposeAsync(this).GetAwaiter().GetResult();
-            }
-            base.Dispose(disposing);
-        }
-    }
 }

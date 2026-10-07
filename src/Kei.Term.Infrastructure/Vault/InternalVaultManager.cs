@@ -16,7 +16,7 @@ using Kei.Term.Infrastructure.Storage.Schema;
 // （Microsoft.NETCore.App.Ref 10.0.2 的 System.Security.Cryptography）未提供任何
 // Argon2/Kryptos 类型，故一期以 PBKDF2-Rfc2898DeriveBytes(HMAC-SHA512, 600k 迭代,
 // salt 16B, 派生 32B) 替代，差异记入实现报告；盐与密钥长度与规格一致，未来可无损切换 KDF。
-public class InternalVaultManager : IVaultManager, IVaultSecretStore, IProxySecretStore
+public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IProxySecretStore
 {
     // vault_metadata 键
     private const string KeyPlainMode = "plain_mode";
@@ -24,6 +24,7 @@ public class InternalVaultManager : IVaultManager, IVaultSecretStore, IProxySecr
     private const string KeyVerifier = "verifier";
     // KDF 标识与参数：缺省（早期库未写入）即视为 Pbkdf2Sha512Id，为未来切换 Argon2id 留出版本位
     private const string KeyKdf = "kdf";
+    private const string KeyCleanupPending = "plaintext_cleanup_pending";
     private const string Pbkdf2Sha512Id = "pbkdf2-sha512:600000";
 
     private const int Pbkdf2Iterations = 600_000;
@@ -41,12 +42,15 @@ public class InternalVaultManager : IVaultManager, IVaultSecretStore, IProxySecr
     private readonly SqliteConnectionFactory _factory;
     private readonly ILogger<InternalVaultManager> _logger;
     private readonly SemaphoreSlim _initLock = new(1, 1);
+    // 密钥轮换与秘密写入互斥，避免旧密钥密文在轮换提交后重新落库。
+    private readonly SemaphoreSlim _secretWriteLock = new(1, 1);
 
     private bool _initialized;
     private bool _hasMasterPassword;
     private byte[]? _kdfSalt;
     private string _kdfId = Pbkdf2Sha512Id;
     private byte[]? _mek;
+    private bool _cleanupPending;
 
     public InternalVaultManager(string connectionString, ILogger<InternalVaultManager>? logger = null)
         : this(new SqliteConnectionFactory(connectionString), logger)
@@ -103,6 +107,8 @@ public class InternalVaultManager : IVaultManager, IVaultSecretStore, IProxySecr
                 _kdfId = kdfId;
             }
 
+            _cleanupPending = meta.GetValueOrDefault(KeyCleanupPending) == "1";
+
             _initialized = true;
             _logger.LogInformation("Vault 初始化完成 模式={Mode}", _hasMasterPassword ? "加密" : "明文");
         }
@@ -112,7 +118,10 @@ public class InternalVaultManager : IVaultManager, IVaultSecretStore, IProxySecr
         }
     }
 
-    public async Task SetMasterPasswordAsync(string masterPassword, CancellationToken ct = default)
+    public Task SetMasterPasswordAsync(string masterPassword, CancellationToken ct = default)
+        => WithSecretWriteLockAsync(() => SetMasterPasswordCoreAsync(masterPassword, ct), ct);
+
+    private async Task SetMasterPasswordCoreAsync(string masterPassword, CancellationToken ct)
     {
         if (string.IsNullOrEmpty(masterPassword))
         {
@@ -120,47 +129,80 @@ public class InternalVaultManager : IVaultManager, IVaultSecretStore, IProxySecr
         }
 
         await EnsureInitializedAsync(ct);
+        EnsureUnlocked();
+
+        using SqliteConnection conn = await CreateConnectionAsync(ct);
+        await CompletePendingCleanupAsync(conn, ct);
+
+        // 清除更新行留下的旧页内容；VACUUM 与截断 WAL 另行处理历史空闲页和日志帧。
+        using (SqliteCommand secureDelete = conn.CreateCommand())
+        {
+            secureDelete.CommandText = "PRAGMA secure_delete = ON;";
+            await secureDelete.ExecuteNonQueryAsync(ct);
+        }
 
         var salt = RandomNumberGenerator.GetBytes(SaltLength);
         // 新设/更换主密码一律采用当前默认 KDF
         var mek = DeriveKey(Pbkdf2Sha512Id, masterPassword, salt);
         var verifier = EncryptWithMek(mek, Encoding.UTF8.GetBytes(VerifierPlaintext));
 
-        using var conn = await CreateConnectionAsync(ct);
-        var reEncrypted = 0;
-        using (var tx = conn.BeginTransaction())
+        int reEncrypted = 0;
+        bool committed = false;
+        try
         {
-            await UpsertMetadataAsync(conn, tx, KeyPlainMode, "0", ct);
-            await UpsertMetadataAsync(conn, tx, KeyKdfSalt, Convert.ToBase64String(salt), ct);
-            await UpsertMetadataAsync(conn, tx, KeyVerifier, Convert.ToBase64String(verifier), ct);
-            await UpsertMetadataAsync(conn, tx, KeyKdf, Pbkdf2Sha512Id, ct);
-
-            // 先重包已加密的代理口令（仍用旧 MEK），再升级明文行。顺序不能反，否则刚加密的行会被当成旧密文解开失败。
-            if (_mek != null)
+            using (SqliteTransaction tx = conn.BeginTransaction())
             {
-                reEncrypted = await RewrapEncryptedProxySecretsAsync(conn, tx, _mek, mek, ct);
+                await UpsertMetadataAsync(conn, tx, KeyPlainMode, "0", ct);
+                await UpsertMetadataAsync(conn, tx, KeyKdfSalt, Convert.ToBase64String(salt), ct);
+                await UpsertMetadataAsync(conn, tx, KeyVerifier, Convert.ToBase64String(verifier), ct);
+                await UpsertMetadataAsync(conn, tx, KeyKdf, Pbkdf2Sha512Id, ct);
+                // 清理状态与新密钥元数据一起提交。进程中断后仍会在下次启动重试。
+                await UpsertMetadataAsync(conn, tx, KeyCleanupPending, "1", ct);
+
+                // 先重包全部旧密文，再升级明文，避免把新密文当作旧密文处理。
+                if (_mek != null)
+                {
+                    reEncrypted = await RewrapEncryptedSecretsAsync(conn, tx, _mek, mek, "identity_secrets", "identity_id", ct);
+                    reEncrypted += await RewrapEncryptedSecretsAsync(conn, tx, _mek, mek, "proxy_secrets", "proxy_id", ct);
+                }
+
+                reEncrypted += await ReEncryptPlainSecretsAsync(conn, tx, mek, ct);
+                tx.Commit();
             }
 
-            reEncrypted += await ReEncryptPlainSecretsAsync(conn, tx, mek, ct);
-
-            tx.Commit();
+            // 提交已完成，先使内存与磁盘一致。即使后续清理失败，新密码仍能解锁和重试。
+            committed = true;
+            if (_mek != null) CryptographicOperations.ZeroMemory(_mek);
+            _kdfSalt = salt;
+            _kdfId = Pbkdf2Sha512Id;
+            _mek = mek;
+            _hasMasterPassword = true;
+            _cleanupPending = true;
+            await CompletePendingCleanupAsync(conn, ct);
+            _logger.LogInformation("设置主密码完成 重加密材料={Count} 项", reEncrypted);
         }
-
-        _kdfSalt = salt;
-        _kdfId = Pbkdf2Sha512Id;
-        _mek = mek;
-        _hasMasterPassword = true;
-        _logger.LogInformation("设置主密码完成 重加密存量明文材料={Count} 项", reEncrypted);
+        finally
+        {
+            if (!committed) CryptographicOperations.ZeroMemory(mek);
+        }
     }
 
     public async Task<bool> TryAutoUnlockAsync(CancellationToken ct = default)
     {
         await EnsureInitializedAsync(ct);
+        await WithSecretWriteLockAsync(async () =>
+        {
+            using SqliteConnection conn = await CreateConnectionAsync(ct);
+            await CompletePendingCleanupAsync(conn, ct);
+        }, ct);
         // 明文模式恒可用；加密模式一期无 OS Keyring，返回 false 走懒解锁（Keyring 二期）
         return !_hasMasterPassword;
     }
 
-    public async Task UnlockAsync(string masterPassword, bool rememberOnThisDevice, CancellationToken ct = default)
+    public Task UnlockAsync(string masterPassword, bool rememberOnThisDevice, CancellationToken ct = default)
+        => WithSecretWriteLockAsync(() => UnlockCoreAsync(masterPassword, ct), ct);
+
+    private async Task UnlockCoreAsync(string masterPassword, CancellationToken ct)
     {
         await EnsureInitializedAsync(ct);
 
@@ -202,6 +244,8 @@ public class InternalVaultManager : IVaultManager, IVaultSecretStore, IProxySecr
         }
 
         _mek = candidate;
+        using SqliteConnection conn = await CreateConnectionAsync(ct);
+        await CompletePendingCleanupAsync(conn, ct);
         _logger.LogInformation("Vault 解锁成功");
         // rememberOnThisDevice 为二期 OS Keyring 预留，一期忽略
     }
@@ -248,7 +292,10 @@ public class InternalVaultManager : IVaultManager, IVaultSecretStore, IProxySecr
         return JsonSerializer.Deserialize<Dictionary<string, SecretPayload>>(json) ?? new();
     }
 
-    public async Task SaveSecretsAsync(Guid identityId, Dictionary<string, SecretPayload> secrets, CancellationToken ct = default)
+    public Task SaveSecretsAsync(Guid identityId, Dictionary<string, SecretPayload> secrets, CancellationToken ct = default)
+        => WithSecretWriteLockAsync(() => SaveSecretsCoreAsync(identityId, secrets, ct), ct);
+
+    private async Task SaveSecretsCoreAsync(Guid identityId, Dictionary<string, SecretPayload> secrets, CancellationToken ct)
     {
         await EnsureInitializedAsync(ct);
 
@@ -276,6 +323,7 @@ public class InternalVaultManager : IVaultManager, IVaultSecretStore, IProxySecr
         }
 
         using var conn = await CreateConnectionAsync(ct);
+        await CompletePendingCleanupAsync(conn, ct);
         var cmd = conn.CreateCommand();
         cmd.CommandText = @"
             INSERT INTO identity_secrets (identity_id, secrets_blob, encryption_algorithm, nonce, tag)
@@ -314,7 +362,10 @@ public class InternalVaultManager : IVaultManager, IVaultSecretStore, IProxySecr
         return ReadPassword(blob, algorithm);
     }
 
-    public async Task SetPasswordAsync(Guid proxyId, string? password, CancellationToken ct = default)
+    public Task SetPasswordAsync(Guid proxyId, string? password, CancellationToken ct = default)
+        => WithSecretWriteLockAsync(() => SetPasswordCoreAsync(proxyId, password, ct), ct);
+
+    private async Task SetPasswordCoreAsync(Guid proxyId, string? password, CancellationToken ct)
     {
         await EnsureInitializedAsync(ct);
 
@@ -349,6 +400,7 @@ public class InternalVaultManager : IVaultManager, IVaultSecretStore, IProxySecr
         }
 
         using var conn = await CreateConnectionAsync(ct);
+        await CompletePendingCleanupAsync(conn, ct);
         var cmd = conn.CreateCommand();
         cmd.CommandText = @"
             INSERT INTO proxy_secrets (proxy_id, secrets_blob, encryption_algorithm, nonce, tag)
@@ -466,19 +518,21 @@ public class InternalVaultManager : IVaultManager, IVaultSecretStore, IProxySecr
         return pending.Count;
     }
 
-    // 已加密的代理口令换主密码时用旧 MEK 解开、新 MEK 重包。失败信息不含口令。
-    private static async Task<int> RewrapEncryptedProxySecretsAsync(
+    // 两种秘密表都必须用旧 MEK 解开、新 MEK 重包；表名和主键仅接受内部常量。
+    private static async Task<int> RewrapEncryptedSecretsAsync(
         SqliteConnection conn,
         SqliteTransaction tx,
         byte[] oldMek,
         byte[] newMek,
+        string table,
+        string idColumn,
         CancellationToken ct)
     {
         var pending = new List<(string id, byte[] plaintext)>();
         using (var select = conn.CreateCommand())
         {
             select.Transaction = tx;
-            select.CommandText = "SELECT proxy_id, secrets_blob FROM proxy_secrets WHERE encryption_algorithm = $alg;";
+            select.CommandText = $"SELECT {idColumn}, secrets_blob FROM {table} WHERE encryption_algorithm = $alg;";
             select.Parameters.AddWithValue("$alg", EncryptedAlgorithm);
             using var reader = await select.ExecuteReaderAsync(ct);
             while (await reader.ReadAsync(ct))
@@ -496,16 +550,16 @@ public class InternalVaultManager : IVaultManager, IVaultSecretStore, IProxySecr
             }
             catch (CryptographicException)
             {
-                throw new InvalidOperationException("代理口令重包失败");
+                throw new InvalidOperationException("保管库材料重包失败");
             }
 
             var wrapped = EncryptWithMek(newMek, plaintext);
             using var update = conn.CreateCommand();
             update.Transaction = tx;
-            update.CommandText = @"
-                UPDATE proxy_secrets
+            update.CommandText = $@"
+                UPDATE {table}
                 SET secrets_blob = $blob, encryption_algorithm = $alg, nonce = $nonce, tag = $tag
-                WHERE proxy_id = $id;
+                WHERE {idColumn} = $id;
             ";
             update.Parameters.AddWithValue("$id", id);
             update.Parameters.Add("$blob", SqliteType.Blob).Value = wrapped;

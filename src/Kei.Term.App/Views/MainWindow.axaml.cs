@@ -147,6 +147,7 @@ public partial class MainWindow : Window
             settingsVm,
             knownHostsVm,
             logger ?? NullLogger.Instance);
+        identityMgrVm.Interaction = vm.Interaction;
 
         // 身份管理器编辑器由管理器窗口自身以模态方式打开（保证 owner 正确）
         identityMgrVm.ConfirmDeleteAsync = _ => Task.FromResult(true);
