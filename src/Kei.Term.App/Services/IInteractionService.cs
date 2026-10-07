@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Kei.Term.App.Models;
 using Kei.Term.App.ViewModels;
@@ -46,6 +47,9 @@ public interface IInteractionService
 
     Task<string?> PickKonsoleSchemeFileAsync();
 
+    Task<CommandPaletteItem?> ShowCommandPaletteAsync(CommandPaletteViewModel viewModel)
+        => Task.FromResult<CommandPaletteItem?>(null);
+
     // === 子窗口 ===
     Task OpenIdentityManagerAsync();
 
@@ -54,6 +58,10 @@ public interface IInteractionService
     Task OpenSettingsAsync();
 
     Task OpenQuickConnectAsync();
+    Task CloseWindowAsync() => Task.CompletedTask;
+    Task<bool> HandleCloseShortcutInQuitConfirmationAsync() => Task.FromResult(false);
+    bool IsQuitConfirmationSuppressionSelected => false;
+    Task<QuitConfirmationResult> ShowQuitConfirmationAsync(QuitTrigger trigger, CancellationToken cancellationToken) => Task.FromResult(default(QuitConfirmationResult));
 
     // === 反馈 ===
     Task<bool> ConfirmDeleteAsync(string name);

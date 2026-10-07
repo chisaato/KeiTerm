@@ -122,8 +122,8 @@ public partial class SettingsViewModel : ViewModelBase
                 _ssh,
                 SettingsIcons.Ssh),
             new SettingsCategoryItem(
-                "文件传输",
-                "传输缓存、变动监视与外部编辑器关联",
+                Strings.Get("Settings.Categories.FileTransfer"),
+                Strings.Get("Settings.Categories.FileTransferDesc"),
                 _fileTransfer,
                 SettingsIcons.FileTransfer),
         };
@@ -165,7 +165,9 @@ public partial class SettingsViewModel : ViewModelBase
         _general.AutoReconnectOnDisconnect = current.AutoReconnectOnDisconnect;
         _general.UseNativeGlobalMenu = current.UseNativeGlobalMenu;
         _general.UseNativeContextMenus = current.UseNativeContextMenus;
+        _general.SetCommandPaletteShortcut(current.CommandPaletteShortcut);
         _general.SetTreeSortMode(current.TreeSortMode);
+        _general.SessionManagerPinned = current.SessionManagerPinned;
         _fileTransfer.CacheDirectory = current.FileTransfer.CacheDirectory;
         _fileTransfer.SelectedWatcherMode = current.FileTransfer.WatcherMode.ToString();
         _ = _fileTransfer.ReloadAsync();
@@ -256,7 +258,9 @@ public partial class SettingsViewModel : ViewModelBase
         settings.AutoReconnectOnDisconnect = _general.AutoReconnectOnDisconnect;
         settings.UseNativeGlobalMenu = _general.UseNativeGlobalMenu;
         settings.UseNativeContextMenus = _general.UseNativeContextMenus;
+        settings.CommandPaletteShortcut = _general.CommandPaletteShortcut;
         settings.TreeSortMode = _general.SelectedTreeSort?.Mode ?? "AsciiFirst";
+        settings.SessionManagerPinned = _general.SessionManagerPinned;
         settings.SessionManagerVisibilityMode = _general.SelectedSessionManagerMode switch
         {
             "常开 (Always Visible)" => PanelVisibilityMode.AlwaysVisible,

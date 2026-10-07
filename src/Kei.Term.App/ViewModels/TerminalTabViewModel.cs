@@ -240,7 +240,8 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         {
             session.Disconnected -= OnSessionDisconnected;
             session.OutputReceived -= OnSessionOutput;
-            await session.DisposeAsync();
+            // SSH 断开可能同步等待网络；先在 UI 线程卸下端点，再在后台释放连接。
+            await Task.Run(async () => await session.DisposeAsync());
             _logger.LogInformation("终端标签释放会话 标题={Title} SessionId={SessionId}", Title, session.SessionId);
         }
     }
@@ -406,7 +407,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         _userDisconnect = true;
         CancelReconnect();
         await DetachSessionAsync();
-        await CloseFileManagerAsync(releaseOnly: true);
+        await Task.Run(() => CloseFileManagerAsync(releaseOnly: true));
         _logger.LogInformation("终端标签已释放 标题={Title}", Title);
     }
 }

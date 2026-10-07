@@ -20,6 +20,7 @@ public sealed class TextPromptWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         ShowInTaskbar = false;
         Bind(BackgroundProperty, this.GetResourceObservable("Kei.Bg.Panel"));
+        Bind(FontFamilyProperty, this.GetResourceObservable("Kei.Font.UI"));
 
         var caption = new TextBlock
         {
@@ -52,8 +53,7 @@ public sealed class TextPromptWindow : Window
             MinWidth = 76,
             Margin = new Thickness(8, 0, 0, 0)
         };
-        confirm.Bind(BackgroundProperty, confirm.GetResourceObservable("Kei.Accent"));
-        confirm.Bind(ForegroundProperty, confirm.GetResourceObservable("Kei.Accent.Foreground"));
+        confirm.Classes.Add("accent");
         cancel.Click += (_, _) => Close(null);
         confirm.Click += (_, _) => Close(_input.Text);
 

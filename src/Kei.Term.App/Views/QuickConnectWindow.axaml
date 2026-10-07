@@ -12,37 +12,38 @@
         WindowStartupLocation="CenterOwner"
         CanResize="False"
         ShowInTaskbar="False"
-        Background="#1E1E1E">
+        Background="{DynamicResource Kei.Bg.Window}"
+        FontFamily="{DynamicResource Kei.Font.UI}">
 
     <Grid RowDefinitions="*, Auto" Margin="20">
         <StackPanel Grid.Row="0" Spacing="12">
-            <TextBlock Text="{loc:KeiString QuickConnect.Title}" FontWeight="Bold" Foreground="#4EC9B0" FontSize="14"/>
+            <TextBlock Text="{loc:KeiString QuickConnect.Title}" FontWeight="Bold" Foreground="{DynamicResource Kei.Text.Primary}" FontSize="14"/>
 
             <Grid ColumnDefinitions="80, *" RowDefinitions="Auto, Auto, Auto, Auto" Margin="0,4,0,0">
                 <!-- 主机：必填 -->
-                <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString QuickConnect.Host}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString QuickConnect.Host}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
                 <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Host}" PlaceholderText="{loc:KeiString QuickConnect.Host.Placeholder}" Margin="0,4"/>
 
                 <!-- 端口：默认取全局设置 -->
-                <TextBlock Grid.Row="1" Grid.Column="0" Text="{loc:KeiString QuickConnect.Port}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="{loc:KeiString QuickConnect.Port}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
                 <NumericUpDown Grid.Row="1" Grid.Column="1" Value="{Binding Port}" Minimum="1" Maximum="65535" FormatString="0" Margin="0,4"/>
 
                 <!-- 用户名：可留空走默认 -->
-                <TextBlock Grid.Row="2" Grid.Column="0" Text="{loc:KeiString QuickConnect.Username}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="{loc:KeiString QuickConnect.Username}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
                 <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding Username}" PlaceholderText="{loc:KeiString QuickConnect.Username.Placeholder}" Margin="0,4"/>
 
                 <!-- 密码：可选，仅本次 -->
-                <TextBlock Grid.Row="3" Grid.Column="0" Text="{loc:KeiString QuickConnect.Password}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                <TextBlock Grid.Row="3" Grid.Column="0" Text="{loc:KeiString QuickConnect.Password}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
                 <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding Password}" PasswordChar="•"
                          PlaceholderText="{loc:KeiString QuickConnect.Password.Placeholder}" Margin="0,4"
                          ToolTip.Tip="{loc:KeiString QuickConnect.Password.Tip}"/>
             </Grid>
 
             <!-- 保存为会话：默认不勾，密码不参与保存 -->
-            <CheckBox IsChecked="{Binding SaveAsSession}" Content="{loc:KeiString QuickConnect.SaveAsSession}" Foreground="#CCCCCC"/>
+            <CheckBox IsChecked="{Binding SaveAsSession}" Content="{loc:KeiString QuickConnect.SaveAsSession}" Foreground="{DynamicResource Kei.Text.Secondary}"/>
 
             <!-- 校验失败提示 -->
-            <TextBlock Text="{Binding ErrorMessage}" FontSize="11" Foreground="#F48771"
+            <TextBlock Text="{Binding ErrorMessage}" FontSize="12" Foreground="{DynamicResource Kei.Status.Error}"
                        IsVisible="{Binding ErrorMessage, Converter={x:Static ObjectConverters.IsNotNull}}"/>
         </StackPanel>
 

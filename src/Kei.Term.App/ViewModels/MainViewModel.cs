@@ -112,10 +112,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         ? Strings.Get("Main.Compose.PlaceholderMultiLine")
         : Strings.Get("Main.Compose.Placeholder");
 
-    // 左侧连接管理器面板显隐
-    [ObservableProperty]
-    private bool _isSessionManagerVisible = true;
-
     [ObservableProperty]
     private string _composeText = string.Empty;
 
@@ -206,7 +202,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
             _portForwards);
 
         // 标签集合变化时同步 HasTabs，控制标签条显隐
-        Tabs.CollectionChanged += (_, _) => HasTabs = Tabs.Count > 0;
+        Tabs.CollectionChanged += OnTerminalTabsChanged;
 
         // 配色变更单点订阅：不为每个标签单独挂钩子
         if (_profileManager != null)
@@ -387,6 +383,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         EditSelectedNodeCommand.NotifyCanExecuteChanged();
         DeleteSelectedNodeCommand.NotifyCanExecuteChanged();
         RenameSelectedNodeCommand.NotifyCanExecuteChanged();
+        DuplicateSelectedSessionCommand.NotifyCanExecuteChanged();
         if (RenamingNode != null && RenamingNode != value)
         {
             CancelTreeRename();
@@ -400,6 +397,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         {
             tab.IsSelected = tab == value;
         }
+        if (value != null) ActiveWorkspaceTab = value;
+        else if (ActiveWorkspaceTab is TerminalTabViewModel) ActiveWorkspaceTab = null;
         DisconnectCurrentTabCommand.NotifyCanExecuteChanged();
     }
 
@@ -407,14 +406,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
     {
         var settings = _settingsService.Current;
 
-        // 初始化连接管理器显隐状态
-        IsSessionManagerVisible = settings.SessionManagerVisibilityMode switch
-        {
-            PanelVisibilityMode.AlwaysVisible => true,
-            PanelVisibilityMode.AlwaysHidden => false,
-            PanelVisibilityMode.RememberLastState => settings.LastSessionManagerVisible,
-            _ => true
-        };
+        ApplySessionManagerSettings();
 
         // 初始化撰写栏显隐状态
         IsComposeBarVisible = settings.ComposeBarVisibilityMode switch
@@ -575,20 +567,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         virtualRoot.Children.AddRange(roots);
         TreeNodes = new ObservableCollection<TreeNodeBase> { virtualRoot };
     }
-
-    [RelayCommand]
-    private Task CreateSessionAsync() => Safe.RunAsync(_logger, "新建会话", async () =>
-    {
-        var parentId = TreePlacement.ResolveCreationParent(SelectedTreeNode);
-        var identities = await _identityRepo.GetAllAsync();
-        var result = await Interaction.EditSessionAsync(null, parentId, identities);
-        if (result != null)
-        {
-            await _treeRepo.SaveNodeAsync(result);
-            await PersistPendingForwardsAsync(result.Id);
-            await ReloadTreeAsync();
-        }
-    });
 
     [RelayCommand]
     private Task CreateFolderAsync() => Safe.RunAsync(_logger, "新建文件夹", async () =>
@@ -997,7 +975,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
     [RelayCommand]
     private Task QuickConnectAsync() => Safe.RunAsync(_logger, "快速连接", async () =>
     {
-        await Interaction.OpenQuickConnectAsync();
+        await RunConnectionFromWorkspaceAsync(() => Interaction.OpenQuickConnectAsync());
     });
 
     // 导入 ~/.ssh/config：具体 Host 别名 → 会话，IdentityFile → 身份，ProxyJump → 跳板链
@@ -1186,18 +1164,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         }
     }
 
-    // 显示/隐藏左侧连接管理器面板
-    [RelayCommand]
-    private void ToggleSessionManager()
-    {
-        IsSessionManagerVisible = !IsSessionManagerVisible;
-        if (_settingsService.Current.SessionManagerVisibilityMode == PanelVisibilityMode.RememberLastState)
-        {
-            _settingsService.Current.LastSessionManagerVisible = IsSessionManagerVisible;
-            _ = _settingsService.SaveSettingsAsync(_settingsService.Current);
-        }
-    }
-
     [RelayCommand]
     private Task OpenSessionAsync(SessionNode? sessionNode) => Safe.RunAsync(_logger, "打开会话连接", async () =>
     {
@@ -1209,108 +1175,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         _logger.LogInformation("发起会话连接 会话={Session} 绑定身份={IdentityId}", sessionNode.Name, sessionNode.IdentityId);
         // 扁平解析：会话自身 → 全局设置 → 内建兜底（IdentityId 已在解析中回退到全局默认身份）
         var resolved = SessionConfigBuilder.Build(sessionNode, _settingsService.Current);
-        await _connections.ConnectAsync(new ConnectionRequest(resolved, UseIdentity: true), this);
-    });
-
-    // IConnectionHost：按解析后的配置新建标签（Connecting 态）并选中
-    IConnectionTarget IConnectionHost.OpenTab(ResolvedSessionConfig config)
-    {
-        // 有效配色：会话显式 ID → 全局默认 → 内置默认，始终走同一适配路径
-        TerminalProfile effectiveProfile = ResolveEffectiveTerminalProfile(config.TerminalProfileId);
-        var tab = new TerminalTabViewModel(
-            config.SessionName,
-            BuildAppliedFontSnapshot(_settingsService.Current),
-            effectiveProfile,
-            config.TerminalProfileId,
-            _logger,
-            scrollbackLines: _settingsService.Current.ScrollbackLines);
-        // 构造只记录状态，此处显式注入配色（新标签立即生效）
-        tab.ApplyTerminalProfile(effectiveProfile);
-        tab.BindConfig(config);
-        Tabs.Add(tab);
-        tab.CloseRequested += OnTabCloseRequested;
-        tab.AutoReconnectEnabled = () => _settingsService.Current.AutoReconnectOnDisconnect;
-        tab.UnexpectedDisconnectAsync = OnUnexpectedDisconnectAsync;
-        tab.ActionRequested += OnTabActionRequested;
-        tab.FontZoomRequested += OnTabFontZoomRequested;
-        SelectedTab = tab;
-        return CreateConnectionTarget(tab);
-    }
-
-    // IConnectionHost：跳板链解析按 Id 查会话节点（取自最近一次加载的树缓存）
-    SessionNode? IConnectionHost.FindSession(Guid id)
-        => _allNodesCache.OfType<SessionNode>().FirstOrDefault(n => n.Id == id);
-
-    /// <summary>
-    /// 重排标签顺序，保持当前选中标签不变
-    /// </summary>
-    public void MoveTab(int fromIndex, int toIndex)
-    {
-        if (fromIndex < 0 || fromIndex >= Tabs.Count || toIndex < 0 || toIndex >= Tabs.Count)
-        {
-            return;
-        }
-
-        if (fromIndex == toIndex)
-        {
-            return;
-        }
-
-        var selected = SelectedTab;
-        Tabs.Move(fromIndex, toIndex);
-        if (selected != null)
-        {
-            SelectedTab = selected;
-        }
-    }
-
-    private void OnTabCloseRequested(TerminalTabViewModel tab) => _ = CloseTabCommand.ExecuteAsync(tab);
-
-    [RelayCommand]
-    private Task CloseTabAsync(TerminalTabViewModel? tab) => Safe.RunAsync(_logger, "关闭标签", () =>
-    {
-        if (tab == null)
-        {
-            return Task.CompletedTask;
-        }
-
-        tab.CloseRequested -= OnTabCloseRequested;
-        tab.ActionRequested -= OnTabActionRequested;
-        tab.FontZoomRequested -= OnTabFontZoomRequested;
-        var isCurrentSelected = SelectedTab == tab;
-        var tabIndex = Tabs.IndexOf(tab);
-
-        // 先从集合中移除并立即更新选中态，确保 UI 响应无阻塞
-        Tabs.Remove(tab);
-
-        if (isCurrentSelected)
-        {
-            // 优先切到同位置或前一个标签，若均无则切至末尾或 null
-            if (Tabs.Count > 0)
-            {
-                var nextIndex = Math.Clamp(tabIndex - 1, 0, Tabs.Count - 1);
-                SelectedTab = Tabs[nextIndex];
-            }
-            else
-            {
-                SelectedTab = null;
-            }
-        }
-
-        // 后台异步清理底层会话与网络资源，避免任何网络读取阻塞导致 UI 卡顿
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await tab.DisposeAsync();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "后台释放终端标签异常 标题={Title}", tab.Title);
-            }
-        });
-
-        return Task.CompletedTask;
+        await RunConnectionFromWorkspaceAsync(() => _connections.ConnectAsync(new ConnectionRequest(resolved, UseIdentity: true), this));
     });
 
     [RelayCommand]

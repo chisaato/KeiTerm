@@ -17,6 +17,7 @@ public partial class SettingsWindow : Window
     public SettingsWindow()
     {
         InitializeComponent();
+        AddHandler(KeyDownEvent, CommandPaletteShortcutRecorder_KeyDown, Avalonia.Interactivity.RoutingStrategies.Tunnel, handledEventsToo: true);
     }
 
     public SettingsWindow(SettingsViewModel vm) : this()

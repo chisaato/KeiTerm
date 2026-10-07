@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Platform.Storage;
 using Kei.Term.App.Helpers;
@@ -182,6 +183,24 @@ public sealed class MainWindowInteractionService : IInteractionService
 
     // === 子窗口 ===
 
+    public Task<CommandPaletteItem?> ShowCommandPaletteAsync(CommandPaletteViewModel viewModel)
+        => Safe.RunAsync<CommandPaletteItem?>(_log, "打开快捷选择面板", () => _owner.ShowCommandPaletteAsync(viewModel));
+
+    public Task CloseWindowAsync()
+    {
+        // 请求确认后立即结束标签命令，让第二次 ⌘W 能确认退出。
+        _ = Safe.RunAsync(_log, "确认关闭应用", () => _owner.RequestQuitAsync(QuitTrigger.CloseWindow));
+        return Task.CompletedTask;
+    }
+
+    public Task<bool> HandleCloseShortcutInQuitConfirmationAsync()
+        => Task.FromResult(_owner.HandleCloseShortcutInQuitConfirmation());
+
+    public bool IsQuitConfirmationSuppressionSelected => _owner.IsQuitConfirmationSuppressionSelected;
+
+    public Task<QuitConfirmationResult> ShowQuitConfirmationAsync(QuitTrigger trigger, CancellationToken cancellationToken)
+        => Safe.RunAsync(_log, "显示退出快捷键确认", () => _owner.ShowQuitConfirmationAsync(trigger, cancellationToken));
+
     public Task OpenIdentityManagerAsync() => Safe.RunAsync(_log, "打开身份管理器", async () =>
     {
         _log.LogInformation("身份管理器打开");
@@ -208,6 +227,8 @@ public sealed class MainWindowInteractionService : IInteractionService
         _log.LogInformation("设置窗口关闭");
 
         AppSettings current = _mainVm.CurrentSettings;
+        _mainVm.RefreshShortcuts();
+        _mainVm.ApplySessionManagerSettings();
         if (_settings.IsConfirmed)
         {
             // 设置确认保存后立即应用控件库主题（Apply 幂等，KeiClassic 即卸载第三方主题）与树密度

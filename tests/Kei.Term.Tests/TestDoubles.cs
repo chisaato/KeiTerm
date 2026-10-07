@@ -84,7 +84,14 @@ internal sealed class ScriptedInteraction : IInteractionService
 
     public Task OpenSettingsAsync() => Task.CompletedTask;
 
-    public Task OpenQuickConnectAsync() => Task.CompletedTask;
+    public Func<Task>? QuickConnectAction { get; set; }
+    public Task OpenQuickConnectAsync() => QuickConnectAction?.Invoke() ?? Task.CompletedTask;
+    public Action? CloseWindowAction { get; set; }
+    public Task CloseWindowAsync()
+    {
+        CloseWindowAction?.Invoke();
+        return Task.CompletedTask;
+    }
 
     public Task<bool> ConfirmDeleteAsync(string name) => Task.FromResult(true);
 

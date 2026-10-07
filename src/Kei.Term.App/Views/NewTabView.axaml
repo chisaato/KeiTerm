@@ -1,0 +1,39 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Kei.Term.App.ViewModels"
+             xmlns:loc="using:Kei.Term.App.Helpers"
+             x:Class="Kei.Term.App.Views.NewTabView"
+             x:DataType="vm:NewTabViewModel"
+             IsVisible="{Binding IsSelected}"
+             FontFamily="{DynamicResource Kei.Font.UI}">
+    <Border MaxWidth="440" Margin="24" Padding="20"
+            HorizontalAlignment="Center" VerticalAlignment="Center">
+        <StackPanel Spacing="8">
+            <TextBlock Text="{loc:KeiString NewTab.Header}" FontSize="14" FontWeight="SemiBold"
+                       Foreground="{DynamicResource Kei.Text.Primary}"/>
+            <TextBlock Text="{loc:KeiString NewTab.Description}" FontSize="12" TextWrapping="Wrap"
+                       Foreground="{DynamicResource Kei.Text.Secondary}" Margin="0,0,0,8"/>
+            <Button x:Name="ConnectSavedSessionButton" Classes="accent" Command="{Binding ConnectSavedSessionCommand}"
+                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                    <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Folder}" Fill="{DynamicResource Kei.Accent.Foreground}"/>
+                    <TextBlock Grid.Column="1" Text="{loc:KeiString Menu.File.ConnectSavedSession}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="2" Text="{Binding ConnectSavedSessionShortcutLabel}" FontSize="12" VerticalAlignment="Center"/>
+                </Grid>
+            </Button>
+            <TextBlock Text="{loc:KeiString NewTab.SavedSessionDescription}" FontSize="12" TextWrapping="Wrap"
+                       Foreground="{DynamicResource Kei.Text.Secondary}" Margin="0,0,0,8"/>
+            <Button Command="{Binding QuickConnectCommand}"
+                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                    <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.QuickConnect}"/>
+                    <TextBlock Grid.Column="1" Text="{loc:KeiString Menu.File.QuickConnect}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="2" Text="{Binding QuickConnectShortcutLabel}" FontSize="12"
+                               Foreground="{DynamicResource Kei.Text.Secondary}" VerticalAlignment="Center"/>
+                </Grid>
+            </Button>
+            <TextBlock Text="{loc:KeiString NewTab.QuickConnectDescription}" FontSize="12" TextWrapping="Wrap"
+                       Foreground="{DynamicResource Kei.Text.Secondary}"/>
+        </StackPanel>
+    </Border>
+</UserControl>

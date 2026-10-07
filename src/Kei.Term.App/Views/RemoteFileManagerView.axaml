@@ -30,16 +30,16 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
-                    <Button Classes="iconBtn" Width="24" Height="24" ToolTip.Tip="切换左/右侧停靠" Command="{Binding ToggleDockPositionCommand}">
+                    <Button Classes="iconBtn" Width="28" Height="28" ToolTip.Tip="切换左/右侧停靠" Command="{Binding ToggleDockPositionCommand}">
                         <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.DockSwap}" Width="11" Height="11"/>
                     </Button>
-                    <Button Classes="iconBtn" Width="24" Height="24" ToolTip.Tip="在新标签页中打开" Command="{Binding PromoteToTabCommand}">
+                    <Button Classes="iconBtn" Width="28" Height="28" ToolTip.Tip="在新标签页中打开" Command="{Binding PromoteToTabCommand}">
                         <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.ExternalLink}" Width="11" Height="11" Fill="{DynamicResource Kei.Accent}"/>
                     </Button>
-                    <Button Classes="iconBtn" Width="24" Height="24" ToolTip.Tip="刷新" Command="{Binding RefreshDirectoryCommand}">
+                    <Button Classes="iconBtn" Width="28" Height="28" ToolTip.Tip="刷新" Command="{Binding RefreshDirectoryCommand}">
                         <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Refresh}" Width="11" Height="11"/>
                     </Button>
-                    <Button Classes="iconBtn" Width="24" Height="24" ToolTip.Tip="关闭侧栏" Command="{Binding CloseCommand}">
+                    <Button Classes="iconBtn" Width="28" Height="28" ToolTip.Tip="关闭侧栏" Command="{Binding CloseCommand}">
                         <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Close}" Width="9" Height="9"/>
                     </Button>
                 </StackPanel>
@@ -49,16 +49,16 @@
         <!-- 路径导航栏 -->
         <Border Grid.Row="1" Background="{DynamicResource Kei.Bg.Panel}" BorderBrush="{DynamicResource Kei.Border}" BorderThickness="0,0,0,1" Padding="6,4">
             <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,0">
-                <Button Classes="iconBtn" Width="24" Height="24" ToolTip.Tip="上一级" Command="{Binding NavigateUpCommand}" Margin="0,0,4,0">
+                <Button Classes="iconBtn" Width="28" Height="28" ToolTip.Tip="上一级" Command="{Binding NavigateUpCommand}" Margin="0,0,4,0">
                     <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.ArrowUp}" Width="12" Height="12"/>
                 </Button>
-                <TextBox Grid.Column="1" Text="{Binding CurrentPath}" Height="26" Padding="6,2" FontSize="11.5" VerticalContentAlignment="Center">
+                <TextBox Grid.Column="1" Text="{Binding CurrentPath}" Height="28" Padding="6,2" FontSize="12" VerticalContentAlignment="Center">
                     <TextBox.KeyBindings>
                         <KeyBinding Gesture="Enter" Command="{Binding RefreshDirectoryCommand}"/>
                     </TextBox.KeyBindings>
                 </TextBox>
-                <ToggleButton Grid.Column="2" IsChecked="{Binding ShowHiddenFiles}" Width="26" Height="26" ToolTip.Tip="显示隐藏文件 (.*)" Margin="4,0,0,0" Padding="0">
-                    <TextBlock Text=".*" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <ToggleButton Grid.Column="2" IsChecked="{Binding ShowHiddenFiles}" Width="28" Height="28" MinWidth="28" MinHeight="28" ToolTip.Tip="显示隐藏文件 (.*)" Margin="4,0,0,0" Padding="0">
+                    <TextBlock Text=".*" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </ToggleButton>
             </Grid>
         </Border>
@@ -76,7 +76,7 @@
                     <TreeDataTemplate DataType="vm:RemoteDirectoryNodeViewModel" ItemsSource="{Binding Children}">
                         <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,1" VerticalAlignment="Center">
                             <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Folder}" Width="13" Height="13" Fill="{DynamicResource Kei.Text.Muted}" VerticalAlignment="Center"/>
-                            <TextBlock Text="{Binding Name}" VerticalAlignment="Center" FontSize="11.5" Foreground="{DynamicResource Kei.Text.Primary}"/>
+                            <TextBlock Text="{Binding Name}" VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource Kei.Text.Primary}"/>
                             <ProgressBar IsIndeterminate="True" Width="20" Height="2" IsVisible="{Binding IsLoading}" VerticalAlignment="Center"/>
                         </StackPanel>
                     </TreeDataTemplate>
@@ -124,10 +124,10 @@
                             <TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource Kei.Text.Primary}" TextTrimming="CharacterEllipsis"/>
 
                             <!-- 大小 -->
-                            <TextBlock Grid.Column="2" Text="{Binding Size}" IsVisible="{Binding !IsDirectory}" VerticalAlignment="Center" FontSize="11" Foreground="{DynamicResource Kei.Text.Muted}" Margin="8,0"/>
+                            <TextBlock Grid.Column="2" Text="{Binding Size}" IsVisible="{Binding !IsDirectory}" VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}" Margin="8,0"/>
 
                             <!-- 权限 -->
-                            <TextBlock Grid.Column="3" Text="{Binding Permissions}" VerticalAlignment="Center" FontSize="10.5" FontFamily="Noto Sans Mono, monospace" Foreground="{DynamicResource Kei.Text.Muted}" Margin="6,0,2,0"/>
+                            <TextBlock Grid.Column="3" Text="{Binding Permissions}" VerticalAlignment="Center" FontSize="12" FontFamily="{DynamicResource Kei.Font.Mono}" Foreground="{DynamicResource Kei.Text.Muted}" Margin="6,0,2,0"/>
                         </Grid>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
@@ -149,14 +149,14 @@
                         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="8,4" Background="{DynamicResource Kei.Bg.Panel}">
                             <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                                 <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.QuickConnect}" Width="12" Height="12" Fill="{DynamicResource Kei.Accent}" VerticalAlignment="Center"/>
-                                <TextBlock Text="传输任务队列" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource Kei.Text.Primary}"/>
-                                <TextBlock Text="{Binding TransferTasks.Count, StringFormat='({0})'}" FontSize="11" Foreground="{DynamicResource Kei.Text.Muted}"/>
+                                <TextBlock Text="传输任务队列" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource Kei.Text.Primary}"/>
+                                <TextBlock Text="{Binding TransferTasks.Count, StringFormat='({0})'}" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}"/>
                             </StackPanel>
                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
-                                <Button Classes="iconBtn" Width="NaN" Height="20" Padding="8,0" ToolTip.Tip="清除已完成/已取消" Command="{Binding ClearCompletedTransferTasksCommand}">
-                                    <TextBlock Text="清除已完成" FontSize="10" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                <Button Classes="iconBtn" Width="NaN" Height="28" Padding="8,0" ToolTip.Tip="清除已完成/已取消" Command="{Binding ClearCompletedTransferTasksCommand}">
+                                    <TextBlock Text="清除已完成" FontSize="12" Foreground="{DynamicResource Kei.Text.Secondary}"/>
                                 </Button>
-                                <Button Classes="iconBtn" Width="20" Height="20" ToolTip.Tip="收起抽屉" Command="{Binding ToggleTransferDrawerCommand}">
+                                <Button Classes="iconBtn" Width="28" Height="28" ToolTip.Tip="收起抽屉" Command="{Binding ToggleTransferDrawerCommand}">
                                     <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Close}" Width="9" Height="9"/>
                                 </Button>
                             </StackPanel>
@@ -175,14 +175,14 @@
 
                                                 <!-- 文件名与进度条 -->
                                                 <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding FileName}" FontSize="11" Foreground="{DynamicResource Kei.Text.Primary}" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{Binding FileName}" FontSize="12" Foreground="{DynamicResource Kei.Text.Primary}" TextTrimming="CharacterEllipsis"/>
                                                     <ProgressBar Value="{Binding Progress}" Minimum="0" Maximum="100" Height="2"
                                                                  Foreground="{DynamicResource Kei.Accent}"
                                                                  Background="{DynamicResource Kei.Bg.PanelAlt}"/>
                                                 </StackPanel>
 
                                                 <!-- 状态/速度文本 -->
-                                                <TextBlock Grid.Column="2" Text="{Binding StatusText}" FontSize="10" Foreground="{DynamicResource Kei.Text.Muted}" Margin="8,0" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="2" Text="{Binding StatusText}" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}" Margin="8,0" VerticalAlignment="Center"/>
 
                                                 <!-- 取消/移除按钮 -->
                                                 <Button Grid.Column="3" Classes="closeBtn" Padding="4,2" Cursor="Hand"
@@ -199,12 +199,12 @@
                 </Border>
 
                 <!-- 第二行：状态文本、任务折叠触发器与活跃受监视文件标签 -->
-                <Border Grid.Row="1" Padding="8,4" MinHeight="26">
+                <Border Grid.Row="1" Padding="8,4" MinHeight="28">
                     <Grid RowDefinitions="Auto,Auto">
                         <Grid Grid.Row="0" ColumnDefinitions="*, Auto, Auto">
                             <TextBlock Grid.Column="0"
                                        Text="{Binding TransferStatusMessage, FallbackValue='就绪'}"
-                                       FontSize="11"
+                                       FontSize="12"
                                        Foreground="{DynamicResource Kei.Text.Secondary}"
                                        TextTrimming="CharacterEllipsis"
                                        VerticalAlignment="Center"/>
@@ -216,8 +216,8 @@
                                     ToolTip.Tip="展开/收起传输队列">
                                 <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                                     <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.QuickConnect}" Width="10" Height="10" Fill="{DynamicResource Kei.Accent}"/>
-                                    <TextBlock Text="任务" FontSize="10" Foreground="{DynamicResource Kei.Accent}"/>
-                                    <TextBlock Text="{Binding TransferTasks.Count, StringFormat='({0})'}" FontSize="10" Foreground="{DynamicResource Kei.Accent}"/>
+                                    <TextBlock Text="任务" FontSize="12" Foreground="{DynamicResource Kei.Accent}"/>
+                                    <TextBlock Text="{Binding TransferTasks.Count, StringFormat='({0})'}" FontSize="12" Foreground="{DynamicResource Kei.Accent}"/>
                                 </StackPanel>
                             </Button>
 
@@ -231,7 +231,7 @@
                                     <DataTemplate>
                                         <Border Background="{DynamicResource Kei.Bg.Card}" CornerRadius="3" Padding="4,1" Margin="2,0" BorderBrush="{DynamicResource Kei.Border.Subtle}" BorderThickness="1">
                                             <StackPanel Orientation="Horizontal" Spacing="4">
-                                                <TextBlock Text="{Binding}" FontSize="10.5" Foreground="{DynamicResource Kei.Session.Foreground}" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding}" FontSize="12" Foreground="{DynamicResource Kei.Session.Foreground}" VerticalAlignment="Center"/>
                                                 <Button Classes="closeBtn" Padding="2,0" Cursor="Hand"
                                                         Command="{Binding $parent[UserControl].((vm:RemoteFileManagerViewModel)DataContext).StopTrackingFileCommand}"
                                                         CommandParameter="{Binding}" ToolTip.Tip="停止监视此文件">

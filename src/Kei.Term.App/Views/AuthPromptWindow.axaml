@@ -12,72 +12,73 @@
         WindowStartupLocation="CenterOwner"
         CanResize="False"
         ShowInTaskbar="False"
-        Background="#1E1E1E">
+        Background="{DynamicResource Kei.Bg.Window}"
+        FontFamily="{DynamicResource Kei.Font.UI}">
 
     <Grid RowDefinitions="*, Auto" Margin="20">
         <StackPanel Grid.Row="0" Spacing="12">
 
             <!-- 提示模式：KI 真交互，仅服务器提示 + 单行输入 -->
             <StackPanel x:Name="PromptPanel" Spacing="10" IsVisible="False">
-                <TextBlock Text="{loc:KeiString AuthPrompt.PromptHeader}" FontWeight="Bold" Foreground="#4EC9B0" FontSize="14"/>
-                <TextBlock x:Name="PromptTextBlock" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                <TextBlock Text="{loc:KeiString AuthPrompt.PromptHeader}" FontWeight="Bold" Foreground="{DynamicResource Kei.Text.Primary}" FontSize="14"/>
+                <TextBlock x:Name="PromptTextBlock" Foreground="{DynamicResource Kei.Text.Secondary}" TextWrapping="Wrap"/>
                 <TextBox x:Name="PromptInputBox" PasswordChar="•"/>
-                <TextBlock Text="{loc:KeiString AuthPrompt.PromptDesc}" FontSize="11" Foreground="#888888"/>
+                <TextBlock Text="{loc:KeiString AuthPrompt.PromptDesc}" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}"/>
             </StackPanel>
 
             <!-- 完整模式：方法选择 + 各自字段 -->
             <StackPanel x:Name="FullPanel" Spacing="12">
-                <TextBlock Text="{loc:KeiString AuthPrompt.FullHeader}" FontWeight="Bold" Foreground="#4EC9B0" FontSize="14"/>
+                <TextBlock Text="{loc:KeiString AuthPrompt.FullHeader}" FontWeight="Bold" Foreground="{DynamicResource Kei.Text.Primary}" FontSize="14"/>
 
                 <Grid ColumnDefinitions="90, *" RowDefinitions="Auto, Auto" RowSpacing="8">
-                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString AuthPrompt.Username}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString AuthPrompt.Username}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
                     <TextBox Grid.Row="0" Grid.Column="1" x:Name="UsernameBox"/>
 
-                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{loc:KeiString AuthPrompt.Method}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{loc:KeiString AuthPrompt.Method}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
                     <ComboBox Grid.Row="1" Grid.Column="1" x:Name="MethodCombo"
                               HorizontalAlignment="Stretch" SelectionChanged="OnMethodChanged"/>
                 </Grid>
 
                 <!-- 密码 -->
                 <Grid x:Name="PasswordPanel" ColumnDefinitions="90, *" RowSpacing="8">
-                    <TextBlock Grid.Column="0" Text="{loc:KeiString AuthPrompt.Password}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                    <TextBlock Grid.Column="0" Text="{loc:KeiString AuthPrompt.Password}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
                     <TextBox Grid.Column="1" x:Name="PasswordBox" PasswordChar="•"/>
                 </Grid>
 
                 <!-- 公钥 -->
                 <StackPanel x:Name="PublicKeyPanel" Spacing="8" IsVisible="False">
                     <Grid ColumnDefinitions="90, *">
-                        <TextBlock Grid.Column="0" Text="{loc:KeiString AuthPrompt.KeySource}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                        <TextBlock Grid.Column="0" Text="{loc:KeiString AuthPrompt.KeySource}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
                         <ComboBox Grid.Column="1" x:Name="KeySourceCombo"
                                   HorizontalAlignment="Stretch" SelectionChanged="OnKeySourceChanged"/>
                     </Grid>
 
                     <Grid x:Name="KeyFilePanel" ColumnDefinitions="90, *, Auto" ColumnSpacing="8">
-                        <TextBlock Grid.Column="0" Text="{loc:KeiString AuthPrompt.PrivateKeyFile}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                        <TextBlock Grid.Column="0" Text="{loc:KeiString AuthPrompt.PrivateKeyFile}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
                         <TextBox Grid.Column="1" x:Name="KeyPathBox" PlaceholderText="{loc:KeiString AuthPrompt.PrivateKeyFile.Placeholder}"/>
                         <Button Grid.Column="2" Content="{loc:KeiString Common.Browse}" Click="OnBrowseKey"/>
                     </Grid>
 
                     <Grid x:Name="PassphrasePanel" ColumnDefinitions="90, *">
-                        <TextBlock Grid.Column="0" Text="{loc:KeiString AuthPrompt.Passphrase}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                        <TextBlock Grid.Column="0" Text="{loc:KeiString AuthPrompt.Passphrase}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
                         <TextBox Grid.Column="1" x:Name="PassphraseBox" PasswordChar="•"
                                  PlaceholderText="{loc:KeiString AuthPrompt.Passphrase.Placeholder}"/>
                     </Grid>
 
                     <TextBlock x:Name="VaultKeyHint" IsVisible="False"
                                Text="{loc:KeiString AuthPrompt.VaultKeyHint}"
-                               FontSize="11" Foreground="#888888" TextWrapping="Wrap"/>
+                               FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}" TextWrapping="Wrap"/>
                 </StackPanel>
 
                 <!-- 交互式 -->
                 <TextBlock x:Name="InteractiveHint" IsVisible="False"
                            Text="{loc:KeiString AuthPrompt.InteractiveHint}"
-                           FontSize="11" Foreground="#888888" TextWrapping="Wrap"/>
+                           FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}" TextWrapping="Wrap"/>
 
-                <TextBlock Text="{loc:KeiString AuthPrompt.EphemeralHint}" FontSize="11" Foreground="#888888"/>
+                <TextBlock Text="{loc:KeiString AuthPrompt.EphemeralHint}" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}"/>
             </StackPanel>
 
-            <TextBlock x:Name="ErrorText" Foreground="#FF6B6B" FontSize="11"
+            <TextBlock x:Name="ErrorText" Foreground="{DynamicResource Kei.Status.Error}" FontSize="12"
                        TextWrapping="Wrap" IsVisible="False"/>
         </StackPanel>
 

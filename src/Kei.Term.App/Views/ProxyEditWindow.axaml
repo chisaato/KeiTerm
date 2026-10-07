@@ -9,7 +9,8 @@
         Width="460" Height="360"
         WindowStartupLocation="CenterOwner"
         CanResize="False"
-        Background="{DynamicResource Kei.Bg.Window}">
+        Background="{DynamicResource Kei.Bg.Window}"
+        FontFamily="{DynamicResource Kei.Font.UI}">
     <Grid RowDefinitions="*, Auto" Margin="20" RowSpacing="12">
         <Grid ColumnDefinitions="100, *" RowDefinitions="Auto, Auto, Auto, Auto, Auto" RowSpacing="10" ColumnSpacing="12">
             <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString Proxy.Name}" VerticalAlignment="Center"

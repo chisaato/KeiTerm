@@ -15,19 +15,19 @@
             <Setter Property="FontWeight" Value="Normal"/>
             <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}"/>
         </Style>
-        <Style Selector="UserControl.session Path.folderIcon">
+        <Style Selector=":is(UserControl).session Path.folderIcon">
             <Setter Property="IsVisible" Value="False"/>
         </Style>
-        <Style Selector="UserControl.session Path.sessionIcon">
+        <Style Selector=":is(UserControl).session Path.sessionIcon">
             <Setter Property="IsVisible" Value="True"/>
         </Style>
-        <Style Selector="UserControl.session TextBlock.name">
+        <Style Selector=":is(UserControl).session TextBlock.name">
             <Setter Property="Foreground" Value="{DynamicResource Kei.Session.Foreground}"/>
         </Style>
-        <Style Selector="UserControl.virtualRoot TextBlock.name">
+        <Style Selector=":is(UserControl).virtualRoot TextBlock.name">
             <Setter Property="FontWeight" Value="SemiBold"/>
         </Style>
-        <Style Selector="UserControl.editing TextBlock.name">
+        <Style Selector=":is(UserControl).editing TextBlock.name">
             <Setter Property="IsVisible" Value="False"/>
         </Style>
     </UserControl.Styles>

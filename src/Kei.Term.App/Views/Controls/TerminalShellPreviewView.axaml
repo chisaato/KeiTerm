@@ -16,8 +16,8 @@
 
         <!-- 预览加载/渲染异常提示覆盖层（用户可见，避免冒充正常） -->
         <Border x:Name="ErrorOverlay"
-                Background="#B01E1E1E"
-                BorderBrush="#E53935"
+                Background="{DynamicResource Kei.Bg.Card}"
+                BorderBrush="{DynamicResource Kei.Status.Error}"
                 BorderThickness="1"
                 CornerRadius="{DynamicResource Kei.Radius.Card}"
                 Padding="16"
@@ -26,13 +26,13 @@
                 HorizontalAlignment="Stretch">
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="8">
                 <TextBlock Text="终端模拟预览渲染失败"
-                           Foreground="#E53935"
+                           Foreground="{DynamicResource Kei.Status.Error}"
                            FontWeight="Bold"
                            FontSize="12"
                            HorizontalAlignment="Center"/>
                 <TextBlock x:Name="ErrorMessageText"
                            Foreground="{DynamicResource Kei.Text.Secondary}"
-                           FontSize="11"
+                           FontSize="12"
                            TextWrapping="Wrap"
                            MaxWidth="340"
                            HorizontalAlignment="Center"/>

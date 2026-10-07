@@ -9,7 +9,8 @@
         WindowStartupLocation="CenterOwner"
         CanResize="False"
         ShowInTaskbar="False"
-        Background="{DynamicResource Kei.Bg.Window}">
+        Background="{DynamicResource Kei.Bg.Window}"
+        FontFamily="{DynamicResource Kei.Font.UI}">
 
     <Grid RowDefinitions="*, Auto" Margin="20">
         <StackPanel Grid.Row="0" Spacing="12">
@@ -28,11 +29,11 @@
                                Foreground="{DynamicResource Kei.Text.Primary}"/>
                     <TextBlock Grid.Row="1" Grid.Column="0" Text="{loc:KeiString HostKeyPrompt.Fingerprint}"
                                Foreground="{DynamicResource Kei.Text.Muted}"/>
-                    <SelectableTextBlock Grid.Row="1" Grid.Column="1" x:Name="FingerprintText" FontFamily="monospace"
+                    <SelectableTextBlock Grid.Row="1" Grid.Column="1" x:Name="FingerprintText" FontFamily="{DynamicResource Kei.Font.Mono}"
                                          TextWrapping="Wrap" Foreground="{DynamicResource Kei.Text.Primary}"/>
                     <TextBlock Grid.Row="2" Grid.Column="0" x:Name="PreviousLabel" Text="{loc:KeiString HostKeyPrompt.Previous}"
                                IsVisible="False" Foreground="{DynamicResource Kei.Text.Muted}"/>
-                    <SelectableTextBlock Grid.Row="2" Grid.Column="1" x:Name="PreviousText" FontFamily="monospace"
+                    <SelectableTextBlock Grid.Row="2" Grid.Column="1" x:Name="PreviousText" FontFamily="{DynamicResource Kei.Font.Mono}"
                                          TextWrapping="Wrap" IsVisible="False" Foreground="{DynamicResource Kei.Text.Secondary}"/>
                 </Grid>
             </Border>

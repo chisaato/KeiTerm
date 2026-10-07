@@ -128,6 +128,8 @@
 
     <!-- 通用输入框：封闭实体框、28px 紧凑高度、3px 圆角、细腻微弱描边、聚焦高亮 -->
     <Style Selector="TextBox">
+        <!-- 桌面菜单取得焦点后仍须能编辑此前选区；失焦时只隐藏高亮，不清空选区。 -->
+        <Setter Property="ClearSelectionOnLostFocus" Value="False"/>
         <Setter Property="MinHeight" Value="28"/>
         <Setter Property="Height" Value="28"/>
         <Setter Property="Padding" Value="8,3"/>
@@ -188,9 +190,33 @@
         <Setter Property="BorderThickness" Value="1"/>
     </Style>
 
+    <!-- 高级设置折叠栏采用与表单一致的紧凑尺寸，避免默认大标题抢占层级。 -->
+    <Style Selector="Expander">
+        <!-- Fluent 模板用 TemplateBinding 将宿主 MinHeight 传给标题，需在宿主覆盖默认 48px。 -->
+        <Setter Property="MinHeight" Value="32"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Padding" Value="10,8"/>
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Panel}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Border}"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource Kei.Radius.Control}"/>
+    </Style>
+    <Style Selector="Expander /template/ ToggleButton#ExpanderHeader">
+        <Setter Property="MinHeight" Value="32"/>
+        <Setter Property="Height" Value="32"/>
+        <Setter Property="Padding" Value="10,4"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.PanelAlt}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}"/>
+    </Style>
+    <Style Selector="Expander /template/ ToggleButton#ExpanderHeader /template/ Border#ExpandCollapseChevronBorder">
+        <!-- 模板的 Width/Height 是局部资源值，上限约束才能缩小其实际布局尺寸。 -->
+        <Setter Property="MaxWidth" Value="24"/>
+        <Setter Property="MaxHeight" Value="24"/>
+    </Style>
+
     <!-- 通用标准按钮：32px 舒适高度、3px 圆角、13px 字号、舒适内边距 -->
     <Style Selector="Button">
-        <Setter Property="MinHeight" Value="32"/>
+        <Setter Property="MinHeight" Value="28"/>
         <Setter Property="Height" Value="32"/>
         <Setter Property="Padding" Value="14,4"/>
         <Setter Property="FontSize" Value="13"/>
@@ -233,7 +259,8 @@
         <Setter Property="Padding" Value="0"/>
         <Setter Property="Width" Value="30"/>
         <Setter Property="Height" Value="30"/>
-        <Setter Property="MinHeight" Value="30"/>
+        <Setter Property="MinWidth" Value="24"/>
+        <Setter Property="MinHeight" Value="24"/>
         <Setter Property="CornerRadius" Value="{DynamicResource Kei.Radius.Control}"/>
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="HorizontalContentAlignment" Value="Center"/>
@@ -255,9 +282,10 @@
         <Setter Property="Width" Value="16"/>
         <Setter Property="Height" Value="16"/>
     </Style>
-    <!-- 图标按钮与图标联动交互态（平时 85% 透明度，悬停 100% 并高亮为主字色，禁用淡化） -->
+    <!-- 可用操作保持主文字色，禁用态单独淡化，避免普通入口看起来不可用。 -->
     <Style Selector="Button.iconBtn Path.kei-icon">
-        <Setter Property="Opacity" Value="0.85"/>
+        <Setter Property="Opacity" Value="1"/>
+        <Setter Property="Fill" Value="{DynamicResource Kei.Text.Primary}"/>
     </Style>
     <Style Selector="Button.iconBtn:pointerover Path.kei-icon">
         <Setter Property="Opacity" Value="1.0"/>
@@ -265,6 +293,60 @@
     </Style>
     <Style Selector="Button.iconBtn:disabled Path.kei-icon">
         <Setter Property="Fill" Value="{DynamicResource Kei.Text.Muted}"/>
+    </Style>
+
+    <!-- 侧栏固定按钮以底色与图标强调表示已固定。 -->
+    <Style Selector="Button.iconBtn.sessionManagerPin.pinned">
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Pressed}"/>
+    </Style>
+    <Style Selector="Button.iconBtn.sessionManagerPin.pinned Path.kei-icon">
+        <Setter Property="Fill" Value="{DynamicResource Kei.Accent}"/>
+    </Style>
+
+    <Style Selector="Button.danger">
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Status.Error}"/>
+    </Style>
+    <Style Selector="Button.danger:pointerover /template/ ContentPresenter, Button.danger:pressed /template/ ContentPresenter">
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Status.Error}"/>
+    </Style>
+    <Style Selector="Button.danger Path.kei-icon, Button.iconBtn.danger Path.kei-icon">
+        <Setter Property="Fill" Value="{DynamicResource Kei.Status.Error}"/>
+    </Style>
+    <Style Selector="Button.danger:disabled">
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Muted}"/>
+    </Style>
+    <Style Selector="Button.danger:disabled Path.kei-icon, Button.iconBtn.danger:disabled Path.kei-icon">
+        <Setter Property="Fill" Value="{DynamicResource Kei.Text.Muted}"/>
+    </Style>
+
+    <!-- 弹窗数据列表采用灰色选中面、细强调边界；正文颜色由类设置，选中时可统一提高对比度。 -->
+    <Style Selector="ListBox.popupList ListBoxItem">
+        <Setter Property="MinHeight" Value="32"/>
+        <Setter Property="Padding" Value="8,4"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource Kei.Radius.Control}"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+    </Style>
+    <Style Selector="ListBox.popupList ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}"/>
+    </Style>
+    <Style Selector="ListBox.popupList ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Pressed}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Accent}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}"/>
+    </Style>
+    <Style Selector="ListBox.popupList TextBlock.popupPrimary">
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}"/>
+    </Style>
+    <Style Selector="ListBox.popupList TextBlock.popupSecondary, ListBox.popupList SelectableTextBlock.popupSecondary">
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Secondary}"/>
+    </Style>
+    <Style Selector="ListBox.popupList TextBlock.popupMuted">
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Muted}"/>
+    </Style>
+    <Style Selector="ListBox.popupList ListBoxItem:selected TextBlock.popupPrimary, ListBox.popupList ListBoxItem:selected TextBlock.popupSecondary, ListBox.popupList ListBoxItem:selected TextBlock.popupMuted, ListBox.popupList ListBoxItem:selected SelectableTextBlock.popupSecondary">
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}"/>
     </Style>
 
     <!-- 工具栏垂直分隔条 -->
@@ -280,8 +362,9 @@
     <Style Selector="Button.tabItem">
         <Setter Property="Background" Value="{DynamicResource Kei.Bg.TabInactive}"/>
         <Setter Property="Padding" Value="8,2"/>
-        <Setter Property="Height" Value="28"/>
+        <Setter Property="Height" Value="32"/>
         <Setter Property="Margin" Value="2,4,0,0"/>
+        <Setter Property="MinHeight" Value="32"/>
         <Setter Property="CornerRadius" Value="3,3,0,0"/>
         <Setter Property="BorderThickness" Value="1,1,1,0"/>
         <Setter Property="BorderBrush" Value="{DynamicResource Kei.Border.Subtle}"/>
@@ -307,8 +390,10 @@
     <Style Selector="Button.closeBtn">
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="Padding" Value="0"/>
-        <Setter Property="Width" Value="18"/>
-        <Setter Property="Height" Value="18"/>
+        <Setter Property="Width" Value="24"/>
+        <Setter Property="Height" Value="24"/>
+        <Setter Property="MinWidth" Value="24"/>
+        <Setter Property="MinHeight" Value="24"/>
         <Setter Property="CornerRadius" Value="2"/>
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="FontSize" Value="10"/>

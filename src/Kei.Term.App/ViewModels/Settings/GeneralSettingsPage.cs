@@ -91,6 +91,9 @@ public partial class GeneralSettingsPage : ViewModelBase
     private string _selectedSessionManagerMode = "保持上次状态 (Remember Last)";
 
     [ObservableProperty]
+    private bool _sessionManagerPinned = true;
+
+    [ObservableProperty]
     private string _selectedComposeBarMode = "保持上次状态 (Remember Last)";
 
     [RelayCommand]

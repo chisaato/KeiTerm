@@ -1,0 +1,31 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="using:Kei.Term.App.Helpers"
+        x:Class="Kei.Term.App.Views.QuitConfirmationWindow"
+        Title="{loc:KeiString Quit.Confirm.Title}"
+        Width="380" CanResize="False" CanMinimize="False" CanMaximize="False" SizeToContent="Height"
+        WindowDecorations="None"
+        ShowInTaskbar="False" WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Kei.Bg.Panel}"
+        FontFamily="{DynamicResource Kei.Font.UI}">
+    <Border Padding="20,18"
+            BorderBrush="{DynamicResource Kei.Border}" BorderThickness="1"
+            CornerRadius="{DynamicResource Kei.Radius.Card}">
+        <StackPanel Spacing="8">
+            <TextBlock Text="{loc:KeiString Quit.Confirm.Title}" FontSize="14" FontWeight="SemiBold"
+                       Foreground="{DynamicResource Kei.Text.Primary}"/>
+            <TextBlock x:Name="ConfirmationMessage" Text="{loc:KeiString Quit.Confirm.Message}" FontSize="13" TextWrapping="Wrap"
+                       Foreground="{DynamicResource Kei.Text.Primary}"/>
+            <TextBlock x:Name="ConfirmationDetail" Text="{loc:KeiString Quit.Confirm.Detail}" FontSize="12" TextWrapping="Wrap"
+                       Foreground="{DynamicResource Kei.Text.Secondary}"/>
+            <CheckBox x:Name="DoNotAskAgainCheckBox" Content="{loc:KeiString Quit.Confirm.DoNotAskAgain}" FontSize="12"
+                      MinHeight="28" Foreground="{DynamicResource Kei.Text.Primary}"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                <Button x:Name="CancelButton" Content="{loc:KeiString Quit.Confirm.Cancel}" Click="OnCancelClick" IsCancel="True"
+                        MinWidth="76" Height="28" MinHeight="28" HorizontalContentAlignment="Center"/>
+                <Button x:Name="ExitButton" Content="{loc:KeiString Quit.Confirm.Exit}" Click="OnExitClick" Classes="accent" IsDefault="False"
+                        MinWidth="76" Height="28" MinHeight="28" HorizontalContentAlignment="Center"/>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>

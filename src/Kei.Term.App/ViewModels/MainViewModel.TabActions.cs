@@ -24,8 +24,8 @@ public partial class MainViewModel
             TabAction.Reconnect => ReconnectTabAsync(tab),
             TabAction.Clone => CloneTabAsync(tab),
             TabAction.Rename => RenameTabAsync(tab),
-            TabAction.CloseOthers => CloseTabsAsync(Tabs.Where(t => t != tab).ToList()),
-            TabAction.CloseToRight => CloseTabsAsync(Tabs.Skip(Tabs.IndexOf(tab) + 1).ToList()),
+            TabAction.CloseOthers => CloseWorkspaceTabsAsync(WorkspaceTabs.Where(t => t != tab).ToList()),
+            TabAction.CloseToRight => CloseWorkspaceTabsAsync(WorkspaceTabs.Skip(WorkspaceTabs.IndexOf(tab) + 1).ToList()),
             _ => Task.CompletedTask
         };
         _ = Safe.RunAsync(_logger, $"标签动作 {action}", () => work);
@@ -105,11 +105,11 @@ public partial class MainViewModel
         }
     }
 
-    private async Task CloseTabsAsync(System.Collections.Generic.IReadOnlyList<TerminalTabViewModel> tabs)
+    private async Task CloseWorkspaceTabsAsync(System.Collections.Generic.IReadOnlyList<ViewModelBase> tabs)
     {
-        foreach (TerminalTabViewModel tab in tabs)
+        foreach (ViewModelBase tab in tabs)
         {
-            await CloseTabCommand.ExecuteAsync(tab);
+            await CloseWorkspaceTabCommand.ExecuteAsync(tab);
         }
     }
 }

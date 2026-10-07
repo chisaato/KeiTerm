@@ -64,6 +64,7 @@
     <SolidColorBrush x:Key="Kei.Status.Connected" Color="{StaticResource Kei.Color.Status.Connected}"/>
     <SolidColorBrush x:Key="Kei.Status.Disconnected" Color="{StaticResource Kei.Color.Status.Disconnected}"/>
     <SolidColorBrush x:Key="Kei.Status.Error" Color="{StaticResource Kei.Color.Status.Error}"/>
+    <SolidColorBrush x:Key="Kei.Bg.ErrorSubtle" Color="{DynamicResource Kei.Color.Status.Error}" Opacity="0.2"/>
 
     <!-- 尺寸与几何令牌 -->
     <CornerRadius x:Key="Kei.Radius.Control">3</CornerRadius>

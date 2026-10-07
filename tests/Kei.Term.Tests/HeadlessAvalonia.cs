@@ -38,6 +38,12 @@ public static class HeadlessAvalonia
 
     public static Task RunAsync(Action action) => Session.Value.Dispatch(action, CancellationToken.None);
 
+    public static Task RunAsync(Func<Task> action) => Session.Value.Dispatch(async () =>
+    {
+        await action();
+        return true;
+    }, CancellationToken.None);
+
     // 在 UI 线程上推进调度队列与渲染计时器，让布局、输出解析等排队工作执行完
     public static void Pump(int iterations = 20)
     {

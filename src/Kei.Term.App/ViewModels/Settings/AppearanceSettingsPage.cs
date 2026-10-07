@@ -24,6 +24,7 @@ public partial class AppearanceSettingsPage : ViewModelBase
 
     public AppearanceSettingsPage()
     {
+        UiFallbackFonts.CollectionChanged += (_, _) => OnPropertyChanged(nameof(UiPreviewFontFamily));
         _selectedTheme = ThemeOptions[0];
 
         DensityPresetOptions = new[]
@@ -271,6 +272,7 @@ public partial class AppearanceSettingsPage : ViewModelBase
 
     // 界面全局字体（UI Font）
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(UiPreviewFontFamily))]
     private string _uiFontFamily = "Noto Sans CJK SC";
 
     [ObservableProperty]
@@ -296,6 +298,19 @@ public partial class AppearanceSettingsPage : ViewModelBase
 
     // 界面回退字体有序列表
     public ObservableCollection<string> UiFallbackFonts { get; } = [];
+
+    // 预览采用当前草稿的完整字体链，排序和删除回退字体时也实时刷新。
+    public FontFamily UiPreviewFontFamily
+    {
+        get
+        {
+            List<string> fonts = [];
+            if (!string.IsNullOrWhiteSpace(UiFontFamily)) fonts.Add(UiFontFamily);
+            fonts.AddRange(UiFallbackFonts);
+            fonts.Add("sans-serif");
+            return new FontFamily(string.Join(", ", fonts));
+        }
+    }
 
     [ObservableProperty]
     private string? _selectedUiFallbackFont;

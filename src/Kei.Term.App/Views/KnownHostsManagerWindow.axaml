@@ -10,7 +10,8 @@
         Title="{loc:KeiString KnownHosts.Title}"
         Width="880" Height="540" MinWidth="640" MinHeight="360"
         WindowStartupLocation="CenterOwner"
-        Background="{DynamicResource Kei.Bg.Window}">
+        Background="{DynamicResource Kei.Bg.Window}"
+        FontFamily="{DynamicResource Kei.Font.UI}">
 
     <Grid RowDefinitions="Auto, *, Auto" Margin="16" RowSpacing="12">
 
@@ -30,35 +31,30 @@
                 CornerRadius="{DynamicResource Kei.Radius.Card}">
             <Grid RowDefinitions="Auto, *">
                 <Grid Grid.Row="0" ColumnDefinitions="2*, 150, 3*, 70, 80, 120" Margin="10,6">
-                    <TextBlock Grid.Column="0" Text="{loc:KeiString KnownHosts.Column.Host}" Foreground="{DynamicResource Kei.Text.Muted}" FontSize="11"/>
-                    <TextBlock Grid.Column="1" Text="{loc:KeiString KnownHosts.Column.KeyType}" Foreground="{DynamicResource Kei.Text.Muted}" FontSize="11"/>
-                    <TextBlock Grid.Column="2" Text="{loc:KeiString KnownHosts.Column.Fingerprint}" Foreground="{DynamicResource Kei.Text.Muted}" FontSize="11"/>
-                    <TextBlock Grid.Column="3" Text="{loc:KeiString KnownHosts.Column.Status}" Foreground="{DynamicResource Kei.Text.Muted}" FontSize="11"/>
-                    <TextBlock Grid.Column="4" Text="{loc:KeiString KnownHosts.Column.Source}" Foreground="{DynamicResource Kei.Text.Muted}" FontSize="11"/>
-                    <TextBlock Grid.Column="5" Text="{loc:KeiString KnownHosts.Column.LastSeen}" Foreground="{DynamicResource Kei.Text.Muted}" FontSize="11"/>
+                    <TextBlock Grid.Column="0" Text="{loc:KeiString KnownHosts.Column.Host}" Foreground="{DynamicResource Kei.Text.Muted}" FontSize="12"/>
+                    <TextBlock Grid.Column="1" Text="{loc:KeiString KnownHosts.Column.KeyType}" Foreground="{DynamicResource Kei.Text.Muted}" FontSize="12"/>
+                    <TextBlock Grid.Column="2" Text="{loc:KeiString KnownHosts.Column.Fingerprint}" Foreground="{DynamicResource Kei.Text.Muted}" FontSize="12"/>
+                    <TextBlock Grid.Column="3" Text="{loc:KeiString KnownHosts.Column.Status}" Foreground="{DynamicResource Kei.Text.Muted}" FontSize="12"/>
+                    <TextBlock Grid.Column="4" Text="{loc:KeiString KnownHosts.Column.Source}" Foreground="{DynamicResource Kei.Text.Muted}" FontSize="12"/>
+                    <TextBlock Grid.Column="5" Text="{loc:KeiString KnownHosts.Column.LastSeen}" Foreground="{DynamicResource Kei.Text.Muted}" FontSize="12"/>
                 </Grid>
-                <ListBox Grid.Row="1" ItemsSource="{Binding Entries}" SelectedItem="{Binding SelectedEntry}"
+                <ListBox x:Name="KnownHostsList" Classes="popupList" Grid.Row="1" ItemsSource="{Binding Entries}" SelectedItem="{Binding SelectedEntry}"
                          Background="Transparent">
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="vm:KnownHostRowViewModel">
                             <Grid ColumnDefinitions="2*, 150, 3*, 70, 80, 120" ToolTip.Tip="{Binding Comment}">
-                                <TextBlock Grid.Column="0" Text="{Binding HostDisplay}" TextTrimming="CharacterEllipsis"
-                                           Foreground="{DynamicResource Kei.Text.Primary}"/>
-                                <TextBlock Grid.Column="1" Text="{Binding KeyType}" TextTrimming="CharacterEllipsis"
-                                           Foreground="{DynamicResource Kei.Text.Secondary}"/>
-                                <SelectableTextBlock Grid.Column="2" Text="{Binding Fingerprint}" TextTrimming="CharacterEllipsis"
-                                                     FontFamily="monospace" FontSize="11"
-                                                     Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                <TextBlock Classes="popupPrimary" Grid.Column="0" Text="{Binding HostDisplay}" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Classes="popupSecondary" Grid.Column="1" Text="{Binding KeyType}" TextTrimming="CharacterEllipsis"/>
+                                <SelectableTextBlock Classes="popupSecondary" Grid.Column="2" Text="{Binding Fingerprint}" TextTrimming="CharacterEllipsis"
+                                                     FontFamily="{DynamicResource Kei.Font.Mono}" FontSize="12"/>
                                 <TextBlock Grid.Column="3" Text="{Binding StatusText}"
                                            Foreground="{DynamicResource Kei.Status.Connected}"
                                            IsVisible="{Binding !IsRevoked}"/>
                                 <TextBlock Grid.Column="3" Text="{Binding StatusText}"
                                            Foreground="{DynamicResource Kei.Status.Error}"
                                            IsVisible="{Binding IsRevoked}"/>
-                                <TextBlock Grid.Column="4" Text="{Binding SourceText}"
-                                           Foreground="{DynamicResource Kei.Text.Secondary}"/>
-                                <TextBlock Grid.Column="5" Text="{Binding LastSeenText}"
-                                           Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                <TextBlock Classes="popupSecondary" Grid.Column="4" Text="{Binding SourceText}"/>
+                                <TextBlock Classes="popupSecondary" Grid.Column="5" Text="{Binding LastSeenText}"/>
                             </Grid>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
@@ -69,16 +65,16 @@
         <!-- 底部：统计 / 结果提示 / 行操作 -->
         <Grid Grid.Row="2" ColumnDefinitions="*, Auto" ColumnSpacing="12">
             <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
-                <TextBlock Text="{Binding Summary}" Foreground="{DynamicResource Kei.Text.Muted}" FontSize="11"/>
-                <TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource Kei.Text.Secondary}" FontSize="11"
+                <TextBlock Text="{Binding Summary}" Foreground="{DynamicResource Kei.Text.Muted}" FontSize="12"/>
+                <TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource Kei.Text.Secondary}" FontSize="12"
                            TextWrapping="Wrap"/>
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                <Button Content="{loc:KeiString KnownHosts.Revoke}" Command="{Binding ToggleRevokeCommand}"
+                <Button Classes="danger" Content="{loc:KeiString KnownHosts.Revoke}" Command="{Binding ToggleRevokeCommand}"
                         IsVisible="{Binding !SelectedEntry.IsRevoked, FallbackValue=True}"/>
                 <Button Content="{loc:KeiString KnownHosts.Restore}" Command="{Binding ToggleRevokeCommand}"
                         IsVisible="{Binding SelectedEntry.IsRevoked, FallbackValue=False}"/>
-                <Button Content="{loc:KeiString Common.Delete}" Command="{Binding DeleteCommand}"/>
+                <Button Classes="danger" Content="{loc:KeiString Common.Delete}" Command="{Binding DeleteCommand}"/>
                 <Button Content="{loc:KeiString Common.Close}" Click="OnClose" Width="80" HorizontalContentAlignment="Center"/>
             </StackPanel>
         </Grid>

@@ -223,7 +223,8 @@ public class SystemContextMenuTests
             item.RaiseEvent(new ContextRequestedEventArgs());
             Assert.Same(session, viewModel.RenamingNode);
             Assert.NotNull(presenter.Snapshot);
-            Assert.False(item.ContextMenu!.IsOpen);
+            Control owner = item.GetVisualAncestors().OfType<Control>().First(control => control.ContextMenu != null);
+            Assert.False(owner.ContextMenu!.IsOpen);
             // 关闭窗口不触发会话关闭确认。
             viewModel.CurrentSettings.ConfirmBeforeClose = false;
         }

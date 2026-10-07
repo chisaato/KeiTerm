@@ -15,6 +15,8 @@ public class AppSettings
     // 连接管理器显示模式与最后状态
     public PanelVisibilityMode SessionManagerVisibilityMode { get; set; } = PanelVisibilityMode.RememberLastState;
     public bool LastSessionManagerVisible { get; set; } = true;
+    // 不固定时作为临时覆盖面板展开，不占用终端宽度；重启后保持收起。
+    public bool SessionManagerPinned { get; set; } = true;
 
     // 撰写栏显示模式与最后状态
     public PanelVisibilityMode ComposeBarVisibilityMode { get; set; } = PanelVisibilityMode.RememberLastState;
@@ -40,7 +42,7 @@ public class AppSettings
     // 控件库主题："KeiClassic" | "Semi" | "Material"（Semi/Material 为覆盖式第三方控件主题）
     public string ControlLibraryTheme { get; set; } = "KeiClassic";
 
-    // 关闭窗口前是否弹出确认
+    // 关闭窗口或通过快捷键退出前是否确认；“不再提示”在确认退出时关闭此选项。
     public bool ConfirmBeforeClose { get; set; } = true;
 
     // 意外断开后在原标签里自动重连。默认关：误锤生产机比少一次重连更糟。
@@ -55,6 +57,9 @@ public class AppSettings
 
     // 支持的平台使用系统原生上下文菜单，其余平台回退应用菜单；默认关闭，保存后立即生效。
     public bool UseNativeContextMenus { get; set; }
+
+    // Primary 在 macOS 表示 Command，在其他平台表示 Ctrl；快捷面板仅在应用前台响应。
+    public string CommandPaletteShortcut { get; set; } = "Primary+Shift+P";
 
     // 目录树排序规则："AsciiFirst" (英文优先，默认) | "Pinyin" (中文拼音本地化优先)
     public string TreeSortMode { get; set; } = "AsciiFirst";
