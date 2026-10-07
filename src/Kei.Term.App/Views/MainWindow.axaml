@@ -206,14 +206,34 @@
                             </Grid>
                         </Viewbox>
                     </Button>
-                    <Button Classes="iconBtn" ToolTip.Tip="{Binding QuickConnectToolTip}" Command="{Binding QuickConnectCommand}">
-                        <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.QuickConnect}"/>
+                    <Button x:Name="QuickConnectButton" Classes="iconBtn" Width="28" Height="28"
+                            ToolTip.Tip="{Binding QuickConnectToolTip}" Command="{Binding QuickConnectCommand}"
+                            AutomationProperties.Name="{loc:KeiString Menu.File.QuickConnect}">
+                        <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Grid Width="24" Height="24">
+                                <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.QuickConnect}"/>
+                            </Grid>
+                        </Viewbox>
                     </Button>
-                    <Button Classes="iconBtn" ToolTip.Tip="{loc:KeiString Toolbar.ConnectSelected}" Command="{Binding ConnectSelectedSessionCommand}">
-                        <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Connect}"/>
+                    <Button x:Name="ConnectSelectedSessionButton" Classes="iconBtn" Width="28" Height="28"
+                            ToolTip.Tip="{loc:KeiString Toolbar.ConnectSelected}" ToolTip.ShowOnDisabled="True"
+                            Command="{Binding ConnectSelectedSessionCommand}"
+                            AutomationProperties.Name="{loc:KeiString Toolbar.ConnectSelected}">
+                        <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Grid Width="24" Height="24">
+                                <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Connect}"/>
+                            </Grid>
+                        </Viewbox>
                     </Button>
-                    <Button Classes="iconBtn" ToolTip.Tip="{loc:KeiString Toolbar.DisconnectTab}" Command="{Binding DisconnectCurrentTabCommand}">
-                        <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Disconnect}"/>
+                    <Button x:Name="DisconnectCurrentTabButton" Classes="iconBtn" Width="28" Height="28"
+                            ToolTip.Tip="{loc:KeiString Toolbar.DisconnectTab}" ToolTip.ShowOnDisabled="True"
+                            Command="{Binding DisconnectCurrentTabCommand}"
+                            AutomationProperties.Name="{loc:KeiString Toolbar.DisconnectTab}">
+                        <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Grid Width="24" Height="24">
+                                <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Disconnect}"/>
+                            </Grid>
+                        </Viewbox>
                     </Button>
 
                     <Separator Classes="toolSep"/>
