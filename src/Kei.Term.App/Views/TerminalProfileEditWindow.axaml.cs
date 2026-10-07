@@ -44,6 +44,18 @@ public partial class TerminalProfileEditWindow : Window
         }
     }
 
+    private async void OnOpenFontDialogClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not TerminalProfileEditViewModel vm)
+        {
+            return;
+        }
+
+        // 改正在编辑的 ResultProfile；配色窗口取消时这份副本被丢掉，不会写回原方案
+        var dialogVm = new FontDialogViewModel(vm.ResultProfile);
+        await new FontDialogWindow(dialogVm).ShowDialog(this);
+    }
+
     private void OnConfirmClick(object? sender, RoutedEventArgs e)
     {
         if (DataContext is TerminalProfileEditViewModel vm)

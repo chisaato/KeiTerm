@@ -19,7 +19,9 @@ public sealed record SshHop(
     ResolvedSessionConfig Config,
     IReadOnlyList<MaterializedAuthMethod> Methods,
     string? Socks5Host = null,
-    int Socks5Port = 0);
+    int Socks5Port = 0,
+    string? Socks5Username = null,
+    string? Socks5Password = null);
 
 // 建连选项：集中承载超时、保活、主机密钥校验、Agent 通道与跳板链，避免工厂方法参数无限膨胀
 public sealed record SshConnectOptions
@@ -43,10 +45,15 @@ public sealed record SshConnectOptions
     // 跳板链（由外到内：第一跳为本机直连的跳板）；空 = 直连
     public IReadOnlyList<SshHop> JumpHosts { get; init; } = [];
 
-    // 本会话最外层直连的无认证 SOCKS5。空主机 = 不走代理。不用于 127.0.0.1 转发口。
+    // 本会话最外层直连的 SOCKS5。空主机 = 不走代理。不用于 127.0.0.1 转发口。
+    // 口令只在内存里传到拨号，不进日志。
     public string? Socks5Host { get; init; }
 
     public int Socks5Port { get; init; }
+
+    public string? Socks5Username { get; init; }
+
+    public string? Socks5Password { get; init; }
 
     // 挂在目标会话 SSH 客户端上的端口转发。与出站 SOCKS5 无关。
     public IReadOnlyList<PortForward> PortForwards { get; init; } = [];

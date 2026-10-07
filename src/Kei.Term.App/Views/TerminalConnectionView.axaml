@@ -1,0 +1,138 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Kei.Term.App.ViewModels"
+             xmlns:views="using:Kei.Term.App.Views"
+             xmlns:controls="using:Kei.Term.App.Views.Controls"
+             xmlns:conv="using:Kei.Term.App.Converters"
+             xmlns:loc="using:Kei.Term.App.Helpers"
+             x:Class="Kei.Term.App.Views.TerminalConnectionView"
+             x:DataType="vm:TerminalTabViewModel"
+             HorizontalAlignment="Stretch"
+             VerticalAlignment="Stretch"
+             Focusable="True"
+             FontFamily="{DynamicResource Kei.Font.UI}">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition>
+                <ColumnDefinition.Width>
+                    <MultiBinding Converter="{x:Static conv:FileManagerColumnWidthConverter.Instance}" ConverterParameter="Left">
+                        <Binding Path="IsFileManagerVisible"/>
+                        <Binding Path="IsFileManagerOnLeft"/>
+                    </MultiBinding>
+                </ColumnDefinition.Width>
+            </ColumnDefinition>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition>
+                <ColumnDefinition.Width>
+                    <MultiBinding Converter="{x:Static conv:FileManagerColumnWidthConverter.Instance}" ConverterParameter="Right">
+                        <Binding Path="IsFileManagerVisible"/>
+                        <Binding Path="IsFileManagerOnLeft"/>
+                    </MultiBinding>
+                </ColumnDefinition.Width>
+            </ColumnDefinition>
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Column="{Binding IsFileManagerOnLeft, Converter={x:Static conv:FileManagerDockConverter.Instance}, ConverterParameter=Terminal}"
+                Background="{Binding TerminalBackground}">
+            <Border.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="{loc:KeiString Terminal.Menu.Copy}" Command="{Binding CopySelectionCommand}"/>
+                    <MenuItem Header="{loc:KeiString Terminal.Menu.Paste}" Command="{Binding PasteToTerminalCommand}"/>
+                    <Separator/>
+                    <MenuItem Header="{loc:KeiString Terminal.Menu.SelectAll}" Command="{Binding SelectAllTerminalTextCommand}"/>
+                    <MenuItem Header="{loc:KeiString Terminal.Menu.Clear}" Command="{Binding ClearTerminalScreenCommand}"/>
+                    <MenuItem Header="{loc:KeiString Terminal.Menu.ClearScrollback}" Command="{Binding ClearTerminalScrollbackCommand}"/>
+                    <Separator/>
+                    <MenuItem Header="{loc:KeiString Terminal.Find.Menu}" Command="{Binding OpenFindCommand}"/>
+                </ContextMenu>
+            </Border.ContextMenu>
+            <Grid RowDefinitions="Auto,*">
+                <!-- 28px 命中区域和 16px 图标，与终端查找及文件侧栏共享操作。 -->
+                <Border Grid.Row="0" Height="34"
+                        Background="{DynamicResource Kei.Bg.PanelAlt}"
+                        BorderBrush="{DynamicResource Kei.Border}" BorderThickness="0,0,0,1" Padding="6,3">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Grid Width="24" Height="24">
+                                    <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Terminal}"/>
+                                </Grid>
+                            </Viewbox>
+                            <TextBlock Text="{loc:KeiString Terminal.Title}" FontSize="12" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource Kei.Text.Primary}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+                            <Button Classes="iconBtn" Width="28" Height="28" Command="{Binding OpenFindCommand}"
+                                    ToolTip.Tip="{Binding FindShortcutToolTip}" AutomationProperties.Name="{loc:KeiString Terminal.Find.Menu}">
+                                <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Grid Width="24" Height="24">
+                                        <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Search}"/>
+                                    </Grid>
+                                </Viewbox>
+                            </Button>
+                            <Button Classes="iconBtn" Width="28" Height="28" Command="{Binding CopySelectionCommand}"
+                                    ToolTip.Tip="{loc:KeiString Terminal.Menu.Copy}" AutomationProperties.Name="{loc:KeiString Terminal.Menu.Copy}">
+                                <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Grid Width="24" Height="24">
+                                        <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Copy}"/>
+                                    </Grid>
+                                </Viewbox>
+                            </Button>
+                            <Button Classes="iconBtn" Width="28" Height="28" Command="{Binding PasteToTerminalCommand}"
+                                    ToolTip.Tip="{loc:KeiString Terminal.Menu.Paste}" AutomationProperties.Name="{loc:KeiString Terminal.Menu.Paste}">
+                                <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Grid Width="24" Height="24">
+                                        <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Paste}"/>
+                                    </Grid>
+                                </Viewbox>
+                            </Button>
+                            <Button Classes="iconBtn" Width="28" Height="28" Command="{Binding ClearTerminalScreenCommand}"
+                                    ToolTip.Tip="{loc:KeiString Terminal.Menu.Clear}" AutomationProperties.Name="{loc:KeiString Terminal.Menu.Clear}">
+                                <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Grid Width="24" Height="24">
+                                        <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Delete}"/>
+                                    </Grid>
+                                </Viewbox>
+                            </Button>
+                            <Rectangle Width="1" Height="12" Fill="{DynamicResource Kei.Border}" Margin="4,0"/>
+                            <Button Classes="iconBtn" Width="28" Height="28" Command="{Binding ToggleFileManagerCommand}"
+                                    ToolTip.Tip="{loc:KeiString Terminal.FileManager.Toggle}" AutomationProperties.Name="{loc:KeiString Terminal.FileManager.Toggle}">
+                                <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Grid Width="24" Height="24">
+                                        <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.SidebarRight}"/>
+                                    </Grid>
+                                </Viewbox>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- 终端主体与查找悬浮条 -->
+                <Grid Grid.Row="1">
+                    <ScrollViewer x:Name="TerminalScroll"
+                                  Classes="terminalScroll"
+                                  Background="Transparent"
+                                  AllowAutoHide="False"
+                                  VerticalScrollBarVisibility="Visible"
+                                  HorizontalScrollBarVisibility="Disabled"/>
+                    <controls:TerminalFindBar VerticalAlignment="Top"
+                                              HorizontalAlignment="Right"
+                                              Margin="8"/>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <GridSplitter Grid.Column="1" Width="4"
+                      Background="{DynamicResource Kei.Bg.PanelAlt}"
+                      ResizeDirection="Columns"
+                      IsVisible="{Binding IsFileManagerVisible}"/>
+
+        <Border x:Name="SftpHost"
+                Grid.Column="{Binding IsFileManagerOnLeft, Converter={x:Static conv:FileManagerDockConverter.Instance}, ConverterParameter=FileManager}"
+                Focusable="True"
+                Background="Transparent"
+                IsVisible="{Binding IsFileManagerVisible}">
+            <views:RemoteFileManagerView DataContext="{Binding FileManager}"/>
+        </Border>
+    </Grid>
+</UserControl>

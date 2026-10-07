@@ -3,6 +3,7 @@
              x:Class="Kei.Term.App.App"
              xmlns:local="using:Kei.Term.App"
              xmlns:loc="using:Kei.Term.App.Helpers"
+             xmlns:dock="using:Dock.Avalonia.Themes.Fluent"
              Name="KeiTerm"
              RequestedThemeVariant="Default">
              <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
@@ -27,6 +28,7 @@
 
     <Application.Styles>
         <FluentTheme />
+        <dock:DockFluentTheme DensityStyle="Compact" />
     </Application.Styles>
 
     <Application.Resources>

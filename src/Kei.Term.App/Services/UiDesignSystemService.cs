@@ -22,6 +22,7 @@ public static class UiDesignSystemService
     private static readonly Styles ClassicControlStyles = LoadStyles("KeiControls.axaml");
 
     private static ResourceDictionary? _activeTokens;
+    private static Styles? _dockTheme;
 
     public static void Apply(string? key = null)
     {
@@ -52,6 +53,13 @@ public static class UiDesignSystemService
         if (!styles.Contains(ClassicControlStyles))
         {
             styles.Add(ClassicControlStyles);
+        }
+
+        // 停靠主题在令牌之后加载，底部标签选择器才能解析到 Kei 颜色。
+        _dockTheme ??= LoadStyles("KeiDockTheme.axaml");
+        if (!styles.Contains(_dockTheme))
+        {
+            styles.Add(_dockTheme);
         }
     }
 

@@ -120,6 +120,8 @@
                         <NativeMenuItem Header="{loc:KeiString Menu.Edit.SelectAll}"/>
                         <NativeMenuItemSeparator/>
                         <NativeMenuItem Header="{loc:KeiString Menu.Edit.DeleteSelected}"/>
+                        <NativeMenuItemSeparator/>
+                        <NativeMenuItem Header="{loc:KeiString Terminal.Find.Menu}" Command="{Binding OpenTerminalFindCommand}"/>
                     </NativeMenu>
                 </NativeMenuItem.Menu>
             </NativeMenuItem>
@@ -206,6 +208,20 @@
                     </Button>
                     <Separator Classes="toolSep"/>
                     <!-- 连接操作区 -->
+                    <Button x:Name="NewTabButton" Classes="iconBtn" Width="28" Height="28"
+                            Command="{Binding NewTabCommand}" AutomationProperties.Name="{loc:KeiString Menu.File.NewTab}">
+                        <ToolTip.Tip>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="{loc:KeiString Menu.File.NewTab}"/>
+                                <TextBlock Text="{Binding NewTabShortcutLabel}"/>
+                            </StackPanel>
+                        </ToolTip.Tip>
+                        <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Grid Width="24" Height="24">
+                                <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.NewSession}"/>
+                            </Grid>
+                        </Viewbox>
+                    </Button>
                     <Button Classes="iconBtn" ToolTip.Tip="{Binding QuickConnectToolTip}" Command="{Binding QuickConnectCommand}">
                         <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.QuickConnect}"/>
                     </Button>
@@ -243,7 +259,7 @@
 
                 <!-- 视图控制区（文件管理） -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
-                    <Button x:Name="FileManagerToggleButton" Classes="iconBtn" ToolTip.Tip="切换文件管理侧栏" Command="{Binding ToggleFileManagerCommand}">
+                    <Button x:Name="FileManagerToggleButton" Classes="iconBtn" ToolTip.Tip="{loc:KeiString Terminal.FileManager.Toggle}" Command="{Binding ToggleFileManagerCommand}">
                         <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
                             <Grid Width="24" Height="24">
                                 <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.SidebarRight}"/>
@@ -428,96 +444,11 @@
                           ResizeDirection="Columns"
                           IsVisible="{Binding IsSessionManagerDocked}"/>
 
-            <!-- 右：主内容区（标签条 → 终端区 → 撰写栏） -->
-            <Grid x:Name="RightContentGrid" Grid.Column="2" RowDefinitions="Auto,*,Auto">
-
-                <!-- 标签条：状态指示竖条 + 标题 + 关闭；无标签时整行隐藏 -->
-                <Border x:Name="TabsBarBorder"
-                        Grid.Row="0"
-                        Background="{DynamicResource Kei.Bg.Panel}"
-                        BorderBrush="{DynamicResource Kei.Border}"
-                        BorderThickness="0,0,0,1"
-                        IsVisible="{Binding HasTabs}">
-                    <Grid ColumnDefinitions="*,Auto">
-                        <ScrollViewer Grid.Column="0" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled">
-                            <ItemsControl x:Name="TabsItemsControl" ItemsSource="{Binding WorkspaceTabs}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <StackPanel Orientation="Horizontal" Spacing="2"/>
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.DataTemplates>
-                                    <DataTemplate DataType="vm:TerminalTabViewModel" x:DataType="vm:TerminalTabViewModel">
-                                        <Button Classes="tabItem"
-                                                Classes.selected="{Binding IsSelected}"
-                                                Classes.activity="{Binding HasActivity}"
-                                                DragDrop.AllowDrop="True"
-                                                Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).SelectWorkspaceTabCommand}"
-                                                CommandParameter="{Binding}"
-                                                ToolTip.Tip="{Binding ToolTip}">
-                                            <Button.ContextMenu>
-                                                <ContextMenu>
-                                                    <MenuItem Header="{loc:KeiString Main.Tab.Menu.Reconnect}" Command="{Binding RequestReconnectCommand}"/>
-                                                    <MenuItem Header="{loc:KeiString Main.Tab.Menu.Disconnect}" Command="{Binding DisconnectCommand}"/>
-                                                    <MenuItem Header="{loc:KeiString Main.Tab.Menu.Clone}" Command="{Binding RequestCloneCommand}"/>
-                                                    <Separator/>
-                                                    <MenuItem Header="{loc:KeiString Main.Tab.Menu.Rename}" Command="{Binding RequestRenameCommand}"/>
-                                                    <MenuItem Header="{loc:KeiString Main.Tab.Menu.FollowRemoteTitle}"
-                                                              ToggleType="CheckBox"
-                                                              IsChecked="{Binding FollowRemoteTitle, Mode=OneWay}"
-                                                              Command="{Binding ToggleFollowRemoteTitleCommand}"/>
-                                                    <Separator/>
-                                                    <MenuItem Header="{loc:KeiString Main.Tab.Menu.Close}" Command="{Binding RequestCloseCommand}"/>
-                                                    <MenuItem Header="{loc:KeiString Main.Tab.Menu.CloseOthers}" Command="{Binding RequestCloseOthersCommand}"/>
-                                                    <MenuItem Header="{loc:KeiString Main.Tab.Menu.CloseToRight}" Command="{Binding RequestCloseToRightCommand}"/>
-                                                </ContextMenu>
-                                            </Button.ContextMenu>
-                                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                                <!-- SecureCRT 风格 3px 宽状态指示竖条，替代原圆点 -->
-                                                <Border Width="3" Height="16" CornerRadius="1" VerticalAlignment="Center"
-                                                        Background="{Binding State, Converter={StaticResource ConnectionStateBrush}}"/>
-                                                <!-- 远端标题可能很长（如 byobu 的 user@host (ip) - byobu）：限宽省略，完整内容见悬停提示 -->
-                                                <TextBlock Classes="tabTitle" Text="{Binding Title}" VerticalAlignment="Center" FontSize="12"
-                                                           MaxWidth="220" TextTrimming="CharacterEllipsis"
-                                                           Foreground="{DynamicResource Kei.Text.Primary}"/>
-                                                <!-- 后台标签有新输出 / 响铃 -->
-                                                <Ellipse Width="6" Height="6" VerticalAlignment="Center"
-                                                         Fill="{DynamicResource Kei.Accent}"
-                                                         IsVisible="{Binding HasActivity}"/>
-                                                <Button Classes="closeBtn"
-                                                        Content="✕"
-                                                        ToolTip.Tip="{loc:KeiString Main.Tab.CloseTip}"
-                                                        Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).CloseWorkspaceTabCommand}"
-                                                        CommandParameter="{Binding}"/>
-                                            </StackPanel>
-                                        </Button>
-                                    </DataTemplate>
-                                    <DataTemplate DataType="vm:NewTabViewModel" x:DataType="vm:NewTabViewModel">
-                                        <Button Classes="tabItem" Classes.selected="{Binding IsSelected}" DragDrop.AllowDrop="True"
-                                                Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).SelectWorkspaceTabCommand}"
-                                                CommandParameter="{Binding}" ToolTip.Tip="{Binding ToolTip}">
-                                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                                <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Terminal}" Width="14" Height="14"/>
-                                                <TextBlock Classes="tabTitle" Text="{Binding Title}" FontSize="12" MaxWidth="220" TextTrimming="CharacterEllipsis"
-                                                           Foreground="{DynamicResource Kei.Text.Primary}" VerticalAlignment="Center"/>
-                                                <Button Classes="closeBtn" Content="✕" ToolTip.Tip="{loc:KeiString Main.Tab.CloseTip}"
-                                                        Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).CloseWorkspaceTabCommand}"
-                                                        CommandParameter="{Binding}"/>
-                                            </StackPanel>
-                                        </Button>
-                                    </DataTemplate>
-                                </ItemsControl.DataTemplates>
-                            </ItemsControl>
-                        </ScrollViewer>
-                        <Button Grid.Column="1" Classes="iconBtn" Width="28" Height="28" Margin="4,0"
-                                ToolTip.Tip="{loc:KeiString Menu.File.NewTab}" Command="{Binding NewTabCommand}">
-                            <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.NewSession}"/>
-                        </Button>
-                    </Grid>
-                </Border>
+            <!-- 右：Dock 工作区包含各组标签；底部保留共享撰写栏。 -->
+            <Grid x:Name="RightContentGrid" Grid.Column="2" RowDefinitions="*,Auto">
 
                 <!-- 空态提供与菜单相同的操作和平台快捷键。 -->
-                <Panel x:Name="TerminalContainer" Grid.Row="1">
+                <Panel x:Name="TerminalContainer" Grid.Row="0">
                     <Border Background="{DynamicResource Kei.Bg.Window}"
                             IsVisible="{Binding !HasTabs}">
                         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10" Margin="24" MaxWidth="400">
@@ -540,89 +471,11 @@
                             </Button>
                         </StackPanel>
                     </Border>
-                    <ItemsControl ItemsSource="{Binding NewTabs}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <Panel/>
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate DataType="vm:NewTabViewModel" x:DataType="vm:NewTabViewModel">
-                                <views:NewTabView HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                    <!-- 每个标签单独承载 Terminal 实例，避免切换时卸载与焦点失效。 -->
-                    <ItemsControl ItemsSource="{Binding Tabs}" IsVisible="{Binding HasTabs}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <Panel/>
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate DataType="vm:TerminalTabViewModel" x:DataType="vm:TerminalTabViewModel">
-                                <Grid IsVisible="{Binding IsSelected}">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition>
-                                            <ColumnDefinition.Width>
-                                                <MultiBinding Converter="{x:Static conv:FileManagerColumnWidthConverter.Instance}" ConverterParameter="Left">
-                                                    <Binding Path="IsFileManagerVisible"/>
-                                                    <Binding Path="IsFileManagerOnLeft"/>
-                                                </MultiBinding>
-                                            </ColumnDefinition.Width>
-                                        </ColumnDefinition>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition>
-                                            <ColumnDefinition.Width>
-                                                <MultiBinding Converter="{x:Static conv:FileManagerColumnWidthConverter.Instance}" ConverterParameter="Right">
-                                                    <Binding Path="IsFileManagerVisible"/>
-                                                    <Binding Path="IsFileManagerOnLeft"/>
-                                                </MultiBinding>
-                                            </ColumnDefinition.Width>
-                                        </ColumnDefinition>
-                                    </Grid.ColumnDefinitions>
-
-                                    <!-- 终端控件：根据 IsFileManagerOnLeft 动态停靠在 Column 0 或 Column 2。
-                                         外层 ScrollViewer 提供回滚滚动条（TerminalControl 实现 ILogicalScrollable）；
-                                         底色取配色背景，覆盖网格贴底后顶部的余量区域 -->
-                                    <Border Grid.Column="{Binding IsFileManagerOnLeft, Converter={x:Static conv:FileManagerDockConverter.Instance}, ConverterParameter=Terminal}"
-                                            Background="{Binding TerminalBackground}">
-                                        <Border.ContextMenu>
-                                            <ContextMenu>
-                                                <MenuItem Header="{loc:KeiString Terminal.Menu.Copy}" Command="{Binding CopySelectionCommand}"/>
-                                                <MenuItem Header="{loc:KeiString Terminal.Menu.Paste}" Command="{Binding PasteToTerminalCommand}"/>
-                                                <Separator/>
-                                                <MenuItem Header="{loc:KeiString Terminal.Menu.SelectAll}" Command="{Binding SelectAllTerminalTextCommand}"/>
-                                                <MenuItem Header="{loc:KeiString Terminal.Menu.Clear}" Command="{Binding ClearTerminalScreenCommand}"/>
-                                                <MenuItem Header="{loc:KeiString Terminal.Menu.ClearScrollback}" Command="{Binding ClearTerminalScrollbackCommand}"/>
-                                            </ContextMenu>
-                                        </Border.ContextMenu>
-                                        <ScrollViewer Classes="terminalScroll"
-                                                      Content="{Binding Terminal}"
-                                                      Background="Transparent"
-                                                      AllowAutoHide="False"
-                                                      VerticalScrollBarVisibility="Visible"
-                                                      HorizontalScrollBarVisibility="Disabled"/>
-                                    </Border>
-
-                                    <!-- 分割条：固定在 Column 1，仅在文件管理器侧栏展开时呈现 -->
-                                    <GridSplitter Grid.Column="1" Width="4"
-                                                  Background="{DynamicResource Kei.Bg.PanelAlt}"
-                                                  ResizeDirection="Columns"
-                                                  IsVisible="{Binding IsFileManagerVisible}"/>
-
-                                    <!-- 文件管理器侧栏视图：根据 IsFileManagerOnLeft 动态停靠在 Column 0 或 Column 2 -->
-                                    <views:RemoteFileManagerView Grid.Column="{Binding $parent[Grid].((vm:TerminalTabViewModel)DataContext).IsFileManagerOnLeft, Converter={x:Static conv:FileManagerDockConverter.Instance}, ConverterParameter=FileManager}"
-                                                                 DataContext="{Binding FileManager}"
-                                                                 IsVisible="{Binding $parent[Grid].((vm:TerminalTabViewModel)DataContext).IsFileManagerVisible}"/>
-                                </Grid>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                    <views:TerminalWorkspaceView x:Name="WorkspaceHost" IsVisible="{Binding HasTabs}"/>
                 </Panel>
 
-                <!-- Row2 撰写栏：显示条件 = 撰写栏开关打开且有选中标签 -->
-                <Border Grid.Row="2"
+                <!-- 撰写栏：显示条件 = 撰写栏开关打开且有选中标签 -->
+                <Border Grid.Row="1"
                         Background="{DynamicResource Kei.Bg.PanelAlt}"
                         BorderBrush="{DynamicResource Kei.Border}"
                         BorderThickness="0,1,0,0"

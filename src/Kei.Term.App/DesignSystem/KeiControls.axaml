@@ -358,7 +358,7 @@
         <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
 
-    <!-- 标签条按钮：选中态面板底 + 顶部 2px 强调条 -->
+    <!-- 标签条：未选中 / 选中 / 后台活动靠明度和字重分开，只用 Kei.* 令牌 -->
     <Style Selector="Button.tabItem">
         <Setter Property="Background" Value="{DynamicResource Kei.Bg.TabInactive}"/>
         <Setter Property="Padding" Value="8,2"/>
@@ -369,17 +369,29 @@
         <Setter Property="BorderThickness" Value="1,1,1,0"/>
         <Setter Property="BorderBrush" Value="{DynamicResource Kei.Border.Subtle}"/>
     </Style>
+    <Style Selector="Button.tabItem TextBlock.tabTitle">
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Muted}"/>
+        <Setter Property="FontWeight" Value="Normal"/>
+    </Style>
     <Style Selector="Button.tabItem.selected">
         <Setter Property="Background" Value="{DynamicResource Kei.Bg.Panel}"/>
         <Setter Property="BorderThickness" Value="1,2,1,0"/>
         <Setter Property="BorderBrush" Value="{DynamicResource Kei.Accent}"/>
     </Style>
+    <Style Selector="Button.tabItem.selected TextBlock.tabTitle">
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+    <!-- 后台活动且未选中：比未选中更亮，比选中更轻 -->
+    <Style Selector="Button.tabItem.activity:not(.selected)">
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.PanelAlt}"/>
+    </Style>
+    <Style Selector="Button.tabItem.activity:not(.selected) TextBlock.tabTitle">
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Secondary}"/>
+        <Setter Property="FontWeight" Value="Medium"/>
+    </Style>
     <Style Selector="Button.tabItem:pointerover /template/ ContentPresenter">
         <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}"/>
-    </Style>
-    <!-- 后台活动标签：标题斜体提示有未读输出 -->
-    <Style Selector="Button.tabItem.activity TextBlock.tabTitle">
-        <Setter Property="FontStyle" Value="Italic"/>
     </Style>
 
     <Style Selector="TreeViewItem">

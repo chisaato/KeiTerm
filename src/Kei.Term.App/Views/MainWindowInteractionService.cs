@@ -121,6 +121,10 @@ public sealed class MainWindowInteractionService : IInteractionService
         if (built != null)
         {
             await _mainVm.SaveProxyAsync(built);
+            if (_mainVm.ProxySecrets != null)
+            {
+                await proxyVm.ApplyPasswordAsync(_mainVm.ProxySecrets);
+            }
         }
 
         return built;

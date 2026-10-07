@@ -11,6 +11,7 @@ using Kei.Term.Core.Security;
 using Kei.Term.Core.Services;
 using Kei.Term.Core.Settings;
 using Kei.Term.Core.Storage;
+using Kei.Term.Core.Vault;
 using Kei.Term.Ssh.Abstractions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -36,6 +37,8 @@ public sealed class ConnectionOrchestrator
     private readonly ILogger _logger;
     private readonly IProxyRepository? _proxies;
     private readonly IPortForwardRepository? _portForwards;
+    private readonly IProxySecretStore? _proxySecrets;
+    private readonly Func<Task<bool>>? _ensureUnlocked;
 
     public ConnectionOrchestrator(
         ISshSessionFactory sshFactory,
@@ -47,7 +50,9 @@ public sealed class ConnectionOrchestrator
         ILogger? logger = null,
         IProxyRepository? proxies = null,
         IPortForwardRepository? portForwards = null,
-        Func<TimeSpan, CancellationToken, Task>? delay = null)
+        Func<TimeSpan, CancellationToken, Task>? delay = null,
+        IProxySecretStore? proxySecrets = null,
+        Func<Task<bool>>? ensureUnlocked = null)
     {
         _sshFactory = sshFactory;
         _collector = collector;
@@ -58,6 +63,8 @@ public sealed class ConnectionOrchestrator
         _logger = logger ?? NullLogger.Instance;
         _proxies = proxies;
         _portForwards = portForwards;
+        _proxySecrets = proxySecrets;
+        _ensureUnlocked = ensureUnlocked;
         _delay = delay ?? ((span, token) => Task.Delay(span, token));
     }
 
@@ -109,6 +116,11 @@ public sealed class ConnectionOrchestrator
         _interactiveThisAttempt = false;
         // 出口不可用时不收集认证、不建标签、不拨号
         PreparedExit exit = await PrepareExitAsync(request.Config);
+        if (exit.Cancelled)
+        {
+            return;
+        }
+
         if (exit.Error != null)
         {
             _logger.LogWarning("出口不可用 会话={Session} 原因={Reason}", request.Config.SessionName, exit.Error);
@@ -157,7 +169,14 @@ public sealed class ConnectionOrchestrator
             target = host.OpenTab(auth.Config);
         }
 
-        await ConnectWithRetryAsync(target, auth, jumpHops, exit.Socks5Host, exit.Socks5Port);
+        await ConnectWithRetryAsync(
+            target,
+            auth,
+            jumpHops,
+            exit.Socks5Host,
+            exit.Socks5Port,
+            exit.Socks5Username,
+            exit.Socks5Password);
     }
 
     private async Task ConnectWithRetryAsync(
@@ -165,7 +184,9 @@ public sealed class ConnectionOrchestrator
         CollectedAuth auth,
         IReadOnlyList<SshHop> jumpHops,
         string? socks5Host,
-        int socks5Port)
+        int socks5Port,
+        string? socks5Username,
+        string? socks5Password)
     {
         ResolvedSessionConfig resolved = auth.Config;
         var current = new List<MaterializedAuthMethod>(auth.Materials);
@@ -193,7 +214,14 @@ public sealed class ConnectionOrchestrator
             try
             {
                 // 连接流程整体运行于后台线程，避免阻塞 UI
-                SshConnectOptions options = BuildConnectOptions(timeout, jumpHops, socks5Host, socks5Port, forwards);
+                SshConnectOptions options = BuildConnectOptions(
+                    timeout,
+                    jumpHops,
+                    socks5Host,
+                    socks5Port,
+                    socks5Username,
+                    socks5Password,
+                    forwards);
                 ResolvedSessionConfig attemptConfig = resolved;
                 List<MaterializedAuthMethod> attemptMaterials = current;
                 session = await Task.Run(() => _sshFactory.CreateSessionAsync(attemptConfig, attemptMaterials, options, CancellationToken.None));
@@ -240,16 +268,36 @@ public sealed class ConnectionOrchestrator
                     target.ReportWarning(string.Join("；", session.ForwardStartErrors));
                 }
                 // 文件通道必须用最终认证成功的材料（重试后的 current），而非首轮材料
-                StartFileSystem(target, resolved, current.ToList(), session!, BuildConnectOptions(timeout, jumpHops, socks5Host, socks5Port, forwards));
+                StartFileSystem(
+                    target,
+                    resolved,
+                    current.ToList(),
+                    session!,
+                    BuildConnectOptions(timeout, jumpHops, socks5Host, socks5Port, socks5Username, socks5Password, forwards));
                 return;
             }
 
-            _logger.LogError(
-                failure,
-                "SSH 会话创建或连接失败 host={Host}:{Port} 会话={Session}",
-                resolved.Host,
-                resolved.Port,
-                resolved.SessionName);
+            bool proxyPasswordOnPath = !string.IsNullOrEmpty(socks5Password)
+                || jumpHops.Any(h => !string.IsNullOrEmpty(h.Socks5Password));
+            if (!proxyPasswordOnPath)
+            {
+                _logger.LogError(
+                    failure,
+                    "SSH 会话创建或连接失败 host={Host}:{Port} 会话={Session}",
+                    resolved.Host,
+                    resolved.Port,
+                    resolved.SessionName);
+            }
+            else
+            {
+                // 异常文本可能带回代理口令，只记类型
+                _logger.LogError(
+                    "SSH 会话创建或连接失败 host={Host}:{Port} 会话={Session} 类型={Type}",
+                    resolved.Host,
+                    resolved.Port,
+                    resolved.SessionName,
+                    failure.GetType().Name);
+            }
 
             await target.DetachSessionAsync();
 
@@ -350,6 +398,8 @@ public sealed class ConnectionOrchestrator
         IReadOnlyList<SshHop> jumpHops,
         string? socks5Host,
         int socks5Port,
+        string? socks5Username,
+        string? socks5Password,
         IReadOnlyList<PortForward> forwards)
     {
         AppSettings settings = _settings.Current;
@@ -363,6 +413,8 @@ public sealed class ConnectionOrchestrator
             JumpHosts = jumpHops,
             Socks5Host = socks5Host,
             Socks5Port = socks5Port,
+            Socks5Username = socks5Username,
+            Socks5Password = socks5Password,
             PortForwards = forwards
         };
     }
@@ -386,14 +438,31 @@ public sealed class ConnectionOrchestrator
         }
 
         SessionProxyDecision decision = await ResolveProxyAsync(proxyId);
-        return decision switch
+        if (decision is Socks5Decision socks)
         {
-            FailedDecision failed => new PreparedExit(config, failed.Message, null, 0),
-            Socks5Decision socks => new PreparedExit(
+            ProxyPasswordRead secret = await ReadProxyPasswordAsync(proxyId);
+            if (secret.Cancelled)
+            {
+                return new PreparedExit(config, null, null, 0, Cancelled: true);
+            }
+
+            if (secret.Error != null)
+            {
+                return new PreparedExit(config, secret.Error, null, 0);
+            }
+
+            return new PreparedExit(
                 config with { ProxyProfileId = null, JumpHostSessionId = null },
                 null,
                 socks.Host,
-                socks.Port),
+                socks.Port,
+                socks.Username,
+                secret.Password);
+        }
+
+        return decision switch
+        {
+            FailedDecision failed => new PreparedExit(config, failed.Message, null, 0),
             JumpDecision jump => new PreparedExit(
                 config with { ProxyProfileId = null, JumpHostSessionId = jump.SessionId },
                 null,
@@ -422,7 +491,19 @@ public sealed class ConnectionOrchestrator
             switch (decision)
             {
                 case Socks5Decision socks:
-                    result.Add(hop with { Socks5Host = socks.Host, Socks5Port = socks.Port });
+                    ProxyPasswordRead secret = await ReadProxyPasswordAsync(proxyId);
+                    if (secret.Cancelled || secret.Error != null)
+                    {
+                        throw new JumpChainException(secret.Error ?? "保管库已锁定");
+                    }
+
+                    result.Add(hop with
+                    {
+                        Socks5Host = socks.Host,
+                        Socks5Port = socks.Port,
+                        Socks5Username = socks.Username,
+                        Socks5Password = secret.Password
+                    });
                     break;
                 case JumpDecision jump when depth < JumpChainResolver.MaxDepth:
                     ResolvedSessionConfig via = hop.Config with
@@ -455,7 +536,41 @@ public sealed class ConnectionOrchestrator
         return SessionProxyExit.Resolve(proxyId, id => proxy != null && proxy.Id == id ? proxy : null);
     }
 
-    private sealed record PreparedExit(ResolvedSessionConfig Config, string? Error, string? Socks5Host, int Socks5Port);
+    private async Task<ProxyPasswordRead> ReadProxyPasswordAsync(Guid proxyId)
+    {
+        if (_proxySecrets == null)
+        {
+            return new ProxyPasswordRead(null, false, null);
+        }
+
+        if (_ensureUnlocked != null && !await _ensureUnlocked())
+        {
+            _logger.LogInformation("读取代理口令取消");
+            return new ProxyPasswordRead(null, true, null);
+        }
+
+        try
+        {
+            string? password = await _proxySecrets.GetPasswordAsync(proxyId);
+            return new ProxyPasswordRead(password, false, null);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning("读取代理口令失败 类型={Type}", ex.GetType().Name);
+            return new ProxyPasswordRead(null, false, "保管库已锁定");
+        }
+    }
+
+    private sealed record PreparedExit(
+        ResolvedSessionConfig Config,
+        string? Error,
+        string? Socks5Host,
+        int Socks5Port,
+        string? Socks5Username = null,
+        string? Socks5Password = null,
+        bool Cancelled = false);
+
+    private sealed record ProxyPasswordRead(string? Password, bool Cancelled, string? Error);
 
     // keyboard-interactive 真交互回调：SSH 后台线程 → UI 线程弹提示窗（2FA 可用）
     private Func<string, Task<string?>> BuildInteractivePrompt()

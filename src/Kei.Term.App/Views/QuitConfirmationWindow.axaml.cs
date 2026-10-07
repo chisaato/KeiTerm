@@ -23,6 +23,7 @@ public partial class QuitConfirmationWindow : Window
             ? Strings.Format("Quit.Confirm.Detail.CloseToCancel", AppShortcuts.Label(AppShortcuts.CloseTab))
             : Strings.Get("Quit.Confirm.Detail");
         AddHandler(KeyDownEvent, OnKeyDown, RoutingStrategies.Tunnel);
+        Opened += (_, _) => CancelButton.Focus();
     }
 
     // 原生菜单可能把 ⌘W 发给主窗口；与弹窗内的按键共用同一行为。

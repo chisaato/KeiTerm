@@ -1,4 +1,4 @@
-<Window xmlns="https://github.com/avaloniaui"
+﻿<Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Kei.Term.App.ViewModels"
         xmlns:settings="using:Kei.Term.App.ViewModels.Settings"
@@ -213,7 +213,7 @@
                                                          ToolTip.Tip="{loc:KeiString Settings.Appearance.UiFontFamilyTip}">
                                             <AutoCompleteBox.ItemTemplate>
                                                 <DataTemplate x:DataType="services:FontFamilyOption">
-                                                    <TextBlock Text="{Binding DisplayName}"/>
+                                                    <TextBlock Text="{Binding DisplayName}" FontFamily="{Binding FontFamily}"/>
                                                 </DataTemplate>
                                             </AutoCompleteBox.ItemTemplate>
                                         </AutoCompleteBox>
@@ -244,7 +244,7 @@
                                                                  PlaceholderText="{loc:KeiString Settings.Appearance.SelectFallbackFontToAdd}">
                                                     <AutoCompleteBox.ItemTemplate>
                                                         <DataTemplate x:DataType="services:FontFamilyOption">
-                                                            <TextBlock Text="{Binding DisplayName}"/>
+                                                            <TextBlock Text="{Binding DisplayName}" FontFamily="{Binding FontFamily}"/>
                                                         </DataTemplate>
                                                     </AutoCompleteBox.ItemTemplate>
                                                 </AutoCompleteBox>
@@ -255,7 +255,13 @@
                                             <Grid ColumnDefinitions="*, Auto" ColumnSpacing="8">
                                                 <ListBox Classes="popupList" Grid.Column="0" MinHeight="80" MaxHeight="120"
                                                          ItemsSource="{Binding UiFallbackFonts}"
-                                                         SelectedItem="{Binding SelectedUiFallbackFont}"/>
+                                                         SelectedItem="{Binding SelectedUiFallbackFont}">
+                                                    <ListBox.ItemTemplate>
+                                                        <DataTemplate x:DataType="x:String">
+                                                            <TextBlock Text="{Binding}" FontFamily="{Binding}" FontSize="12"/>
+                                                        </DataTemplate>
+                                                    </ListBox.ItemTemplate>
+                                                </ListBox>
                                                 <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
                                                     <Button Content="{loc:KeiString Settings.Appearance.MoveUp}" MinWidth="60"
                                                             Command="{Binding MoveUpUiFallbackFont}"/>
@@ -429,7 +435,7 @@
                                                                      ToolTip.Tip="{loc:KeiString Settings.Appearance.FontFamilyTip}">
                                                         <AutoCompleteBox.ItemTemplate>
                                                             <DataTemplate x:DataType="services:FontFamilyOption">
-                                                                <TextBlock Text="{Binding DisplayName}"/>
+                                                                <TextBlock Text="{Binding DisplayName}" FontFamily="{Binding FontFamily}"/>
                                                             </DataTemplate>
                                                         </AutoCompleteBox.ItemTemplate>
                                                     </AutoCompleteBox>
@@ -443,6 +449,11 @@
                                                                    Value="{Binding FontSize}" Minimum="8" Maximum="36" FormatString="0.0"
                                                                    ToolTip.Tip="{loc:KeiString Settings.Appearance.FontSizeTip}"/>
                                                 </Grid>
+                                                <Button Content="{loc:KeiString FontDialog.Open}"
+                                                        Click="OnOpenFontDialogClick"
+                                                        HorizontalAlignment="Left"
+                                                        Height="28"
+                                                        Padding="10,0"/>
 
                                                 <!-- 光标闪烁 CheckBox -->
                                                 <StackPanel Orientation="Horizontal" Spacing="10">
@@ -466,7 +477,7 @@
                                                                              PlaceholderText="{loc:KeiString Settings.Appearance.SelectFallbackFontToAdd}">
                                                                 <AutoCompleteBox.ItemTemplate>
                                                                     <DataTemplate x:DataType="services:FontFamilyOption">
-                                                                        <TextBlock Text="{Binding DisplayName}"/>
+                                                                        <TextBlock Text="{Binding DisplayName}" FontFamily="{Binding FontFamily}"/>
                                                                     </DataTemplate>
                                                                 </AutoCompleteBox.ItemTemplate>
                                                             </AutoCompleteBox>
@@ -479,7 +490,13 @@
                                                         <Grid ColumnDefinitions="*, Auto" ColumnSpacing="8">
                                                             <ListBox Classes="popupList" Grid.Column="0" MinHeight="80" MaxHeight="120"
                                                                      ItemsSource="{Binding TerminalFallbackFonts}"
-                                                                     SelectedItem="{Binding SelectedTerminalFallbackFont}"/>
+                                                                     SelectedItem="{Binding SelectedTerminalFallbackFont}">
+                                                                <ListBox.ItemTemplate>
+                                                                    <DataTemplate x:DataType="x:String">
+                                                                        <TextBlock Text="{Binding}" FontFamily="{Binding}" FontSize="12"/>
+                                                                    </DataTemplate>
+                                                                </ListBox.ItemTemplate>
+                                                            </ListBox>
                                                             <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
                                                                 <Button Content="{loc:KeiString Settings.Appearance.MoveUp}" MinWidth="60"
                                                                         Command="{Binding MoveUpTerminalFallbackFont}"/>
@@ -593,7 +610,7 @@
                                                   ToolTip.Tip="{loc:KeiString Settings.Ssh.DefaultIdentityTip}">
                                             <ComboBox.ItemTemplate>
                                                 <DataTemplate>
-                                                    <TextBlock Text="{Binding DisplayName}"/>
+                                                    <TextBlock Text="{Binding DisplayName}" FontFamily="{DynamicResource Kei.Font.UI}"/>
                                                 </DataTemplate>
                                             </ComboBox.ItemTemplate>
                                         </ComboBox>
@@ -623,7 +640,7 @@
                                                   ToolTip.Tip="{loc:KeiString Settings.Ssh.HostKeyPolicyTip}">
                                             <ComboBox.ItemTemplate>
                                                 <DataTemplate>
-                                                    <TextBlock Text="{Binding DisplayName}"/>
+                                                    <TextBlock Text="{Binding DisplayName}" FontFamily="{DynamicResource Kei.Font.UI}"/>
                                                 </DataTemplate>
                                             </ComboBox.ItemTemplate>
                                         </ComboBox>

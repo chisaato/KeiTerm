@@ -1724,6 +1724,18 @@
   <data name="Proxy.Port" xml:space="preserve">
     <value>端口</value>
   </data>
+  <data name="Proxy.Username" xml:space="preserve">
+    <value>用户名</value>
+  </data>
+  <data name="Proxy.Password" xml:space="preserve">
+    <value>口令</value>
+  </data>
+  <data name="Proxy.Password.Keep" xml:space="preserve">
+    <value>已设置，留空不改</value>
+  </data>
+  <data name="Proxy.ClearPassword" xml:space="preserve">
+    <value>清除已保存口令</value>
+  </data>
   <data name="Proxy.Type.Socks5" xml:space="preserve">
     <value>SOCKS5</value>
   </data>
@@ -1859,5 +1871,44 @@
   </data>
   <data name="Status.SessionDuplicated" xml:space="preserve">
     <value>已创建“{0}”，可编辑副本的主机地址。</value>
+  </data>
+  <data name="Terminal.Title" xml:space="preserve">
+    <value>终端</value>
+  </data>
+  <data name="Terminal.FileManager.Toggle" xml:space="preserve">
+    <value>切换文件管理侧栏</value>
+  </data>
+  <data name="Terminal.Find.Menu" xml:space="preserve">
+    <value>查找</value>
+  </data>
+  <data name="Terminal.Find.Placeholder" xml:space="preserve">
+    <value>查找</value>
+  </data>
+  <data name="Terminal.Find.Previous" xml:space="preserve">
+    <value>上一个</value>
+  </data>
+  <data name="Terminal.Find.Next" xml:space="preserve">
+    <value>下一个</value>
+  </data>
+  <data name="Terminal.Find.Close" xml:space="preserve">
+    <value>关闭</value>
+  </data>
+  <data name="Terminal.Find.NoMatch" xml:space="preserve">
+    <value>无匹配</value>
+  </data>
+  <data name="FontDialog.Title" xml:space="preserve">
+    <value>字体</value>
+  </data>
+  <data name="FontDialog.Header" xml:space="preserve">
+    <value>字重与行距</value>
+  </data>
+  <data name="FontDialog.Weight" xml:space="preserve">
+    <value>字重</value>
+  </data>
+  <data name="FontDialog.LineHeight" xml:space="preserve">
+    <value>行距</value>
+  </data>
+  <data name="FontDialog.Open" xml:space="preserve">
+    <value>字重与行距…</value>
   </data>
 </root>

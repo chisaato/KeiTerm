@@ -15,6 +15,9 @@ public record FontFamilyOption(string Name, bool IsMonospaceRecommended)
     // 下拉框或文本展示友好名称
     public string DisplayName => IsMonospaceRecommended ? $"{Name} (Mono)" : Name;
 
+    // 类型安全的 FontFamily 实例，按原始名称构造，避免友好后缀 (Mono) 污染字体解析
+    public FontFamily FontFamily { get; } = new(Name);
+
     public override string ToString() => Name;
 }
 

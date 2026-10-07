@@ -1,15 +1,17 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Kei.Term.App.Helpers;
 using Kei.Term.Core.Models;
 using Kei.Term.Core.Services;
+using Kei.Term.Core.Vault;
 
 namespace Kei.Term.App.ViewModels;
 
-// 代理编辑对话框。HTTP 允许保存，说明文字标明尚未接入拨号。没有用户名口令字段。
+// 代理编辑对话框。HTTP 允许保存，说明文字标明尚未接入拨号。口令不回填，也不进 ProxyProfile。
 public partial class ProxyEditViewModel : ObservableObject
 {
     private readonly Guid _id;
@@ -17,8 +19,9 @@ public partial class ProxyEditViewModel : ObservableObject
     private readonly DateTime _createdAt;
     private Guid? _sessionId;
 
-    public ProxyEditViewModel(ProxyProfile? existing, int nextSortOrder = 0)
+    public ProxyEditViewModel(ProxyProfile? existing, int nextSortOrder = 0, bool hasSavedPassword = false)
     {
+        HasSavedPassword = hasSavedPassword;
         if (existing == null)
         {
             _id = Guid.NewGuid();
@@ -39,6 +42,7 @@ public partial class ProxyEditViewModel : ObservableObject
                 SelectedType = ProxyConfigKind.Socks5;
                 Host = socks.Host;
                 Port = socks.Port;
+                Username = socks.Username ?? string.Empty;
                 break;
             case HttpProxyConfig http:
                 SelectedType = ProxyConfigKind.Http;
@@ -53,6 +57,8 @@ public partial class ProxyEditViewModel : ObservableObject
     }
 
     public string Title { get; }
+
+    public bool HasSavedPassword { get; }
 
     public IReadOnlyList<ProxyConfigKind> Types { get; } =
         [ProxyConfigKind.Socks5, ProxyConfigKind.Http, ProxyConfigKind.Session];
@@ -72,8 +78,23 @@ public partial class ProxyEditViewModel : ObservableObject
     [ObservableProperty]
     private string _sessionDisplay = string.Empty;
 
+    [ObservableProperty]
+    private string _username = string.Empty;
+
+    // 不从库里回填。留空表示不改已存口令。
+    [ObservableProperty]
+    private string _password = string.Empty;
+
+    [ObservableProperty]
+    private bool _clearSavedPassword;
+
     public bool IsEndpoint => SelectedType != ProxyConfigKind.Session;
     public bool IsSession => SelectedType == ProxyConfigKind.Session;
+    public bool IsSocks5 => SelectedType == ProxyConfigKind.Socks5;
+    public bool ShowClearPassword => IsSocks5 && HasSavedPassword;
+    public string PasswordPlaceholder => HasSavedPassword
+        ? Strings.Get("Proxy.Password.Keep")
+        : string.Empty;
 
     public string TypeNotice => SelectedType == ProxyConfigKind.Http
         ? Strings.Get("Proxy.NotWired")
@@ -89,6 +110,30 @@ public partial class ProxyEditViewModel : ObservableObject
         OnPropertyChanged(nameof(TypeNotice));
         OnPropertyChanged(nameof(IsEndpoint));
         OnPropertyChanged(nameof(IsSession));
+        OnPropertyChanged(nameof(IsSocks5));
+        OnPropertyChanged(nameof(ShowClearPassword));
+        OnPropertyChanged(nameof(PasswordPlaceholder));
+    }
+
+    // 口令框留空不调用存储，避免把已存口令清掉。勾选清除才删除。
+    public Task ApplyPasswordAsync(IProxySecretStore store, CancellationToken ct = default)
+    {
+        if (SelectedType != ProxyConfigKind.Socks5)
+        {
+            return Task.CompletedTask;
+        }
+
+        if (ClearSavedPassword)
+        {
+            return store.SetPasswordAsync(_id, null, ct);
+        }
+
+        if (!string.IsNullOrWhiteSpace(Password))
+        {
+            return store.SetPasswordAsync(_id, Password, ct);
+        }
+
+        return Task.CompletedTask;
     }
 
     public string TypeLabel(ProxyConfigKind kind) => kind switch
@@ -174,6 +219,12 @@ public partial class ProxyEditViewModel : ObservableObject
 
         return SelectedType == ProxyConfigKind.Http
             ? new HttpProxyConfig(host, Port)
-            : new Socks5ProxyConfig(host, Port);
+            : new Socks5ProxyConfig(host, Port, SessionProxyExit.NormalizeUsername(Username));
     }
+}
+
+public sealed class ProxyEditCommit
+{
+    public required ProxyProfile Profile { get; init; }
+    public Func<IProxySecretStore, Task> ApplyPassword { get; init; } = _ => Task.CompletedTask;
 }

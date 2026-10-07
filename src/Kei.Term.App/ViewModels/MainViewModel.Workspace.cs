@@ -6,16 +6,19 @@ using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Avalonia.Threading;
+using Kei.Term.App.Workspaces;
+using Dock.Model.Controls;
 
 namespace Kei.Term.App.ViewModels;
 
 // 工作区包含未连接的启动页与真实终端；终端生命周期仍由 Tabs 管理。
 public partial class MainViewModel
 {
-    public ObservableCollection<ViewModelBase> WorkspaceTabs { get; } = [];
+    public ObservableCollection<ViewModelBase> WorkspaceTabs => Workspace.AllItems;
     public ObservableCollection<NewTabViewModel> NewTabs { get; } = [];
     private readonly AsyncLocal<NewTabViewModel?> _launchingTab = new();
-    private bool _movingWorkspaceTab;
+    private bool _syncingFromWorkspace;
 
     [ObservableProperty] private ViewModelBase? _activeWorkspaceTab;
 
@@ -23,6 +26,7 @@ public partial class MainViewModel
     {
         foreach (NewTabViewModel tab in NewTabs) tab.IsSelected = tab == value;
         SelectedTab = value as TerminalTabViewModel;
+        if (!_syncingFromWorkspace && value != null) Workspace.Activate(value);
     }
 
     [RelayCommand]
@@ -30,9 +34,7 @@ public partial class MainViewModel
     {
         NewTabViewModel tab = new(this);
         NewTabs.Add(tab);
-        WorkspaceTabs.Add(tab);
-        HasTabs = true;
-        ActiveWorkspaceTab = tab;
+        Workspace.AddTab(tab);
     }
 
     [RelayCommand]
@@ -48,7 +50,7 @@ public partial class MainViewModel
         if (tab is NewTabViewModel starter)
         {
             NewTabs.Remove(starter);
-            RemoveWorkspaceTab(starter);
+            Workspace.RemoveTab(starter);
         }
         return Task.CompletedTask;
     }
@@ -63,52 +65,41 @@ public partial class MainViewModel
         if (WorkspaceTabs.Count == 0) await Interaction.CloseWindowAsync();
     }
 
-    private void RemoveWorkspaceTab(ViewModelBase tab)
+    private void OnWorkspaceItemsChanged(object? sender, NotifyCollectionChangedEventArgs args)
+        => HasTabs = WorkspaceTabs.Count > 0;
+
+    private void OnWorkspaceActiveTabChanged(object recipient, WorkspaceActiveItemChangedMessage message)
     {
-        int index = WorkspaceTabs.IndexOf(tab);
-        if (index < 0) return;
-        bool active = ActiveWorkspaceTab == tab;
-        WorkspaceTabs.RemoveAt(index);
-        if (active) ActiveWorkspaceTab = WorkspaceTabs.Count == 0 ? null : WorkspaceTabs[Math.Clamp(index - 1, 0, WorkspaceTabs.Count - 1)];
-        HasTabs = WorkspaceTabs.Count > 0;
+        if (!ReferenceEquals(message.Source, Workspace) || _disposed != 0) return;
+        _syncingFromWorkspace = true;
+        try { ActiveWorkspaceTab = message.Item; }
+        finally { _syncingFromWorkspace = false; }
     }
 
-    private void OnTerminalTabsChanged(object? sender, NotifyCollectionChangedEventArgs args)
+    private void OnWorkspaceCloseRequested(object recipient, WorkspaceItemCloseRequestedMessage message)
     {
-        if (_movingWorkspaceTab) return;
-        if (args.Action == NotifyCollectionChangedAction.Move && args.NewItems?[0] is TerminalTabViewModel moved)
+        if (!ReferenceEquals(message.Source, Workspace) || _disposed != 0) return;
+        Dispatcher.UIThread.Post(() =>
         {
-            TerminalTabViewModel? neighbor = args.NewStartingIndex == 0 ? Tabs.Skip(1).FirstOrDefault() : Tabs[args.NewStartingIndex - 1];
-            if (neighbor != null)
-            {
-                WorkspaceTabs.Remove(moved);
-                WorkspaceTabs.Insert(WorkspaceTabs.IndexOf(neighbor) + (args.NewStartingIndex == 0 ? 0 : 1), moved);
-            }
-        }
-        else
-        {
-            if (args.OldItems != null)
-                foreach (TerminalTabViewModel tab in args.OldItems) RemoveWorkspaceTab(tab);
-            if (args.NewItems != null)
-                foreach (TerminalTabViewModel tab in args.NewItems) WorkspaceTabs.Add(tab);
-            if (args.Action == NotifyCollectionChangedAction.Reset)
-                foreach (TerminalTabViewModel tab in WorkspaceTabs.OfType<TerminalTabViewModel>().ToList()) RemoveWorkspaceTab(tab);
-        }
-        HasTabs = WorkspaceTabs.Count > 0;
+            if (_disposed == 0) _ = CloseWorkspaceTabCommand.ExecuteAsync(message.Item);
+        });
     }
 
     public void MoveWorkspaceTab(int fromIndex, int toIndex)
     {
         if (fromIndex < 0 || toIndex < 0 || fromIndex >= WorkspaceTabs.Count || toIndex >= WorkspaceTabs.Count) return;
-        WorkspaceTabs.Move(fromIndex, toIndex);
-        _movingWorkspaceTab = true;
-        try
+        ViewModelBase item = WorkspaceTabs[fromIndex];
+        ViewModelBase target = WorkspaceTabs[toIndex];
+        ViewModelBase? active = ActiveWorkspaceTab;
+        if (Workspace.FindDocument(target) is { Owner: IDocumentDock group } document)
         {
-            TerminalTabViewModel[] order = WorkspaceTabs.OfType<TerminalTabViewModel>().ToArray();
-            for (int index = 0; index < order.Length; index++)
-                if (Tabs[index] != order[index]) Tabs.Move(Tabs.IndexOf(order[index]), index);
+            Workspace.MoveTab(item, group, group.VisibleDockables!.IndexOf(document));
         }
-        finally { _movingWorkspaceTab = false; }
+        WorkspaceTabs.Move(fromIndex, toIndex);
+        TerminalTabViewModel[] order = WorkspaceTabs.OfType<TerminalTabViewModel>().ToArray();
+        for (int index = 0; index < order.Length; index++)
+            if (Tabs[index] != order[index]) Tabs.Move(Tabs.IndexOf(order[index]), index);
+        if (active != null) Workspace.Activate(active);
     }
 
     internal async Task ExecuteFromNewTabAsync(NewTabViewModel tab, IAsyncRelayCommand command)
@@ -131,9 +122,7 @@ public partial class MainViewModel
     {
         NewTabViewModel? starter = _launchingTab.Value;
         if (starter == null || !WorkspaceTabs.Contains(starter)) return;
-        int index = WorkspaceTabs.IndexOf(starter);
-        WorkspaceTabs.Remove(terminal);
-        WorkspaceTabs[index] = terminal;
+        Workspace.ReplaceTab(starter, terminal);
         NewTabs.Remove(starter);
         ActiveWorkspaceTab = terminal;
         _launchingTab.Value = null;

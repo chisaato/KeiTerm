@@ -11,7 +11,9 @@ using System.Threading.Tasks;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using Kei.Term.App.Helpers;
+using Kei.Term.App.Workspaces;
 using Kei.Term.App.Logging;
 using Kei.Term.App.Models;
 using Kei.Term.App.Services;
@@ -123,9 +125,15 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
     [ObservableProperty]
     private bool _hasNodes;
 
-    // 是否存在终端标签（控制标签条显隐）
+    // 是否存在终端标签（控制空态与撰写栏）
     [ObservableProperty]
     private bool _hasTabs;
+
+    // 停靠树是连接拓扑。Tabs 与协调器全集是同一个集合。
+    public WorkspaceCoordinator Workspace { get; }
+
+    // 视图在移除文档前释放对应的复合视图缓存。
+    public event Action<TerminalTabViewModel>? TabReleasing;
 
     // 标签栏停靠位置（Top 置顶 / Bottom 置底）
     [ObservableProperty]
@@ -166,7 +174,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         Action<Action>? uiDispatch = null,
         HostKeyTrustService? hostKeyTrust = null,
         IProxyRepository? proxyRepo = null,
-        IPortForwardRepository? portForwards = null)
+        IPortForwardRepository? portForwards = null,
+        IProxySecretStore? proxySecrets = null)
     {
         _hostKeyTrust = hostKeyTrust;
         _treeRepo = treeRepo;
@@ -185,6 +194,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
             loggerFactory?.CreateLogger<VaultSessionService>());
         _proxyRepo = proxyRepo;
         _portForwards = portForwards;
+        ProxySecrets = proxySecrets;
         _connections = new ConnectionOrchestrator(
             sshFactory,
             new AuthMaterialCollector(
@@ -199,10 +209,15 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
             _uiDispatch,
             loggerFactory?.CreateLogger<ConnectionOrchestrator>(),
             _proxyRepo,
-            _portForwards);
+            _portForwards,
+            proxySecrets: proxySecrets,
+            ensureUnlocked: proxySecrets == null ? null : () => VaultSession.EnsureUnlockedAsync());
 
-        // 标签集合变化时同步 HasTabs，控制标签条显隐
-        Tabs.CollectionChanged += OnTerminalTabsChanged;
+        Workspace = new WorkspaceCoordinator();
+        Tabs = Workspace.AllTabs;
+        WeakReferenceMessenger.Default.Register<WorkspaceActiveItemChangedMessage>(this, OnWorkspaceActiveTabChanged);
+        WeakReferenceMessenger.Default.Register<WorkspaceItemCloseRequestedMessage>(this, OnWorkspaceCloseRequested);
+        Workspace.AllItems.CollectionChanged += OnWorkspaceItemsChanged;
 
         // 配色变更单点订阅：不为每个标签单独挂钩子
         if (_profileManager != null)
@@ -314,6 +329,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
             _lockTimer = null;
         }
 
+        WeakReferenceMessenger.Default.UnregisterAll(this);
+        Workspace.AllItems.CollectionChanged -= OnWorkspaceItemsChanged;
+        Workspace.Dispose();
         return ValueTask.CompletedTask;
     }
 
@@ -365,8 +383,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
             tab.ApplyFontSnapshot(snapshot);
         }
 
-        // 与 ToggleSessionManager 相同：即发即存，不阻塞 UI
-        _ = _settingsService.SaveSettingsAsync(settings);
+        // 只提交字号：保存锁内补丁当前对象，不用这次拿到的完整快照覆盖其他字段
+        _ = _settingsService.CommitFontSizeAsync(target);
     }
 
     // 标签请求缩放（Ctrl+滚轮）→ 统一走全局缩放
@@ -392,15 +410,30 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
 
     partial void OnSelectedTabChanged(TerminalTabViewModel? value)
     {
-        // 同步每个标签的选中态，供标签条样式使用
+        // IsSelected 只表示全局活动连接，不决定其他分屏组是否可见。
         foreach (var tab in Tabs)
         {
-            tab.IsSelected = tab == value;
+            tab.IsSelected = ReferenceEquals(tab, value);
         }
         if (value != null) ActiveWorkspaceTab = value;
         else if (ActiveWorkspaceTab is TerminalTabViewModel) ActiveWorkspaceTab = null;
         DisconnectCurrentTabCommand.NotifyCanExecuteChanged();
+        OpenTerminalFindCommand.NotifyCanExecuteChanged();
+        if (_syncingFromWorkspace || _disposed != 0 || value == null)
+        {
+            return;
+        }
+
+        Workspace.Activate(value);
     }
+
+    [RelayCommand(CanExecute = nameof(CanOpenTerminalFind))]
+    private void OpenTerminalFind()
+    {
+        SelectedTab?.OpenFind();
+    }
+
+    private bool CanOpenTerminalFind() => SelectedTab != null;
 
     public async Task InitializeAsync()
     {
@@ -882,6 +915,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         => _proxyRepo == null
             ? Task.FromResult<IReadOnlyList<ProxyProfile>>([])
             : _proxyRepo.GetAllAsync();
+
+    internal IProxySecretStore? ProxySecrets { get; }
 
     internal Task SaveProxyAsync(ProxyProfile proxy)
         => _proxyRepo == null ? Task.CompletedTask : _proxyRepo.SaveAsync(proxy);

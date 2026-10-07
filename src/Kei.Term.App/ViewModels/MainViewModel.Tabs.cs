@@ -30,14 +30,13 @@ public partial class MainViewModel
         // 构造只记录状态，此处显式注入配色（新标签立即生效）
         tab.ApplyTerminalProfile(effectiveProfile);
         tab.BindConfig(config);
-        Tabs.Add(tab);
-        ReplaceLaunchingTab(tab);
         tab.CloseRequested += OnTabCloseRequested;
         tab.AutoReconnectEnabled = () => _settingsService.Current.AutoReconnectOnDisconnect;
         tab.UnexpectedDisconnectAsync = OnUnexpectedDisconnectAsync;
         tab.ActionRequested += OnTabActionRequested;
         tab.FontZoomRequested += OnTabFontZoomRequested;
-        SelectedTab = tab;
+        Workspace.AddTab(tab);
+        ReplaceLaunchingTab(tab);
         return CreateConnectionTarget(tab);
     }
 
@@ -61,7 +60,9 @@ public partial class MainViewModel
         }
 
         var selected = SelectedTab;
+        TerminalTabViewModel moving = Tabs[fromIndex];
         Tabs.Move(fromIndex, toIndex);
+        Workspace.ReorderTab(moving, toIndex);
         if (selected != null)
         {
             SelectedTab = selected;
@@ -81,8 +82,9 @@ public partial class MainViewModel
         tab.CloseRequested -= OnTabCloseRequested;
         tab.ActionRequested -= OnTabActionRequested;
         tab.FontZoomRequested -= OnTabFontZoomRequested;
-        // 工作区集合在移除时负责切换到相邻标签（包括尚未连接的启动页）。
-        Tabs.Remove(tab);
+        TabReleasing?.Invoke(tab);
+        // Dock 选择同组相邻项，包含启动页；只显式关闭时释放连接。
+        Workspace.RemoveTab(tab);
 
         // 控件解绑从 UI 线程开始；网络释放由标签内部切到后台，关闭窗口前等待完成。
         return tab.DisposeAsync().AsTask();

@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 using System.Threading;
 using Avalonia.Controls;
 using Avalonia.VisualTree;
+using Dock.Model.Controls;
+using Dock.Model.Core;
+using Kei.Term.App.Workspaces;
 using Kei.Term.App.Services.Connection;
 using Kei.Term.App.Helpers;
 using Kei.Term.App.ViewModels;
@@ -25,6 +28,155 @@ namespace Kei.Term.Tests;
 
 public class WorkspaceTabsTests
 {
+    [Fact]
+    public Task ReopenAfterClosingAllTabs_RendersTerminalAndStartPage() => HeadlessAvalonia.RunAsync(async () =>
+    {
+        UiDesignSystemService.Apply();
+        MainViewModel model = CreateModel();
+        MainWindow window = new() { DataContext = model, Width = 1200, Height = 800 };
+        try
+        {
+            window.Show();
+            model.NewTabCommand.Execute(null);
+            await model.CloseWorkspaceTabCommand.ExecuteAsync(Assert.Single(model.NewTabs));
+            HeadlessAvalonia.Pump();
+            Assert.Empty(model.WorkspaceTabs);
+
+            // 关闭最后一页后取消退出，再连接仍需有实际可见的文档内容。
+            ((IConnectionHost)model).OpenTab(Config("reopened"));
+            HeadlessAvalonia.Pump();
+            TerminalConnectionView connection = Assert.Single(window.GetVisualDescendants().OfType<TerminalConnectionView>());
+            Assert.True(connection.IsEffectivelyVisible);
+            Assert.True(connection.Bounds.Width > 0 && connection.Bounds.Height > 0);
+            Assert.Same(Assert.Single(model.Tabs), connection.DataContext);
+
+            await model.CloseWorkspaceTabCommand.ExecuteAsync(Assert.Single(model.Tabs));
+            model.NewTabCommand.Execute(null);
+            HeadlessAvalonia.Pump();
+            NewTabView starter = Assert.Single(window.GetVisualDescendants().OfType<NewTabView>());
+            Assert.True(starter.IsEffectivelyVisible);
+            Assert.True(starter.Bounds.Width > 0 && starter.Bounds.Height > 0);
+        }
+        finally
+        {
+            foreach (TerminalTabViewModel terminal in model.Tabs.ToArray()) await model.CloseTabCommand.ExecuteAsync(terminal);
+            window.Close();
+            await model.DisposeAsync();
+        }
+    });
+
+    [Fact]
+    public Task CloseToRight_FollowsDockOrder_AndPreservesOtherGroups() => HeadlessAvalonia.RunAsync(async () =>
+    {
+        MainViewModel model = CreateModel();
+        try
+        {
+            IConnectionHost host = model;
+            host.OpenTab(Config("left"));
+            host.OpenTab(Config("right"));
+            host.OpenTab(Config("reordered"));
+            TerminalTabViewModel left = model.Tabs[0];
+            TerminalTabViewModel right = model.Tabs[1];
+            TerminalTabViewModel reordered = model.Tabs[2];
+            IDocumentDock group = Assert.IsAssignableFrom<IDocumentDock>(model.Workspace.FindDocument(left)!.Owner);
+            model.Workspace.SplitTab(left, group, DockOperation.Left);
+            model.Workspace.ReorderTab(reordered, 0);
+            reordered.RequestCloseToRightCommand.Execute(null);
+            Assert.DoesNotContain(right, model.WorkspaceTabs);
+            Assert.Contains(left, model.WorkspaceTabs);
+            Assert.Contains(reordered, model.WorkspaceTabs);
+        }
+        finally
+        {
+            foreach (TerminalTabViewModel terminal in model.Tabs.ToArray()) await model.CloseTabCommand.ExecuteAsync(terminal);
+            await model.DisposeAsync();
+        }
+    });
+
+    [Fact]
+    public Task MainWindow_MixedDockGroups_KeepStartPageVisibleAndReplaceItsOwnSlot() => HeadlessAvalonia.RunAsync(async () =>
+    {
+        UiDesignSystemService.Apply();
+        MainViewModel model = CreateModel();
+        MainWindow window = new() { DataContext = model, Width = 1200, Height = 800 };
+        try
+        {
+            window.Show();
+            ((IConnectionHost)model).OpenTab(Config("existing"));
+            TerminalTabViewModel existing = Assert.Single(model.Tabs);
+            model.NewTabCommand.Execute(null);
+            NewTabViewModel starter = Assert.Single(model.NewTabs);
+            IDocumentDock firstGroup = Assert.IsAssignableFrom<IDocumentDock>(model.Workspace.FindDocument(existing)!.Owner);
+            model.Workspace.SplitTab(starter, firstGroup, DockOperation.Right);
+            HeadlessAvalonia.Pump();
+            IDocumentDock starterGroup = Assert.IsAssignableFrom<IDocumentDock>(model.Workspace.FindDocument(starter)!.Owner);
+            Assert.NotSame(firstGroup, starterGroup);
+            Assert.Single(window.GetVisualDescendants().OfType<TerminalWorkspaceView>());
+            model.SelectTabCommand.Execute(existing);
+            HeadlessAvalonia.Pump();
+            Assert.True(window.GetVisualDescendants().OfType<NewTabView>().Single().IsEffectivelyVisible);
+            Assert.True(window.GetVisualDescendants().OfType<TerminalConnectionView>().Single().IsEffectivelyVisible);
+
+            model.Interaction = new ScriptedInteraction
+            {
+                QuickConnectAction = () =>
+                {
+                    // 对话框打开期间用户切到左组；新连接必须仍替换右组的启动页。
+                    model.SelectTabCommand.Execute(existing);
+                    ((IConnectionHost)model).OpenTab(Config("replacement"));
+                    return Task.CompletedTask;
+                }
+            };
+            await starter.QuickConnectCommand.ExecuteAsync(null);
+            HeadlessAvalonia.Pump();
+            TerminalTabViewModel replacement = model.Tabs.Single(tab => tab != existing);
+            Assert.Same(starterGroup, model.Workspace.FindDocument(replacement)!.Owner);
+            Assert.Same(firstGroup, model.Workspace.FindDocument(existing)!.Owner);
+            Assert.Empty(model.NewTabs);
+            Assert.Same(replacement, model.SelectedTab);
+            Assert.Equal(2, window.GetVisualDescendants().OfType<TerminalConnectionView>().Count());
+            Assert.Empty(window.GetVisualDescendants().OfType<NewTabView>());
+        }
+        finally
+        {
+            foreach (TerminalTabViewModel terminal in model.Tabs.ToArray()) await model.CloseTabCommand.ExecuteAsync(terminal);
+            window.Close();
+            await model.DisposeAsync();
+        }
+    });
+
+    [Fact]
+    public Task DockCloseStartPage_PreservesOtherGroupAndRoutesLastShortcutToExit() => HeadlessAvalonia.RunAsync(async () =>
+    {
+        UiDesignSystemService.Apply();
+        MainViewModel model = CreateModel();
+        MainWindow window = new() { DataContext = model };
+        int closeRequests = 0;
+        model.Interaction = new ScriptedInteraction { CloseWindowAction = () => closeRequests++ };
+        try
+        {
+            window.Show();
+            model.NewTabCommand.Execute(null);
+            NewTabViewModel first = Assert.Single(model.NewTabs);
+            model.NewTabCommand.Execute(null);
+            NewTabViewModel second = model.NewTabs[1];
+            IDocumentDock group = Assert.IsAssignableFrom<IDocumentDock>(model.Workspace.FindDocument(first)!.Owner);
+            model.Workspace.SplitTab(second, group, DockOperation.Bottom);
+            HeadlessAvalonia.Pump();
+            model.Workspace.Factory.CloseDockable(model.Workspace.FindDocument(second)!);
+            HeadlessAvalonia.Pump();
+            Assert.Same(first, Assert.Single(model.WorkspaceTabs));
+            Assert.Same(first, model.ActiveWorkspaceTab);
+            Assert.Single(model.NewTabs);
+            Assert.Equal(0, closeRequests);
+            await model.CloseCurrentWorkspaceTabCommand.ExecuteAsync(null);
+            Assert.Empty(model.WorkspaceTabs);
+            Assert.False(model.HasTabs);
+            Assert.Equal(1, closeRequests);
+        }
+        finally { window.Close(); await model.DisposeAsync(); }
+    });
+
     [Fact]
     public Task CloseLastTerminal_WaitsForSessionRelease_BeforeRequestingWindowClose() => HeadlessAvalonia.RunAsync(async () =>
     {
@@ -159,13 +311,14 @@ public class WorkspaceTabsTests
             model.NewTabCommand.Execute(null);
             NewTabViewModel second = model.NewTabs[1];
             window.UpdateLayout();
+            // Dock 在调度队列内创建活动文档的模板，等布局/渲染完成再检查实际视图。
+            HeadlessAvalonia.Pump();
             Assert.Empty(model.Tabs);
             Assert.True(model.HasTabs);
             Assert.Same(second, model.ActiveWorkspaceTab);
             Assert.False(first.IsSelected);
             Assert.True(second.IsSelected);
             Assert.Single(window.GetVisualDescendants().OfType<NewTabView>(), view => view.IsVisible);
-            HeadlessAvalonia.Pump();
             Assert.Equal("ConnectSavedSessionButton", ((Control)window.FocusManager!.GetFocusedElement()!).Name);
             model.SelectWorkspaceTabCommand.Execute(first);
             model.MoveWorkspaceTab(0, 1);

@@ -16,7 +16,7 @@ using Kei.Term.Infrastructure.Storage.Schema;
 // （Microsoft.NETCore.App.Ref 10.0.2 的 System.Security.Cryptography）未提供任何
 // Argon2/Kryptos 类型，故一期以 PBKDF2-Rfc2898DeriveBytes(HMAC-SHA512, 600k 迭代,
 // salt 16B, 派生 32B) 替代，差异记入实现报告；盐与密钥长度与规格一致，未来可无损切换 KDF。
-public class InternalVaultManager : IVaultManager, IVaultSecretStore
+public class InternalVaultManager : IVaultManager, IVaultSecretStore, IProxySecretStore
 {
     // vault_metadata 键
     private const string KeyPlainMode = "plain_mode";
@@ -135,8 +135,14 @@ public class InternalVaultManager : IVaultManager, IVaultSecretStore
             await UpsertMetadataAsync(conn, tx, KeyVerifier, Convert.ToBase64String(verifier), ct);
             await UpsertMetadataAsync(conn, tx, KeyKdf, Pbkdf2Sha512Id, ct);
 
-            // 明文升级：把已有的明文材料块就地重新加密，保证加密模式下可读（无损升级）
-            reEncrypted = await ReEncryptPlainSecretsAsync(conn, tx, mek, ct);
+            // 先重包已加密的代理口令（仍用旧 MEK），再升级明文行。顺序不能反，否则刚加密的行会被当成旧密文解开失败。
+            if (_mek != null)
+            {
+                reEncrypted = await RewrapEncryptedProxySecretsAsync(conn, tx, _mek, mek, ct);
+            }
+
+            reEncrypted += await ReEncryptPlainSecretsAsync(conn, tx, mek, ct);
+
             tx.Commit();
         }
 
@@ -288,6 +294,91 @@ public class InternalVaultManager : IVaultManager, IVaultSecretStore
         await cmd.ExecuteNonQueryAsync(ct);
     }
 
+    public async Task<string?> GetPasswordAsync(Guid proxyId, CancellationToken ct = default)
+    {
+        await EnsureInitializedAsync(ct);
+
+        using var conn = await CreateConnectionAsync(ct);
+        var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT secrets_blob, encryption_algorithm FROM proxy_secrets WHERE proxy_id = $id;";
+        cmd.Parameters.AddWithValue("$id", proxyId.ToString());
+
+        using var reader = await cmd.ExecuteReaderAsync(ct);
+        if (!await reader.ReadAsync(ct))
+        {
+            return null;
+        }
+
+        var blob = (byte[])reader["secrets_blob"];
+        var algorithm = reader.GetString(1);
+        return ReadPassword(blob, algorithm);
+    }
+
+    public async Task SetPasswordAsync(Guid proxyId, string? password, CancellationToken ct = default)
+    {
+        await EnsureInitializedAsync(ct);
+
+        if (string.IsNullOrWhiteSpace(password))
+        {
+            using var deleteConn = await CreateConnectionAsync(ct);
+            var delete = deleteConn.CreateCommand();
+            delete.CommandText = "DELETE FROM proxy_secrets WHERE proxy_id = $id;";
+            delete.Parameters.AddWithValue("$id", proxyId.ToString());
+            await delete.ExecuteNonQueryAsync(ct);
+            return;
+        }
+
+        var json = JsonSerializer.SerializeToUtf8Bytes(new ProxySecretPayload { Password = password });
+        byte[] blob;
+        string algorithm;
+        byte[]? nonce = null;
+        byte[]? tag = null;
+
+        if (_hasMasterPassword)
+        {
+            EnsureUnlocked();
+            blob = EncryptWithMek(_mek!, json);
+            algorithm = EncryptedAlgorithm;
+            nonce = blob.AsSpan(0, NonceLength).ToArray();
+            tag = blob.AsSpan(NonceLength, TagLength).ToArray();
+        }
+        else
+        {
+            blob = json;
+            algorithm = PlainAlgorithm;
+        }
+
+        using var conn = await CreateConnectionAsync(ct);
+        var cmd = conn.CreateCommand();
+        cmd.CommandText = @"
+            INSERT INTO proxy_secrets (proxy_id, secrets_blob, encryption_algorithm, nonce, tag)
+            VALUES ($id, $blob, $alg, $nonce, $tag)
+            ON CONFLICT(proxy_id) DO UPDATE SET
+                secrets_blob = $blob,
+                encryption_algorithm = $alg,
+                nonce = $nonce,
+                tag = $tag;
+        ";
+        cmd.Parameters.AddWithValue("$id", proxyId.ToString());
+        cmd.Parameters.Add("$blob", SqliteType.Blob).Value = blob;
+        cmd.Parameters.AddWithValue("$alg", algorithm);
+        cmd.Parameters.AddWithValue("$nonce", (object?)nonce ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$tag", (object?)tag ?? DBNull.Value);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
+    public async Task<bool> HasPasswordAsync(Guid proxyId, CancellationToken ct = default)
+    {
+        await EnsureInitializedAsync(ct);
+
+        using var conn = await CreateConnectionAsync(ct);
+        var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT 1 FROM proxy_secrets WHERE proxy_id = $id;";
+        cmd.Parameters.AddWithValue("$id", proxyId.ToString());
+        var value = await cmd.ExecuteScalarAsync(ct);
+        return value != null && value != DBNull.Value;
+    }
+
     public async Task DeleteSecretsAsync(Guid identityId, CancellationToken ct = default)
     {
         await EnsureInitializedAsync(ct);
@@ -307,14 +398,45 @@ public class InternalVaultManager : IVaultManager, IVaultSecretStore
         }
     }
 
+    private string? ReadPassword(byte[] blob, string algorithm)
+    {
+        byte[] json;
+        if (algorithm == PlainAlgorithm)
+        {
+            json = blob;
+        }
+        else
+        {
+            EnsureUnlocked();
+            json = DecryptWithMek(_mek!, blob);
+        }
+
+        ProxySecretPayload? payload = JsonSerializer.Deserialize<ProxySecretPayload>(json);
+        return string.IsNullOrEmpty(payload?.Password) ? null : payload.Password;
+    }
+
     // 明文升级为加密：逐行把 PLAIN 材料块用新 MEK 重新加密；返回重加密行数
     private static async Task<int> ReEncryptPlainSecretsAsync(SqliteConnection conn, SqliteTransaction tx, byte[] mek, CancellationToken ct)
+    {
+        int count = await ReEncryptPlainTableAsync(conn, tx, mek, "identity_secrets", "identity_id", ct);
+        count += await ReEncryptPlainTableAsync(conn, tx, mek, "proxy_secrets", "proxy_id", ct);
+        return count;
+    }
+
+    // 表名与主键列是内部常量，不接受外部输入
+    private static async Task<int> ReEncryptPlainTableAsync(
+        SqliteConnection conn,
+        SqliteTransaction tx,
+        byte[] mek,
+        string table,
+        string idColumn,
+        CancellationToken ct)
     {
         var pending = new List<(string id, byte[] plaintext)>();
         using (var select = conn.CreateCommand())
         {
             select.Transaction = tx;
-            select.CommandText = "SELECT identity_id, secrets_blob FROM identity_secrets WHERE encryption_algorithm = $alg;";
+            select.CommandText = $"SELECT {idColumn}, secrets_blob FROM {table} WHERE encryption_algorithm = $alg;";
             select.Parameters.AddWithValue("$alg", PlainAlgorithm);
             using var reader = await select.ExecuteReaderAsync(ct);
             while (await reader.ReadAsync(ct))
@@ -328,10 +450,10 @@ public class InternalVaultManager : IVaultManager, IVaultSecretStore
             var blob = EncryptWithMek(mek, plaintext);
             using var update = conn.CreateCommand();
             update.Transaction = tx;
-            update.CommandText = @"
-                UPDATE identity_secrets
+            update.CommandText = $@"
+                UPDATE {table}
                 SET secrets_blob = $blob, encryption_algorithm = $alg, nonce = $nonce, tag = $tag
-                WHERE identity_id = $id;
+                WHERE {idColumn} = $id;
             ";
             update.Parameters.AddWithValue("$id", id);
             update.Parameters.Add("$blob", SqliteType.Blob).Value = blob;
@@ -342,6 +464,63 @@ public class InternalVaultManager : IVaultManager, IVaultSecretStore
         }
 
         return pending.Count;
+    }
+
+    // 已加密的代理口令换主密码时用旧 MEK 解开、新 MEK 重包。失败信息不含口令。
+    private static async Task<int> RewrapEncryptedProxySecretsAsync(
+        SqliteConnection conn,
+        SqliteTransaction tx,
+        byte[] oldMek,
+        byte[] newMek,
+        CancellationToken ct)
+    {
+        var pending = new List<(string id, byte[] plaintext)>();
+        using (var select = conn.CreateCommand())
+        {
+            select.Transaction = tx;
+            select.CommandText = "SELECT proxy_id, secrets_blob FROM proxy_secrets WHERE encryption_algorithm = $alg;";
+            select.Parameters.AddWithValue("$alg", EncryptedAlgorithm);
+            using var reader = await select.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+            {
+                pending.Add((reader.GetString(0), (byte[])reader["secrets_blob"]));
+            }
+        }
+
+        foreach (var (id, blob) in pending)
+        {
+            byte[] plaintext;
+            try
+            {
+                plaintext = DecryptWithMek(oldMek, blob);
+            }
+            catch (CryptographicException)
+            {
+                throw new InvalidOperationException("代理口令重包失败");
+            }
+
+            var wrapped = EncryptWithMek(newMek, plaintext);
+            using var update = conn.CreateCommand();
+            update.Transaction = tx;
+            update.CommandText = @"
+                UPDATE proxy_secrets
+                SET secrets_blob = $blob, encryption_algorithm = $alg, nonce = $nonce, tag = $tag
+                WHERE proxy_id = $id;
+            ";
+            update.Parameters.AddWithValue("$id", id);
+            update.Parameters.Add("$blob", SqliteType.Blob).Value = wrapped;
+            update.Parameters.AddWithValue("$alg", EncryptedAlgorithm);
+            update.Parameters.AddWithValue("$nonce", wrapped.AsSpan(0, NonceLength).ToArray());
+            update.Parameters.AddWithValue("$tag", wrapped.AsSpan(NonceLength, TagLength).ToArray());
+            await update.ExecuteNonQueryAsync(ct);
+        }
+
+        return pending.Count;
+    }
+
+    private sealed class ProxySecretPayload
+    {
+        public string? Password { get; set; }
     }
 
     private static byte[] DeriveKey(string kdfId, string password, byte[] salt)

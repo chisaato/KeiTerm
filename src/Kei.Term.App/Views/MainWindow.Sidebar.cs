@@ -107,7 +107,7 @@ public partial class MainWindow
 
     private bool IsSessionManagerInteractionActive(MainViewModel model)
     {
-        if (model.RenamingNode != null || _activeDraggedId.HasValue || _isDraggingTab
+        if (model.RenamingNode != null || _activeDraggedId.HasValue
             || _sessionManagerContextRequestActive || OwnedWindows.Any(window => window.IsVisible)) return true;
         if (_sessionManagerPointer?.Captured is Visual captured && IsUnder(SessionManagerBorder, captured)) return true;
         return SessionManagerBorder.GetVisualDescendants().OfType<Control>()

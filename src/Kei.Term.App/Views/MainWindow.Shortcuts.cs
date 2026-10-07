@@ -106,6 +106,7 @@ public partial class MainWindow
             KeyBindings?.Add(new KeyBinding { Gesture = AppShortcuts.NewTab, Command = vm.NewTabCommand });
             KeyBindings?.Add(new KeyBinding { Gesture = AppShortcuts.CloseTab, Command = vm.CloseCurrentWorkspaceTabCommand });
             KeyBindings?.Add(new KeyBinding { Gesture = AppShortcuts.ConnectSavedSession, Command = vm.ConnectSavedSessionCommand });
+            KeyBindings?.Add(new KeyBinding { Gesture = AppShortcuts.Find, Command = vm.OpenTerminalFindCommand });
             KeyBindings?.Add(new KeyBinding { Gesture = AppShortcuts.CommandPalette(vm.CurrentSettings.CommandPaletteShortcut), Command = vm.OpenCommandPaletteCommand });
         }
         NativeMenu? menu = NativeMenu.GetMenu(this);
@@ -117,6 +118,7 @@ public partial class MainWindow
             else if (ReferenceEquals(item.Command, vm.NewTabCommand)) item.Gesture = AppShortcuts.NewTab;
             else if (ReferenceEquals(item.Command, vm.CloseCurrentWorkspaceTabCommand)) item.Gesture = AppShortcuts.CloseTab;
             else if (ReferenceEquals(item.Command, vm.ConnectSavedSessionCommand)) item.Gesture = AppShortcuts.ConnectSavedSession;
+            else if (ReferenceEquals(item.Command, vm.OpenTerminalFindCommand)) item.Gesture = AppShortcuts.Find;
             else if (ReferenceEquals(item.Command, vm.OpenCommandPaletteCommand)) item.Gesture = AppShortcuts.CommandPalette(vm.CurrentSettings.CommandPaletteShortcut);
         }
         _editCommands?.Refresh();

@@ -7,6 +7,8 @@ using Kei.Term.App.Logging;
 using Kei.Term.App.Services.Connection;
 using Kei.Term.Core.Models;
 using Kei.Term.Core.Services;
+using Kei.Term.App.Workspaces;
+using Dock.Model.Controls;
 using Microsoft.Extensions.Logging;
 
 namespace Kei.Term.App.ViewModels;
@@ -25,10 +27,17 @@ public partial class MainViewModel
             TabAction.Clone => CloneTabAsync(tab),
             TabAction.Rename => RenameTabAsync(tab),
             TabAction.CloseOthers => CloseWorkspaceTabsAsync(WorkspaceTabs.Where(t => t != tab).ToList()),
-            TabAction.CloseToRight => CloseWorkspaceTabsAsync(WorkspaceTabs.Skip(WorkspaceTabs.IndexOf(tab) + 1).ToList()),
+            TabAction.CloseToRight => CloseWorkspaceTabsAsync(TabsToRight(tab)),
             _ => Task.CompletedTask
         };
         _ = Safe.RunAsync(_logger, $"标签动作 {action}", () => work);
+    }
+
+    private System.Collections.Generic.IReadOnlyList<ViewModelBase> TabsToRight(TerminalTabViewModel tab)
+    {
+        if (Workspace.FindDocument(tab) is not { Owner: IDocumentDock { VisibleDockables: { } items } } document)
+            return [];
+        return items.Skip(items.IndexOf(document) + 1).OfType<WorkspaceDocument>().Select(item => item.Item).ToArray();
     }
 
     // 已保存的会话按最新会话配置重新解析（期间可能改过主机/身份）；快速连接等无节点的标签沿用原配置并重新询问认证

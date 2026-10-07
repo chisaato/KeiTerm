@@ -17,6 +17,7 @@ public static class AppShortcuts
     public const string DefaultCommandPaletteShortcut = "Primary+Shift+P";
     public static KeyGesture QuickConnect { get; } = OperatingSystem.IsMacOS()
         ? new(Key.K, KeyModifiers.Meta) : new(Key.Q, KeyModifiers.Control);
+    public static KeyGesture Find { get; } = new(Key.F, PrimaryModifier);
     public static KeyGesture Cut { get; } = new(Key.X, PrimaryModifier);
     public static KeyGesture Copy { get; } = new(Key.C, PrimaryModifier);
     public static KeyGesture Paste { get; } = new(Key.V, PrimaryModifier);

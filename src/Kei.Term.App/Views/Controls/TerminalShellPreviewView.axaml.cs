@@ -110,6 +110,7 @@ public partial class TerminalShellPreviewView : UserControl
             FontLinearMetrics = true,
             FontSubpixelPositioning = true
         };
+        TerminalKeywordHighlight.Apply(terminal);
 
         // 注册 Loaded 钩子：当控件挂载并建立真实 Renderer 后，重新应用选区 alpha 覆盖与重绘
         _terminalLoadedHandler = (sender, e) =>

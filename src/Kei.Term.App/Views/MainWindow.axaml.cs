@@ -13,6 +13,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Kei.Term.App.Helpers;
+using Kei.Term.App.Views.Controls;
 using Kei.Term.App.Logging;
 using Kei.Term.App.ViewModels;
 using Kei.Term.Core.Models;
@@ -34,13 +35,6 @@ public partial class MainWindow : Window
     // Avalonia 12 的 DoDragDropAsync 需 PointerPressedEventArgs：暂存按下事件参数，待超阈值后再启动
     private PointerPressedEventArgs? _dragPressedArgs;
     private Point _dragStart;
-
-    // 标签栏拖拽状态
-    private ViewModelBase? _dragTab;
-    private ViewModelBase? _activeDraggedTab;
-    private PointerPressedEventArgs? _dragTabPressedArgs;
-    private Point _dragTabStart;
-    private bool _isDraggingTab;
 
     public MainWindow()
     {
@@ -65,12 +59,8 @@ public partial class MainWindow : Window
         SessionTree.AddHandler(KeyDownEvent, Tree_KeyDown, RoutingStrategies.Tunnel, handledEventsToo: true);
         SessionTree.AddHandler(LostFocusEvent, Tree_RenameLostFocus, RoutingStrategies.Bubble);
 
-        // 标签栏拖拽与点击处理：在 TabsItemsControl 容器上附加事件
-        TabsItemsControl.AddHandler(PointerPressedEvent, Tab_PointerPressed, RoutingStrategies.Tunnel | RoutingStrategies.Bubble, handledEventsToo: true);
-        TabsItemsControl.AddHandler(Button.ClickEvent, Tab_ButtonClicked, RoutingStrategies.Bubble, handledEventsToo: true);
-        TabsItemsControl.AddHandler(PointerMovedEvent, Tab_PointerMoved, RoutingStrategies.Tunnel | RoutingStrategies.Bubble, handledEventsToo: true);
-        TabsItemsControl.AddHandler(DragDrop.DragOverEvent, Tab_DragOver);
-        TabsItemsControl.AddHandler(DragDrop.DropEvent, Tab_Drop);
+        // 隧道阶段吃掉 Ctrl+F，避免终端控件先把按键标成已处理
+        AddHandler(KeyDownEvent, OnTerminalFindKeyDown, RoutingStrategies.Tunnel);
 
         // DataContext 变化时挂接 VM 属性监听（侧栏收起/恢复需要联动列宽）
         PropertyChanged += OnWindowPropertyChanged;
@@ -166,6 +156,40 @@ public partial class MainWindow : Window
         identityMgrVm.VaultKeyInfoLoader = vm.VaultSession.GetVaultKeyInfoAsync;
         identityMgrVm.PersistVaultKeysAsync = vm.VaultSession.PersistVaultKeyImportsAsync;
         vm.TreeRenameStarted += FocusTreeRenameBox;
+    }
+
+    // 终端聚焦时 Window.KeyBindings 到不了。文本框里的 Ctrl+F 留给输入框，不抢走。
+    private void OnTerminalFindKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (!AppShortcuts.Find.Matches(e))
+        {
+            return;
+        }
+
+        if (e.Source is TextBox box && !box.Classes.Contains("findQuery"))
+        {
+            return;
+        }
+
+        if (DataContext is not MainViewModel vm || !vm.OpenTerminalFindCommand.CanExecute(null))
+        {
+            return;
+        }
+
+        e.Handled = true;
+        vm.OpenTerminalFindCommand.Execute(null);
+        FocusOpenFindBar();
+    }
+
+    private void FocusOpenFindBar()
+    {
+        foreach (TerminalFindBar bar in this.GetVisualDescendants().OfType<TerminalFindBar>())
+        {
+            if (bar.IsEffectivelyVisible && ReferenceEquals(bar.DataContext, (DataContext as MainViewModel)?.SelectedTab))
+            {
+                bar.FocusQuery();
+            }
+        }
     }
 
     // 只有会话树持有焦点时才吃 F2。文本框、下拉、终端聚焦则放过。
@@ -497,167 +521,6 @@ public partial class MainWindow : Window
         _ = vm.MoveNodeToAsync(draggedId, newParentId);
     }
 
-    // ==========================================
-    // 标签栏拖拽重排 (Tab Reordering)
-    // ==========================================
-
-    private void Tab_PointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        _dragTab = null;
-        _dragTabPressedArgs = null;
-
-        // 中键点击关闭标签（浏览器 / SecureCRT 习惯）
-        if (e.GetCurrentPoint(TabsItemsControl).Properties.IsMiddleButtonPressed)
-        {
-            if (DataContext is MainViewModel mainVm && FindTabViewModelFromVisual(e.Source as Visual) is { } middleTab)
-            {
-                e.Handled = true;
-                _ = mainVm.CloseWorkspaceTabCommand.ExecuteAsync(middleTab);
-            }
-
-            return;
-        }
-
-        // 仅处理鼠标左键按下
-        if (!e.GetCurrentPoint(TabsItemsControl).Properties.IsLeftButtonPressed)
-        {
-            return;
-        }
-
-        // 排除关闭按钮点击触发的拖拽
-        if (e.Source is Visual sourceVisual)
-        {
-            var btn = sourceVisual.FindAncestorOfType<Button>(includeSelf: true);
-            if (btn != null && btn.Classes.Contains("closeBtn"))
-            {
-                return;
-            }
-        }
-
-        // 寻找命中的 TerminalTabViewModel
-        var tabVm = FindTabViewModelFromVisual(e.Source as Visual);
-        if (tabVm != null)
-        {
-            _dragTab = tabVm;
-            _dragTabPressedArgs = e;
-            _dragTabStart = e.GetPosition(TabsItemsControl);
-        }
-    }
-
-    private async void Tab_PointerMoved(object? sender, PointerEventArgs e)
-    {
-        if (_isDraggingTab
-            || _dragTab == null
-            || _dragTabPressedArgs == null
-            || !e.GetCurrentPoint(TabsItemsControl).Properties.IsLeftButtonPressed)
-        {
-            return;
-        }
-
-        var currentPos = e.GetPosition(TabsItemsControl);
-        // 水平位移阈值 >= 6px 启动拖拽，防止普通点击切换标签被拦截
-        if (Math.Abs(currentPos.X - _dragTabStart.X) < 6)
-        {
-            return;
-        }
-
-        var pressedArgs = _dragTabPressedArgs;
-        var tab = _dragTab;
-        _activeDraggedTab = tab;
-        _dragTab = null;
-        _dragTabPressedArgs = null;
-        _isDraggingTab = true;
-
-        try
-        {
-            var transfer = new DataTransfer();
-            transfer.Add(DataTransferItem.CreateText("workspace-tab"));
-            await DragDrop.DoDragDropAsync(pressedArgs, transfer, DragDropEffects.Move);
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Tab DoDragDropAsync 异常");
-        }
-        finally
-        {
-            _isDraggingTab = false;
-            _activeDraggedTab = null;
-        }
-    }
-
-    private void Tab_DragOver(object? sender, DragEventArgs e)
-    {
-        if (DataContext is not MainViewModel vm || !_isDraggingTab)
-        {
-            e.DragEffects = DragDropEffects.None;
-            return;
-        }
-
-        var targetTab = FindTabViewModelFromVisual(e.Source as Visual);
-        if (targetTab != null && targetTab != _activeDraggedTab)
-        {
-            e.DragEffects = DragDropEffects.Move;
-            e.Handled = true;
-        }
-        else
-        {
-            e.DragEffects = DragDropEffects.None;
-        }
-    }
-
-    private void Tab_Drop(object? sender, DragEventArgs e)
-    {
-        if (DataContext is not MainViewModel vm)
-        {
-            return;
-        }
-
-        var targetTab = FindTabViewModelFromVisual(e.Source as Visual);
-        var sourceTab = _activeDraggedTab ?? vm.ActiveWorkspaceTab;
-
-        if (targetTab != null && sourceTab != null && targetTab != sourceTab)
-        {
-            var fromIdx = vm.WorkspaceTabs.IndexOf(sourceTab);
-            var toIdx = vm.WorkspaceTabs.IndexOf(targetTab);
-            if (fromIdx >= 0 && toIdx >= 0)
-            {
-                vm.MoveWorkspaceTab(fromIdx, toIdx);
-                e.DragEffects = DragDropEffects.Move;
-                e.Handled = true;
-            }
-        }
-    }
-
-    private void Tab_ButtonClicked(object? sender, RoutedEventArgs e)
-    {
-        // 显式拦截 ✕ 关闭按钮点击，阻止事件冒泡到外层 tabItem 切换标签，并直接触发关闭
-        if (e.Source is Visual visual)
-        {
-            var btn = visual.FindAncestorOfType<Button>(includeSelf: true);
-            if (btn != null && btn.Classes.Contains("closeBtn"))
-            {
-                e.Handled = true;
-                if (DataContext is MainViewModel vm && btn.DataContext is ViewModelBase tab)
-                {
-                    _ = vm.CloseWorkspaceTabCommand.ExecuteAsync(tab);
-                }
-            }
-        }
-    }
-
-    private static ViewModelBase? FindTabViewModelFromVisual(Visual? visual)
-    {
-        while (visual != null)
-        {
-            if (visual.DataContext is ViewModelBase tab && tab is TerminalTabViewModel or NewTabViewModel)
-            {
-                return tab;
-            }
-            visual = visual.GetVisualParent();
-        }
-        return null;
-    }
-
     // 双击会话节点直接连接（与右键菜单"连接"行为一致）
     private void Tree_DoubleTapped(object? sender, TappedEventArgs e)
     {
@@ -745,33 +608,8 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>
-    /// Konsole 风格标签条上下切换：调整 Grid.Row 及 RowDefinition 高度，绝不重新实例化终端控件！
-    /// </summary>
+    // 每个 Dock 窗格组遵循同一个标签停靠设置。
     public void UpdateTabPlacement(Kei.Term.Core.Models.Profiles.TabPlacement placement)
-    {
-        if (TabsBarBorder == null || TerminalContainer == null || RightContentGrid == null) return;
-
-        if (placement == Kei.Term.Core.Models.Profiles.TabPlacement.Bottom)
-        {
-            // 终端占 Row 0 (*)，标签栏占 Row 1 (Auto)
-            RightContentGrid.RowDefinitions[0].Height = new GridLength(1, GridUnitType.Star);
-            RightContentGrid.RowDefinitions[1].Height = GridLength.Auto;
-
-            Grid.SetRow(TerminalContainer, 0);
-            Grid.SetRow(TabsBarBorder, 1);
-            TabsBarBorder.BorderThickness = new Thickness(0, 1, 0, 0);
-        }
-        else
-        {
-            // 标签栏占 Row 0 (Auto)，终端占 Row 1 (*)
-            RightContentGrid.RowDefinitions[0].Height = GridLength.Auto;
-            RightContentGrid.RowDefinitions[1].Height = new GridLength(1, GridUnitType.Star);
-
-            Grid.SetRow(TabsBarBorder, 0);
-            Grid.SetRow(TerminalContainer, 1);
-            TabsBarBorder.BorderThickness = new Thickness(0, 0, 0, 1);
-        }
-    }
+        => WorkspaceHost.ApplyPlacement(placement);
 
 }
