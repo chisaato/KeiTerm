@@ -151,6 +151,9 @@
   <data name="Main.Tab.ConnectErrorPrefix" xml:space="preserve">
     <value>[连接错误]: </value>
   </data>
+  <data name="Main.Tab.PressEnterToReconnect" xml:space="preserve">
+    <value>按 Enter 重新连接</value>
+  </data>
 
   <!-- Main Window - Toolbar Tips -->
   <data name="Toolbar.ConnectSelected" xml:space="preserve">
