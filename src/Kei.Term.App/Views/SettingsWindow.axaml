@@ -182,6 +182,24 @@
                                     <StackPanel Grid.Row="1" Spacing="12">
                                         <Border Classes="settingsSection first">
                                             <StackPanel Spacing="8">
+                                                <TextBlock Text="{loc:KeiString Settings.Appearance.LayoutModeSection}" FontSize="13" FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource Kei.Text.Primary}"/>
+                                                <TextBlock Text="{loc:KeiString Settings.Appearance.LayoutMode}" FontSize="12"
+                                                           Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                                <ComboBox HorizontalAlignment="Stretch" ItemsSource="{Binding LayoutModeOptions}" SelectedItem="{Binding SelectedLayoutMode}"
+                                                          ToolTip.Tip="{loc:KeiString Settings.Appearance.LayoutModeTip}">
+                                                    <ComboBox.ItemTemplate>
+                                                        <DataTemplate x:DataType="settings:LayoutModeOption">
+                                                            <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis"/>
+                                                        </DataTemplate>
+                                                    </ComboBox.ItemTemplate>
+                                                </ComboBox>
+                                                <TextBlock Text="{loc:KeiString Settings.Appearance.LayoutModeTip}" FontSize="12"
+                                                           Foreground="{DynamicResource Kei.Text.Muted}" TextWrapping="Wrap"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <Border Classes="settingsSection">
+                                            <StackPanel Spacing="8">
                                                 <TextBlock Text="{loc:KeiString Settings.Appearance.ThemeSection}" FontSize="13" FontWeight="SemiBold"
                                                            Foreground="{DynamicResource Kei.Text.Primary}"/>
                                                 <TextBlock Text="{loc:KeiString Settings.Appearance.ThemeMode}" FontSize="12"

@@ -1,12 +1,15 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Kei.Term.Infrastructure.Settings;
 
+using Kei.Term.Core.Models.Profiles;
 using Kei.Term.Core.Settings;
 
 public class JsonSettingsService : ISettingsService, INotifySettingsCommitted
 {
-    private static readonly JsonSerializerOptions WriteOptions = new() { WriteIndented = true };
+    // 只给布局模式加字段级容错。其它枚举仍按数字读写，避免旧配置被整表改写成字符串。
+    private static readonly JsonSerializerOptions SerializerOptions = CreateSerializerOptions();
 
     private readonly string _filePath;
     // 串行化并发保存，避免两次写入交错
@@ -40,7 +43,7 @@ public class JsonSettingsService : ISettingsService, INotifySettingsCommitted
         try
         {
             var json = await File.ReadAllTextAsync(_filePath, ct);
-            var loaded = JsonSerializer.Deserialize<AppSettings>(json);
+            var loaded = JsonSerializer.Deserialize<AppSettings>(json, SerializerOptions);
             _current = loaded ?? new AppSettings();
         }
         catch (JsonException)
@@ -135,7 +138,7 @@ public class JsonSettingsService : ISettingsService, INotifySettingsCommitted
 
         // 原子写入：先写同目录临时文件再整体替换，进程崩溃/断电不会留下半截 JSON
         var tempPath = _filePath + ".tmp";
-        var json = JsonSerializer.Serialize(_current, WriteOptions);
+        var json = JsonSerializer.Serialize(_current, SerializerOptions);
         await File.WriteAllTextAsync(tempPath, json, ct);
         File.Move(tempPath, _filePath, overwrite: true);
     }
@@ -154,6 +157,65 @@ public class JsonSettingsService : ISettingsService, INotifySettingsCommitted
         catch (UnauthorizedAccessException)
         {
             // 同上
+        }
+    }
+
+    private static JsonSerializerOptions CreateSerializerOptions()
+    {
+        JsonSerializerOptions options = new()
+        {
+            WriteIndented = true,
+        };
+        options.Converters.Add(new LayoutModeJsonConverter());
+        return options;
+    }
+
+    // 布局模式允许字符串或数字。缺失以外的非法值只回退该字段，不能让整份设置反序列化失败。
+    private sealed class LayoutModeJsonConverter : JsonConverter<LayoutMode>
+    {
+        public override bool HandleNull => true;
+
+        public override LayoutMode Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            if (reader.TokenType == JsonTokenType.String)
+            {
+                return ParseName(reader.GetString());
+            }
+
+            if (reader.TokenType == JsonTokenType.Number)
+            {
+                if (reader.TryGetInt64(out long number) && number == (long)LayoutMode.Modern)
+                {
+                    return LayoutMode.Modern;
+                }
+
+                return LayoutMode.Classic;
+            }
+
+            if (reader.TokenType == JsonTokenType.Null)
+            {
+                return LayoutMode.Classic;
+            }
+
+            // 布尔、对象等非预期 token 也要吃掉，否则后续字段会一起丢失。
+            using JsonDocument ignored = JsonDocument.ParseValue(ref reader);
+            return LayoutMode.Classic;
+        }
+
+        public override void Write(Utf8JsonWriter writer, LayoutMode value, JsonSerializerOptions options)
+        {
+            string name = value == LayoutMode.Modern ? "Modern" : "Classic";
+            writer.WriteStringValue(name);
+        }
+
+        private static LayoutMode ParseName(string? text)
+        {
+            if (string.Equals(text?.Trim(), nameof(LayoutMode.Modern), StringComparison.OrdinalIgnoreCase))
+            {
+                return LayoutMode.Modern;
+            }
+
+            return LayoutMode.Classic;
         }
     }
 }

@@ -63,6 +63,74 @@
             <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}"/>
             <Setter Property="MinHeight" Value="30"/>
         </Style>
+
+        <!-- Modern 专属工具条按钮：透明底、轻量悬停、disabled 保持透明无灰块、图标淡化 -->
+        <Style Selector="Button.modernToolBtn">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="{DynamicResource Kei.Radius.Control}"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Width" Value="28"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="MinWidth" Value="24"/>
+            <Setter Property="MinHeight" Value="24"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button.modernToolBtn:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}"/>
+        </Style>
+        <Style Selector="Button.modernToolBtn:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource Kei.Bg.Pressed}"/>
+        </Style>
+        <Style Selector="Button.modernToolBtn:disabled /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.modernToolBtn Path.kei-icon">
+            <Setter Property="Opacity" Value="0.9"/>
+            <Setter Property="Stroke" Value="{DynamicResource Kei.Text.Primary}"/>
+        </Style>
+        <Style Selector="Button.modernToolBtn:pointerover Path.kei-icon">
+            <Setter Property="Opacity" Value="1.0"/>
+            <Setter Property="Stroke" Value="{DynamicResource Kei.Text.Primary}"/>
+        </Style>
+        <Style Selector="Button.modernToolBtn:disabled Path.kei-icon">
+            <Setter Property="Stroke" Value="{DynamicResource Kei.Text.Muted}"/>
+            <Setter Property="Opacity" Value="0.35"/>
+        </Style>
+
+        <!-- Modern 侧栏树操作按钮：紧凑微型尺寸、透明底无灰块 -->
+        <Style Selector="Button.modernTreeBtn">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="3"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Width" Value="22"/>
+            <Setter Property="Height" Value="22"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button.modernTreeBtn:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}"/>
+        </Style>
+        <Style Selector="Button.modernTreeBtn:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource Kei.Bg.Pressed}"/>
+        </Style>
+        <Style Selector="Button.modernTreeBtn:disabled /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.modernTreeBtn Path.kei-icon">
+            <Setter Property="Opacity" Value="0.85"/>
+            <Setter Property="Stroke" Value="{DynamicResource Kei.Text.Secondary}"/>
+        </Style>
+        <Style Selector="Button.modernTreeBtn:pointerover Path.kei-icon">
+            <Setter Property="Opacity" Value="1.0"/>
+            <Setter Property="Stroke" Value="{DynamicResource Kei.Text.Primary}"/>
+        </Style>
+        <Style Selector="Button.modernTreeBtn:disabled Path.kei-icon">
+            <Setter Property="Stroke" Value="{DynamicResource Kei.Text.Muted}"/>
+            <Setter Property="Opacity" Value="0.3"/>
+        </Style>
     </Window.Styles>
 
     <!-- 菜单本体：macOS 导出至系统全局菜单栏，Windows/Linux 由上方 NativeMenuBar 就地渲染。
@@ -169,11 +237,11 @@
                macOS          -> 菜单导出至系统全局菜单栏，此处整条隐藏（不再占用窗口高度）
                Windows/Linux  -> 无原生菜单栏，此处就地渲染，保持与替换前一致
              行为依据 Avalonia 12 的 NativeMenuBar.SubscribeToToplevel。 -->
-        <NativeMenuBar Grid.Row="0"
+        <NativeMenuBar x:Name="ClassicMenuBar" Grid.Row="0"
                        Background="{DynamicResource Kei.Bg.PanelAlt}"/>
 
         <!-- Row1 全局工具栏：会话/应用操作组在左，状态消息居中，视图开关在右 -->
-        <Border Grid.Row="1"
+        <Border x:Name="ClassicToolbarBorder" Grid.Row="1"
                 Background="{DynamicResource Kei.Bg.PanelAlt}"
                 BorderBrush="{DynamicResource Kei.Border}"
                 BorderThickness="0,0,0,1"
@@ -287,20 +355,97 @@
         </Border>
 
         <!-- Row2 左右分栏：左连接管理器 / 中分割条 / 右内容区 -->
-        <Grid x:Name="MainSplitGrid" Grid.Row="2" ColumnDefinitions="260,4,*">
+        <Grid x:Name="MainSplitGrid" Grid.Row="2" ColumnDefinitions="Auto,260,4,*">
+
+            <!-- Col0: Modern 专属 Activity Rail（44px 紧凑侧栏导航轨道） -->
+            <Border x:Name="ModernActivityRail" Grid.Column="0"
+                    Width="{DynamicResource Kei.Rail.Width}"
+                    Background="{DynamicResource Kei.Bg.PanelAlt}"
+                    BorderBrush="{DynamicResource Kei.Border}"
+                    BorderThickness="0,0,1,0"
+                    IsVisible="False">
+                <Grid RowDefinitions="Auto,*,Auto" Margin="0,6">
+                    <!-- 顶部快捷操作入口：系统菜单、会话树折叠/固定开关、SFTP 侧栏 -->
+                    <StackPanel Grid.Row="0" Spacing="4" HorizontalAlignment="Center">
+                        <!-- 主菜单汉堡按钮（点击弹出现有 NativeMenu 导出的所有操作） -->
+                        <Button x:Name="ModernAppMenuButton" Classes="iconBtn"
+                                Width="{DynamicResource Kei.Rail.ButtonSize}" Height="{DynamicResource Kei.Rail.ButtonSize}"
+                                ToolTip.Tip="{loc:KeiString Menu.File}"
+                                Click="OnModernMenuButtonClick"
+                                AutomationProperties.Name="{loc:KeiString Menu.File}">
+                            <Viewbox Width="{DynamicResource Kei.Rail.IconSize}" Height="{DynamicResource Kei.Rail.IconSize}" Stretch="Uniform">
+                                <Grid Width="24" Height="24">
+                                    <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Menu}"/>
+                                </Grid>
+                            </Viewbox>
+                        </Button>
+
+                        <Separator Classes="toolSep" Height="1" Width="24" Margin="0,4"/>
+
+                        <!-- 会话树常驻展开/固定开关（样式联动 pinned 状态） -->
+                        <Button x:Name="ModernSessionsRailButton" Classes="iconBtn sessionManagerPin" Classes.pinned="{Binding IsSessionManagerPinned}"
+                                Width="{DynamicResource Kei.Rail.ButtonSize}" Height="{DynamicResource Kei.Rail.ButtonSize}"
+                                ToolTip.Tip="{Binding SessionManagerToggleToolTip}" Command="{Binding ToggleSessionManagerPinCommand}"
+                                AutomationProperties.Name="{loc:KeiString Menu.View.SessionManager}">
+                            <Viewbox Width="{DynamicResource Kei.Rail.IconSize}" Height="{DynamicResource Kei.Rail.IconSize}" Stretch="Uniform">
+                                <Grid Width="24" Height="24">
+                                    <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Terminal}"/>
+                                </Grid>
+                            </Viewbox>
+                        </Button>
+
+                        <!-- SFTP 文件管理侧栏开关 -->
+                        <Button x:Name="ModernFileManagerRailButton" Classes="iconBtn"
+                                Width="{DynamicResource Kei.Rail.ButtonSize}" Height="{DynamicResource Kei.Rail.ButtonSize}"
+                                ToolTip.Tip="{loc:KeiString Terminal.FileManager.Toggle}" Command="{Binding ToggleFileManagerCommand}"
+                                AutomationProperties.Name="{loc:KeiString Terminal.FileManager.Toggle}">
+                            <Viewbox Width="{DynamicResource Kei.Rail.IconSize}" Height="{DynamicResource Kei.Rail.IconSize}" Stretch="Uniform">
+                                <Grid Width="24" Height="24">
+                                    <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.FileManager}"/>
+                                </Grid>
+                            </Viewbox>
+                        </Button>
+                    </StackPanel>
+
+                    <!-- 底部辅助工具：凭据管理、全局设置 -->
+                    <StackPanel Grid.Row="2" Spacing="4" HorizontalAlignment="Center">
+                        <Button Classes="iconBtn"
+                                Width="{DynamicResource Kei.Rail.ButtonSize}" Height="{DynamicResource Kei.Rail.ButtonSize}"
+                                ToolTip.Tip="{loc:KeiString Toolbar.IdentityManager}" Command="{Binding OpenIdentityManagerCommand}"
+                                AutomationProperties.Name="{loc:KeiString Toolbar.IdentityManager}">
+                            <Viewbox Width="{DynamicResource Kei.Rail.IconSize}" Height="{DynamicResource Kei.Rail.IconSize}" Stretch="Uniform">
+                                <Grid Width="24" Height="24">
+                                    <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Key}" Width="24" Height="24" Stretch="None"/>
+                                </Grid>
+                            </Viewbox>
+                        </Button>
+
+                        <Button Classes="iconBtn"
+                                Width="{DynamicResource Kei.Rail.ButtonSize}" Height="{DynamicResource Kei.Rail.ButtonSize}"
+                                ToolTip.Tip="{loc:KeiString Toolbar.Settings}" Command="{Binding OpenSettingsCommand}"
+                                AutomationProperties.Name="{loc:KeiString Toolbar.Settings}">
+                            <Viewbox Width="{DynamicResource Kei.Rail.IconSize}" Height="{DynamicResource Kei.Rail.IconSize}" Stretch="Uniform">
+                                <Grid Width="24" Height="24">
+                                    <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Settings}" Width="24" Height="24" Stretch="None"/>
+                                </Grid>
+                            </Viewbox>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
 
             <!-- 左：连接管理器（树操作工具栏 → 过滤框 → 目录树/空态） -->
-            <Border x:Name="SessionManagerBorder" Grid.Column="0" Background="Transparent" ClipToBounds="True"
+            <Border x:Name="SessionManagerBorder" Grid.Column="1" Background="Transparent" ClipToBounds="True"
                     IsVisible="False" IsHitTestVisible="False">
                 <Border x:Name="SessionManagerSurface" Background="{DynamicResource Kei.Bg.Panel}"
                         BorderBrush="{DynamicResource Kei.Border}" BorderThickness="0,0,1,0">
                     <Border.RenderTransform>
                         <TranslateTransform/>
                     </Border.RenderTransform>
-                    <Grid RowDefinitions="Auto,Auto,*">
+                    <Grid RowDefinitions="Auto,Auto,Auto,*">
 
-                        <!-- Row0 面板头：专属于会话管理器的操作工具栏（新建会话/目录、剪切、复制、粘贴、折叠全部） -->
-                        <Border Grid.Row="0"
+                        <!-- Classic 模式面板头：专属于会话管理器的传统操作工具栏 -->
+                        <Border x:Name="ClassicSessionToolbar" Grid.Row="0"
                                 Background="{DynamicResource Kei.Bg.PanelAlt}"
                                 BorderBrush="{DynamicResource Kei.Border}"
                                 BorderThickness="0,0,0,1"
@@ -357,8 +502,67 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- Row1 过滤框：即时过滤；展开和固定操作统一放在顶部侧栏按钮。 -->
-                        <Grid Grid.Row="1" Margin="6,6,6,4">
+                        <!-- Modern 模式树操作头部：归位到侧栏顶部，左标题右紧凑操作，无全宽灰底，透明底无灰块 -->
+                        <Border x:Name="ModernSessionTreeHeader" Grid.Row="1"
+                                Padding="10,6,8,4"
+                                IsVisible="False">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Grid.Column="0"
+                                           Text="{loc:KeiString Menu.View.SessionManager}"
+                                           FontSize="12"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource Kei.Text.Muted}"
+                                           VerticalAlignment="Center"/>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2">
+                                    <Button Classes="modernTreeBtn" ToolTip.Tip="{loc:KeiString Toolbar.NewSession}" Command="{Binding CreateSessionCommand}">
+                                        <Viewbox Width="14" Height="14" Stretch="Uniform">
+                                            <Grid Width="24" Height="24">
+                                                <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.NewSession}" Width="24" Height="24" Stretch="None"/>
+                                            </Grid>
+                                        </Viewbox>
+                                    </Button>
+                                    <Button Classes="modernTreeBtn" ToolTip.Tip="{loc:KeiString Toolbar.NewFolder}" Command="{Binding CreateFolderCommand}">
+                                        <Viewbox Width="14" Height="14" Stretch="Uniform">
+                                            <Grid Width="24" Height="24">
+                                                <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.NewFolder}" Width="24" Height="24" Stretch="None"/>
+                                            </Grid>
+                                        </Viewbox>
+                                    </Button>
+                                    <Button Classes="modernTreeBtn" ToolTip.Tip="{loc:KeiString Toolbar.CollapseAll}" Command="{Binding CollapseAllCommand}">
+                                        <Viewbox Width="14" Height="14" Stretch="Uniform">
+                                            <Grid Width="24" Height="24">
+                                                <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.CollapseAll}" Width="24" Height="24" Stretch="None"/>
+                                            </Grid>
+                                        </Viewbox>
+                                    </Button>
+                                    <Separator Classes="toolSep" Width="1" Height="12" Margin="3,0"/>
+                                    <Button Classes="modernTreeBtn" ToolTip.Tip="{loc:KeiString Toolbar.Cut}" Command="{Binding CutNodeCommand}">
+                                        <Viewbox Width="14" Height="14" Stretch="Uniform">
+                                            <Grid Width="24" Height="24">
+                                                <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Cut}" Width="24" Height="24" Stretch="None"/>
+                                            </Grid>
+                                        </Viewbox>
+                                    </Button>
+                                    <Button Classes="modernTreeBtn" ToolTip.Tip="{loc:KeiString Toolbar.Copy}" Command="{Binding CopyNodeCommand}">
+                                        <Viewbox Width="14" Height="14" Stretch="Uniform">
+                                            <Grid Width="24" Height="24">
+                                                <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Copy}" Width="24" Height="24" Stretch="None"/>
+                                            </Grid>
+                                        </Viewbox>
+                                    </Button>
+                                    <Button Classes="modernTreeBtn" ToolTip.Tip="{loc:KeiString Toolbar.Paste}" Command="{Binding PasteNodeCommand}">
+                                        <Viewbox Width="14" Height="14" Stretch="Uniform">
+                                            <Grid Width="24" Height="24">
+                                                <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Paste}" Width="24" Height="24" Stretch="None"/>
+                                            </Grid>
+                                        </Viewbox>
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- Row2 过滤框：即时过滤；展开和固定操作统一放在顶部侧栏按钮。 -->
+                        <Grid Grid.Row="2" Margin="6,2,6,6">
                             <TextBox x:Name="SessionManagerFilter" Text="{Binding FilterText}"
                                      PlaceholderText="{loc:KeiString Main.Filter.Placeholder}"
                                      Background="{DynamicResource Kei.Bg.PanelAlt}"
@@ -369,8 +573,8 @@
                                      FontSize="12"/>
                         </Grid>
 
-                        <!-- Row2 目录树 + 空树引导态 -->
-                        <Grid Grid.Row="2">
+                        <!-- Row3 目录树 + 空树引导态 -->
+                        <Grid Grid.Row="3">
                             <TreeView x:Name="SessionTree"
                                       Classes="sessionTree"
                                       ItemsSource="{Binding TreeNodes}"
@@ -479,16 +683,121 @@
             </Border>
 
             <!-- 中：垂直分割条 -->
-            <GridSplitter x:Name="SessionManagerSplitter" Grid.Column="1"
+            <GridSplitter x:Name="SessionManagerSplitter" Grid.Column="2"
                           Background="{DynamicResource Kei.Bg.PanelAlt}"
                           ResizeDirection="Columns"
                           IsVisible="False" IsHitTestVisible="False"/>
 
             <!-- 右：Dock 工作区包含各组标签；底部保留共享撰写栏。 -->
-            <Grid x:Name="RightContentGrid" Grid.Column="2" RowDefinitions="*,Auto">
+            <Grid x:Name="RightContentGrid" Grid.Column="3" RowDefinitions="Auto,*,Auto">
+
+                <!-- Modern 模式顶部紧凑操作带（保留丰富快捷操作，可水平滚动避免窄窗口截断） -->
+                <Border x:Name="ModernToolbarBar" Grid.Row="0"
+                        Background="{DynamicResource Kei.Bg.PanelAlt}"
+                        BorderBrush="{DynamicResource Kei.Border}"
+                        BorderThickness="0,0,0,1"
+                        Padding="8,3"
+                        MinHeight="36"
+                        IsVisible="False">
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                            <!-- 核心连接与工作区快捷组：分组明确、留白自然 -->
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4">
+                                <!-- 连接入口组 -->
+                                <Button Classes="modernToolBtn"
+                                        Command="{Binding NewTabCommand}"
+                                        AutomationProperties.Name="{loc:KeiString Menu.File.NewTab}">
+                                    <ToolTip.Tip>
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Text="{loc:KeiString Menu.File.NewTab}"/>
+                                            <TextBlock Text="{Binding NewTabShortcutLabel}"/>
+                                        </StackPanel>
+                                    </ToolTip.Tip>
+                                    <Viewbox Width="16" Height="16" Stretch="Uniform">
+                                        <Grid Width="24" Height="24">
+                                            <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.NewSession}"/>
+                                        </Grid>
+                                    </Viewbox>
+                                </Button>
+
+                                <Button Classes="modernToolBtn"
+                                        ToolTip.Tip="{Binding QuickConnectToolTip}" Command="{Binding QuickConnectCommand}"
+                                        AutomationProperties.Name="{loc:KeiString Menu.File.QuickConnect}">
+                                    <Viewbox Width="16" Height="16" Stretch="Uniform">
+                                        <Grid Width="24" Height="24">
+                                            <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.QuickConnect}"/>
+                                        </Grid>
+                                    </Viewbox>
+                                </Button>
+
+                                <Separator Classes="toolSep" Margin="4,4,6,4"/>
+
+                                <!-- 标签会话控制组 -->
+                                <Button Classes="modernToolBtn"
+                                        ToolTip.Tip="{loc:KeiString Toolbar.ConnectSelected}" ToolTip.ShowOnDisabled="True"
+                                        Command="{Binding ConnectSelectedSessionCommand}"
+                                        AutomationProperties.Name="{loc:KeiString Toolbar.ConnectSelected}">
+                                    <Viewbox Width="16" Height="16" Stretch="Uniform">
+                                        <Grid Width="24" Height="24">
+                                            <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Connect}"/>
+                                        </Grid>
+                                    </Viewbox>
+                                </Button>
+
+                                <Button Classes="modernToolBtn"
+                                        ToolTip.Tip="{loc:KeiString Toolbar.DisconnectTab}" ToolTip.ShowOnDisabled="True"
+                                        Command="{Binding DisconnectCurrentTabCommand}"
+                                        AutomationProperties.Name="{loc:KeiString Toolbar.DisconnectTab}">
+                                    <Viewbox Width="16" Height="16" Stretch="Uniform">
+                                        <Grid Width="24" Height="24">
+                                            <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Disconnect}"/>
+                                        </Grid>
+                                    </Viewbox>
+                                </Button>
+
+                                <Separator Classes="toolSep" Margin="4,4,6,4"/>
+
+                                <!-- 全局辅助与命令面板 -->
+                                <Button Classes="modernToolBtn"
+                                        ToolTip.Tip="{Binding CommandPaletteToolTip}" Command="{Binding OpenCommandPaletteCommand}"
+                                        AutomationProperties.Name="{loc:KeiString Menu.Tools.CommandPalette}">
+                                    <Viewbox Width="16" Height="16" Stretch="Uniform">
+                                        <Grid Width="24" Height="24">
+                                            <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Search}" Width="24" Height="24" Stretch="None"/>
+                                        </Grid>
+                                    </Viewbox>
+                                </Button>
+                            </StackPanel>
+
+                            <!-- 居中暂态提示 -->
+                            <TextBlock Grid.Column="1"
+                                       Text="{Binding StatusMessage}"
+                                       FontSize="12"
+                                       Foreground="{DynamicResource Kei.Status.Connecting}"
+                                       IsVisible="{Binding StatusMessage, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       Margin="8,0"
+                                       TextTrimming="CharacterEllipsis"/>
+
+                            <!-- 右侧视图切换快捷组 -->
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
+                                <Button Classes="modernToolBtn"
+                                        ToolTip.Tip="{loc:KeiString Terminal.FileManager.Toggle}" Command="{Binding ToggleFileManagerCommand}"
+                                        AutomationProperties.Name="{loc:KeiString Terminal.FileManager.Toggle}">
+                                    <Viewbox Width="16" Height="16" Stretch="Uniform">
+                                        <Grid Width="24" Height="24">
+                                            <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.SidebarRight}"/>
+                                        </Grid>
+                                    </Viewbox>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+                    </ScrollViewer>
+                </Border>
 
                 <!-- 空工作区与新标签共用连接入口，操作成功后直接替换为终端。 -->
-                <Panel x:Name="TerminalContainer" Grid.Row="0">
+                <Panel x:Name="TerminalContainer" Grid.Row="1">
                     <Border IsVisible="{Binding !HasTabs}">
                         <views:NewTabView x:Name="WelcomeView" DataContext="{Binding WelcomePage}"/>
                     </Border>
@@ -496,7 +805,7 @@
                 </Panel>
 
                 <!-- 撰写栏：显示条件 = 撰写栏开关打开且有选中标签 -->
-                <Border Grid.Row="1"
+                <Border Grid.Row="2"
                         Background="{DynamicResource Kei.Bg.PanelAlt}"
                         BorderBrush="{DynamicResource Kei.Border}"
                         BorderThickness="0,1,0,0"

@@ -170,7 +170,7 @@ public partial class App : Application
                 () => mainVm.SnapshotSessionTree(),
                 proxySecrets: vault);
 
-            var mainWindow = new MainWindow
+            var mainWindow = new MainWindow(deferStartupLayout: true)
             {
                 DataContext = mainVm,
             };
@@ -196,6 +196,7 @@ public partial class App : Application
             // 明文模式恒解锁；加密模式等待首次用到材料时懒解锁（OS Keyring 为二期）
             await vault.TryAutoUnlockAsync();
             await settingsService.LoadSettingsAsync();
+            mainWindow.FinalizeStartupLayout();
             await profileManager.InitializeAsync();
 
             // 按设置应用主题变体："System" 跟随系统，其余（"Dark"）固定深色

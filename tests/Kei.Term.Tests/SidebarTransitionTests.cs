@@ -32,25 +32,35 @@ public class SidebarTransitionTests
             Border sidebar = window.FindControl<Border>("SessionManagerBorder")!;
             Border surface = window.FindControl<Border>("SessionManagerSurface")!;
             Grid split = window.FindControl<Grid>("MainSplitGrid")!;
+            GridSplitter splitter = window.FindControl<GridSplitter>("SessionManagerSplitter")!;
             Button outside = window.FindControl<Button>("FileManagerToggleButton")!;
             outside.Focus();
-            double width = split.ColumnDefinitions[0].Width.Value;
+            ColumnDefinition sidebarColumn = SessionColumn(split, sidebar);
+            ColumnDefinition splitterColumn = SessionColumn(split, splitter);
+            double width = sidebarColumn.Width.Value;
+            Assert.True(width > 1);
 
             model.IsSessionManagerVisible = false;
             Assert.True(sidebar.IsVisible);
             Assert.False(sidebar.IsHitTestVisible);
-            Assert.Equal(width, split.ColumnDefinitions[0].Width.Value);
+            Assert.Equal(width, sidebarColumn.Width.Value);
             Assert.Same(outside, window.FocusManager!.GetFocusedElement());
             await AdvanceAnimationAsync(240);
             Assert.False(sidebar.IsVisible);
-            Assert.Equal(0, split.ColumnDefinitions[0].Width.Value);
-            Assert.Equal(0, split.ColumnDefinitions[1].Width.Value);
+            Assert.Equal(0, sidebarColumn.Width.Value);
+            Assert.Equal(0, splitterColumn.Width.Value);
+            Assert.Equal(0, sidebarColumn.ActualWidth, 1);
+            Assert.Equal(0, splitterColumn.ActualWidth, 1);
+            Grid content = window.FindControl<Grid>("RightContentGrid")!;
+            Assert.Equal(split.Bounds.Width, content.Bounds.Width, 2);
 
             model.IsSessionManagerVisible = true;
             Assert.True(sidebar.IsVisible);
             Assert.True(sidebar.IsHitTestVisible);
             await AdvanceAnimationAsync(240);
-            Assert.Equal(width, split.ColumnDefinitions[0].Width.Value);
+            Assert.Equal(width, sidebarColumn.Width.Value);
+            Assert.Equal(width, sidebar.Bounds.Width, 2);
+            Assert.Equal(4, splitterColumn.Width.Value);
             Assert.Equal(1, surface.Opacity);
             Assert.Equal(0, Assert.IsType<TranslateTransform>(surface.RenderTransform).X);
             Assert.Same(outside, window.FocusManager.GetFocusedElement());
@@ -86,8 +96,16 @@ public class SidebarTransitionTests
             Assert.True(sidebar.IsVisible);
             Assert.True(sidebar.IsHitTestVisible);
             Assert.True(model.IsSessionManagerDocked);
-            Assert.True(split.ColumnDefinitions[0].Width.Value > 0);
-            Assert.Equal(4, split.ColumnDefinitions[1].Width.Value);
+            GridSplitter splitter = window.FindControl<GridSplitter>("SessionManagerSplitter")!;
+            ColumnDefinition sidebarColumn = SessionColumn(split, sidebar);
+            Assert.True(sidebarColumn.Width.Value > 1);
+            Assert.True(sidebar.Bounds.Width > 1);
+            ColumnDefinition splitterColumn = SessionColumn(split, splitter);
+            Assert.Equal(4, splitterColumn.Width.Value);
+            Assert.Equal(4, splitterColumn.ActualWidth, 1);
+            Grid content = window.FindControl<Grid>("RightContentGrid")!;
+            double railWidth = split.ColumnDefinitions[Grid.GetColumn(window.FindControl<Border>("ModernActivityRail")!)].ActualWidth;
+            Assert.Equal(split.Bounds.Width - railWidth - sidebarColumn.ActualWidth - splitterColumn.ActualWidth, content.Bounds.Width, 2);
         }
         finally { window.Close(); await model.DisposeAsync(); }
     });
@@ -195,6 +213,9 @@ public class SidebarTransitionTests
     });
 
     // 推进真实渲染时钟，验证中间画面与完成后的实际布局，不依赖内部动画实现。
+    private static ColumnDefinition SessionColumn(Grid split, Control child)
+        => split.ColumnDefinitions[Grid.GetColumn(child)];
+
     private static async Task AdvanceAnimationAsync(int milliseconds)
     {
         HeadlessAvalonia.Pump();

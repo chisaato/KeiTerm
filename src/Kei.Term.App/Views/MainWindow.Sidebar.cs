@@ -42,10 +42,18 @@ public partial class MainWindow
         AddHandler(KeyDownEvent, SessionManager_KeyDown, RoutingStrategies.Tunnel);
         SessionManagerToggleButton.PointerEntered += SessionManager_PointerEntered;
         SessionManagerToggleButton.PointerExited += SessionManager_PointerExited;
+        if (ModernSessionsRailButton != null)
+        {
+            ModernSessionsRailButton.PointerEntered += SessionManager_PointerEntered;
+            ModernSessionsRailButton.PointerExited += SessionManager_PointerExited;
+        }
         SessionManagerBorder.PointerEntered += SessionManager_PointerEntered;
         SessionManagerBorder.PointerExited += SessionManager_PointerExited;
         SessionManagerRevealZone.PointerEntered += SessionManager_PointerEntered;
         SessionManagerRevealZone.PointerExited += SessionManager_PointerExited;
+        // XAML 的跨列是旧三列网格。Rail 成为列 0 后，6px 热区会撑开已收起的会话列。改挂到工作区列，只覆盖左缘。
+        Grid.SetColumn(SessionManagerRevealZone, Grid.GetColumn(RightContentGrid));
+        Grid.SetColumnSpan(SessionManagerRevealZone, 1);
         PointerExited += SessionManager_PointerExited;
         _sessionManagerHoverTimer.Tick += SessionManager_HoverTimerTick;
         Closed += SessionManager_Closed;
@@ -54,7 +62,9 @@ public partial class MainWindow
     private void UpdateSessionManagerLayout(MainViewModel model)
     {
         if (_sessionManagerClosed || _sessionManagerTransition == null) return;
-        ColumnDefinition sidebarColumn = MainSplitGrid.ColumnDefinitions[0];
+        // 在带 Activity Rail 的布局下，连接管理器位于 Column 1，分割条位于 Column 2
+        int sidebarColIndex = 1;
+        ColumnDefinition sidebarColumn = MainSplitGrid.ColumnDefinitions[sidebarColIndex];
         if (sidebarColumn.Width.IsAbsolute && sidebarColumn.Width.Value > 1)
             _lastSidebarWidth = sidebarColumn.Width.Value;
 
@@ -116,8 +126,8 @@ public partial class MainWindow
 
     private void ApplySessionManagerPlacement(bool docked)
     {
-        MainSplitGrid.ColumnDefinitions[0].Width = new GridLength(docked ? _lastSidebarWidth : 0);
-        MainSplitGrid.ColumnDefinitions[1].Width = new GridLength(docked ? 4 : 0);
+        MainSplitGrid.ColumnDefinitions[1].Width = new GridLength(docked ? _lastSidebarWidth : 0);
+        MainSplitGrid.ColumnDefinitions[2].Width = new GridLength(docked ? 4 : 0);
         Grid.SetColumnSpan(SessionManagerBorder, docked ? 1 : 3);
         SessionManagerBorder.HorizontalAlignment = docked ? HorizontalAlignment.Stretch : HorizontalAlignment.Left;
         SessionManagerBorder.Width = docked ? double.NaN : _lastSidebarWidth;
@@ -134,6 +144,7 @@ public partial class MainWindow
     }
 
     private bool IsPointerInSessionManager() => SessionManagerToggleButton.IsPointerOver
+        || (ModernSessionsRailButton?.IsPointerOver ?? false)
         || SessionManagerBorder.IsPointerOver
         || SessionManagerRevealZone.IsPointerOver;
 
@@ -146,13 +157,18 @@ public partial class MainWindow
             .Any(control => control.ContextMenu is { IsOpen: true });
     }
 
+    private bool IsSessionManagerHoverOpenSource(object? sender)
+        => ReferenceEquals(sender, SessionManagerToggleButton)
+        || ReferenceEquals(sender, SessionManagerRevealZone)
+        || ReferenceEquals(sender, ModernSessionsRailButton);
+
     private void SessionManager_PointerEntered(object? sender, PointerEventArgs args)
     {
         _sessionManagerPointer = args.Pointer;
         _sessionManagerHoverTimer.Stop();
         if (_sessionManagerClosed || DataContext is not MainViewModel { IsSessionManagerPinned: false } model
             || OwnedWindows.Any(window => window.IsVisible)) return;
-        if (ReferenceEquals(sender, SessionManagerToggleButton) || ReferenceEquals(sender, SessionManagerRevealZone))
+        if (IsSessionManagerHoverOpenSource(sender))
             model.ShowFloatingSessionManager();
     }
 
@@ -213,6 +229,7 @@ public partial class MainWindow
         if (DataContext is not MainViewModel { IsSessionManagerVisible: true, IsSessionManagerPinned: false } model
             || args.Source is not Visual source || IsUnder(SessionManagerBorder, source)
             || IsUnder(SessionManagerToggleButton, source) || IsUnder(SessionManagerRevealZone, source)
+            || (ModernSessionsRailButton != null && IsUnder(ModernSessionsRailButton, source))
             || IsSessionManagerInteractionActive(model)) return;
         // 不吞掉点击，终端和工具栏继续响应同一次操作。
         model.DismissFloatingSessionManager();
@@ -240,6 +257,11 @@ public partial class MainWindow
         SessionManagerBorder.PointerExited -= SessionManager_PointerExited;
         SessionManagerRevealZone.PointerEntered -= SessionManager_PointerEntered;
         SessionManagerRevealZone.PointerExited -= SessionManager_PointerExited;
+        if (ModernSessionsRailButton != null)
+        {
+            ModernSessionsRailButton.PointerEntered -= SessionManager_PointerEntered;
+            ModernSessionsRailButton.PointerExited -= SessionManager_PointerExited;
+        }
         PointerExited -= SessionManager_PointerExited;
         RemoveHandler(PointerPressedEvent, SessionManager_PointerPressed);
         RemoveHandler(PointerMovedEvent, SessionManager_PointerMoved);

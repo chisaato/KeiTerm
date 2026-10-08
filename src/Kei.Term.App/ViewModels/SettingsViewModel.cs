@@ -191,6 +191,7 @@ public partial class SettingsViewModel : ViewModelBase
         };
 
         _appearance.SetTheme(current.UiTheme);
+        _appearance.SetLayoutMode(current.LayoutMode);
         _appearance.SetControlLibrary(current.ControlLibraryTheme);
         _appearance.SetTreeDensity(
             current.TreeDensityPreset,
@@ -307,6 +308,8 @@ public partial class SettingsViewModel : ViewModelBase
 
         settings.CursorBlink = _appearance.CursorBlink;
         settings.TabPlacement = _appearance.SelectedTabPlacement?.Key ?? "Top";
+        // 只提交草稿中的布局模式。当前窗口有效模式由启动期锁定，保存不重组外壳。
+        settings.LayoutMode = _appearance.SelectedLayoutMode?.Mode ?? LayoutMode.Classic;
         settings.ActiveGuiProfileId = _appearance.SelectedGuiProfile?.Id;
         settings.ActiveTerminalProfileId = _appearance.SelectedTerminalProfile?.Id;
 

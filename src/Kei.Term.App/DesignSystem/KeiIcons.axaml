@@ -5,6 +5,9 @@
     <!-- 自动生成：python3 third-party/lucide/generate.py。请修改 manifest 或 SVG 后重新生成。 -->
     <!-- 中心描边几何：24×24 视口、2px 线宽、Round 线帽/连接、Fill=null。 -->
 
+    <!-- lucide:menu -->
+    <StreamGeometry x:Key="Kei.Icon.Menu">M4 12h16M4 6h16M4 18h16</StreamGeometry>
+
     <!-- lucide:zap -->
     <StreamGeometry x:Key="Kei.Icon.QuickConnect">M15.914 4a1.5 1.5 0 0 0-2.474-1.561l-9 9A1.5 1.5 0 0 0 5.5 14h4.002a.5.5 0 0 1 .471.666L8.086 20a1.5 1.5 0 0 0 2.475 1.56l9-9A1.5 1.5 0 0 0 18.5 10h-3.997a.5.5 0 0 1-.472-.667z</StreamGeometry>
 

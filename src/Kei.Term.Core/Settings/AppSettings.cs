@@ -1,6 +1,7 @@
 namespace Kei.Term.Core.Settings;
 
 using Kei.Term.Core.Models;
+using Kei.Term.Core.Models.Profiles;
 using Kei.Term.Core.Security;
 
 public enum PanelVisibilityMode
@@ -45,6 +46,9 @@ public class AppSettings
 
     // UI 主题，取值 "Dark" | "System"
     public string UiTheme { get; set; } = "Dark";
+
+    // 桌面布局外壳。保存后下次启动才生效；当前窗口的有效模式由启动期锁定，不在此处热切换。
+    public LayoutMode LayoutMode { get; set; } = LayoutMode.Classic;
 
     // 控件库主题："KeiClassic" | "Semi" | "Material"（Semi/Material 为覆盖式第三方控件主题）
     public string ControlLibraryTheme { get; set; } = "KeiClassic";

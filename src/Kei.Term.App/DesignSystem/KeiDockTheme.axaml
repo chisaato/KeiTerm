@@ -1,6 +1,6 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:dm="using:Dock.Model.Core"
+        xmlns:dm="using:Dock.Model.Controls"
         xmlns:dc="using:Dock.Avalonia.Controls"
         xmlns:vm="using:Kei.Term.App.ViewModels"
         xmlns:ws="using:Kei.Term.App.Workspaces"
@@ -57,36 +57,102 @@
         <Setter Property="Focusable" Value="False" />
         <Setter Property="FontFamily" Value="{DynamicResource Kei.Font.UI}" />
         <Setter Property="FontSize" Value="12" />
-        <Setter Property="MinHeight" Value="28" />
-        <Setter Property="Height" Value="28" />
+        <Setter Property="MinHeight" Value="{DynamicResource Kei.Tab.Height}" />
+        <Setter Property="Height" Value="{DynamicResource Kei.Tab.Height}" />
         <Setter Property="Padding" Value="6,2" />
         <Setter Property="Margin" Value="0,0,2,0" />
         <!-- 业务菜单来自 typed header，由工作区将其转接至整片标签。 -->
         <Setter Property="DocumentContextMenu" Value="{x:Null}" />
     </Style>
 
+    <!-- 标签关闭按钮：移除复古凸起边框与实体背景，提供 24×24px 充裕易点热区与微圆角悬停底色 -->
     <Style Selector="dc|DocumentTabStripItem Button">
-        <Setter Property="Width" Value="24" />
-        <Setter Property="Height" Value="24" />
-        <Setter Property="MinWidth" Value="24" />
-        <Setter Property="MinHeight" Value="24" />
+        <Setter Property="Width" Value="{DynamicResource Kei.Tab.CloseHitSize}" />
+        <Setter Property="Height" Value="{DynamicResource Kei.Tab.CloseHitSize}" />
+        <Setter Property="MinWidth" Value="{DynamicResource Kei.Tab.CloseHitSize}" />
+        <Setter Property="MinHeight" Value="{DynamicResource Kei.Tab.CloseHitSize}" />
         <Setter Property="Padding" Value="0" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="{DynamicResource Kei.Tab.CloseRadius}" />
         <Setter Property="HorizontalContentAlignment" Value="Center" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="AutomationProperties.Name" Value="{loc:KeiString Main.Tab.Menu.Close}" />
+        <Setter Property="ToolTip.Tip" Value="{loc:KeiString Main.Tab.CloseTip}" />
     </Style>
 
-    <!-- Dock 12.1.0.6 的关闭模板是 Button 内容中的 PART_ClosePath，不能用 Button /template/ Path 命中。 -->
-    <Style Selector="dc|DocumentTabStripItem /template/ ContentPresenter#PART_ClosePresenter Path#PART_ClosePath, dc|DocumentTabStripItem /template/ ContentPresenter#PART_CompactClosePresenter Path#PART_ClosePath">
-        <Setter Property="Width" Value="12" />
-        <Setter Property="Height" Value="12" />
-        <Setter Property="Margin" Value="0" />
-        <Setter Property="HorizontalAlignment" Value="Center" />
-        <Setter Property="VerticalAlignment" Value="Center" />
+    <Style Selector="dc|DocumentTabStripItem Button:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}" />
+    </Style>
+    <Style Selector="dc|DocumentTabStripItem Button:pressed /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Pressed}" />
+    </Style>
+    <Style Selector="dc|DocumentTabStripItem Button:focus-visible /template/ ContentPresenter">
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Border.Focus}" />
+        <Setter Property="BorderThickness" Value="1" />
     </Style>
 
     <!-- 内容表面不画整圈边框；标签栏与分屏分割条继续提供层级边界。 -->
     <Style Selector="dc|DocumentControl /template/ Border#PART_Border">
         <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <!-- 覆盖 DocumentControl 的 CloseTemplate，彻底使用自己的 Path 与 Lucide 图标，避免上游 Path.Styles 遮蔽 -->
+    <Style Selector="dc|DocumentControl">
+        <Setter Property="CloseTemplate">
+            <DataTemplate>
+                <Button Classes="tabCloseBtn"
+                        Command="{Binding $parent[dc:DocumentControl].((dm:IDocumentDock)DataContext).Factory.CloseDockable}"
+                        CommandParameter="{Binding}"
+                        Width="{DynamicResource Kei.Tab.CloseHitSize}"
+                        Height="{DynamicResource Kei.Tab.CloseHitSize}"
+                        MinWidth="{DynamicResource Kei.Tab.CloseHitSize}"
+                        MinHeight="{DynamicResource Kei.Tab.CloseHitSize}"
+                        Padding="0"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        CornerRadius="{DynamicResource Kei.Tab.CloseRadius}"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        AutomationProperties.Name="{loc:KeiString Main.Tab.Menu.Close}"
+                        ToolTip.Tip="{loc:KeiString Main.Tab.CloseTip}">
+                    <Viewbox Width="{DynamicResource Kei.Tab.CloseIconSize}" Height="{DynamicResource Kei.Tab.CloseIconSize}" Stretch="Uniform">
+                        <Grid Width="24" Height="24">
+                            <Path Classes="kei-icon closePathIcon"
+                                  Name="PART_ClosePath"
+                                  Width="24"
+                                  Height="24"
+                                  Stretch="None"
+                                  Data="{StaticResource Kei.Icon.Close}"
+                                  StrokeThickness="2"
+                                  StrokeLineCap="Round"
+                                  StrokeJoin="Round" />
+                        </Grid>
+                    </Viewbox>
+                </Button>
+            </DataTemplate>
+        </Setter>
+    </Style>
+
+    <!-- 标签关闭按钮交互状态 -->
+    <Style Selector="Button.tabCloseBtn Path.closePathIcon">
+        <Setter Property="Stroke" Value="{DynamicResource Kei.Text.Muted}" />
+    </Style>
+    <Style Selector="Button.tabCloseBtn:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}" />
+    </Style>
+    <Style Selector="Button.tabCloseBtn:pressed /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Pressed}" />
+    </Style>
+    <Style Selector="Button.tabCloseBtn:focus-visible /template/ ContentPresenter">
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Border.Focus}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="Button.tabCloseBtn:pointerover Path.closePathIcon">
+        <Setter Property="Stroke" Value="{DynamicResource Kei.Text.Primary}" />
+    </Style>
+    <Style Selector="Button.tabCloseBtn:pressed Path.closePathIcon">
+        <Setter Property="Stroke" Value="{DynamicResource Kei.Status.Error}" />
     </Style>
 
     <!-- 混合工作区的标题按 VM 分发，保留连接状态与原有业务菜单。 -->
@@ -113,10 +179,10 @@
                                     </ContextMenu>
                                 </Grid.ContextMenu>
                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <Border Width="3" Height="16" CornerRadius="1" VerticalAlignment="Center"
+                                    <Border Width="3" Height="14" CornerRadius="1" VerticalAlignment="Center"
                                             Background="{Binding State, Converter={StaticResource ConnectionStateBrush}}"/>
                                     <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontSize="12"
-                                               MaxWidth="220" TextTrimming="CharacterEllipsis"/>
+                                               MaxWidth="200" TextTrimming="CharacterEllipsis"/>
                                     <Ellipse Width="6" Height="6" VerticalAlignment="Center" Fill="{DynamicResource Kei.Accent}"
                                              IsVisible="{Binding HasActivity}"/>
                                 </StackPanel>
@@ -136,7 +202,7 @@
                                         </Grid>
                                     </Viewbox>
                                     <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontSize="12"
-                                               MaxWidth="220" TextTrimming="CharacterEllipsis"/>
+                                               MaxWidth="200" TextTrimming="CharacterEllipsis"/>
                                 </StackPanel>
                             </Grid>
                         </DataTemplate>
@@ -156,7 +222,7 @@
                                         </Grid>
                                     </Viewbox>
                                     <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontSize="12"
-                                               MaxWidth="220" TextTrimming="CharacterEllipsis"/>
+                                               MaxWidth="200" TextTrimming="CharacterEllipsis"/>
                                 </StackPanel>
                             </Grid>
                         </DataTemplate>

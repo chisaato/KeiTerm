@@ -310,7 +310,7 @@
 
   <!-- About Dialog & Quit Confirmation -->
   <data name="About.Title" xml:space="preserve">
-    <value>关于 Kei.Term</value>
+    <value>关于 Kei.Term (凯伊铛铛)</value>
   </data>
   <data name="About.AppName" xml:space="preserve">
     <value>Kei.Term</value>
@@ -503,6 +503,21 @@
   </data>
 
   <!-- Settings: Appearance -->
+  <data name="Settings.Appearance.LayoutModeSection" xml:space="preserve">
+    <value>界面模式</value>
+  </data>
+  <data name="Settings.Appearance.LayoutMode" xml:space="preserve">
+    <value>布局模式:</value>
+  </data>
+  <data name="Settings.Appearance.LayoutModeTip" xml:space="preserve">
+    <value>布局模式将在下次启动时生效</value>
+  </data>
+  <data name="Settings.Appearance.LayoutModeClassic" xml:space="preserve">
+    <value>经典 (Classic)</value>
+  </data>
+  <data name="Settings.Appearance.LayoutModeModern" xml:space="preserve">
+    <value>现代 (Modern)</value>
+  </data>
   <data name="Settings.Appearance.ThemeSection" xml:space="preserve">
     <value>界面主题</value>
   </data>

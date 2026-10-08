@@ -69,10 +69,14 @@ public class SessionManagerSidebarTests
             Grid split = window.FindControl<Grid>("MainSplitGrid")!;
             Grid content = window.FindControl<Grid>("RightContentGrid")!;
             Border sidebar = window.FindControl<Border>("SessionManagerBorder")!;
+            GridSplitter splitter = window.FindControl<GridSplitter>("SessionManagerSplitter")!;
             TreeView tree = window.FindControl<TreeView>("SessionTree")!;
-            split.ColumnDefinitions[0].Width = new GridLength(340);
+            // 列 0 是 Activity Rail。会话宽度必须写到会话边框所在列，不能把 340 加到 Rail 上。
+            ColumnDefinition sidebarColumn = split.ColumnDefinitions[Grid.GetColumn(sidebar)];
+            sidebarColumn.Width = new GridLength(340);
             HeadlessAvalonia.Pump();
             double dockedWidth = content.Bounds.Width;
+            Assert.Equal(340, sidebar.Bounds.Width, 2);
             Button toggle = window.FindControl<Button>("SessionManagerToggleButton")!;
             Button outside = window.FindControl<Button>("FileManagerToggleButton")!;
             Click(window, toggle);
@@ -82,7 +86,11 @@ public class SessionManagerSidebarTests
             Move(window, outside);
             await WaitForHoverHideAsync();
             Assert.False(sidebar.IsVisible);
-            Assert.Equal(0, split.ColumnDefinitions[1].Width.Value);
+            Assert.Equal(0, sidebarColumn.Width.Value);
+            Assert.Equal(0, split.ColumnDefinitions[Grid.GetColumn(splitter)].Width.Value);
+            Assert.Equal(0, window.FindControl<Border>("ModernActivityRail")!.Bounds.Width, 1);
+            Assert.Equal(0, sidebarColumn.ActualWidth, 1);
+            Assert.Equal(0, split.ColumnDefinitions[Grid.GetColumn(splitter)].ActualWidth, 1);
             Assert.Equal(split.Bounds.Width, content.Bounds.Width, 2);
 
             outside.Focus();

@@ -15,6 +15,7 @@ namespace Kei.Term.App.ViewModels.Settings;
 
 public record TreeDensityPresetOption(string Key, string Label);
 public record TabPlacementOption(string Key, string Label, Kei.Term.Core.Models.Profiles.TabPlacement Placement);
+public record LayoutModeOption(string Key, string Label, LayoutMode Mode);
 
 // 「外观」分类页：界面主题、会话树显示密度与终端字体
 public partial class AppearanceSettingsPage : ViewModelBase
@@ -43,6 +44,14 @@ public partial class AppearanceSettingsPage : ViewModelBase
             new TabPlacementOption("Bottom", Strings.Get("Settings.Appearance.TabPlacementBottom"), Kei.Term.Core.Models.Profiles.TabPlacement.Bottom),
         };
         _selectedTabPlacement = TabPlacementOptions[0];
+
+        // 布局模式只进入草稿。保存按钮才写入配置，选择本身不重组当前窗口。
+        LayoutModeOptions =
+        [
+            new LayoutModeOption("Classic", Strings.Get("Settings.Appearance.LayoutModeClassic"), LayoutMode.Classic),
+            new LayoutModeOption("Modern", Strings.Get("Settings.Appearance.LayoutModeModern"), LayoutMode.Modern),
+        ];
+        _selectedLayoutMode = LayoutModeOptions[0];
 
         // 扫描加载系统字体
         AvailableFonts = SystemFontScanner.GetInstalledFonts();
@@ -104,6 +113,19 @@ public partial class AppearanceSettingsPage : ViewModelBase
         }
         SelectedTerminalProfile = TerminalProfiles.FirstOrDefault(p => string.Equals(p.Id, activeTermId, StringComparison.OrdinalIgnoreCase))
             ?? TerminalProfiles.FirstOrDefault();
+    }
+
+    // 布局模式候选项。Key 与持久化字符串一致，Label 供下拉显示。
+    public IReadOnlyList<LayoutModeOption> LayoutModeOptions { get; }
+
+    [ObservableProperty]
+    private LayoutModeOption _selectedLayoutMode;
+
+    // 按已提交值恢复草稿。未知值回退 Classic，不触发保存或界面重组。
+    public void SetLayoutMode(LayoutMode mode)
+    {
+        SelectedLayoutMode = LayoutModeOptions.FirstOrDefault(option => option.Mode == mode)
+            ?? LayoutModeOptions[0];
     }
 
     // 标签栏停靠位置选项

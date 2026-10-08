@@ -36,8 +36,13 @@ public partial class MainWindow : Window
     private PointerPressedEventArgs? _dragPressedArgs;
     private Point _dragStart;
 
-    public MainWindow()
+    public MainWindow() : this(deferStartupLayout: false)
     {
+    }
+
+    public MainWindow(bool deferStartupLayout)
+    {
+        _deferStartupLayout = deferStartupLayout;
         InitializeComponent();
 
         SetUpPlatformKeyBindings();
@@ -85,10 +90,12 @@ public partial class MainWindow : Window
             if (item.Header == exitHeader)
             {
                 item.Click += OnExitMenuClick;
+                _nativeClickRoutes[item] = OnExitMenuClick;
             }
             else if (item.Header == aboutHeader)
             {
                 item.Click += OnAboutClick;
+                _nativeClickRoutes[item] = OnAboutClick;
             }
         }
     }
@@ -537,16 +544,29 @@ public partial class MainWindow : Window
 
     // 文件菜单与 macOS 原生退出快捷键共享同一确认流程。
     // NativeMenuItem.Click 是 EventHandler（EventArgs），签名必须与之一致才能直接订阅
+    private readonly Dictionary<NativeMenuItem, EventHandler> _nativeClickRoutes = new();
+
+    internal bool HasAdaptedClickRoute(NativeMenuItem source) => _nativeClickRoutes.ContainsKey(source);
+
+    // NativeMenuItem.Click 不能从外部安全触发，适配菜单改走这里登记的同一处理函数。
+    internal void RouteAdaptedNativeClick(NativeMenuItem source)
+    {
+        if (_nativeClickRoutes.TryGetValue(source, out EventHandler? handler))
+        {
+            handler(source, EventArgs.Empty);
+        }
+    }
+
     private void OnExitMenuClick(object? sender, EventArgs e)
     {
         if (OperatingSystem.IsMacOS() && Application.Current is App app)
         {
             _ = Safe.RunAsync(_logger ?? NullLogger.Instance, "请求退出应用", app.RequestQuitAsync);
+            return;
         }
-        else if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-        {
-            desktop.MainWindow?.Close();
-        }
+
+        // 关闭本窗口，由 OnClosing 进入退出确认。不直接 Shutdown。
+        Close();
     }
 
     private void OnWindowPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
@@ -566,6 +586,7 @@ public partial class MainWindow : Window
             newVm.PropertyChanged += OnMainViewModelPropertyChanged;
             UpdateSessionManagerLayout(newVm);
             UpdateTabPlacement(newVm.TabPlacement);
+            InitializeLayoutMode(newVm);
             // 菜单手势依赖 VM 的 Command 实例，必须在 DataContext 就绪后装配
             ApplyMenuShortcuts(newVm);
             if (newVm.SelectedTab != null)
