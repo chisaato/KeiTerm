@@ -151,6 +151,9 @@
   <data name="Main.Tab.ConnectErrorPrefix" xml:space="preserve">
     <value>[连接错误]: </value>
   </data>
+  <data name="Main.Tab.PressEnterToReconnect" xml:space="preserve">
+    <value>按 Enter 重新连接</value>
+  </data>
 
   <!-- Main Window - Toolbar Tips -->
   <data name="Toolbar.ConnectSelected" xml:space="preserve">
@@ -343,6 +346,9 @@
   </data>
   <data name="Status.Auth.Failed" xml:space="preserve">
     <value>认证失败</value>
+  </data>
+  <data name="Status.Auth.ConfiguredMethodsUnavailable" xml:space="preserve">
+    <value>已配置的认证方法不可用。请检查身份中的密钥或凭据后重试。</value>
   </data>
   <data name="Status.Vault.UnlockPrompt" xml:space="preserve">
     <value>请输入主密码以解锁保管库</value>
@@ -1951,6 +1957,12 @@ Latin: AaBb CcDd GgYy gypq
   </data>
   <data name="FileManager.CloseSidebar" xml:space="preserve">
     <value>关闭侧栏</value>
+  </data>
+  <data name="FileManager.CopyRemotePath" xml:space="preserve">
+    <value>复制远程路径</value>
+  </data>
+  <data name="FileManager.CopyRemotePathFailed" xml:space="preserve">
+    <value>复制远程路径失败：{0}</value>
   </data>
   <data name="FileManager.Tab.Title" xml:space="preserve">
     <value>{0} · 文件管理</value>

@@ -8,12 +8,15 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
+using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using Dock.Avalonia.Controls;
 using Dock.Model.Controls;
 using Dock.Model.Core;
 using CommunityToolkit.Mvvm.Input;
 using Kei.Term.App.Services;
+using Kei.Term.App.Services.ContextMenus;
 using Kei.Term.App.Helpers;
 using Kei.Term.App.ViewModels;
 using Kei.Term.App.Views;
@@ -30,6 +33,52 @@ namespace Kei.Term.Tests;
 
 public class FileManagerWorkspaceTests
 {
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public Task CopyRemotePath_MenuCopiesFileAndDirectoryPaths(bool nativeInvocation, bool multiple)
+        => HeadlessAvalonia.RunAsync(async () =>
+    {
+        await using Host host = await Host.CreateAsync();
+        RemoteFileManagerView view = VisibleFiles(host);
+        RemoteFileItem file = new("日志 file.txt", "/var/log/日志 file.txt", false, 42, DateTimeOffset.UtcNow, "-rw-------");
+        RemoteFileItem directory = new("备份", "/var/log/备份", true, 0, DateTimeOffset.UtcNow, "drwx------");
+        host.Files.Items.Clear();
+        host.Files.Items.Add(file);
+        host.Files.Items.Add(directory);
+        host.Files.SelectedItem = multiple ? file : directory;
+        HeadlessAvalonia.Pump();
+        ListBox list = view.FindControl<ListBox>("FileListBox")!;
+        if (multiple) list.SelectedItems!.Add(directory);
+        ContextMenu menu = list.ContextMenu!;
+        try
+        {
+            menu.Open(list);
+            HeadlessAvalonia.Pump();
+            if (nativeInvocation)
+            {
+                ContextMenuSnapshot snapshot = ContextMenuSnapshot.Create(menu)!;
+                NativeContextMenuEntry entry = snapshot.Entries.Single(entry => entry.Label == Strings.Get("FileManager.CopyRemotePath"));
+                menu.Close();
+                snapshot.Invoke(entry.Id);
+            }
+            else
+            {
+                MenuItem copy = menu.Items.OfType<MenuItem>()
+                    .Single(item => Equals(item.Header, Strings.Get("FileManager.CopyRemotePath")));
+                copy.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+            }
+            HeadlessAvalonia.Pump();
+
+            Assert.Equal(multiple ? file.FullPath + "\n" + directory.FullPath : directory.FullPath,
+                await host.Window.Clipboard!.TryGetTextAsync());
+            Assert.Equal(0, host.Session.SendCount);
+        }
+        finally { menu.Close(); }
+    });
+
     [Fact]
     public Task ToolbarButton_CreatesAndSelectsAFileDocument_WithTheExistingManager() => HeadlessAvalonia.RunAsync(async () =>
     {

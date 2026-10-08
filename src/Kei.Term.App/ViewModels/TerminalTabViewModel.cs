@@ -62,6 +62,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
     partial void OnStateChanged(ConnectionState value)
     {
         OnPropertyChanged(nameof(Status));
+        AlignGridToBottom();
     }
 #pragma warning restore CS0618
 
@@ -89,6 +90,9 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
     private bool _userDisconnect;
 
     public bool RequiresInteractiveAuthentication { get; internal set; }
+
+    // 认证弹窗打开期间状态仍可能是 Error，防止连续回车并发发起重连。
+    internal bool IsReconnectPending { get; set; }
 
     // 意外断开时由主窗口接上。开关关闭时保持原有「干净断开即关标签」行为。
     public Func<bool>? AutoReconnectEnabled { get; set; }
@@ -225,7 +229,12 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
     {
         State = ConnectionState.Error;
         StatusMessage = message;
-        Terminal.WriteOutput(Encoding.UTF8.GetBytes($"\r\n\x1b[31m{Strings.Get("Main.Tab.ConnectErrorPrefix")}{message}\x1b[0m\r\n"));
+        // 尚无远端内容时错误页从第一行开始；已有会话历史则继续追加，避免覆盖用户输出。
+        string position = _hasRemoteOutput ? "\r\n" : "\x1b[2J\x1b[H";
+        Terminal.WriteOutput(Encoding.UTF8.GetBytes(
+            $"{position}\x1b[31m{Strings.Get("Main.Tab.ConnectErrorPrefix")}{message}\x1b[0m\r\n"
+            + $"\x1b[90m{Strings.Get("Main.Tab.PressEnterToReconnect")}\x1b[0m\r\n"));
+        if (IsSelected) Terminal.Focus();
         _logger.LogWarning("终端标签连接失败 标题={Title} 原因={Reason}", Title, message);
     }
 
@@ -358,6 +367,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         // 控件可能从未创建（纯状态使用），仅在创建后解绑
         if (_terminal != null)
         {
+            _terminal.RemoveHandler(Avalonia.Input.InputElement.KeyDownEvent, OnTerminalKeyDown);
             _terminal.Loaded -= OnTerminalLoaded;
             _terminal.SizeChanged -= OnTerminalSizeChanged;
             _terminal.TerminalResized -= OnTerminalGridResized;

@@ -8,14 +8,6 @@ namespace Kei.Term.Tests;
 
 public class SystemFontScannerTests
 {
-    [Fact]
-    public void GetInstalledFonts_ReturnsNonEmptyList()
-    {
-        var fonts = SystemFontScanner.GetInstalledFonts();
-        Assert.NotNull(fonts);
-        Assert.NotEmpty(fonts);
-    }
-
     [Theory]
     [InlineData("JetBrains Mono", true)]
     [InlineData("Cascadia Code", true)]
@@ -36,6 +28,7 @@ public class SystemFontScannerTests
     public void GetInstalledFonts_PlacesMonospaceFontsFirst()
     {
         var fonts = SystemFontScanner.GetInstalledFonts();
+        Assert.NotEmpty(fonts);
         var hasSeenNonMono = false;
         foreach (var font in fonts)
         {

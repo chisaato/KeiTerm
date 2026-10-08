@@ -64,11 +64,17 @@ public sealed class AuthMaterialCollector
             materials.Count,
             string.Join(",", materials.Select(m => m.Kind)));
 
-        // 无任何可用材料：
-        // 如果配置中已经有明确的用户名（例如 OpenWrt / 路由器的 root 等），先免弹窗尝试以空密码/无凭据连接；
-        // 只有在连用户名都没有时，或者如果连接失败被拒绝时，再由重试逻辑按需回退弹窗。
+        // 已配置身份方法却没有可用材料时中止，不能推断为允许空密码登录。
+        // 未配置方法且有用户名的连接仍允许路由器免密登录；缺少用户名则询问单次认证。
         if (materials.Count == 0)
         {
+            if (identity is { Methods.Count: > 0 })
+            {
+                if (allowInteraction)
+                    await _interaction().NotifyAsync(config.SessionName, Strings.Get("Status.Auth.ConfiguredMethodsUnavailable"));
+                return null;
+            }
+
             string? effectiveUser = identity?.Username ?? config.Username;
             if (!string.IsNullOrWhiteSpace(effectiveUser))
             {
@@ -124,6 +130,11 @@ public sealed class AuthMaterialCollector
 
             if (hopMaterials.Count == 0)
             {
+                if (hopIdentity is { Methods.Count: > 0 })
+                {
+                    throw new JumpChainException($"{jumpNode.Name}: {Strings.Get("Status.Auth.ConfiguredMethodsUnavailable")}");
+                }
+
                 if (!allowInteraction) throw new JumpChainException($"跳板机认证需要交互: {jumpNode.Name}");
                 onInteraction?.Invoke();
                 AuthPromptResult? prompt = await PromptAuthAsync(hopIdentity?.Username ?? hopConfig.Username, hopIdentity);
@@ -157,6 +168,14 @@ public sealed class AuthMaterialCollector
         string username,
         Identity? identity)
     {
+        // 仅配置密钥的身份不能在失败后自动改用未配置的密码或交互认证。
+        if (identity is { Methods.Count: > 0 }
+            && identity.Methods.Where(method => method.Enabled)
+                .All(method => method is FilePrivateKeyMethod or VaultPrivateKeyMethod or AgentMethod))
+        {
+            return null;
+        }
+
         AuthPromptResult? prompt = await PromptAuthAsync(username, identity);
         if (prompt == null)
         {

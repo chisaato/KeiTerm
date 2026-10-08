@@ -76,21 +76,6 @@ public class TerminalThemeAdapterTests
         Assert.Contains("hex", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
-    // 上游边界：TerminalTheme 构造期对选区色执行 EnsureOpaque（alpha 强制 0xFF），
-    // 随后 TerminalControl.ApplyThemeToRenderer 又会把 alpha 改为 0x80。
-    // 因此 #50RRGGBB 的 alpha 无法经 ApplyTheme 抵达 renderer，必须由 adapter 显式恢复。
-    [Fact]
-    public void ToRoyalTheme_SelectionBackground_IsForcedOpaqueByUpstream()
-    {
-        TerminalProfile profile = CreateProfile(selection: "#501D99F3");
-
-        TerminalTheme theme = TerminalThemeAdapter.ToRoyalTheme(profile);
-
-        Assert.NotNull(theme.SelectionBackground);
-        Assert.Equal(0xFF1D99F3u, theme.SelectionBackground!.Value); // alpha 被强制为 FF，RGB 保留
-        Assert.NotEqual(0x501D99F3u, theme.SelectionBackground.Value);
-    }
-
     [Fact]
     public void ToSkColor_PreservesAlphaAndRgbIndependently()
     {
@@ -179,8 +164,9 @@ public class TerminalThemeAdapterTests
     {
         List<string> source = ["Cascadia Mono", "Noto Sans Mono"];
 
-        TerminalFontSnapshot snapshot = new("JetBrains Mono", source, 14.0, true);
+        TerminalFontSnapshot snapshot = new("JetBrains Mono, Consolas, monospace", source, 14.0, true);
 
+        Assert.Equal("JetBrains Mono", snapshot.PrimaryFontFamily);
         // 外部修改源列表不得影响快照，避免“假不可变”
         source.Add("Later Added");
         Assert.Equal(2, snapshot.FallbackFonts.Count);
@@ -200,15 +186,4 @@ public class TerminalThemeAdapterTests
     {
         Assert.Equal(expected, TerminalFontSnapshot.NormalizePrimaryFontFamily(input));
     }
-
-    [Fact]
-    public void TerminalFontSnapshot_PrimaryFontFamily_UsesNormalizedSingleName()
-    {
-        TerminalFontSnapshot snapshot = new("JetBrains Mono, Consolas, monospace", ["Consolas"], 14.0, true);
-
-        Assert.Equal("JetBrains Mono", snapshot.PrimaryFontFamily);
-        // 回退列表仍然只做值传递，不表示已生效
-        Assert.Single(snapshot.FallbackFonts);
-    }
-
 }

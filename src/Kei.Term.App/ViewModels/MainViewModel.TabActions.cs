@@ -79,17 +79,25 @@ public partial class MainViewModel
     // 原地重连：沿用同一标签与其终端历史
     public async Task ReconnectTabAsync(TerminalTabViewModel tab)
     {
-        if (tab.IsDisposed || ResolveForReopen(tab) is not { } target)
+        if (tab.IsDisposed || tab.IsReconnectPending || ResolveForReopen(tab) is not { } target)
         {
             return;
         }
 
-        tab.CancelReconnect();
-        _logger.LogInformation("标签原地重连 标题={Title}", tab.Title);
-        SelectedTab = tab;
-        await _connections.ConnectAsync(
-            new ConnectionRequest(target.Config, target.UseIdentity, ReuseTarget: CreateConnectionTarget(tab)),
-            this);
+        tab.IsReconnectPending = true;
+        try
+        {
+            tab.CancelReconnect();
+            _logger.LogInformation("标签原地重连 标题={Title}", tab.Title);
+            SelectedTab = tab;
+            await _connections.ConnectAsync(
+                new ConnectionRequest(target.Config, target.UseIdentity, ReuseTarget: CreateConnectionTarget(tab)),
+                this);
+        }
+        finally
+        {
+            tab.IsReconnectPending = false;
+        }
     }
 
     // 克隆：以同一会话在新标签中再开一个连接

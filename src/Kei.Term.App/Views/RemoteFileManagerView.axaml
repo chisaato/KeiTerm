@@ -140,6 +140,7 @@
                                   CommandParameter="{Binding SelectedItem}"/>
                         <Separator/>
                         <MenuItem Header="下载到桌面" Command="{Binding DownloadToDesktopCommand}" CommandParameter="{Binding SelectedItem}"/>
+                        <MenuItem Header="{loc:KeiString FileManager.CopyRemotePath}" Click="OnCopyRemotePath"/>
                         <Separator/>
                         <MenuItem Header="删除" Command="{Binding DeleteItemCommand}" CommandParameter="{Binding SelectedItem}"/>
                     </ContextMenu>

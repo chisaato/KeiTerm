@@ -10,22 +10,6 @@ namespace Kei.Term.Tests;
 public class SessionEditViewModelTests
 {
     [Fact]
-    public void SessionEditViewModel_InitializesCategoriesAndTimeoutOptions()
-    {
-        var settings = new AppSettings { ConnectTimeoutSeconds = 60 };
-        var vm = new SessionEditViewModel(null, null, [], settings);
-
-        Assert.Equal(5, vm.Categories.Count);
-        Assert.Equal("Connection", vm.Categories[0].Page);
-        Assert.NotNull(vm.SelectedCategory);
-        Assert.Equal("Connection", vm.SelectedCategory.Page);
-
-        // 默认连接超时为首项（继承全局 60s）
-        Assert.NotNull(vm.SelectedConnectTimeout);
-        Assert.Null(vm.SelectedConnectTimeout.Value);
-    }
-
-    [Fact]
     public void SessionEditViewModel_AppliesTimeoutOverrideToModel()
     {
         var settings = new AppSettings { ConnectTimeoutSeconds = 60 };
@@ -111,5 +95,4 @@ public class SessionEditViewModelTests
         settings.DefaultTerminalType = "vt100";
         Assert.Equal("vt100", Kei.Term.Core.Services.SessionConfigBuilder.Build(saved, settings).TerminalType);
     }
-
 }

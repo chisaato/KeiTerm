@@ -19,7 +19,7 @@ public class PrivateKeyFormatTests
         """;
 
     // ssh-keygen -t ed25519 -N ""
-    private const string PlainOpenSsh = """
+    internal const string PlainOpenSsh = """
         -----BEGIN OPENSSH PRIVATE KEY-----
         b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
         QyNTUxOQAAACCB2EQeqe+IfPntKgzxoozYKj7Fy9wGBEsgDPWf2/OmmAAAAJC3fA0ot3wN

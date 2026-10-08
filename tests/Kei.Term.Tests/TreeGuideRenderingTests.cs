@@ -89,6 +89,7 @@ public class TreeGuideRenderingTests
         {
             window.Show();
             HeadlessAvalonia.Pump();
+            Assert.Contains(session.GetVisualDescendants().OfType<Border>(), border => border.Name == "PART_ContentPill");
             foreach (TreeViewItem item in new[] { root, folder, session })
             {
                 Control chevron = Part<Panel>(item, "PART_ExpandCollapseChevronContainer");

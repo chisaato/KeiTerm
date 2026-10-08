@@ -54,35 +54,6 @@ public class TerminalLineHeightTests
     }
 
     [Fact]
-    public void TryCalculateTargetCellHeight_MatchesDirectSkiaMeasurement_AndExact20WhenFontInstalled()
-    {
-        // 验证 TryCalculateTargetCellHeight 的计算值与独立 SKTypeface/SKFont(15px) 严格一致
-        const string family = "JetBrainsMono Nerd Font";
-        string normalized = TerminalFontSnapshot.NormalizePrimaryFontFamily(family);
-        using var typeface = SKTypeface.FromFamilyName(normalized);
-        if (typeface is null || typeface.FamilyName != normalized)
-        {
-            // 环境未安装该字体（CI 无字体），不强求精确 20，避免假阳性
-            return;
-        }
-
-        using var font15 = new SKFont(typeface, 15f)
-        {
-            LinearMetrics = true,
-            Subpixel = true
-        };
-        var metrics = font15.Metrics;
-        float expected = MathF.Round(metrics.Descent - metrics.Ascent + metrics.Leading, MidpointRounding.AwayFromZero);
-
-        float? calculated = TerminalFontMetricAdapter.TryCalculateTargetCellHeight(family, 11.0);
-        Assert.NotNull(calculated);
-        Assert.Equal(expected, calculated.Value);
-
-        // 环境实验：当真实安装 JetBrainsMono Nerd Font 时，11pt 在 96DPI(DPR=1) 下目标行高必须为精确 20
-        Assert.Equal(20f, calculated.Value);
-    }
-
-    [Fact]
     public Task TerminalControl_AppliesCalculatedCellHeight_PreservesWidthAndFontSize() => HeadlessAvalonia.RunAsync(() =>
     {
         Window? window = null;

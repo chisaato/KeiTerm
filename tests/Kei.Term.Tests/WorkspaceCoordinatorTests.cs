@@ -111,7 +111,10 @@ public class WorkspaceCoordinatorTests
 
         Assert.Equal(before, WorkspaceTree.Tabs(group));
         Assert.Same(third, coordinator.ActiveTab);
-        Assert.False(first.IsDisposed);
+        Assert.True(third.IsSelected);
+        Assert.False(first.IsSelected);
+        Assert.False(second.IsSelected);
+        Assert.All(new[] { first, second, third }, tab => Assert.False(tab.IsDisposed));
     }
 
     [Fact]

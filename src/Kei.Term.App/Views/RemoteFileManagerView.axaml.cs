@@ -6,8 +6,11 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
+using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Avalonia.VisualTree;
+using Kei.Term.App.Helpers;
 using Kei.Term.App.ViewModels;
 using Kei.Term.Core.Models;
 
@@ -140,6 +143,31 @@ public partial class RemoteFileManagerView : UserControl
 
         // 后台刷新，避免阻塞 ContextMenu 打开过程导致锁死
         _ = vm.LoadAvailableEditorsAsync();
+    }
+
+    private async void OnCopyRemotePath(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not RemoteFileManagerViewModel vm
+            || TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard)
+        {
+            return;
+        }
+
+        // 使用远端提供的完整路径，避免本地平台的路径转换；多选时每行一条。
+        string[] paths = FileListBox.SelectedItems?.OfType<RemoteFileItem>()
+            .Select(item => item.FullPath).Where(path => !string.IsNullOrEmpty(path)).ToArray() ?? [];
+        if (paths.Length == 0 && vm.SelectedItem is { } selected)
+            paths = [selected.FullPath];
+        if (paths.Length == 0) return;
+
+        try
+        {
+            await clipboard.SetTextAsync(string.Join("\n", paths));
+        }
+        catch (Exception ex)
+        {
+            vm.TransferStatusMessage = string.Format(Strings.Get("FileManager.CopyRemotePathFailed"), ex.Message);
+        }
     }
 
     private static void PopulateOpenWithSubMenu(MenuItem? subMenu, RemoteFileManagerViewModel vm)

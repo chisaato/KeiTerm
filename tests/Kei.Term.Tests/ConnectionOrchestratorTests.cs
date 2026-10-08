@@ -20,7 +20,7 @@ using Xunit;
 namespace Kei.Term.Tests;
 
 // 连接编排：认证失败回弹重试、取消、主机密钥握手外确认、跳板物化、文件通道材料、KI 桥
-public class ConnectionOrchestratorTests
+public partial class ConnectionOrchestratorTests
 {
     private readonly ScriptedInteraction _ui = new();
     private readonly FakeSshFactory _factory = new();

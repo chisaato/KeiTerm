@@ -1,24 +1,50 @@
+using System.Linq;
 using System.Threading.Tasks;
-using RoyalTerminal.Avalonia.Controls;
+using Avalonia.Controls;
+using Kei.Term.App.ViewModels;
 
 namespace Kei.Term.Tests;
 
-// 查找：TerminalControl 已有搜索 API。下一处匹配必须换到另一个匹配（SearchSelected）。
 public class TerminalFindTests
 {
     [Fact]
-    public Task SelectNextSearchMatch_MovesSelectedMatch() => HeadlessAvalonia.RunAsync(() =>
+    public Task FindCommands_NavigateMatchesAndCloseWithoutChangingOutput() => HeadlessAvalonia.RunAsync(async () =>
     {
-        TerminalControl control = new();
-        control.WriteOutput("needle alpha needle\nbeta needle"u8);
-        control.StartSearch("needle");
+        TerminalTabViewModel tab = new("search", "DejaVu Sans Mono", 14);
+        Window window = new() { Width = 600, Height = 300, Content = tab.Terminal };
+        try
+        {
+            window.Show();
+            HeadlessAvalonia.Pump();
+            tab.Terminal.WriteOutput("needle alpha needle\r\nbeta needle"u8);
+            HeadlessAvalonia.Pump();
+            var output = tab.Terminal.Screen!.GetViewportRow(0).ReadOnlyCells.ToArray().Select(cell => cell.Codepoint).ToArray();
+            Assert.Contains((int)'n', output);
 
-        Assert.True(control.SearchTotal >= 2, $"SearchTotal={control.SearchTotal}");
-        int first = control.SearchSelected;
+            tab.OpenFindCommand.Execute(null);
+            tab.FindQuery = "needle";
+            tab.FindNextCommand.Execute(null);
+            Assert.True(tab.IsFindBarOpen);
+            Assert.Equal(3, tab.Terminal.SearchTotal);
+            int first = tab.Terminal.SearchSelected;
+            tab.FindNextCommand.Execute(null);
+            Assert.NotEqual(first, tab.Terminal.SearchSelected);
+            tab.FindPreviousCommand.Execute(null);
+            Assert.Equal(first, tab.Terminal.SearchSelected);
 
-        bool moved = control.SelectNextSearchMatch();
-
-        Assert.True(moved);
-        Assert.NotEqual(first, control.SearchSelected);
+            tab.FindQuery = "missing";
+            tab.FindNextCommand.Execute(null);
+            Assert.NotEmpty(tab.FindStatus);
+            tab.CloseFindCommand.Execute(null);
+            Assert.False(tab.IsFindBarOpen);
+            Assert.Empty(tab.FindStatus);
+            Assert.Equal(0, tab.Terminal.SearchTotal);
+            Assert.Equal(output, tab.Terminal.Screen.GetViewportRow(0).ReadOnlyCells.ToArray().Select(cell => cell.Codepoint).ToArray());
+        }
+        finally
+        {
+            window.Close();
+            await tab.DisposeAsync();
+        }
     });
 }

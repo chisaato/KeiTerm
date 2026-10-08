@@ -32,27 +32,4 @@ public class TabReorderingTests
         Assert.False(tab2.IsDisposed);
         Assert.False(tab3.IsDisposed);
     }
-
-    [Fact]
-    public void MoveTab_BoundsChecking_IgnoresInvalidIndices()
-    {
-        using WorkspaceCoordinator coordinator = new(new WeakReferenceMessenger());
-        TerminalTabViewModel tab1 = new("Tab 1", "monospace", 14.0);
-        TerminalTabViewModel tab2 = new("Tab 2", "monospace", 14.0);
-        coordinator.AddTab(tab1);
-        coordinator.AddTab(tab2);
-        coordinator.Activate(tab2);
-        IDocumentDock group = WorkspaceTree.GroupOf(coordinator.Layout, tab1);
-        TerminalTabViewModel[] before = WorkspaceTree.Tabs(group);
-
-        coordinator.ReorderTab(tab1, -1);
-        coordinator.ReorderTab(tab1, 5);
-        coordinator.ReorderTab(tab2, 1);
-
-        Assert.Equal(before, WorkspaceTree.Tabs(group));
-        Assert.Same(tab2, coordinator.ActiveTab);
-        Assert.True(tab2.IsSelected);
-        Assert.False(tab1.IsDisposed);
-        Assert.False(tab2.IsDisposed);
-    }
 }

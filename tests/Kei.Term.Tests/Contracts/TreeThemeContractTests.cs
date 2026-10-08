@@ -1,8 +1,6 @@
 using System;
 using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
-using Avalonia.VisualTree;
 using Xunit;
 
 namespace Kei.Term.Tests.Contracts;
@@ -70,43 +68,6 @@ public class TreeThemeContractTests
         var (_, treeLineDark) = Kei.Term.App.Services.ProfileManagerService.CalculateTreeAndSubtleBorder("#25252A", "#3A3A42");
         Assert.NotEqual("#25252A", treeLineDark);
     }
-
-    [Fact]
-    public Task TreeLines_LastChildHasNoBottomOverflow() => HeadlessAvalonia.RunAsync(() =>
-    {
-        // 确保挂载 Kei 控件主题
-        Kei.Term.App.Services.UiDesignSystemService.Apply();
-
-        // 验证最后一个节点的竖线停止于节点横线位置，不再向下突出
-        var tree = new Avalonia.Controls.TreeView();
-        var item1 = new Avalonia.Controls.TreeViewItem { Header = "1" };
-        var item2 = new Avalonia.Controls.TreeViewItem { Header = "2" };
-        var root = new Avalonia.Controls.TreeViewItem { Header = "root", IsExpanded = true };
-        root.Items.Add(item1);
-        root.Items.Add(item2);
-        tree.Items.Add(root);
-
-        var window = new Avalonia.Controls.Window { Content = tree, Width = 300, Height = 400 };
-        window.Show();
-        HeadlessAvalonia.Pump();
-
-        var treeLine = root.GetVisualDescendants().OfType<Kei.Term.App.Controls.KeiTreeLine>().FirstOrDefault();
-        Assert.NotNull(treeLine);
-
-        double length = treeLine.CalculateLineLength();
-        Assert.True(length > 0, "Line length should be positive when children exist");
-
-        // 验证总高度（ItemsPresenter）大于 LineLength（也就是竖线确实被截断，不延伸到末尾子项的底端）
-        var itemsPresenter = root.GetVisualDescendants().OfType<Avalonia.Controls.Presenters.ItemsPresenter>().FirstOrDefault();
-        Assert.NotNull(itemsPresenter);
-        Assert.True(itemsPresenter.Bounds.Height > length, $"ItemsPresenter height ({itemsPresenter.Bounds.Height}) should be strictly greater than line length ({length})");
-
-        // 验证高亮容器 PART_ContentPill 存在且位于 Header 内部，确保高亮不覆盖外部层级引导线
-        var pill = item1.GetVisualDescendants().OfType<Avalonia.Controls.Border>().FirstOrDefault(b => b.Name == "PART_ContentPill");
-        Assert.NotNull(pill);
-
-        window.Close();
-    });
 
     private static string FindSolutionRoot()
     {

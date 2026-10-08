@@ -73,6 +73,20 @@ public sealed partial class ConnectionOrchestrator
 
     private async Task<ConnectOutcome> ConnectCoreAsync(ConnectionRequest request, IConnectionHost host, ConnectionAttempt attempt)
     {
+        try
+        {
+            return await PrepareAndConnectAsync(request, host, attempt);
+        }
+        catch (OperationCanceledException)
+        {
+            // 手动连接与自动重连都必须尊重目标或跳板的解锁取消结果。
+            _logger.LogInformation("认证准备已取消，连接中止 会话={Session}", request.Config.SessionName);
+            return ConnectOutcome.Stopped;
+        }
+    }
+
+    private async Task<ConnectOutcome> PrepareAndConnectAsync(ConnectionRequest request, IConnectionHost host, ConnectionAttempt attempt)
+    {
         if (attempt.Cancellation.IsCancellationRequested || request.ReuseTarget is { IsDisposed: true })
             return ConnectOutcome.Stopped;
         // 出口不可用时不收集认证、不建标签、不拨号
@@ -315,10 +329,20 @@ public sealed partial class ConnectionOrchestrator
             promptCount++;
             attempt.RequiredInteraction = true;
             _logger.LogInformation("认证失败，第 {Attempt} 次弹出认证重试 host={Host}:{Port}", promptCount, resolved.Host, resolved.Port);
-            var retry = await _collector.PromptRetryAsync(resolved.Username, auth.Identity);
+            (AuthPromptMethod Method, MaterializedAuthMethod? Material, string? Username)? retry;
+            try
+            {
+                retry = await _collector.PromptRetryAsync(resolved.Username, auth.Identity);
+            }
+            catch (OperationCanceledException)
+            {
+                // 重试中取消解锁也不得复用上一轮材料重新拨号。
+                target.ReportError(DescribeFailure(failure));
+                return ConnectOutcome.Stopped;
+            }
             if (retry == null)
             {
-                _logger.LogInformation("用户取消认证重试，连接中止 host={Host}:{Port}", resolved.Host, resolved.Port);
+                _logger.LogInformation("未继续认证重试，连接中止 host={Host}:{Port}", resolved.Host, resolved.Port);
                 target.ReportError(DescribeFailure(failure));
                 return ConnectOutcome.Stopped;
             }

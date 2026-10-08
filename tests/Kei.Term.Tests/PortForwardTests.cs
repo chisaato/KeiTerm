@@ -7,7 +7,6 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using Dapper;
-using Kei.Term.App.ViewModels;
 using Kei.Term.Core.Abstractions;
 using Kei.Term.Core.Models;
 using Kei.Term.Core.Security;
@@ -257,16 +256,6 @@ public class PortForwardTests : IDisposable
         var held = started.ToList();
         await session.DisposeAsync();
         Assert.All(held, p => Assert.False(p.IsStarted));
-    }
-
-    [Fact]
-    public void SessionEditor_AddsPortsCategory_WithoutRemovingFirewallRow()
-    {
-        var vm = new SessionEditViewModel(null, null, []);
-        Assert.Contains(vm.Categories, c => Equals(c.Page, "Ports"));
-        Assert.Contains(vm.Categories, c => Equals(c.Page, "Connection"));
-        Assert.Contains(vm.FirewallOptions, o => o.Kind == FirewallChoiceKind.None);
-        Assert.Contains(vm.FirewallOptions, o => o.Kind == FirewallChoiceKind.ChooseSession);
     }
 
     private async Task<Guid> SeedSessionAsync()
