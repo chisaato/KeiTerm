@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:controls="using:Kei.Term.App.Views.Controls"
              xmlns:settings="using:Kei.Term.App.ViewModels.Settings"
+             xmlns:converters="using:Kei.Term.App.Converters"
              x:Class="Kei.Term.App.Views.Controls.CategoryNavListBox"
              x:DataType="controls:CategoryNavListBox">
 
@@ -51,10 +52,13 @@
         <ListBox.ItemTemplate>
             <DataTemplate x:DataType="settings:SettingsCategoryItem">
                 <Grid ColumnDefinitions="16,*" ColumnSpacing="8">
-                    <Path Grid.Column="0" Width="16" Height="16"
-                          Data="{Binding Icon}"
-                          Stroke="{Binding $parent[ListBoxItem].Foreground}"
-                          StrokeThickness="1.4" StrokeLineCap="Round" StrokeJoin="Round"/>
+                    <Viewbox Grid.Column="0" Width="16" Height="16" Stretch="Uniform" VerticalAlignment="Center">
+                        <Grid Width="24" Height="24">
+                            <Path Classes="kei-icon" Width="24" Height="24" Stretch="None"
+                                  Data="{Binding Icon, Converter={x:Static converters:LucideIconGeometryConverter.Instance}}"
+                                  Stroke="{Binding $parent[ListBoxItem].Foreground}"/>
+                        </Grid>
+                    </Viewbox>
                     <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
                         <TextBlock Text="{Binding Title}" FontSize="13"/>
                         <TextBlock Text="{Binding Description}" FontSize="12"

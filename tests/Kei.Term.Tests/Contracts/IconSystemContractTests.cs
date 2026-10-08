@@ -10,6 +10,31 @@ namespace Kei.Term.Tests.Contracts;
 public class IconSystemContractTests
 {
     [Fact]
+    public void LucideViews_UseUnfilledCenterlinesInsideFixedViewports()
+    {
+        string root = FindSolutionRoot();
+        foreach (string file in Directory.EnumerateFiles(Path.Combine(root, "src/Kei.Term.App"), "*.axaml", SearchOption.AllDirectories))
+        {
+            XDocument document = XDocument.Load(file);
+            foreach (XElement path in document.Descendants().Where(element => element.Name.LocalName == "Path"
+                && (((string?)element.Attribute("Data"))?.Contains("Kei.Icon.") == true
+                    || ((string?)element.Attribute("Data"))?.StartsWith("{Binding Icon", StringComparison.Ordinal) == true)))
+            {
+                string description = Path.GetRelativePath(root, file);
+                Assert.Contains("kei-icon", ((string?)path.Attribute("Classes") ?? "").Split(' '));
+                Assert.Null(path.Attribute("Fill"));
+                Assert.Equal("24", (string?)path.Attribute("Width"));
+                Assert.Equal("24", (string?)path.Attribute("Height"));
+                Assert.Equal("None", (string?)path.Attribute("Stretch"));
+                XElement? canvas = path.Parent;
+                Assert.True(canvas?.Name.LocalName == "Grid" && (string?)canvas.Attribute("Width") == "24"
+                    && (string?)canvas.Attribute("Height") == "24", $"{description}: 图标缺少固定 24×24 画布");
+                Assert.True(canvas!.Parent?.Name.LocalName == "Viewbox", $"{description}: 图标应通过 Viewbox 缩放完整视口");
+            }
+        }
+    }
+
+    [Fact]
     public void DialogActionLabels_DoNotMixTextSymbolsOrEmojiWithVectorIcons()
     {
         string root = FindSolutionRoot();

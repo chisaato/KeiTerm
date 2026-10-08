@@ -17,8 +17,8 @@
                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
                     <Viewbox Width="16" Height="16" VerticalAlignment="Center">
                         <Grid Width="24" Height="24">
-                            <Path Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.QuickConnect}"
-                                  Fill="{DynamicResource Kei.Accent.Foreground}"/>
+                            <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.QuickConnect}"
+                                  Stroke="{DynamicResource Kei.Accent.Foreground}"/>
                         </Grid>
                     </Viewbox>
                     <TextBlock Grid.Column="1" Text="{loc:KeiString Menu.File.QuickConnect}" VerticalAlignment="Center"/>
@@ -32,8 +32,8 @@
                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
                     <Viewbox Width="16" Height="16" VerticalAlignment="Center">
                         <Grid Width="24" Height="24">
-                            <Path Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Add}"
-                                  Fill="{DynamicResource Kei.Text.Primary}"/>
+                            <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Add}"
+                                  Stroke="{DynamicResource Kei.Text.Primary}"/>
                         </Grid>
                     </Viewbox>
                     <TextBlock Grid.Column="1" Text="{loc:KeiString Menu.File.NewSession}" VerticalAlignment="Center"/>

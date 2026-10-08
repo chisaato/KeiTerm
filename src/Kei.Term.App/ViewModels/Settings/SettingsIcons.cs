@@ -1,38 +1,27 @@
 namespace Kei.Term.App.ViewModels.Settings;
 
-// 分类图标：16×16 画布上的极简单色描边几何数据，禁止彩色 emoji
+// Lucide 分类图标：24×24 中心描边几何，与 Kei.Icon 统一视口和线宽。
+// 自动生成：python3 third-party/lucide/generate.py。
 public static class SettingsIcons
 {
-    // 常规：滑杆（三根竖轨 + 可拖动节点）
-    public const string General =
-        "M4,2.5 L4,13.5 M8,2.5 L8,13.5 M12,2.5 L12,13.5 " +
-        "M2.2,6 A1.8,1.8 0 1 0 5.8,6 A1.8,1.8 0 1 0 2.2,6 Z " +
-        "M6.2,10.5 A1.8,1.8 0 1 0 9.8,10.5 A1.8,1.8 0 1 0 6.2,10.5 Z " +
-        "M10.2,4 A1.8,1.8 0 1 0 13.8,4 A1.8,1.8 0 1 0 10.2,4 Z";
+    // lucide:sliders-vertical
+    public const string General = "M10 8h4m-2 13v-9m0-4V3m5 13h4m-2-4V3m0 18v-5M3 14h4m-2-4V3m0 18v-7";
 
-    // 外观：显示器 + 支架
-    public const string Appearance =
-        "M2,3.5 L14,3.5 L14,11 L2,11 Z M8,11 L8,13.5 M5.5,13.5 L10.5,13.5";
+    // lucide:monitor
+    public const string Appearance = "M4,3 H20 A2,2 0 0 1 22,5 V15 A2,2 0 0 1 20,17 H4 A2,2 0 0 1 2,15 V5 A2,2 0 0 1 4,3 Z M8 21h8m-4-4v4";
 
-    // 终端：窗口 + 提示符箭头 + 光标线
-    public const string Terminal =
-        "M1.5,3 L14.5,3 L14.5,13 L1.5,13 Z M4.5,6.5 L7,8.5 L4.5,10.5 M9,11 L12,11";
+    // lucide:square-terminal
+    public const string Terminal = "M7,11l2-2l-2-2m4 6h4 M5,3 H19 A2,2 0 0 1 21,5 V19 A2,2 0 0 1 19,21 H5 A2,2 0 0 1 3,19 V5 A2,2 0 0 1 5,3 Z";
 
-    // 会话树：层级分支
-    public const string Tree =
-        "M3,3 L3,13 M3,8 L7,8 M3,13 L7,13 M7,6.5 L13,6.5 L13,9.5 L7,9.5 Z M7,11.5 L13,11.5 L13,14.5 L7,14.5 Z";
+    // lucide:list-tree
+    public const string Tree = "M8 5h13m-8 7h8m-8 7h8M3 10a2 2 0 0 0 2 2h3 M3 5v12a2 2 0 0 0 2 2h3";
 
-    // 标签栏：横向标签页
-    public const string TabBar =
-        "M2,4 L14,4 L14,12 L2,12 Z M2,7 L14,7 M6,4 L6,7 M10,4 L10,7";
+    // lucide:panels-top-left
+    public const string TabBar = "M5,3 H19 A2,2 0 0 1 21,5 V19 A2,2 0 0 1 19,21 H5 A2,2 0 0 1 3,19 V5 A2,2 0 0 1 5,3 Z M3 9h18M9 21V9";
 
-    // SSH：挂锁
-    public const string Ssh =
-        "M5.5,7 L5.5,5.2 A2.5,2.5 0 0 1 10.5,5.2 L10.5,7 " +
-        "M3.8,7 L12.2,7 L12.2,12.3 L3.8,12.3 Z M8,9 L8,10.6";
+    // lucide:lock-keyhole
+    public const string Ssh = "M11,16 A1,1 0 1 0 13,16 A1,1 0 1 0 11,16 Z M5,10 H19 A2,2 0 0 1 21,12 V20 A2,2 0 0 1 19,22 H5 A2,2 0 0 1 3,20 V12 A2,2 0 0 1 5,10 Z M7 10V7a5 5 0 0 1 10 0v3";
 
-    // 文件传输 / 编辑器：文件夹与双向同步/编辑小箭头
-    public const string FileTransfer =
-        "M2,4 L6.5,4 L8,5.5 L14,5.5 L14,12.5 L2,12.5 Z " +
-        "M5,9 L11,9 M9.5,7.5 L11,9 L9.5,10.5";
+    // lucide:folder-sync
+    public const string FileTransfer = "M9 20H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H20a2 2 0 0 1 2 2v.5 M12 10v4h4 M12,14l1.535-1.605a5 5 0 0 1 8 1.5M22 22v-4h-4 M22,18l-1.535 1.605a5 5 0 0 1-8-1.5";
 }

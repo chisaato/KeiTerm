@@ -343,26 +343,30 @@
         <Setter Property="Opacity" Value="0.35"/>
     </Style>
 
-    <!-- Kei 统一单色矢量图标规范（默认 16x16，居中，等比缩放，次级文字色） -->
+    <!-- Lucide 统一使用 24x24 画布和 2px 圆角描边，由外层 Viewbox 缩放到显示尺寸。 -->
     <Style Selector="Path.kei-icon">
-        <Setter Property="Stretch" Value="Uniform"/>
+        <Setter Property="Stretch" Value="None"/>
         <Setter Property="HorizontalAlignment" Value="Center"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
-        <Setter Property="Fill" Value="{DynamicResource Kei.Text.Secondary}"/>
-        <Setter Property="Width" Value="16"/>
-        <Setter Property="Height" Value="16"/>
+        <Setter Property="Fill" Value="{x:Null}"/>
+        <Setter Property="Stroke" Value="{DynamicResource Kei.Text.Secondary}"/>
+        <Setter Property="StrokeThickness" Value="2"/>
+        <Setter Property="StrokeLineCap" Value="Round"/>
+        <Setter Property="StrokeJoin" Value="Round"/>
+        <Setter Property="Width" Value="24"/>
+        <Setter Property="Height" Value="24"/>
     </Style>
     <!-- 可用操作保持主文字色，禁用态单独淡化，避免普通入口看起来不可用。 -->
     <Style Selector="Button.iconBtn Path.kei-icon">
         <Setter Property="Opacity" Value="1"/>
-        <Setter Property="Fill" Value="{DynamicResource Kei.Text.Primary}"/>
+        <Setter Property="Stroke" Value="{DynamicResource Kei.Text.Primary}"/>
     </Style>
     <Style Selector="Button.iconBtn:pointerover Path.kei-icon">
         <Setter Property="Opacity" Value="1.0"/>
-        <Setter Property="Fill" Value="{DynamicResource Kei.Text.Primary}"/>
+        <Setter Property="Stroke" Value="{DynamicResource Kei.Text.Primary}"/>
     </Style>
     <Style Selector="Button.iconBtn:disabled Path.kei-icon">
-        <Setter Property="Fill" Value="{DynamicResource Kei.Text.Muted}"/>
+        <Setter Property="Stroke" Value="{DynamicResource Kei.Text.Muted}"/>
     </Style>
 
     <!-- 侧栏固定按钮以底色与图标强调表示已固定。 -->
@@ -370,7 +374,7 @@
         <Setter Property="Background" Value="{DynamicResource Kei.Bg.Pressed}"/>
     </Style>
     <Style Selector="Button.iconBtn.sessionManagerPin.pinned Path.kei-icon">
-        <Setter Property="Fill" Value="{DynamicResource Kei.Accent}"/>
+        <Setter Property="Stroke" Value="{DynamicResource Kei.Accent}"/>
     </Style>
 
     <Style Selector="Button.danger">
@@ -380,13 +384,13 @@
         <Setter Property="Foreground" Value="{DynamicResource Kei.Status.Error}"/>
     </Style>
     <Style Selector="Button.danger Path.kei-icon, Button.iconBtn.danger Path.kei-icon">
-        <Setter Property="Fill" Value="{DynamicResource Kei.Status.Error}"/>
+        <Setter Property="Stroke" Value="{DynamicResource Kei.Status.Error}"/>
     </Style>
     <Style Selector="Button.danger:disabled">
         <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Muted}"/>
     </Style>
     <Style Selector="Button.danger:disabled Path.kei-icon, Button.iconBtn.danger:disabled Path.kei-icon">
-        <Setter Property="Fill" Value="{DynamicResource Kei.Text.Muted}"/>
+        <Setter Property="Stroke" Value="{DynamicResource Kei.Text.Muted}"/>
     </Style>
 
     <!-- 弹窗数据列表采用灰色选中面、细强调边界；正文颜色由类设置，选中时可统一提高对比度。 -->

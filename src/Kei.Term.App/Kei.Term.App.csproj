@@ -30,9 +30,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="../../third-party/material-design-icons/LICENSE" Link="Licenses/MaterialDesignIcons/LICENSE" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <None Include="../../third-party/material-design-icons/Apache-2.0.txt" Link="Licenses/MaterialDesignIcons/Apache-2.0.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <None Include="../../third-party/material-design-icons/README.md" Link="Licenses/MaterialDesignIcons/README.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="../../third-party/lucide/LICENSE" Link="Licenses/Lucide/LICENSE" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="../../third-party/lucide/README.md" Link="Licenses/Lucide/README.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

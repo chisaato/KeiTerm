@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="Kei.Term.App.App"
              xmlns:local="using:Kei.Term.App"
+             xmlns:icons="using:Kei.Term.App.DesignSystem"
              xmlns:loc="using:Kei.Term.App.Helpers"
              xmlns:dock="using:Dock.Avalonia.Themes.Fluent"
              Name="KeiTerm"
@@ -34,7 +35,7 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceInclude Source="avares://Kei.Term.App/DesignSystem/KeiIcons.axaml" />
+                <icons:LucideIconResources />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>

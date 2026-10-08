@@ -21,9 +21,6 @@
         <Style Selector=":is(UserControl).session Path.sessionIcon">
             <Setter Property="IsVisible" Value="True"/>
         </Style>
-        <Style Selector=":is(UserControl).session TextBlock.name">
-            <Setter Property="Foreground" Value="{DynamicResource Kei.Session.Foreground}"/>
-        </Style>
         <Style Selector=":is(UserControl).virtualRoot TextBlock.name">
             <Setter Property="FontWeight" Value="SemiBold"/>
         </Style>
@@ -37,10 +34,10 @@
             <Grid Width="24" Height="24">
                 <Path Classes="kei-icon folderIcon" Data="{StaticResource Kei.Icon.Folder}"
                       Width="24" Height="24" Stretch="None"
-                      Fill="{DynamicResource Kei.Text.Muted}"/>
+                      Stroke="{DynamicResource Kei.Text.Muted}"/>
                 <Path Classes="kei-icon sessionIcon" Data="{StaticResource Kei.Icon.Terminal}"
                       Width="24" Height="24" Stretch="None"
-                      Fill="{DynamicResource Kei.Session.Foreground}"/>
+                      Stroke="{DynamicResource Kei.Text.Primary}"/>
             </Grid>
         </Viewbox>
         <TextBlock Classes="name" Text="{Binding Name}"
