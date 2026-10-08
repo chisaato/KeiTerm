@@ -31,23 +31,18 @@
                                         <DynamicResource ResourceKey="Kei.Tree.Indent"/>
                                     </MultiBinding>
                                 </Grid.Margin>
-                                <!-- 水平分支引导线：与父级垂直对齐线 (X=Root treeLine = 6, Child header=18, 相距 12px) 精准相交 -->
-                                <Rectangle Height="1"
-                                           Width="16"
-                                           HorizontalAlignment="Left"
-                                           VerticalAlignment="Center"
-                                           Margin="-12,0,0,0"
-                                           Fill="{DynamicResource Kei.Tree.Line}"
-                                           IsHitTestVisible="False"/>
                                 <!-- 节点内容胶囊容器：背景色放在此处，使得左侧缩进层级不被整行高亮截断 -->
                                 <Border Name="PART_ContentPill"
                                         Classes="TreeViewItemContentPill"
                                         Background="{TemplateBinding Background}"
                                         CornerRadius="{DynamicResource Kei.Radius.Control}">
                                     <Grid ColumnDefinitions="Auto, *">
-                                        <Panel Name="PART_ExpandCollapseChevronContainer" Margin="0,0,2,0">
+                                        <Panel Name="PART_ExpandCollapseChevronContainer" Width="16" Height="16" Margin="0,0,6,0" VerticalAlignment="Center">
                                             <ToggleButton Name="PART_ExpandCollapseChevron"
                                                           Theme="{StaticResource FluentTreeViewExpandCollapseChevron}"
+                                                          Foreground="{DynamicResource Kei.Text.Secondary}"
+                                                          Width="12" Height="12" MinWidth="0" MinHeight="0"
+                                                          HorizontalAlignment="Center" VerticalAlignment="Center"
                                                           Focusable="False"
                                                           IsChecked="{TemplateBinding IsExpanded, Mode=TwoWay}"/>
                                         </Panel>
@@ -65,20 +60,10 @@
                             </Grid>
                         </Border>
                         <Grid IsVisible="{TemplateBinding IsExpanded}">
-                            <controls:KeiTreeLine Width="1"
-                                                  HorizontalAlignment="Left"
+                            <!-- 父箭头轴和直接子项横支线共用实际布局坐标，随密度设置一起更新。 -->
+                            <controls:KeiTreeLine
                                                   LineBrush="{DynamicResource Kei.Tree.Line}"
-                                                  IsHitTestVisible="False">
-                                <controls:KeiTreeLine.Margin>
-                                    <MultiBinding Converter="{x:Static converters:TreeViewItemIndentConverter.Instance}">
-                                        <Binding Path="Level" RelativeSource="{RelativeSource TemplatedParent}"/>
-                                        <DynamicResource ResourceKey="Kei.Tree.Indent"/>
-                                    </MultiBinding>
-                                </controls:KeiTreeLine.Margin>
-                                <controls:KeiTreeLine.RenderTransform>
-                                    <TranslateTransform X="6"/>
-                                </controls:KeiTreeLine.RenderTransform>
-                            </controls:KeiTreeLine>
+                                                  IsHitTestVisible="False"/>
                             <ItemsPresenter Name="PART_ItemsPresenter"
                                             ItemsPanel="{TemplateBinding ItemsPanel}"/>
                         </Grid>
@@ -118,16 +103,24 @@
             <Style Selector="^:empty /template/ ToggleButton#PART_ExpandCollapseChevron">
                 <Setter Property="IsVisible" Value="False"/>
             </Style>
-            <Style Selector="^:empty /template/ Panel#PART_ExpandCollapseChevronContainer">
-                <Setter Property="Width" Value="12"/>
-            </Style>
         </ControlTheme>
     </Styles.Resources>
 
     <!-- Kei 桌面工具紧凑控件外观样式（基于 FluentTheme，覆盖紧凑度、小圆角与沉稳边框） -->
 
+    <!-- 两层模板选择器须放在应用样式中，ControlTheme 内只允许穿过自身的一层模板。 -->
+    <Style Selector="TreeViewItem /template/ ToggleButton#PART_ExpandCollapseChevron[IsEnabled=True] /template/ Path">
+        <!-- 状态样式优先于 Fluent 模板内的独立 Fill，保持字形与 Kei 前景一致。 -->
+        <Setter Property="Fill" Value="{DynamicResource Kei.Text.Secondary}"/>
+    </Style>
+    <Style Selector="TreeViewItem /template/ ToggleButton#PART_ExpandCollapseChevron:disabled /template/ Path">
+        <Setter Property="Fill" Value="{DynamicResource Kei.Text.Muted}"/>
+    </Style>
+
     <!-- 通用输入框：封闭实体框、28px 紧凑高度、3px 圆角、细腻微弱描边、聚焦高亮 -->
     <Style Selector="TextBox">
+        <!-- 桌面菜单取得焦点后仍须能编辑此前选区；失焦时只隐藏高亮，不清空选区。 -->
+        <Setter Property="ClearSelectionOnLostFocus" Value="False"/>
         <Setter Property="MinHeight" Value="28"/>
         <Setter Property="Height" Value="28"/>
         <Setter Property="Padding" Value="8,3"/>
@@ -152,7 +145,31 @@
     <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
         <Setter Property="BorderBrush" Value="{DynamicResource Kei.Border.Focus}"/>
         <Setter Property="Background" Value="{DynamicResource Kei.Bg.Input}"/>
+        <Setter Property="BorderThickness" Value="{TemplateBinding BorderThickness}"/>
+    </Style>
+    <Style Selector="TextBox:disabled /template/ Border#PART_BorderElement">
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Border.Subtle}"/>
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Input}"/>
+    </Style>
+    <Style Selector="TextBox:error /template/ Border#PART_BorderElement">
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Status.Error}"/>
+    </Style>
+
+    <!-- 自动补全框将宿主 Padding 传给内嵌 TextBox，必须与 28px 行高一起收紧。 -->
+    <Style Selector="AutoCompleteBox">
+        <Setter Property="MinHeight" Value="28"/>
+        <Setter Property="Height" Value="28"/>
+        <Setter Property="Padding" Value="8,3"/>
+        <Setter Property="FontSize" Value="12.5"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource Kei.Radius.Control}"/>
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Input}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Border}"/>
         <Setter Property="BorderThickness" Value="1"/>
+    </Style>
+    <Style Selector="AutoCompleteBox /template/ TextBox#PART_TextBox">
+        <Setter Property="MinHeight" Value="0"/>
+        <Setter Property="Height" Value="NaN"/>
     </Style>
 
     <!-- 通用下拉框：28px 紧凑高度、3px 圆角、实体背景 -->
@@ -172,8 +189,24 @@
         <Setter Property="BorderBrush" Value="{DynamicResource Kei.Text.Muted}"/>
         <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}"/>
     </Style>
-    <Style Selector="ComboBox:focus /template/ Border#Background">
+    <Style Selector="ComboBox:pressed /template/ Border#Background">
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Text.Muted}"/>
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Pressed}"/>
+    </Style>
+    <Style Selector="ComboBox:focus-within /template/ Border#Background">
         <Setter Property="BorderBrush" Value="{DynamicResource Kei.Border.Focus}"/>
+    </Style>
+    <!-- Fluent 的键盘焦点层位于 Background 之上，不能留下另一套渐变描边。 -->
+    <Style Selector="ComboBox:focus-visible /template/ Border#HighlightBackground">
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Border.Focus}"/>
+        <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    <Style Selector="ComboBox:disabled /template/ Border#Background, ComboBox:disabled /template/ Border#HighlightBackground">
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Border.Subtle}"/>
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Input}"/>
+    </Style>
+    <Style Selector="ComboBox:error /template/ Border#Background, ComboBox:error /template/ Border#HighlightBackground">
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Status.Error}"/>
     </Style>
 
     <!-- 数字微调框：28px 紧凑高度 -->
@@ -186,11 +219,74 @@
         <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource Kei.Border}"/>
         <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="8,3"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <!-- 外层 28px，但 Fluent 的 Spinner 默认最少 32px，会把上下描边放在控件之外。 -->
+    <Style Selector="NumericUpDown /template/ ButtonSpinner#PART_Spinner">
+        <Setter Property="MinHeight" Value="0"/>
+    </Style>
+    <Style Selector="NumericUpDown:pointerover /template/ ButtonSpinner#PART_Spinner">
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Text.Muted}"/>
+    </Style>
+    <Style Selector="NumericUpDown:focus-within /template/ ButtonSpinner#PART_Spinner">
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Border.Focus}"/>
+    </Style>
+    <Style Selector="NumericUpDown:disabled /template/ ButtonSpinner#PART_Spinner">
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Border.Subtle}"/>
+    </Style>
+    <Style Selector="NumericUpDown:error /template/ ButtonSpinner#PART_Spinner">
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Status.Error}"/>
+    </Style>
+
+    <!-- 复合输入的内嵌编辑器只负责文字，外层统一绘制实体背景和完整边框。 -->
+    <Style Selector="NumericUpDown /template/ TextBox#PART_TextBox, ComboBox /template/ TextBox#PART_EditableTextBox">
+        <Setter Property="MinHeight" Value="0"/>
+        <Setter Property="Height" Value="NaN"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Style Selector="^ /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <!-- 状态选择器单独保留触发优先级，覆盖共用 TextBox 状态的背景。 -->
+        <Style Selector="^:pointerover /template/ Border#PART_BorderElement,
+                         ^:focus /template/ Border#PART_BorderElement,
+                         ^:disabled /template/ Border#PART_BorderElement,
+                         ^:error /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+    </Style>
+
+    <!-- 高级设置折叠栏采用与表单一致的紧凑尺寸，避免默认大标题抢占层级。 -->
+    <Style Selector="Expander">
+        <!-- Fluent 模板用 TemplateBinding 将宿主 MinHeight 传给标题，需在宿主覆盖默认 48px。 -->
+        <Setter Property="MinHeight" Value="32"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Padding" Value="10,8"/>
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Panel}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Border}"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource Kei.Radius.Control}"/>
+    </Style>
+    <Style Selector="Expander /template/ ToggleButton#ExpanderHeader">
+        <Setter Property="MinHeight" Value="32"/>
+        <Setter Property="Height" Value="32"/>
+        <Setter Property="Padding" Value="10,4"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.PanelAlt}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}"/>
+    </Style>
+    <Style Selector="Expander /template/ ToggleButton#ExpanderHeader /template/ Border#ExpandCollapseChevronBorder">
+        <!-- 模板的 Width/Height 是局部资源值，上限约束才能缩小其实际布局尺寸。 -->
+        <Setter Property="MaxWidth" Value="24"/>
+        <Setter Property="MaxHeight" Value="24"/>
     </Style>
 
     <!-- 通用标准按钮：32px 舒适高度、3px 圆角、13px 字号、舒适内边距 -->
     <Style Selector="Button">
-        <Setter Property="MinHeight" Value="32"/>
+        <Setter Property="MinHeight" Value="28"/>
         <Setter Property="Height" Value="32"/>
         <Setter Property="Padding" Value="14,4"/>
         <Setter Property="FontSize" Value="13"/>
@@ -233,7 +329,8 @@
         <Setter Property="Padding" Value="0"/>
         <Setter Property="Width" Value="30"/>
         <Setter Property="Height" Value="30"/>
-        <Setter Property="MinHeight" Value="30"/>
+        <Setter Property="MinWidth" Value="24"/>
+        <Setter Property="MinHeight" Value="24"/>
         <Setter Property="CornerRadius" Value="{DynamicResource Kei.Radius.Control}"/>
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="HorizontalContentAlignment" Value="Center"/>
@@ -246,25 +343,84 @@
         <Setter Property="Opacity" Value="0.35"/>
     </Style>
 
-    <!-- Kei 统一单色矢量图标规范（默认 16x16，居中，等比缩放，次级文字色） -->
+    <!-- Lucide 统一使用 24x24 画布和 2px 圆角描边，由外层 Viewbox 缩放到显示尺寸。 -->
     <Style Selector="Path.kei-icon">
-        <Setter Property="Stretch" Value="Uniform"/>
+        <Setter Property="Stretch" Value="None"/>
         <Setter Property="HorizontalAlignment" Value="Center"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
-        <Setter Property="Fill" Value="{DynamicResource Kei.Text.Secondary}"/>
-        <Setter Property="Width" Value="16"/>
-        <Setter Property="Height" Value="16"/>
+        <Setter Property="Fill" Value="{x:Null}"/>
+        <Setter Property="Stroke" Value="{DynamicResource Kei.Text.Secondary}"/>
+        <Setter Property="StrokeThickness" Value="2"/>
+        <Setter Property="StrokeLineCap" Value="Round"/>
+        <Setter Property="StrokeJoin" Value="Round"/>
+        <Setter Property="Width" Value="24"/>
+        <Setter Property="Height" Value="24"/>
     </Style>
-    <!-- 图标按钮与图标联动交互态（平时 85% 透明度，悬停 100% 并高亮为主字色，禁用淡化） -->
+    <!-- 可用操作保持主文字色，禁用态单独淡化，避免普通入口看起来不可用。 -->
     <Style Selector="Button.iconBtn Path.kei-icon">
-        <Setter Property="Opacity" Value="0.85"/>
+        <Setter Property="Opacity" Value="1"/>
+        <Setter Property="Stroke" Value="{DynamicResource Kei.Text.Primary}"/>
     </Style>
     <Style Selector="Button.iconBtn:pointerover Path.kei-icon">
         <Setter Property="Opacity" Value="1.0"/>
-        <Setter Property="Fill" Value="{DynamicResource Kei.Text.Primary}"/>
+        <Setter Property="Stroke" Value="{DynamicResource Kei.Text.Primary}"/>
     </Style>
     <Style Selector="Button.iconBtn:disabled Path.kei-icon">
-        <Setter Property="Fill" Value="{DynamicResource Kei.Text.Muted}"/>
+        <Setter Property="Stroke" Value="{DynamicResource Kei.Text.Muted}"/>
+    </Style>
+
+    <!-- 侧栏固定按钮以底色与图标强调表示已固定。 -->
+    <Style Selector="Button.iconBtn.sessionManagerPin.pinned">
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Pressed}"/>
+    </Style>
+    <Style Selector="Button.iconBtn.sessionManagerPin.pinned Path.kei-icon">
+        <Setter Property="Stroke" Value="{DynamicResource Kei.Accent}"/>
+    </Style>
+
+    <Style Selector="Button.danger">
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Status.Error}"/>
+    </Style>
+    <Style Selector="Button.danger:pointerover /template/ ContentPresenter, Button.danger:pressed /template/ ContentPresenter">
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Status.Error}"/>
+    </Style>
+    <Style Selector="Button.danger Path.kei-icon, Button.iconBtn.danger Path.kei-icon">
+        <Setter Property="Stroke" Value="{DynamicResource Kei.Status.Error}"/>
+    </Style>
+    <Style Selector="Button.danger:disabled">
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Muted}"/>
+    </Style>
+    <Style Selector="Button.danger:disabled Path.kei-icon, Button.iconBtn.danger:disabled Path.kei-icon">
+        <Setter Property="Stroke" Value="{DynamicResource Kei.Text.Muted}"/>
+    </Style>
+
+    <!-- 弹窗数据列表采用灰色选中面、细强调边界；正文颜色由类设置，选中时可统一提高对比度。 -->
+    <Style Selector="ListBox.popupList ListBoxItem">
+        <Setter Property="MinHeight" Value="32"/>
+        <Setter Property="Padding" Value="8,4"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource Kei.Radius.Control}"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+    </Style>
+    <Style Selector="ListBox.popupList ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}"/>
+    </Style>
+    <Style Selector="ListBox.popupList ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Pressed}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Accent}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}"/>
+    </Style>
+    <Style Selector="ListBox.popupList TextBlock.popupPrimary">
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}"/>
+    </Style>
+    <Style Selector="ListBox.popupList TextBlock.popupSecondary, ListBox.popupList SelectableTextBlock.popupSecondary">
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Secondary}"/>
+    </Style>
+    <Style Selector="ListBox.popupList TextBlock.popupMuted">
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Muted}"/>
+    </Style>
+    <Style Selector="ListBox.popupList ListBoxItem:selected TextBlock.popupPrimary, ListBox.popupList ListBoxItem:selected TextBlock.popupSecondary, ListBox.popupList ListBoxItem:selected TextBlock.popupMuted, ListBox.popupList ListBoxItem:selected SelectableTextBlock.popupSecondary">
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}"/>
     </Style>
 
     <!-- 工具栏垂直分隔条 -->
@@ -276,27 +432,40 @@
         <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
 
-    <!-- 标签条按钮：选中态面板底 + 顶部 2px 强调条 -->
+    <!-- 标签条：未选中 / 选中 / 后台活动靠明度和字重分开，只用 Kei.* 令牌 -->
     <Style Selector="Button.tabItem">
         <Setter Property="Background" Value="{DynamicResource Kei.Bg.TabInactive}"/>
         <Setter Property="Padding" Value="8,2"/>
-        <Setter Property="Height" Value="28"/>
+        <Setter Property="Height" Value="32"/>
         <Setter Property="Margin" Value="2,4,0,0"/>
+        <Setter Property="MinHeight" Value="32"/>
         <Setter Property="CornerRadius" Value="3,3,0,0"/>
         <Setter Property="BorderThickness" Value="1,1,1,0"/>
         <Setter Property="BorderBrush" Value="{DynamicResource Kei.Border.Subtle}"/>
+    </Style>
+    <Style Selector="Button.tabItem TextBlock.tabTitle">
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Muted}"/>
+        <Setter Property="FontWeight" Value="Normal"/>
     </Style>
     <Style Selector="Button.tabItem.selected">
         <Setter Property="Background" Value="{DynamicResource Kei.Bg.Panel}"/>
         <Setter Property="BorderThickness" Value="1,2,1,0"/>
         <Setter Property="BorderBrush" Value="{DynamicResource Kei.Accent}"/>
     </Style>
+    <Style Selector="Button.tabItem.selected TextBlock.tabTitle">
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+    <!-- 后台活动且未选中：比未选中更亮，比选中更轻 -->
+    <Style Selector="Button.tabItem.activity:not(.selected)">
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.PanelAlt}"/>
+    </Style>
+    <Style Selector="Button.tabItem.activity:not(.selected) TextBlock.tabTitle">
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Secondary}"/>
+        <Setter Property="FontWeight" Value="Medium"/>
+    </Style>
     <Style Selector="Button.tabItem:pointerover /template/ ContentPresenter">
         <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}"/>
-    </Style>
-    <!-- 后台活动标签：标题斜体提示有未读输出 -->
-    <Style Selector="Button.tabItem.activity TextBlock.tabTitle">
-        <Setter Property="FontStyle" Value="Italic"/>
     </Style>
 
     <Style Selector="TreeViewItem">
@@ -307,8 +476,10 @@
     <Style Selector="Button.closeBtn">
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="Padding" Value="0"/>
-        <Setter Property="Width" Value="18"/>
-        <Setter Property="Height" Value="18"/>
+        <Setter Property="Width" Value="24"/>
+        <Setter Property="Height" Value="24"/>
+        <Setter Property="MinWidth" Value="24"/>
+        <Setter Property="MinHeight" Value="24"/>
         <Setter Property="CornerRadius" Value="2"/>
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="FontSize" Value="10"/>

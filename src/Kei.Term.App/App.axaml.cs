@@ -27,6 +27,8 @@ public partial class App : Application
 {
     // 进程级日志工厂：退出时统一 flush/释放
     private SimpleLoggerFactory? _loggerFactory;
+    private Services.ContextMenus.SystemContextMenuService? _systemContextMenus;
+    private QuitConfirmationService? _quitConfirmation;
 
     public override void Initialize()
     {
@@ -117,6 +119,9 @@ public partial class App : Application
             var vault = new InternalVaultManager(db, _loggerFactory.CreateLogger<InternalVaultManager>());
             var settingsPath = Path.Combine(appDataDir, "settings.json");
             var settingsService = new JsonSettingsService(settingsPath);
+            _systemContextMenus = new Services.ContextMenus.SystemContextMenuService(
+                () => settingsService.Current.UseNativeContextMenus,
+                logger: _loggerFactory.CreateLogger<Services.ContextMenus.SystemContextMenuService>());
             // 主机密钥信任：确认框经主 VM 的交互服务弹出（窗口装配完成前按拒绝处理）
             MainViewModel? interactionHost = null;
             var hostKeyTrust = new HostKeyTrustService(
@@ -147,7 +152,8 @@ public partial class App : Application
                 _loggerFactory,
                 hostKeyTrust: hostKeyTrust,
                 proxyRepo: proxyRepo,
-                portForwards: portForwards);
+                portForwards: portForwards,
+                proxySecrets: vault);
             var identityMgrVm = new IdentityManagerViewModel(
                 identityRepo,
                 vault,
@@ -161,7 +167,8 @@ public partial class App : Application
                 editorRepo,
                 proxyRepo,
                 () => mainVm.SnapshotSessionNodes(),
-                () => mainVm.SnapshotSessionTree());
+                () => mainVm.SnapshotSessionTree(),
+                proxySecrets: vault);
 
             var mainWindow = new MainWindow
             {
@@ -175,6 +182,12 @@ public partial class App : Application
                 new KnownHostsManagerViewModel(knownHostRepo));
             interactionHost = mainVm;
             desktop.MainWindow = mainWindow;
+            _quitConfirmation = new(mainVm.Interaction, async () =>
+            {
+                await mainWindow.PrepareForQuitAsync();
+                desktop.Shutdown();
+            }, settingsService);
+            mainWindow.SetQuitConfirmationService(_quitConfirmation);
             logger.LogInformation("启动完成: 主窗口已在 await 之前同步赋值");
 
             // 异步初始化延后到窗口赋值之后：续体经 Dispatcher 回 UI 线程，安全
@@ -230,11 +243,21 @@ public partial class App : Application
     // 退出路径：记录并释放日志（释放内部会 flush）
     private void RegisterShutdown(ILogger logger, IClassicDesktopStyleApplicationLifetime desktop)
     {
-        desktop.ShutdownRequested += (_, _) => logger.LogInformation("应用收到退出请求");
+        desktop.ShutdownRequested += (_, args) =>
+        {
+            logger.LogInformation("应用收到退出请求");
+            // 原生退出请求使用二次确认；窗口已关完时允许生命周期直接结束。
+            QuitConfirmationService? confirmation = _quitConfirmation;
+            if (!OperatingSystem.IsMacOS() || desktop.Windows.Count == 0 || confirmation == null) return;
+            args.Cancel = true;
+            _ = Safe.RunAsync(logger, "确认退出应用", () => confirmation.RequestAsync(QuitTrigger.Application));
+        };
 
         desktop.Exit += (_, _) =>
         {
             logger.LogInformation("应用正常退出");
+            _quitConfirmation?.Dispose();
+            _systemContextMenus?.Dispose();
             _loggerFactory?.Dispose();
         };
 
@@ -244,4 +267,6 @@ public partial class App : Application
             _loggerFactory?.Dispose();
         };
     }
+
+    public Task RequestQuitAsync() => _quitConfirmation?.RequestAsync() ?? Task.CompletedTask;
 }

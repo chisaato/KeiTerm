@@ -150,12 +150,18 @@ public sealed class VaultSessionService
         return await EnsureUnlockedAsync();
     }
 
-    // 读取身份整包材料；加密且锁定时先懒解锁，取消或读取失败返回空（方法顺延跳过）
-    public async Task<Dictionary<string, SecretPayload>> LoadIdentitySecretsAsync(Guid identityId)
+    // 读取身份整包材料；取消解锁必须中止调用方，不能伪装成空材料后继续读取文件密钥。
+    public async Task<Dictionary<string, SecretPayload>> LoadIdentitySecretsAsync(Guid identityId, bool allowInteraction = true)
     {
-        if (!await EnsureUnlockedAsync())
+        // 自动重连只能使用当前已解锁的材料，不能在后台弹出主密码框。
+        if (!allowInteraction && !_vault.IsUnlocked)
         {
-            return new Dictionary<string, SecretPayload>();
+            throw new OperationCanceledException("保管库已锁定，自动认证已停止。");
+        }
+
+        if (allowInteraction && !await EnsureUnlockedAsync())
+        {
+            throw new OperationCanceledException("已取消保管库解锁。");
         }
 
         try
@@ -164,6 +170,10 @@ public sealed class VaultSessionService
             MarkAccessed();
             return secrets;
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "读取身份材料失败 身份Id={IdentityId}", identityId);
@@ -171,13 +181,12 @@ public sealed class VaultSessionService
         }
     }
 
-    // 把单个方法的材料并入身份整包写回；未解锁 / 取消时不持久化（材料仍留在本次内存）
+    // 把单个方法的材料并入身份整包写回；取消解锁同时中止本次认证材料收集。
     public async Task PersistSecretAsync(Guid identityId, Guid methodId, SecretPayload payload)
     {
         if (!await EnsureReadyForWriteAsync())
         {
-            _logger.LogInformation("Vault 材料未持久化（未解锁/取消） 方法Id={MethodId}", methodId);
-            return;
+            throw new OperationCanceledException("已取消保管库解锁。");
         }
 
         Dictionary<string, SecretPayload> secrets = await _secretStore.GetSecretsAsync(identityId);
@@ -197,7 +206,17 @@ public sealed class VaultSessionService
     // 指定 Vault 私钥方法的已存材料信息（字节数 + 指纹）；无材料返回 null。供身份编辑器回显
     public async Task<VaultKeyInfo?> GetVaultKeyInfoAsync(Guid identityId, Guid methodId)
     {
-        Dictionary<string, SecretPayload> secrets = await LoadIdentitySecretsAsync(identityId);
+        Dictionary<string, SecretPayload> secrets;
+        try
+        {
+            secrets = await LoadIdentitySecretsAsync(identityId);
+        }
+        catch (OperationCanceledException)
+        {
+            // 编辑器的信息预览无需建立连接；取消时保留空预览。
+            return null;
+        }
+
         if (!secrets.TryGetValue(methodId.ToString(), out SecretPayload? payload)
             || string.IsNullOrEmpty(payload.PrivateKeyContent))
         {

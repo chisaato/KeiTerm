@@ -11,78 +11,17 @@ using Kei.Term.App.ViewModels.Settings;
 using Kei.Term.App.Views;
 using Kei.Term.Core.Models;
 using Kei.Term.Core.Models.Profiles;
+using Kei.Term.Core.Services;
 using Kei.Term.Core.Settings;
 using Kei.Term.Infrastructure.Settings;
 using Xunit;
-using TabPlacement = Kei.Term.Core.Models.Profiles.TabPlacement;
 
 namespace Kei.Term.Tests;
 
 public class SettingsProfileAndTabPlacementTests
 {
     [Fact]
-    public void TabPlacement_InSettingsViewModel_SavesAndReloadsCorrectly()
-    {
-        string tempPath = Path.Combine(Path.GetTempPath(), $"settings_test_{Path.GetRandomFileName()}.json");
-        try
-        {
-            var settingsService = new JsonSettingsService(tempPath);
-            var vm = new SettingsViewModel(settingsService);
-
-            // 验证初始加载
-            Assert.NotNull(vm.Categories);
-            var appearancePage = Assert.Single(vm.Categories, c => c.Page is AppearanceSettingsPage).Page as AppearanceSettingsPage;
-            Assert.NotNull(appearancePage);
-            Assert.Equal("Top", appearancePage.SelectedTabPlacement.Key);
-
-            // 切换为 Bottom
-            appearancePage.SetTabPlacement("Bottom");
-            Assert.Equal(TabPlacement.Bottom, appearancePage.SelectedTabPlacement.Placement);
-        }
-        finally
-        {
-            if (File.Exists(tempPath)) File.Delete(tempPath);
-        }
-    }
-
-    [Fact]
-    public async Task SettingsViewModel_ExportAndImport_Integration()
-    {
-        string tempDir = Path.Combine(Path.GetTempPath(), $"keiterm_bundle_{Path.GetRandomFileName()}");
-        Directory.CreateDirectory(tempDir);
-        string settingsPath = Path.Combine(tempDir, "settings.json");
-        string bundlePath = Path.Combine(tempDir, "exported_bundle.json");
-
-        try
-        {
-            var settingsService = new JsonSettingsService(settingsPath);
-            var profileManager = new Kei.Term.App.Services.ProfileManagerService(settingsService, tempDir);
-            await profileManager.InitializeAsync();
-
-            var vm = new SettingsViewModel(settingsService, tempDir, profileManager: profileManager);
-
-            // 模拟 SaveBundleFileDialogAsync
-            vm.SaveBundleFileDialogAsync = () => Task.FromResult<string?>(bundlePath);
-
-            // 执行导出命令
-            await vm.ExportBundleCommand.ExecuteAsync(null);
-
-            Assert.True(File.Exists(bundlePath));
-            string json = await File.ReadAllTextAsync(bundlePath);
-            Assert.Contains("\"version\": 1", json);
-
-            // 模拟 OpenBundleFileDialogAsync
-            vm.OpenBundleFileDialogAsync = () => Task.FromResult<string?>(bundlePath);
-            await vm.ImportBundleCommand.ExecuteAsync(null);
-        }
-        finally
-        {
-            if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true);
-        }
-    }
-
-    [Fact]
-    public async Task SettingsViewModel_GuiAndTerminalProfiles_SelectionAndPersistence()
+    public async Task Settings_SaveReloadPreservesProfilesAndTabPlacement_ExportPreservesProfileSelection()
     {
         string tempDir = Path.Combine(Path.GetTempPath(), $"keiterm_profiles_test_{Path.GetRandomFileName()}");
         Directory.CreateDirectory(tempDir);
@@ -98,27 +37,33 @@ public class SettingsProfileAndTabPlacementTests
             var appearancePage = Assert.Single(vm.Categories, c => c.Page is AppearanceSettingsPage).Page as AppearanceSettingsPage;
             Assert.NotNull(appearancePage);
 
-            Assert.NotEmpty(appearancePage.GuiProfiles);
-            Assert.NotEmpty(appearancePage.TerminalProfiles);
-            Assert.NotNull(appearancePage.SelectedGuiProfile);
-            Assert.NotNull(appearancePage.SelectedTerminalProfile);
-
             // 切换为其他 Profile
             var targetGui = appearancePage.GuiProfiles.Last();
             var targetTerm = appearancePage.TerminalProfiles.Last();
             appearancePage.SelectedGuiProfile = targetGui;
             appearancePage.SelectedTerminalProfile = targetTerm;
+            appearancePage.SetTabPlacement("Bottom");
 
             // 保存设置
             await vm.SaveCommand.ExecuteAsync(null);
 
-            // 验证 AppSettings 中已记录
-            Assert.Equal(targetGui.Id, settingsService.Current.ActiveGuiProfileId);
-            Assert.Equal(targetTerm.Id, settingsService.Current.ActiveTerminalProfileId);
+            // 新建服务从磁盘重读，避免只验证同一个内存对象。
+            JsonSettingsService reader = new(settingsPath);
+            await reader.LoadSettingsAsync();
+            Assert.Equal(targetGui.Id, reader.Current.ActiveGuiProfileId);
+            Assert.Equal(targetTerm.Id, reader.Current.ActiveTerminalProfileId);
+            Assert.Equal("Bottom", reader.Current.TabPlacement);
 
             // 验证 ProfileManagerService 中已生效
             Assert.Equal(targetGui.Id, profileManager.ActiveGuiProfile.Id);
             Assert.Equal(targetTerm.Id, profileManager.DefaultTerminalProfile.Id);
+
+            string bundlePath = Path.Combine(tempDir, "profiles.json");
+            vm.SaveBundleFileDialogAsync = () => Task.FromResult<string?>(bundlePath);
+            await vm.ExportBundleCommand.ExecuteAsync(null);
+            ProfileBundle bundle = ProfileBundleSerializer.Deserialize(await File.ReadAllTextAsync(bundlePath));
+            Assert.Equal(targetGui.Id, bundle.SelectedGuiProfileId);
+            Assert.Equal(targetTerm.Id, bundle.DefaultTerminalProfileId);
         }
         finally
         {

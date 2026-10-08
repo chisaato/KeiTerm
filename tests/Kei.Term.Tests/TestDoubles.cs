@@ -17,6 +17,13 @@ namespace Kei.Term.Tests;
 // 按脚本回答的交互服务：每类提示一个队列，队列耗尽即按"取消"处理；同时记录调用次数与参数
 internal sealed class ScriptedInteraction : IInteractionService
 {
+    public Queue<ExternalEditor?> EditorResults { get; } = new();
+    public Queue<FileAssociationRule?> AssociationResults { get; } = new();
+    public Task<ExternalEditor?> EditExternalEditorAsync(ExternalEditor? existing)
+        => Task.FromResult(EditorResults.Count > 0 ? EditorResults.Dequeue() : null);
+    public Task<FileAssociationRule?> EditFileAssociationAsync(FileAssociationRule? existing, IReadOnlyList<ExternalEditor> editors)
+        => Task.FromResult(AssociationResults.Count > 0 ? AssociationResults.Dequeue() : null);
+
     public Queue<string?> MasterPasswords { get; } = new();
     public Queue<PassphrasePromptResult?> Passphrases { get; } = new();
     public Queue<AuthPromptResult?> AuthResults { get; } = new();
@@ -84,7 +91,17 @@ internal sealed class ScriptedInteraction : IInteractionService
 
     public Task OpenSettingsAsync() => Task.CompletedTask;
 
-    public Task OpenQuickConnectAsync() => Task.CompletedTask;
+    public Func<Task>? QuickConnectAction { get; set; }
+    public Func<Kei.Term.App.ViewModels.CommandPaletteViewModel, Kei.Term.App.ViewModels.CommandPaletteItem?>? PaletteSelection { get; set; }
+    public Task<Kei.Term.App.ViewModels.CommandPaletteItem?> ShowCommandPaletteAsync(Kei.Term.App.ViewModels.CommandPaletteViewModel model)
+        => Task.FromResult(PaletteSelection?.Invoke(model));
+    public Task OpenQuickConnectAsync() => QuickConnectAction?.Invoke() ?? Task.CompletedTask;
+    public Action? CloseWindowAction { get; set; }
+    public Task CloseWindowAsync()
+    {
+        CloseWindowAction?.Invoke();
+        return Task.CompletedTask;
+    }
 
     public Task<bool> ConfirmDeleteAsync(string name) => Task.FromResult(true);
 

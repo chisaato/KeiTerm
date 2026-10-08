@@ -5,7 +5,9 @@ using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Kei.Term.App.Helpers;
 using Kei.Term.App.Logging;
+using Kei.Term.App.Services;
 using Kei.Term.Core.Storage;
 using Kei.Term.Core.Vault;
 using Microsoft.Extensions.Logging;
@@ -23,6 +25,8 @@ public partial class IdentityManagerViewModel : ViewModelBase
 
     // 供编辑器/窗口层复用同一 logger
     public ILogger Logger => _logger;
+
+    public IInteractionService Interaction { get; set; } = NullInteractionService.Instance;
 
     [ObservableProperty]
     private ObservableCollection<Identity> _identities = [];
@@ -181,10 +185,22 @@ public partial class IdentityManagerViewModel : ViewModelBase
             return;
         }
 
-        await _vault.SetMasterPasswordAsync(setup.MasterPassword);
-        RefreshVaultState();
-        OnPropertyChanged(nameof(IsPlainMode));
-        _logger.LogInformation("设置主密码成功，保管库切换为加密模式");
+        try
+        {
+            await _vault.SetMasterPasswordAsync(setup.MasterPassword);
+            _logger.LogInformation("设置主密码成功，保管库切换为加密模式");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "设置主密码未完整完成");
+            await Interaction.NotifyAsync(Strings.Get("IdentityManager.SetMasterPassword"), ex.Message);
+        }
+        finally
+        {
+            // 密钥事务可能已提交、历史日志清理仍失败；按实际 Vault 状态刷新，不能继续显示明文模式。
+            RefreshVaultState();
+            OnPropertyChanged(nameof(IsPlainMode));
+        }
     });
 
     private void RefreshVaultState()

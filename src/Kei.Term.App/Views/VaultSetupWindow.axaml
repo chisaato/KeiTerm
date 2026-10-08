@@ -6,22 +6,23 @@
         mc:Ignorable="d" d:DesignWidth="480" d:DesignHeight="420"
         x:Class="Kei.Term.App.Views.VaultSetupWindow"
         Title="{loc:KeiString VaultSetup.Title}"
-        Width="500" Height="440"
+        Width="500" MinHeight="440" SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
         CanResize="False"
         ShowInTaskbar="False"
-        Background="#1E1E1E">
+        Background="{DynamicResource Kei.Bg.Window}"
+        FontFamily="{DynamicResource Kei.Font.UI}">
 
     <Grid RowDefinitions="*, Auto" Margin="20">
         <StackPanel Grid.Row="0" Spacing="10">
-            <TextBlock Text="{loc:KeiString VaultSetup.Header}" FontWeight="Bold" Foreground="#4EC9B0" FontSize="14"/>
+            <TextBlock Text="{loc:KeiString VaultSetup.Header}" FontWeight="Bold" Foreground="{DynamicResource Kei.Text.Primary}" FontSize="14"/>
             <TextBlock Text="{loc:KeiString VaultSetup.Desc}"
-                       FontSize="11" Foreground="#888888" TextWrapping="Wrap"/>
+                       FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}" TextWrapping="Wrap"/>
 
             <RadioButton x:Name="MasterRadio" Content="{loc:KeiString VaultSetup.MasterRadio}" IsChecked="True"
                          IsCheckedChanged="OnModeChanged" Margin="0,6,0,0"/>
             <TextBlock Text="{loc:KeiString VaultSetup.MasterDesc}"
-                       FontSize="11" Foreground="#888888" Margin="24,0,0,0"/>
+                       FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}" Margin="24,0,0,0"/>
 
             <StackPanel x:Name="PasswordPanel" Spacing="8" Margin="24,4,0,0">
                 <TextBox x:Name="PasswordBox" PasswordChar="•" PlaceholderText="{loc:KeiString VaultSetup.MasterPasswordPlaceholder}"/>
@@ -31,13 +32,13 @@
             <RadioButton x:Name="PlainRadio" Content="{loc:KeiString VaultSetup.PlainRadio}"
                          IsCheckedChanged="OnModeChanged" Margin="0,10,0,0"/>
             <TextBlock Text="{loc:KeiString VaultSetup.PlainDesc}"
-                       FontSize="11" Foreground="#E0A030" TextWrapping="Wrap" Margin="24,0,0,0"/>
+                       FontSize="12" Foreground="{DynamicResource Kei.Status.Connecting}" TextWrapping="Wrap" Margin="24,0,0,0"/>
 
-            <TextBlock x:Name="ErrorText" Foreground="#FF6B6B" FontSize="11"
+            <TextBlock x:Name="ErrorText" Foreground="{DynamicResource Kei.Status.Error}" FontSize="12"
                        TextWrapping="Wrap" IsVisible="False" Margin="0,4,0,0"/>
         </StackPanel>
 
-        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12" Margin="0,14,0,0">
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,14,0,0">
             <Button Content="{loc:KeiString Common.Cancel}" Click="OnCancel" Width="85" HorizontalContentAlignment="Center"/>
             <Button Content="{loc:KeiString Common.Confirm}" Click="OnConfirm" Width="85" HorizontalContentAlignment="Center"
                     Classes="accent"/>

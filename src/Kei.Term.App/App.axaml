@@ -2,7 +2,9 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="Kei.Term.App.App"
              xmlns:local="using:Kei.Term.App"
+             xmlns:icons="using:Kei.Term.App.DesignSystem"
              xmlns:loc="using:Kei.Term.App.Helpers"
+             xmlns:dock="using:Dock.Avalonia.Themes.Fluent"
              Name="KeiTerm"
              RequestedThemeVariant="Default">
              <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
@@ -27,12 +29,13 @@
 
     <Application.Styles>
         <FluentTheme />
+        <dock:DockFluentTheme DensityStyle="Compact" />
     </Application.Styles>
 
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceInclude Source="avares://Kei.Term.App/DesignSystem/KeiIcons.axaml" />
+                <icons:LucideIconResources />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>

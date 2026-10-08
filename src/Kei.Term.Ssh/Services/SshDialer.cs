@@ -14,7 +14,9 @@ internal sealed record SshTarget(
     string Username,
     AuthenticationMethod[] AuthMethods,
     string? Socks5Host = null,
-    int Socks5Port = 0);
+    int Socks5Port = 0,
+    string? Socks5Username = null,
+    string? Socks5Password = null);
 
 // 连接级公共参数（跳板与目标共用）
 internal sealed record SshClientOptions(
@@ -147,13 +149,14 @@ internal sealed class SshJumpChain : IAsyncDisposable
                     && !string.IsNullOrWhiteSpace(hop.Socks5Host)
                     && !string.Equals(dialHost, IPAddressLoopback, StringComparison.Ordinal))
                 {
-                    // 只记端点。本轮没有口令，日志模板也不留密码占位。
+                    // 只记端点和是否带认证。口令与用户名都不进日志。
                     logger.LogInformation(
-                        "跳板最外层经 SOCKS5 {ProxyHost}:{ProxyPort} 拨号 {Host}:{Port}",
+                        "跳板最外层经 SOCKS5 {ProxyHost}:{ProxyPort} 拨号 {Host}:{Port} 认证={HasAuth}",
                         hop.Socks5Host,
                         hop.Socks5Port,
                         hop.Host,
-                        hop.Port);
+                        hop.Port,
+                        HasSocks5Auth(hop.Socks5Username, hop.Socks5Password));
                 }
 
                 var client = new SshClient(BuildConnectionInfo(hop, dialHost, dialPort, options));
@@ -278,8 +281,8 @@ internal sealed class SshJumpChain : IAsyncDisposable
                 ProxyTypes.Socks5,
                 target.Socks5Host,
                 target.Socks5Port,
-                string.Empty,
-                string.Empty,
+                target.Socks5Username ?? string.Empty,
+                target.Socks5Password ?? string.Empty,
                 target.AuthMethods)
             {
                 Timeout = options.ConnectTimeout
@@ -291,6 +294,9 @@ internal sealed class SshJumpChain : IAsyncDisposable
             Timeout = options.ConnectTimeout
         };
     }
+
+    internal static bool HasSocks5Auth(string? username, string? password)
+        => !string.IsNullOrEmpty(username) || !string.IsNullOrEmpty(password);
 
     internal static void ApplyKeepAlive(BaseClient client, SshClientOptions options)
     {
@@ -351,11 +357,12 @@ internal sealed class SshDialer : IAsyncDisposable
             && !string.IsNullOrWhiteSpace(_target.Socks5Host))
         {
             _logger.LogInformation(
-                "经 SOCKS5 拨号 {ProxyHost}:{ProxyPort} 目标={Host}:{Port}",
+                "经 SOCKS5 拨号 {ProxyHost}:{ProxyPort} 目标={Host}:{Port} 认证={HasAuth}",
                 _target.Socks5Host,
                 _target.Socks5Port,
                 _target.Host,
-                _target.Port);
+                _target.Port,
+                SshJumpChain.HasSocks5Auth(_target.Socks5Username, _target.Socks5Password));
         }
 
         T client = create(SshJumpChain.BuildConnectionInfo(_target, host, port, _options));

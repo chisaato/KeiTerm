@@ -27,7 +27,7 @@
             <StackPanel Spacing="10">
                 <TextBlock Text="{loc:KeiString IdentityEdit.InfoSection}"
                            FontWeight="SemiBold"
-                           Foreground="{DynamicResource Kei.Session.Foreground}"
+                           Foreground="{DynamicResource Kei.Text.Primary}"
                            FontSize="13"/>
 
                 <Grid ColumnDefinitions="80, *" RowDefinitions="Auto, Auto, Auto" RowSpacing="8">
@@ -75,8 +75,8 @@
                     <TextBlock Grid.Column="0"
                                Text="{loc:KeiString IdentityEdit.MethodsSection}"
                                FontWeight="SemiBold"
-                               Foreground="{DynamicResource Kei.Session.Foreground}"
-                               FontSize="12.5"
+                               Foreground="{DynamicResource Kei.Text.Primary}"
+                               FontSize="13"
                                VerticalAlignment="Center"/>
                     <ComboBox Grid.Column="1"
                               ItemsSource="{Binding MethodTypes}"
@@ -109,28 +109,49 @@
                                         <Grid ColumnDefinitions="*, Auto">
                                             <TextBlock Text="{Binding KindName}"
                                                        FontWeight="SemiBold"
-                                                       Foreground="{DynamicResource Kei.Session.Foreground}"
+                                                       Foreground="{DynamicResource Kei.Text.Primary}"
                                                        FontSize="12"
                                                        VerticalAlignment="Center"/>
                                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
-                                                <Button Classes="iconBtn" Width="22" Height="22" Content="↑"
+                                                <Button Classes="iconBtn" Width="28" Height="28"
                                                         ToolTip.Tip="{loc:KeiString Common.MoveUp}"
+                                                        AutomationProperties.Name="{loc:KeiString Common.MoveUp}"
                                                         Command="{Binding $parent[Window].((vm:IdentityEditViewModel)DataContext).MoveUpCommand}"
-                                                        CommandParameter="{Binding}"/>
-                                                <Button Classes="iconBtn" Width="22" Height="22" Content="↓"
+                                                        CommandParameter="{Binding}">
+                                                    <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                        <Grid Width="24" Height="24">
+                                                            <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.ArrowUp}"/>
+                                                        </Grid>
+                                                    </Viewbox>
+                                                </Button>
+                                                <Button Classes="iconBtn" Width="28" Height="28"
                                                         ToolTip.Tip="{loc:KeiString Common.MoveDown}"
+                                                        AutomationProperties.Name="{loc:KeiString Common.MoveDown}"
                                                         Command="{Binding $parent[Window].((vm:IdentityEditViewModel)DataContext).MoveDownCommand}"
-                                                        CommandParameter="{Binding}"/>
-                                                <Button Classes="iconBtn" Width="22" Height="22" Content="✕"
+                                                        CommandParameter="{Binding}">
+                                                    <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                        <Grid Width="24" Height="24">
+                                                            <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.ArrowDown}"/>
+                                                        </Grid>
+                                                    </Viewbox>
+                                                </Button>
+                                                <Button Classes="iconBtn danger" Width="28" Height="28"
                                                         ToolTip.Tip="{loc:KeiString Common.Delete}"
+                                                        AutomationProperties.Name="{loc:KeiString Common.Delete}"
                                                         Command="{Binding $parent[Window].((vm:IdentityEditViewModel)DataContext).RemoveMethodCommand}"
-                                                        CommandParameter="{Binding}"/>
+                                                        CommandParameter="{Binding}">
+                                                    <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                        <Grid Width="24" Height="24">
+                                                            <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Delete}"/>
+                                                        </Grid>
+                                                    </Viewbox>
+                                                </Button>
                                             </StackPanel>
                                         </Grid>
 
                                         <TextBlock Text="{Binding Hint}"
-                                                   Foreground="{DynamicResource Kei.Text.Muted}"
-                                                   FontSize="11"
+                                                   Foreground="{DynamicResource Kei.Text.Secondary}"
+                                                   FontSize="12"
                                                    TextWrapping="Wrap"/>
 
                                         <!-- 文件私钥行内字段 -->
@@ -139,7 +160,7 @@
                                                 <TextBlock Text="{loc:KeiString IdentityEdit.KeyFilePath}"
                                                            VerticalAlignment="Center"
                                                            Foreground="{DynamicResource Kei.Text.Secondary}"
-                                                           FontSize="11.5"/>
+                                                           FontSize="12"/>
                                                 <TextBox Grid.Column="1" Text="{Binding KeyFilePath}"
                                                          PlaceholderText="{loc:KeiString IdentityEdit.KeyFilePath.Placeholder}"/>
                                                 <Button Grid.Column="2" Content="{loc:KeiString Common.Browse}"
@@ -149,7 +170,7 @@
                                                 <TextBlock Text="{loc:KeiString IdentityEdit.PassphraseMode}"
                                                            VerticalAlignment="Center"
                                                            Foreground="{DynamicResource Kei.Text.Secondary}"
-                                                           FontSize="11.5"/>
+                                                           FontSize="12"/>
                                                 <ComboBox Grid.Column="1" HorizontalAlignment="Stretch"
                                                           ItemsSource="{Binding $parent[Window].((vm:IdentityEditViewModel)DataContext).PassphraseModes}"
                                                           SelectedIndex="{Binding PassphraseModeIndex}">
@@ -162,7 +183,7 @@
                                             </Grid>
                                             <TextBlock Text="{Binding FileKeyStatus}"
                                                        IsVisible="{Binding HasFileKeyStatus}"
-                                                       FontSize="11"
+                                                       FontSize="12"
                                                        Foreground="{DynamicResource Kei.Text.Secondary}"
                                                        TextWrapping="Wrap"/>
                                         </StackPanel>
@@ -179,7 +200,7 @@
                                                            VerticalAlignment="Center"/>
                                                 <SelectableTextBlock Grid.Row="0" Grid.Column="1"
                                                                      Text="{Binding VaultKeyStatus}"
-                                                                     Foreground="{DynamicResource Kei.Session.Foreground}"
+                                                                     Foreground="{DynamicResource Kei.Text.Primary}"
                                                                      FontSize="12"
                                                                      VerticalAlignment="Center"/>
 
@@ -193,8 +214,8 @@
                                                            IsVisible="{Binding HasVaultKeyFingerprint}"/>
                                                 <SelectableTextBlock Grid.Row="1" Grid.Column="1"
                                                                      Text="{Binding VaultKeyFingerprint}"
-                                                                     Foreground="{DynamicResource Kei.Session.Foreground}"
-                                                                     FontSize="11"
+                                                                     Foreground="{DynamicResource Kei.Text.Primary}"
+                                                                     FontSize="12"
                                                                      FontFamily="{DynamicResource Kei.Font.Mono}"
                                                                      TextWrapping="Wrap"
                                                                      VerticalAlignment="Center"
@@ -204,7 +225,7 @@
                                             <StackPanel Orientation="Horizontal" Spacing="8">
                                                 <Button Content="{loc:KeiString IdentityEdit.ImportVaultKey}"
                                                         Command="{Binding ImportVaultKeyCommand}"/>
-                                                <Button Content="{loc:KeiString IdentityEdit.RemoveVaultKey}"
+                                                <Button Classes="danger" Content="{loc:KeiString IdentityEdit.RemoveVaultKey}"
                                                         Command="{Binding RemoveVaultKeyCommand}"/>
                                             </StackPanel>
                                         </StackPanel>
@@ -218,19 +239,17 @@
         </Border>
 
         <!-- 底部：提示与确定/取消操作栏 -->
-        <Grid Grid.Row="2" ColumnDefinitions="*, Auto" ColumnSpacing="12" Margin="0,12,0,0">
-            <TextBlock Grid.Column="0"
+        <Grid Grid.Row="2" RowDefinitions="Auto,Auto" ColumnDefinitions="*, Auto" ColumnSpacing="12" Margin="0,10,0,0">
+            <TextBlock Grid.Row="0" Grid.ColumnSpan="2" Text="{Binding ErrorMessage}" TextWrapping="Wrap"
+                       Foreground="{DynamicResource Kei.Status.Error}" FontSize="12" Margin="0,0,0,6"
+                       IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+            <TextBlock Grid.Row="1" Grid.Column="0"
                        Text="{loc:KeiString IdentityEdit.ApplyHint}"
                        Foreground="{DynamicResource Kei.Text.Muted}"
-                       FontSize="11"
+                       FontSize="12"
                        TextWrapping="Wrap"
                        VerticalAlignment="Center"/>
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                <TextBlock Text="{Binding ErrorMessage}"
-                           Foreground="{DynamicResource Kei.Status.Error}"
-                           FontSize="11"
-                           VerticalAlignment="Center"
-                           IsVisible="{Binding ErrorMessage, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+            <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                 <Button Content="{loc:KeiString Common.Cancel}"
                         Command="{Binding CancelCommand}"
                         Width="76"

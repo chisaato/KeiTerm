@@ -62,6 +62,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
     partial void OnStateChanged(ConnectionState value)
     {
         OnPropertyChanged(nameof(Status));
+        AlignGridToBottom();
     }
 #pragma warning restore CS0618
 
@@ -87,6 +88,11 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
     private CancellationTokenSource? _reconnectWait;
     private int _reconnectAttempt;
     private bool _userDisconnect;
+
+    public bool RequiresInteractiveAuthentication { get; internal set; }
+
+    // 认证弹窗打开期间状态仍可能是 Error，防止连续回车并发发起重连。
+    internal bool IsReconnectPending { get; set; }
 
     // 意外断开时由主窗口接上。开关关闭时保持原有「干净断开即关标签」行为。
     public Func<bool>? AutoReconnectEnabled { get; set; }
@@ -223,13 +229,24 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
     {
         State = ConnectionState.Error;
         StatusMessage = message;
-        Terminal.WriteOutput(Encoding.UTF8.GetBytes($"\r\n\x1b[31m{Strings.Get("Main.Tab.ConnectErrorPrefix")}{message}\x1b[0m\r\n"));
+        // 尚无远端内容时错误页从第一行开始；已有会话历史则继续追加，避免覆盖用户输出。
+        string position = _hasRemoteOutput ? "\r\n" : "\x1b[2J\x1b[H";
+        Terminal.WriteOutput(Encoding.UTF8.GetBytes(
+            $"{position}\x1b[31m{Strings.Get("Main.Tab.ConnectErrorPrefix")}{message}\x1b[0m\r\n"
+            + $"\x1b[90m{Strings.Get("Main.Tab.PressEnterToReconnect")}\x1b[0m\r\n"));
+        if (IsSelected) Terminal.Focus();
         _logger.LogWarning("终端标签连接失败 标题={Title} 原因={Reason}", Title, message);
     }
 
     // 解除当前会话/端点（不改标签状态与释放标志），供认证失败重试前清理
-    public async Task DetachSessionAsync()
+    public async Task DetachSessionAsync(ITerminalSession? expectedSession = null)
     {
+        if (expectedSession != null && !ReferenceEquals(_session, expectedSession))
+        {
+            await Task.Run(async () => await expectedSession.DisposeAsync());
+            return;
+        }
+        _fileManagerInitializationCancellation?.Cancel();
         _endpoint?.Dispose();
         _terminal?.DetachEndpoint();
         _endpoint = null;
@@ -240,7 +257,8 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         {
             session.Disconnected -= OnSessionDisconnected;
             session.OutputReceived -= OnSessionOutput;
-            await session.DisposeAsync();
+            // SSH 断开可能同步等待网络；先在 UI 线程卸下端点，再在后台释放连接。
+            await Task.Run(async () => await session.DisposeAsync());
             _logger.LogInformation("终端标签释放会话 标题={Title} SessionId={SessionId}", Title, session.SessionId);
         }
     }
@@ -298,35 +316,6 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         Dispatcher.UIThread.Post(() => TrySyncTerminalSize(), DispatcherPriority.Render);
     }
 
-    public async Task InitializeFileManagerAsync(
-        IRemoteFileSystem fileSystem,
-        ILocalFileTracker fileTracker,
-        ISettingsService? settingsService = null,
-        IExternalEditorRepository? editorRepo = null,
-        ILogger? logger = null)
-    {
-        if (_session == null) return;
-        var vm = new RemoteFileManagerViewModel(_session.SessionId, fileSystem, fileTracker, settingsService, editorRepo, logger ?? _logger);
-        vm.CloseRequested += () =>
-        {
-            IsFileManagerVisible = false;
-            Dispatcher.UIThread.Post(() => TrySyncTerminalSize(), DispatcherPriority.Render);
-        };
-        vm.ToggleDockPositionRequested += () =>
-        {
-            ToggleDockPosition();
-        };
-
-        if (settingsService != null)
-        {
-            IsFileManagerOnLeft = settingsService.Current.FileTransfer.IsFileManagerOnLeft;
-            vm.IsOnLeft = IsFileManagerOnLeft;
-        }
-
-        await vm.InitializeAsync();
-        FileManager = vm;
-    }
-
     [RelayCommand]
     public void ToggleDockPosition()
     {
@@ -351,40 +340,20 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
     }
 
     // 原地重连前的清理：卸下旧会话与文件侧栏，终端内保留历史并打印分隔提示
-    public async Task PrepareReconnectAsync()
+    public async Task PrepareReconnectAsync(CancellationToken ct = default)
     {
+        ct.ThrowIfCancellationRequested();
         await DetachSessionAsync();
+        // 旧会话的网络释放可能较慢；被取消的自动重连不能继续复位后来建立的新会话。
+        ct.ThrowIfCancellationRequested();
+        if (IsDisposed) return;
         await CloseFileManagerAsync();
+        ct.ThrowIfCancellationRequested();
+        if (IsDisposed) return;
         RemoteTitle = null;
         State = ConnectionState.Connecting;
         StatusMessage = null;
         Terminal.WriteOutput(Encoding.UTF8.GetBytes($"\r\n\x1b[90m{Strings.Get("Main.Tab.Reconnecting")}\x1b[0m\r\n"));
-    }
-
-    // 文件侧栏持有独立的 SFTP/SCP 通道（专用模式下是第二条 SSH 连接），标签断开或关闭时必须释放
-    // releaseOnly：关闭标签时在后台线程释放，不再改动已解绑界面的可观察属性
-    private async Task CloseFileManagerAsync(bool releaseOnly = false)
-    {
-        RemoteFileManagerViewModel? fileManager = FileManager;
-        if (!releaseOnly)
-        {
-            IsFileManagerVisible = false;
-            FileManager = null;
-        }
-
-        if (fileManager == null)
-        {
-            return;
-        }
-
-        try
-        {
-            await fileManager.DisposeAsync();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "释放文件侧栏失败 标题={Title}", Title);
-        }
     }
 
     public async ValueTask DisposeAsync()
@@ -398,6 +367,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         // 控件可能从未创建（纯状态使用），仅在创建后解绑
         if (_terminal != null)
         {
+            _terminal.RemoveHandler(Avalonia.Input.InputElement.KeyDownEvent, OnTerminalKeyDown);
             _terminal.Loaded -= OnTerminalLoaded;
             _terminal.SizeChanged -= OnTerminalSizeChanged;
             _terminal.TerminalResized -= OnTerminalGridResized;
@@ -406,7 +376,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         _userDisconnect = true;
         CancelReconnect();
         await DetachSessionAsync();
-        await CloseFileManagerAsync(releaseOnly: true);
+        await CloseFileManagerAsync();
         _logger.LogInformation("终端标签已释放 标题={Title}", Title);
     }
 }

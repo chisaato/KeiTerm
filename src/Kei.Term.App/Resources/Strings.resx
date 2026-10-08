@@ -101,10 +101,25 @@
     <value>按文件夹/会话名过滤</value>
   </data>
   <data name="Main.SessionManager.CollapseTip" xml:space="preserve">
-    <value>收起连接管理器</value>
+    <value>收起会话管理器</value>
   </data>
   <data name="Main.SessionManager.ToggleTip" xml:space="preserve">
     <value>显示/隐藏连接管理器</value>
+  </data>
+  <data name="Main.SessionManager.ShowTip" xml:space="preserve">
+    <value>显示会话管理器</value>
+  </data>
+  <data name="Main.SessionManager.HideTip" xml:space="preserve">
+    <value>收起会话管理器</value>
+  </data>
+  <data name="Main.SessionManager.FloatTip" xml:space="preserve">
+    <value>临时展开会话管理器</value>
+  </data>
+  <data name="Main.SessionManager.PinTip" xml:space="preserve">
+    <value>点击固定会话侧栏，悬停临时展开</value>
+  </data>
+  <data name="Main.SessionManager.UnpinTip" xml:space="preserve">
+    <value>点击取消固定会话侧栏</value>
   </data>
   <data name="Main.Compose.PreInput" xml:space="preserve">
     <value>预输入:</value>
@@ -135,6 +150,9 @@
   </data>
   <data name="Main.Tab.ConnectErrorPrefix" xml:space="preserve">
     <value>[连接错误]: </value>
+  </data>
+  <data name="Main.Tab.PressEnterToReconnect" xml:space="preserve">
+    <value>按 Enter 重新连接</value>
   </data>
 
   <!-- Main Window - Toolbar Tips -->
@@ -256,6 +274,9 @@
   <data name="Menu.View.SessionManager" xml:space="preserve">
     <value>连接管理器</value>
   </data>
+  <data name="Menu.View.PinSessionManager" xml:space="preserve">
+    <value>固定会话管理器</value>
+  </data>
   <data name="Menu.View.Compose" xml:space="preserve">
     <value>命令预输入</value>
   </data>
@@ -287,7 +308,7 @@
     <value>关于 Kei.Term</value>
   </data>
 
-  <!-- About Dialog & Close Confirm Dialog -->
+  <!-- About Dialog & Quit Confirmation -->
   <data name="About.Title" xml:space="preserve">
     <value>关于 Kei.Term</value>
   </data>
@@ -300,14 +321,23 @@
   <data name="About.Description" xml:space="preserve">
     <value>SSH 终端模拟器</value>
   </data>
-  <data name="Dialog.CloseConfirm.Title" xml:space="preserve">
-    <value>关闭确认</value>
+  <data name="Quit.Confirm.Title" xml:space="preserve">
+    <value>确认退出</value>
   </data>
-  <data name="Dialog.CloseConfirm.Message" xml:space="preserve">
-    <value>有打开的终端标签，确定要关闭 Kei.Term 吗？</value>
+  <data name="Quit.Confirm.Message" xml:space="preserve">
+    <value>再次按下 {0} 退出 KeiTerm</value>
   </data>
-  <data name="Dialog.CloseConfirm.CloseButton" xml:space="preserve">
-    <value>关闭</value>
+  <data name="Quit.Confirm.Detail" xml:space="preserve">
+    <value>退出将断开所有连接。按 Esc 可取消。</value>
+  </data>
+  <data name="Quit.Confirm.Cancel" xml:space="preserve">
+    <value>取消</value>
+  </data>
+  <data name="Quit.Confirm.Exit" xml:space="preserve">
+    <value>退出</value>
+  </data>
+  <data name="Quit.Confirm.DoNotAskAgain" xml:space="preserve">
+    <value>不再提示</value>
   </data>
 
   <!-- Status / Operation Messages -->
@@ -316,6 +346,9 @@
   </data>
   <data name="Status.Auth.Failed" xml:space="preserve">
     <value>认证失败</value>
+  </data>
+  <data name="Status.Auth.ConfiguredMethodsUnavailable" xml:space="preserve">
+    <value>已配置的认证方法不可用。请检查身份中的密钥或凭据后重试。</value>
   </data>
   <data name="Status.Vault.UnlockPrompt" xml:space="preserve">
     <value>请输入主密码以解锁保管库</value>
@@ -335,43 +368,64 @@
     <value>常规</value>
   </data>
   <data name="Settings.Categories.GeneralDesc" xml:space="preserve">
-    <value>应用行为与数据存储</value>
+    <value>窗口、菜单与快捷键</value>
+  </data>
+  <data name="Settings.Categories.GeneralPageDescription" xml:space="preserve">
+    <value>窗口与面板显示、系统菜单、快捷键和数据存储</value>
   </data>
   <data name="Settings.Categories.Appearance" xml:space="preserve">
     <value>外观配色</value>
   </data>
   <data name="Settings.Categories.AppearanceDesc" xml:space="preserve">
-    <value>界面主题、配色方案与全局字体</value>
+    <value>主题与界面字体</value>
+  </data>
+  <data name="Settings.Categories.AppearancePageDescription" xml:space="preserve">
+    <value>界面主题、字体与外观配置备份</value>
   </data>
   <data name="Settings.Categories.Tree" xml:space="preserve">
     <value>会话树</value>
   </data>
   <data name="Settings.Categories.TreeDesc" xml:space="preserve">
-    <value>会话树显示密度与尺寸微调</value>
+    <value>排序、密度与尺寸</value>
+  </data>
+  <data name="Settings.Categories.TreePageDescription" xml:space="preserve">
+    <value>会话树排序、显示密度与尺寸微调</value>
   </data>
   <data name="Settings.Categories.Terminal" xml:space="preserve">
     <value>终端</value>
   </data>
   <data name="Settings.Categories.TerminalDesc" xml:space="preserve">
+    <value>仿真与回滚缓冲</value>
+  </data>
+  <data name="Settings.Categories.TerminalPageDescription" xml:space="preserve">
     <value>回滚缓冲区与默认终端仿真类型</value>
   </data>
   <data name="Settings.Categories.TerminalAppearance" xml:space="preserve">
     <value>终端外观</value>
   </data>
   <data name="Settings.Categories.TerminalAppearanceDesc" xml:space="preserve">
+    <value>配色与字体</value>
+  </data>
+  <data name="Settings.Categories.TerminalAppearancePageDescription" xml:space="preserve">
     <value>终端配色方案、主字体与回退字体配置</value>
   </data>
   <data name="Settings.Categories.TabBar" xml:space="preserve">
     <value>标签栏</value>
   </data>
   <data name="Settings.Categories.TabBarDesc" xml:space="preserve">
-    <value>标签栏停靠位置与指示设置</value>
+    <value>位置与标题</value>
+  </data>
+  <data name="Settings.Categories.TabBarPageDescription" xml:space="preserve">
+    <value>标签栏位置与标签标题的全局默认行为</value>
   </data>
   <data name="Settings.Categories.Ssh" xml:space="preserve">
     <value>SSH</value>
   </data>
   <data name="Settings.Categories.SshDesc" xml:space="preserve">
-    <value>连接、保活与 Agent</value>
+    <value>连接、认证与安全</value>
+  </data>
+  <data name="Settings.Categories.SshPageDescription" xml:space="preserve">
+    <value>默认连接参数、身份、保活与恢复、Agent、主机密钥和保险库锁定</value>
   </data>
 
   <!-- Settings: General -->
@@ -379,10 +433,10 @@
     <value>窗口行为</value>
   </data>
   <data name="Settings.General.ConfirmBeforeClose" xml:space="preserve">
-    <value>关闭窗口前需要确认</value>
+    <value>退出前确认</value>
   </data>
   <data name="Settings.General.ConfirmBeforeCloseTip" xml:space="preserve">
-    <value>启用后关闭主窗口时会要求确认，防止误触</value>
+    <value>关闭窗口或使用退出快捷键退出应用时显示确认。可在此重新启用退出提示。</value>
   </data>
   <data name="Settings.General.AutoReconnect" xml:space="preserve">
     <value>断开后自动重连</value>
@@ -399,8 +453,29 @@
   <data name="Settings.General.UseNativeGlobalMenuUnsupportedTip" xml:space="preserve">
     <value>此选项仅可在 Linux 上切换。macOS 始终使用系统菜单栏；Windows 使用窗口内菜单栏。</value>
   </data>
+  <data name="Settings.General.UseNativeContextMenus" xml:space="preserve">
+    <value>使用系统原生上下文菜单</value>
+  </data>
+  <data name="Settings.General.UseNativeContextMenusTip" xml:space="preserve">
+    <value>支持的平台使用系统右键菜单，其余平台沿用应用菜单。保存后立即生效。</value>
+  </data>
   <data name="Settings.General.TreeSortSection" xml:space="preserve">
     <value>会话树排序规则</value>
+  </data>
+  <data name="Settings.General.PanelDisplaySection" xml:space="preserve">
+    <value>界面面板显示</value>
+  </data>
+  <data name="Settings.General.SessionManagerMode" xml:space="preserve">
+    <value>固定时初始显示</value>
+  </data>
+  <data name="Settings.General.SessionManagerPinned" xml:space="preserve">
+    <value>固定会话管理器</value>
+  </data>
+  <data name="Settings.General.SessionManagerPinnedTip" xml:space="preserve">
+    <value>取消固定后，鼠标移到侧栏按钮或窗口左边缘临时展开，移开后收起。点击侧栏按钮可切换固定状态。</value>
+  </data>
+  <data name="Settings.General.ComposeBarMode" xml:space="preserve">
+    <value>撰写栏模式</value>
   </data>
   <data name="Settings.General.TreeSortMode" xml:space="preserve">
     <value>同级排序顺序:</value>
@@ -744,7 +819,7 @@
 
   <!-- Settings: SSH -->
   <data name="Settings.Ssh.ConnectionSection" xml:space="preserve">
-    <value>连接</value>
+    <value>连接默认值</value>
   </data>
   <data name="Settings.Ssh.DefaultPort" xml:space="preserve">
     <value>默认端口:</value>
@@ -1018,7 +1093,7 @@
     <value>终端类型:</value>
   </data>
   <data name="SessionEdit.TerminalType.Placeholder" xml:space="preserve">
-    <value>默认 xterm-256color</value>
+    <value>留空继承全局终端类型</value>
   </data>
   <data name="SessionEdit.StartupScript" xml:space="preserve">
     <value>启动脚本:</value>
@@ -1127,28 +1202,31 @@
     <value>身份管理器</value>
   </data>
   <data name="IdentityManager.PlainWarning" xml:space="preserve">
-    <value>⚠ 当前凭据未加密保存到本地数据库</value>
+    <value>当前凭据未加密保存到本地数据库</value>
   </data>
   <data name="IdentityManager.SetMasterPassword" xml:space="preserve">
     <value>设置主密码</value>
   </data>
   <data name="IdentityManager.NewIdentity" xml:space="preserve">
-    <value>➕ 新建身份</value>
+    <value>新建身份</value>
   </data>
   <data name="IdentityManager.EditIdentity" xml:space="preserve">
-    <value>✏️ 编辑</value>
+    <value>编辑</value>
   </data>
   <data name="IdentityManager.DeleteIdentity" xml:space="preserve">
-    <value>🗑️ 删除</value>
+    <value>删除</value>
   </data>
   <data name="IdentityManager.LockVault" xml:space="preserve">
-    <value>🔒 锁定保管库</value>
+    <value>锁定保管库</value>
   </data>
   <data name="IdentityManager.UserLabel" xml:space="preserve">
     <value>用户:</value>
   </data>
   <data name="IdentityManager.MethodLabel" xml:space="preserve">
     <value>方法:</value>
+  </data>
+  <data name="IdentityManager.MethodCountFormat" xml:space="preserve">
+    <value>{0} 个认证方式</value>
   </data>
   <data name="IdentityManager.OrderHint" xml:space="preserve">
     <value>身份内的方法按顺序依次尝试</value>
@@ -1488,10 +1566,10 @@
     <value>远端程序（shell、tmux、byobu 等）通过 OSC 0/2 设置的标题显示在标签上；远端未设置标题时仍显示会话名</value>
   </data>
   <data name="Settings.Terminal.CwdFollow" xml:space="preserve">
-    <value>文件侧栏跟随目录</value>
+    <value>目录跟随</value>
   </data>
   <data name="Settings.Terminal.CwdFollowTip" xml:space="preserve">
-    <value>需要远端报告当前目录（OSC 7，或 tmux 标题设为 主机:路径）；详见 docs/design/09</value>
+    <value>远端报告当前目录时，文件管理器同步切换目录。支持 OSC 7 或 tmux 的“主机:路径”标题。</value>
   </data>
   <data name="Settings.Terminal.SessionOverrideHint" xml:space="preserve">
     <value>以上为全局默认，可在会话属性或「批量修改会话」中逐会话覆盖。</value>
@@ -1649,6 +1727,18 @@
   <data name="Proxy.Port" xml:space="preserve">
     <value>端口</value>
   </data>
+  <data name="Proxy.Username" xml:space="preserve">
+    <value>用户名</value>
+  </data>
+  <data name="Proxy.Password" xml:space="preserve">
+    <value>口令</value>
+  </data>
+  <data name="Proxy.Password.Keep" xml:space="preserve">
+    <value>已设置，留空不改</value>
+  </data>
+  <data name="Proxy.ClearPassword" xml:space="preserve">
+    <value>清除已保存口令</value>
+  </data>
   <data name="Proxy.Type.Socks5" xml:space="preserve">
     <value>SOCKS5</value>
   </data>
@@ -1671,6 +1761,287 @@
     <value>代理</value>
   </data>
   <data name="Settings.Categories.ProxyDesc" xml:space="preserve">
-    <value>全局防火墙。SOCKS5 可拨号，HTTP 仅建档。</value>
+    <value>代理档案管理</value>
+  </data>
+  <data name="Settings.Categories.ProxyPageDescription" xml:space="preserve">
+    <value>管理会话可选择的代理档案。当前支持 SOCKS5 连接；HTTP 代理暂不支持连接。</value>
+  </data>
+  <data name="Menu.Edit.SelectAll" xml:space="preserve">
+    <value>全选</value>
+  </data>
+  <data name="Main.Empty.Title" xml:space="preserve">
+    <value>开始连接</value>
+  </data>
+  <data name="Main.Empty.Description" xml:space="preserve">
+    <value>快速连接到远程主机，或新建一个会话以保存连接配置。</value>
+  </data>
+  <data name="Settings.Categories.FileTransfer" xml:space="preserve">
+    <value>文件传输</value>
+  </data>
+  <data name="Settings.Categories.FileTransferDesc" xml:space="preserve">
+    <value>文件管理与编辑器</value>
+  </data>
+  <data name="Settings.Categories.FileTransferPageDescription" xml:space="preserve">
+    <value>文件管理的全局默认行为、缓存与文件监视、外部编辑器和文件关联</value>
+  </data>
+  <data name="Settings.Appearance.AdvancedFallbackFonts" xml:space="preserve">
+    <value>高级：回退字体</value>
+  </data>
+  <data name="Settings.Appearance.UiFontPreviewSample" xml:space="preserve">
+    <value>中文：远程连接与文件传输
+Latin: AaBb CcDd GgYy gypq
+数字：0123456789 · 1.25 GiB
+符号：@ # $ % &amp; * + = / \ ( ) [ ] { }</value>
+  </data>
+  <data name="Settings.Appearance.FallbackFontsHint" xml:space="preserve">
+    <value>主字体缺少字符时，按以下顺序尝试回退字体。</value>
+  </data>
+  <data name="Menu.File.NewTab" xml:space="preserve">
+    <value>新建标签页</value>
+  </data>
+  <data name="Menu.File.CloseTab" xml:space="preserve">
+    <value>关闭标签页</value>
+  </data>
+  <data name="Menu.File.ConnectSavedSession" xml:space="preserve">
+    <value>连接已保存会话</value>
+  </data>
+  <data name="Menu.Tools.CommandPalette" xml:space="preserve">
+    <value>快捷面板</value>
+  </data>
+  <data name="Tree.Menu.DuplicateSession" xml:space="preserve">
+    <value>复制一份会话</value>
+  </data>
+  <data name="NewTab.Title" xml:space="preserve">
+    <value>新标签页</value>
+  </data>
+  <data name="NewTab.Header" xml:space="preserve">
+    <value>选择连接方式</value>
+  </data>
+  <data name="NewTab.Description" xml:space="preserve">
+    <value>连接到远程主机，或新建会话以保存连接配置。</value>
+  </data>
+  <data name="NewTab.QuickConnectDescription" xml:space="preserve">
+    <value>新建连接，或选择已保存的会话</value>
+  </data>
+  <data name="QuickConnect.NewConnection" xml:space="preserve">
+    <value>新建连接</value>
+  </data>
+  <data name="QuickConnect.NewConnectionDescription" xml:space="preserve">
+    <value>输入主机地址并建立连接</value>
+  </data>
+  <data name="CommandPalette.PinSessionManager" xml:space="preserve">
+    <value>固定会话侧栏</value>
+  </data>
+  <data name="CommandPalette.UnpinSessionManager" xml:space="preserve">
+    <value>取消固定会话侧栏</value>
+  </data>
+  <data name="CommandPalette.ShowComposeBar" xml:space="preserve">
+    <value>显示撰写栏</value>
+  </data>
+  <data name="CommandPalette.HideComposeBar" xml:space="preserve">
+    <value>隐藏撰写栏</value>
+  </data>
+  <data name="CommandPalette.ShowFileManager" xml:space="preserve">
+    <value>显示文件侧栏</value>
+  </data>
+  <data name="CommandPalette.HideFileManager" xml:space="preserve">
+    <value>隐藏文件侧栏</value>
+  </data>
+  <data name="NewTab.ConnectSavedDescription" xml:space="preserve">
+    <value>搜索并选择已保存的连接配置。</value>
+  </data>
+  <data name="CommandPalette.Title" xml:space="preserve">
+    <value>命令面板</value>
+  </data>
+  <data name="CommandPalette.SearchPlaceholder" xml:space="preserve">
+    <value>搜索操作或已保存会话…</value>
+  </data>
+  <data name="CommandPalette.KeyHints" xml:space="preserve">
+    <value>↑↓ 选择 · Enter 执行 · Esc 关闭</value>
+  </data>
+  <data name="CommandPalette.Execute" xml:space="preserve">
+    <value>执行</value>
+  </data>
+  <data name="CommandPalette.NoMatches" xml:space="preserve">
+    <value>没有匹配的命令，请尝试其他关键词。</value>
+  </data>
+  <data name="CommandPalette.NoSavedSessions" xml:space="preserve">
+    <value>还没有保存的会话。请先在左侧新建会话。</value>
+  </data>
+  <data name="ConnectSavedSession.Title" xml:space="preserve">
+    <value>连接已保存会话</value>
+  </data>
+  <data name="Settings.General.ShortcutsSection" xml:space="preserve">
+    <value>快捷键</value>
+  </data>
+  <data name="Settings.General.RecordShortcutTip" xml:space="preserve">
+    <value>点击当前快捷键，然后按下新的组合键。按 Esc 取消录制，保存后生效。</value>
+  </data>
+  <data name="Settings.General.ResetShortcut" xml:space="preserve">
+    <value>恢复默认</value>
+  </data>
+  <data name="NewTab.SavedSessionDescription" xml:space="preserve">
+    <value>搜索并连接已保存的会话</value>
+  </data>
+  <data name="CommandPalette.NewSessionDescription" xml:space="preserve">
+    <value>保存连接配置，供以后复用</value>
+  </data>
+  <data name="CommandPalette.SettingsDescription" xml:space="preserve">
+    <value>调整应用行为、外观与连接设置</value>
+  </data>
+  <data name="CommandPalette.NoResults" xml:space="preserve">
+    <value>没有匹配的操作或会话</value>
+  </data>
+  <data name="Settings.General.ShortcutRecording" xml:space="preserve">
+    <value>请按组合键，Esc 取消</value>
+  </data>
+  <data name="Settings.General.ShortcutInvalid" xml:space="preserve">
+    <value>请使用 Command / Ctrl / Alt 组合键，并避开已有的连接、编辑和窗口快捷键。</value>
+  </data>
+  <data name="Status.SessionDuplicated" xml:space="preserve">
+    <value>已创建“{0}”，可编辑副本的主机地址。</value>
+  </data>
+  <data name="Terminal.Title" xml:space="preserve">
+    <value>终端</value>
+  </data>
+  <data name="Terminal.FileManager.Toggle" xml:space="preserve">
+    <value>切换文件管理侧栏</value>
+  </data>
+  <data name="Terminal.Find.Menu" xml:space="preserve">
+    <value>查找</value>
+  </data>
+  <data name="Terminal.Find.Placeholder" xml:space="preserve">
+    <value>查找</value>
+  </data>
+  <data name="Terminal.Find.Previous" xml:space="preserve">
+    <value>上一个</value>
+  </data>
+  <data name="Terminal.Find.Next" xml:space="preserve">
+    <value>下一个</value>
+  </data>
+  <data name="Terminal.Find.Close" xml:space="preserve">
+    <value>关闭</value>
+  </data>
+  <data name="Terminal.Find.NoMatch" xml:space="preserve">
+    <value>无匹配</value>
+  </data>
+  <data name="FontDialog.Title" xml:space="preserve">
+    <value>字体</value>
+  </data>
+  <data name="FontDialog.Header" xml:space="preserve">
+    <value>字重与行距</value>
+  </data>
+  <data name="FontDialog.Weight" xml:space="preserve">
+    <value>字重</value>
+  </data>
+  <data name="FontDialog.LineHeight" xml:space="preserve">
+    <value>行距</value>
+  </data>
+  <data name="FontDialog.Open" xml:space="preserve">
+    <value>字重与行距…</value>
+  </data>
+  <data name="Settings.FileTransfer.SizeDisplay" xml:space="preserve">
+    <value>文件大小单位</value>
+  </data>
+  <data name="Settings.FileTransfer.SizeIec" xml:space="preserve">
+    <value>IEC（1024：KiB、MiB、GiB）</value>
+  </data>
+  <data name="Settings.FileTransfer.SizeSi" xml:space="preserve">
+    <value>SI（1000：kB、MB、GB）</value>
+  </data>
+  <data name="Settings.FileTransfer.SizeBytes" xml:space="preserve">
+    <value>原始字节数（B）</value>
+  </data>
+  <data name="FileManager.OpenInTab" xml:space="preserve">
+    <value>在新标签页中打开</value>
+  </data>
+  <data name="FileManager.CloseSidebar" xml:space="preserve">
+    <value>关闭侧栏</value>
+  </data>
+  <data name="FileManager.CopyRemotePath" xml:space="preserve">
+    <value>复制远程路径</value>
+  </data>
+  <data name="FileManager.CopyRemotePathFailed" xml:space="preserve">
+    <value>复制远程路径失败：{0}</value>
+  </data>
+  <data name="FileManager.Tab.Title" xml:space="preserve">
+    <value>{0} · 文件管理</value>
+  </data>
+
+  <!-- Settings: grouped global options -->
+  <data name="Settings.General.NativeMenusSection" xml:space="preserve">
+    <value>系统菜单</value>
+  </data>
+  <data name="Settings.Appearance.TreeGeometrySection" xml:space="preserve">
+    <value>尺寸微调</value>
+  </data>
+  <data name="Settings.Appearance.ExternalSchemesSection" xml:space="preserve">
+    <value>导入外部配色方案</value>
+  </data>
+  <data name="Settings.Appearance.LivePreview" xml:space="preserve">
+    <value>实时效果预览</value>
+  </data>
+  <data name="Settings.TabBar.TitleSection" xml:space="preserve">
+    <value>标签标题</value>
+  </data>
+  <data name="Settings.Ssh.IdentitySection" xml:space="preserve">
+    <value>默认身份</value>
+  </data>
+  <data name="Settings.Ssh.RecoverySection" xml:space="preserve">
+    <value>保活与恢复</value>
+  </data>
+  <data name="Settings.Ssh.AgentSection" xml:space="preserve">
+    <value>SSH Agent</value>
+  </data>
+  <data name="Settings.Ssh.VaultSection" xml:space="preserve">
+    <value>保险库锁定</value>
+  </data>
+  <data name="Settings.FileTransfer.FileManagerSection" xml:space="preserve">
+    <value>文件管理</value>
+  </data>
+  <data name="Settings.FileTransfer.DockLeft" xml:space="preserve">
+    <value>默认停靠在左侧</value>
+  </data>
+  <data name="Settings.FileTransfer.CacheWatcherSection" xml:space="preserve">
+    <value>缓存与文件监视</value>
+  </data>
+  <data name="Settings.FileTransfer.CacheDirectory" xml:space="preserve">
+    <value>本地缓存目录</value>
+  </data>
+  <data name="Settings.FileTransfer.WatcherMode" xml:space="preserve">
+    <value>文件变动监视模式</value>
+  </data>
+  <data name="Settings.FileTransfer.AdvancedWatcherSection" xml:space="preserve">
+    <value>高级文件监视</value>
+  </data>
+  <data name="Settings.FileTransfer.PollingInterval" xml:space="preserve">
+    <value>轮询间隔（秒）</value>
+  </data>
+  <data name="Settings.FileTransfer.PollingIntervalTip" xml:space="preserve">
+    <value>使用轮询模式时，检查本地编辑文件变动的间隔。</value>
+  </data>
+  <data name="Settings.FileTransfer.WriteDebounce" xml:space="preserve">
+    <value>保存防抖（毫秒）</value>
+  </data>
+  <data name="Settings.FileTransfer.WriteDebounceTip" xml:space="preserve">
+    <value>文件停止变化后，等待此时长再触发回传，合并连续写入。</value>
+  </data>
+  <data name="Settings.FileTransfer.EditorsSection" xml:space="preserve">
+    <value>外部编辑器</value>
+  </data>
+  <data name="Settings.FileTransfer.CustomEditorPath" xml:space="preserve">
+    <value>备用编辑器命令/路径</value>
+  </data>
+  <data name="Settings.FileTransfer.EditCustomEditorPath" xml:space="preserve">
+    <value>编辑…</value>
+  </data>
+  <data name="Settings.FileTransfer.CustomEditorPathPlaceholder" xml:space="preserve">
+    <value>留空使用系统文件关联</value>
+  </data>
+  <data name="Settings.FileTransfer.CustomEditorPathTip" xml:space="preserve">
+    <value>文件关联或默认编辑器不可用时使用；留空使用系统文件关联。</value>
+  </data>
+  <data name="Settings.FileTransfer.AssociationsSection" xml:space="preserve">
+    <value>文件类型关联</value>
   </data>
 </root>

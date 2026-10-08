@@ -2,10 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Avalonia.Controls;
+using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Kei.Term.App.Helpers;
 using Kei.Term.App.ViewModels;
+using Kei.Term.App.ViewModels.Settings;
 using Kei.Term.Core.Models;
+using Kei.Term.Core.Vault;
 
 namespace Kei.Term.App.Views;
 
@@ -17,11 +20,13 @@ public partial class SettingsWindow : Window
     public SettingsWindow()
     {
         InitializeComponent();
+        AddHandler(KeyDownEvent, CommandPaletteShortcutRecorder_KeyDown, Avalonia.Interactivity.RoutingStrategies.Tunnel, handledEventsToo: true);
     }
 
     public SettingsWindow(SettingsViewModel vm) : this()
     {
         DataContext = vm;
+        vm.SetInteraction(new SettingsWindowInteractionService(this, vm));
         // 每次打开都从当前设置重读，丢弃上次未保存的改动
         vm.Reload();
 
@@ -115,13 +120,13 @@ public partial class SettingsWindow : Window
 
         if (vm.ProxyPage is { } proxyPage)
         {
-            proxyPage.EditProxyAsync = existing => EditProxyAsync(vm, existing);
             _ = proxyPage.ReloadAsync();
         }
 
         // 窗口关闭时解绑，避免 VM 复用导致的处理器累积
         Closed += (_, _) =>
         {
+            vm.SetInteraction(Kei.Term.App.Services.NullInteractionService.Instance);
             if (onRequestClose != null)
             {
                 vm.RequestClose -= onRequestClose;
@@ -164,44 +169,17 @@ public partial class SettingsWindow : Window
         }
     }
 
-    private async Task<ProxyProfile?> EditProxyAsync(SettingsViewModel settings, ProxyProfile? existing)
+    private async void OnOpenFontDialogClick(object? sender, RoutedEventArgs e)
     {
-        var editVm = new ProxyEditViewModel(existing);
-        editVm.PickSessionAsync = () => PickSessionForProxyAsync(settings);
-        await new ProxyEditWindow(editVm).ShowDialog(this);
-        return editVm.IsConfirmed ? editVm.Build() : null;
-    }
-
-    private async Task<SessionNode?> PickSessionForProxyAsync(SettingsViewModel settings)
-    {
-        IReadOnlyList<TreeNodeBase> roots = settings.SessionTreeSnapshot?.Invoke() ?? [];
-        IReadOnlyList<SessionNode> sessions = FlattenSessions(roots);
-        var picker = new SessionPickerViewModel(roots, Guid.Empty, sessions);
-        SessionNode? picked = await new SessionPickerWindow(picker).ShowDialog<SessionNode?>(this);
-        return picked;
-    }
-
-    private static List<SessionNode> FlattenSessions(IEnumerable<TreeNodeBase> nodes)
-    {
-        var list = new List<SessionNode>();
-        foreach (TreeNodeBase node in nodes)
+        // 按钮落在外观页的 DataContext 上，不是窗口的 SettingsViewModel
+        if (sender is not Control { DataContext: AppearanceSettingsPage page } || page.SelectedTerminalProfile is not { } profile)
         {
-            if (node is SessionNode session)
-            {
-                list.Add(session);
-            }
-
-            if (node is FolderNode folder)
-            {
-                list.AddRange(FlattenSessions(folder.Children));
-            }
-            else if (node is VirtualRootNode root)
-            {
-                list.AddRange(FlattenSessions(root.Children));
-            }
+            return;
         }
 
-        return list;
+        // 改正在编辑的终端方案。设置窗口取消会用已提交副本覆盖，不会落盘。
+        var dialogVm = new FontDialogViewModel(profile);
+        await new FontDialogWindow(dialogVm).ShowDialog(this);
     }
 
     private async Task TriggerCancelAndCloseAsync(SettingsViewModel vm)

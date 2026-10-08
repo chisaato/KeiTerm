@@ -11,7 +11,9 @@ using System.Threading.Tasks;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using Kei.Term.App.Helpers;
+using Kei.Term.App.Workspaces;
 using Kei.Term.App.Logging;
 using Kei.Term.App.Models;
 using Kei.Term.App.Services;
@@ -64,10 +66,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
     // 自动锁定计时器（每分钟检查一次，默认 0 分钟不启用）
     private DispatcherTimer? _lockTimer;
 
-    // 剪贴板状态：剪切 = 已从树中删除的子树快照（等待粘贴恢复）；复制 = 待克隆的源节点（仍保留在树中）
-    private TreeNodeBase? _cutSnapshot;
-    private TreeNodeBase? _copySourceNode;
-
     [ObservableProperty]
     private ObservableCollection<TreeNodeBase> _treeNodes = [];
 
@@ -112,10 +110,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         ? Strings.Get("Main.Compose.PlaceholderMultiLine")
         : Strings.Get("Main.Compose.Placeholder");
 
-    // 左侧连接管理器面板显隐
-    [ObservableProperty]
-    private bool _isSessionManagerVisible = true;
-
     [ObservableProperty]
     private string _composeText = string.Empty;
 
@@ -127,9 +121,15 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
     [ObservableProperty]
     private bool _hasNodes;
 
-    // 是否存在终端标签（控制标签条显隐）
+    // 是否存在终端标签（控制空态与撰写栏）
     [ObservableProperty]
     private bool _hasTabs;
+
+    // 停靠树是连接拓扑。Tabs 与协调器全集是同一个集合。
+    public WorkspaceCoordinator Workspace { get; }
+
+    // 视图在移除文档前释放对应的复合视图缓存。
+    public event Action<TerminalTabViewModel>? TabReleasing;
 
     // 标签栏停靠位置（Top 置顶 / Bottom 置底）
     [ObservableProperty]
@@ -170,7 +170,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         Action<Action>? uiDispatch = null,
         HostKeyTrustService? hostKeyTrust = null,
         IProxyRepository? proxyRepo = null,
-        IPortForwardRepository? portForwards = null)
+        IPortForwardRepository? portForwards = null,
+        IProxySecretStore? proxySecrets = null)
     {
         _hostKeyTrust = hostKeyTrust;
         _treeRepo = treeRepo;
@@ -189,6 +190,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
             loggerFactory?.CreateLogger<VaultSessionService>());
         _proxyRepo = proxyRepo;
         _portForwards = portForwards;
+        ProxySecrets = proxySecrets;
         _connections = new ConnectionOrchestrator(
             sshFactory,
             new AuthMaterialCollector(
@@ -203,10 +205,17 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
             _uiDispatch,
             loggerFactory?.CreateLogger<ConnectionOrchestrator>(),
             _proxyRepo,
-            _portForwards);
+            _portForwards,
+            proxySecrets: proxySecrets,
+            ensureUnlocked: proxySecrets == null ? null : () => VaultSession.EnsureUnlockedAsync());
 
-        // 标签集合变化时同步 HasTabs，控制标签条显隐
-        Tabs.CollectionChanged += (_, _) => HasTabs = Tabs.Count > 0;
+        Workspace = new WorkspaceCoordinator();
+        Tabs = Workspace.AllTabs;
+        WeakReferenceMessenger.Default.Register<WorkspaceActiveItemChangedMessage>(this, OnWorkspaceActiveTabChanged);
+        WeakReferenceMessenger.Default.Register<WorkspaceItemCloseRequestedMessage>(this, OnWorkspaceCloseRequested);
+        WeakReferenceMessenger.Default.Register<FileManagerTabRequestedMessage>(this, OnFileManagerTabRequested);
+        WeakReferenceMessenger.Default.Register<FileManagerTabCloseRequestedMessage>(this, OnFileManagerTabCloseRequested);
+        Workspace.AllItems.CollectionChanged += OnWorkspaceItemsChanged;
 
         // 配色变更单点订阅：不为每个标签单独挂钩子
         if (_profileManager != null)
@@ -318,6 +327,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
             _lockTimer = null;
         }
 
+        WeakReferenceMessenger.Default.UnregisterAll(this);
+        Workspace.AllItems.CollectionChanged -= OnWorkspaceItemsChanged;
+        Workspace.Dispose();
         return ValueTask.CompletedTask;
     }
 
@@ -369,8 +381,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
             tab.ApplyFontSnapshot(snapshot);
         }
 
-        // 与 ToggleSessionManager 相同：即发即存，不阻塞 UI
-        _ = _settingsService.SaveSettingsAsync(settings);
+        // 只提交字号：保存锁内补丁当前对象，不用这次拿到的完整快照覆盖其他字段
+        _ = _settingsService.CommitFontSizeAsync(target);
     }
 
     // 标签请求缩放（Ctrl+滚轮）→ 统一走全局缩放
@@ -387,6 +399,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         EditSelectedNodeCommand.NotifyCanExecuteChanged();
         DeleteSelectedNodeCommand.NotifyCanExecuteChanged();
         RenameSelectedNodeCommand.NotifyCanExecuteChanged();
+        DuplicateSelectedSessionCommand.NotifyCanExecuteChanged();
         if (RenamingNode != null && RenamingNode != value)
         {
             CancelTreeRename();
@@ -395,26 +408,36 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
 
     partial void OnSelectedTabChanged(TerminalTabViewModel? value)
     {
-        // 同步每个标签的选中态，供标签条样式使用
+        // IsSelected 只表示全局活动连接，不决定其他分屏组是否可见。
         foreach (var tab in Tabs)
         {
-            tab.IsSelected = tab == value;
+            tab.IsSelected = ReferenceEquals(tab, value);
         }
+        if (value != null && !(ActiveWorkspaceTab is FileManagerTabViewModel files && ReferenceEquals(files.Owner, value))) ActiveWorkspaceTab = value;
+        else if (ActiveWorkspaceTab is TerminalTabViewModel) ActiveWorkspaceTab = null;
         DisconnectCurrentTabCommand.NotifyCanExecuteChanged();
+        OpenTerminalFindCommand.NotifyCanExecuteChanged();
+        if (_syncingFromWorkspace || _disposed != 0 || value == null)
+        {
+            return;
+        }
+
+        Workspace.Activate(ActiveWorkspaceTab ?? value);
     }
+
+    [RelayCommand(CanExecute = nameof(CanOpenTerminalFind))]
+    private void OpenTerminalFind()
+    {
+        if (IsTerminalWorkspaceActive) SelectedTab?.OpenFind();
+    }
+
+    private bool CanOpenTerminalFind() => IsTerminalWorkspaceActive;
 
     public async Task InitializeAsync()
     {
         var settings = _settingsService.Current;
 
-        // 初始化连接管理器显隐状态
-        IsSessionManagerVisible = settings.SessionManagerVisibilityMode switch
-        {
-            PanelVisibilityMode.AlwaysVisible => true,
-            PanelVisibilityMode.AlwaysHidden => false,
-            PanelVisibilityMode.RememberLastState => settings.LastSessionManagerVisible,
-            _ => true
-        };
+        ApplySessionManagerSettings();
 
         // 初始化撰写栏显隐状态
         IsComposeBarVisible = settings.ComposeBarVisibilityMode switch
@@ -577,20 +600,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
     }
 
     [RelayCommand]
-    private Task CreateSessionAsync() => Safe.RunAsync(_logger, "新建会话", async () =>
-    {
-        var parentId = TreePlacement.ResolveCreationParent(SelectedTreeNode);
-        var identities = await _identityRepo.GetAllAsync();
-        var result = await Interaction.EditSessionAsync(null, parentId, identities);
-        if (result != null)
-        {
-            await _treeRepo.SaveNodeAsync(result);
-            await PersistPendingForwardsAsync(result.Id);
-            await ReloadTreeAsync();
-        }
-    });
-
-    [RelayCommand]
     private Task CreateFolderAsync() => Safe.RunAsync(_logger, "新建文件夹", async () =>
     {
         var parentId = TreePlacement.ResolveCreationParent(SelectedTreeNode);
@@ -644,73 +653,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         await _treeRepo.DeleteNodeAsync(SelectedTreeNode.Id);
         SelectedTreeNode = null;
         await ReloadTreeAsync();
-    });
-
-    // === 剪贴板：剪切 / 复制 / 粘贴 ===
-
-    // 复制：记录剪贴板源节点，并立即在源位置克隆一份（克隆根名称追加 “ 副本”）
-    [RelayCommand(CanExecute = nameof(CanUseSelectedNode))]
-    private Task CopyNodeAsync() => Safe.RunAsync(_logger, "复制节点", async () =>
-    {
-        if (SelectedTreeNode == null) return;
-
-        _copySourceNode = SelectedTreeNode;
-        _cutSnapshot = null;
-        PasteNodeCommand.NotifyCanExecuteChanged();
-
-        await CloneSubtreeIntoAsync(SelectedTreeNode, SelectedTreeNode.ParentId);
-    });
-
-    // 剪切语义：记录节点 Id 并立即 DeleteNodeAsync 从树中移除（子树随外键级联删除，存储不留行）；
-    // 之后粘贴时以同 Id 重建整棵子树挂到目标位置，等效“移动到目标”；若始终未粘贴，数据不会恢复。
-    [RelayCommand(CanExecute = nameof(CanUseSelectedNode))]
-    private Task CutNodeAsync() => Safe.RunAsync(_logger, "剪切节点", async () =>
-    {
-        if (SelectedTreeNode == null) return;
-
-        // 剪切前快照完整子树（含被过滤隐藏的子节点），保证粘贴可完整恢复
-        var snapshot = await SnapshotSubtreeAsync(SelectedTreeNode.Id);
-        if (snapshot == null) return;
-
-        _cutSnapshot = snapshot;
-        _copySourceNode = null;
-        PasteNodeCommand.NotifyCanExecuteChanged();
-
-        await _treeRepo.DeleteNodeAsync(snapshot.Id);
-        SelectedTreeNode = null;
-        await ReloadTreeAsync();
-    });
-
-    // 粘贴：剪切态 = 以同 Id 重建快照子树挂到目标（等效移动）；复制态 = 克隆源子树挂到目标（追加 “ 副本”）。
-    // 目标 = 当前选中的文件夹，否则为根；粘贴后清空剪贴板状态。
-    [RelayCommand(CanExecute = nameof(CanPasteNode))]
-    private Task PasteNodeAsync() => Safe.RunAsync(_logger, "粘贴节点", async () =>
-    {
-        var targetId = SelectedTreeNode is FolderNode targetFolder ? targetFolder.Id : (Guid?)null;
-
-        if (_cutSnapshot != null)
-        {
-            // 剪切态：源行已被级联删除，故以同 Id 重插整棵子树并改父到目标（MoveNodeAsync 无行可移，故不适用）
-            _cutSnapshot.ParentId = targetId;
-            await SaveSubtreeAsync(_cutSnapshot);
-            ClearClipboard();
-            await ReloadTreeAsync();
-            return;
-        }
-
-        if (_copySourceNode != null)
-        {
-            // 复制态：目标无效（把文件夹粘到自身后代）时忽略并给出状态提示
-            if (!IsValidCloneTarget(_copySourceNode, targetId))
-            {
-                StatusMessage = Strings.Get("Status.Paste.InvalidTarget");
-                return;
-            }
-
-            await CloneSubtreeIntoAsync(_copySourceNode, targetId);
-            ClearClipboard();
-            await ReloadTreeAsync();
-        }
     });
 
     private bool CanUseSelectedNode() => SelectedTreeNode is not null and not VirtualRootNode;
@@ -787,93 +729,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         }
     }
 
-    private bool CanPasteNode() => _cutSnapshot != null || _copySourceNode != null;
-
-    private void ClearClipboard()
-    {
-        _cutSnapshot = null;
-        _copySourceNode = null;
-        PasteNodeCommand.NotifyCanExecuteChanged();
-    }
-
-    // 从存储重建指定节点的完整子树（不依赖当前过滤状态），返回携带 Children 的子树根
-    private async Task<TreeNodeBase?> SnapshotSubtreeAsync(Guid rootId)
-    {
-        var all = await _treeRepo.GetAllNodesAsync();
-        var byId = all.ToDictionary(n => n.Id);
-        if (!byId.TryGetValue(rootId, out var root))
-        {
-            return null;
-        }
-
-        // 临时列表为新实例，重建父子关系不影响当前展示缓存
-        foreach (var node in all)
-        {
-            if (node is FolderNode folder)
-            {
-                folder.Children.Clear();
-            }
-        }
-        foreach (var node in all)
-        {
-            if (node.ParentId.HasValue && byId.TryGetValue(node.ParentId.Value, out var parent) && parent is FolderNode folder)
-            {
-                folder.Children.Add(node);
-            }
-        }
-
-        return root;
-    }
-
-    // 克隆 source 子树并挂到 targetParentId 下：先父后子逐节点落库，克隆根名称追加 “ 副本”，随后重载树
-    private async Task CloneSubtreeIntoAsync(TreeNodeBase source, Guid? targetParentId)
-    {
-        var cloneRoot = TreeNodeCloner.DeepClone(source);
-        cloneRoot.ParentId = targetParentId;
-        cloneRoot.Name = string.Format(Strings.Get("Common.CopySuffix"), source.Name);
-        await SaveSubtreeAsync(cloneRoot);
-        await ReloadTreeAsync();
-    }
-
-    // 先父后子（前序）逐节点落库，满足外键约束
-    private async Task SaveSubtreeAsync(TreeNodeBase node)
-    {
-        await _treeRepo.SaveNodeAsync(node);
-        if (node is FolderNode folder)
-        {
-            foreach (var child in folder.Children)
-            {
-                await SaveSubtreeAsync(child);
-            }
-        }
-    }
-
-    // 克隆目标校验：目标不能是源节点自身或其后代（否则会形成环）；目标为根时始终合法
-    private bool IsValidCloneTarget(TreeNodeBase source, Guid? targetId)
-    {
-        if (targetId == null)
-        {
-            return true;
-        }
-
-        var byId = _allNodesCache.ToDictionary(n => n.Id);
-        var cursorId = targetId.Value;
-        while (byId.TryGetValue(cursorId, out var node))
-        {
-            if (node.Id == source.Id)
-            {
-                return false;
-            }
-            if (node.ParentId == null)
-            {
-                break;
-            }
-            cursorId = node.ParentId.Value;
-        }
-
-        return true;
-    }
-
     // 全部折叠：收起所有文件夹后刷新树展示，并同步持久化
     [RelayCommand]
     private void CollapseAll()
@@ -904,6 +759,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         => _proxyRepo == null
             ? Task.FromResult<IReadOnlyList<ProxyProfile>>([])
             : _proxyRepo.GetAllAsync();
+
+    internal IProxySecretStore? ProxySecrets { get; }
 
     internal Task SaveProxyAsync(ProxyProfile proxy)
         => _proxyRepo == null ? Task.CompletedTask : _proxyRepo.SaveAsync(proxy);
@@ -992,13 +849,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         => Safe.RunAsync(_logger, "连接选中会话", () => OpenSessionAsync(SelectedTreeNode as SessionNode));
 
     private bool CanConnectSelectedSession() => SelectedTreeNode is SessionNode;
-
-    // 快速连接：经委托打开快速连接窗口，确认后的保存/连接逻辑集中在 ConnectQuickAsync
-    [RelayCommand]
-    private Task QuickConnectAsync() => Safe.RunAsync(_logger, "快速连接", async () =>
-    {
-        await Interaction.OpenQuickConnectAsync();
-    });
 
     // 导入 ~/.ssh/config：具体 Host 别名 → 会话，IdentityFile → 身份，ProxyJump → 跳板链
     [RelayCommand]
@@ -1186,18 +1036,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         }
     }
 
-    // 显示/隐藏左侧连接管理器面板
-    [RelayCommand]
-    private void ToggleSessionManager()
-    {
-        IsSessionManagerVisible = !IsSessionManagerVisible;
-        if (_settingsService.Current.SessionManagerVisibilityMode == PanelVisibilityMode.RememberLastState)
-        {
-            _settingsService.Current.LastSessionManagerVisible = IsSessionManagerVisible;
-            _ = _settingsService.SaveSettingsAsync(_settingsService.Current);
-        }
-    }
-
     [RelayCommand]
     private Task OpenSessionAsync(SessionNode? sessionNode) => Safe.RunAsync(_logger, "打开会话连接", async () =>
     {
@@ -1209,114 +1047,13 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         _logger.LogInformation("发起会话连接 会话={Session} 绑定身份={IdentityId}", sessionNode.Name, sessionNode.IdentityId);
         // 扁平解析：会话自身 → 全局设置 → 内建兜底（IdentityId 已在解析中回退到全局默认身份）
         var resolved = SessionConfigBuilder.Build(sessionNode, _settingsService.Current);
-        await _connections.ConnectAsync(new ConnectionRequest(resolved, UseIdentity: true), this);
+        await RunConnectionFromWorkspaceAsync(() => _connections.ConnectAsync(new ConnectionRequest(resolved, UseIdentity: true), this));
     });
 
-    // IConnectionHost：按解析后的配置新建标签（Connecting 态）并选中
-    IConnectionTarget IConnectionHost.OpenTab(ResolvedSessionConfig config)
-    {
-        // 有效配色：会话显式 ID → 全局默认 → 内置默认，始终走同一适配路径
-        TerminalProfile effectiveProfile = ResolveEffectiveTerminalProfile(config.TerminalProfileId);
-        var tab = new TerminalTabViewModel(
-            config.SessionName,
-            BuildAppliedFontSnapshot(_settingsService.Current),
-            effectiveProfile,
-            config.TerminalProfileId,
-            _logger,
-            scrollbackLines: _settingsService.Current.ScrollbackLines);
-        // 构造只记录状态，此处显式注入配色（新标签立即生效）
-        tab.ApplyTerminalProfile(effectiveProfile);
-        tab.BindConfig(config);
-        Tabs.Add(tab);
-        tab.CloseRequested += OnTabCloseRequested;
-        tab.AutoReconnectEnabled = () => _settingsService.Current.AutoReconnectOnDisconnect;
-        tab.UnexpectedDisconnectAsync = OnUnexpectedDisconnectAsync;
-        tab.ActionRequested += OnTabActionRequested;
-        tab.FontZoomRequested += OnTabFontZoomRequested;
-        SelectedTab = tab;
-        return CreateConnectionTarget(tab);
-    }
-
-    // IConnectionHost：跳板链解析按 Id 查会话节点（取自最近一次加载的树缓存）
-    SessionNode? IConnectionHost.FindSession(Guid id)
-        => _allNodesCache.OfType<SessionNode>().FirstOrDefault(n => n.Id == id);
-
-    /// <summary>
-    /// 重排标签顺序，保持当前选中标签不变
-    /// </summary>
-    public void MoveTab(int fromIndex, int toIndex)
-    {
-        if (fromIndex < 0 || fromIndex >= Tabs.Count || toIndex < 0 || toIndex >= Tabs.Count)
-        {
-            return;
-        }
-
-        if (fromIndex == toIndex)
-        {
-            return;
-        }
-
-        var selected = SelectedTab;
-        Tabs.Move(fromIndex, toIndex);
-        if (selected != null)
-        {
-            SelectedTab = selected;
-        }
-    }
-
-    private void OnTabCloseRequested(TerminalTabViewModel tab) => _ = CloseTabCommand.ExecuteAsync(tab);
-
-    [RelayCommand]
-    private Task CloseTabAsync(TerminalTabViewModel? tab) => Safe.RunAsync(_logger, "关闭标签", () =>
-    {
-        if (tab == null)
-        {
-            return Task.CompletedTask;
-        }
-
-        tab.CloseRequested -= OnTabCloseRequested;
-        tab.ActionRequested -= OnTabActionRequested;
-        tab.FontZoomRequested -= OnTabFontZoomRequested;
-        var isCurrentSelected = SelectedTab == tab;
-        var tabIndex = Tabs.IndexOf(tab);
-
-        // 先从集合中移除并立即更新选中态，确保 UI 响应无阻塞
-        Tabs.Remove(tab);
-
-        if (isCurrentSelected)
-        {
-            // 优先切到同位置或前一个标签，若均无则切至末尾或 null
-            if (Tabs.Count > 0)
-            {
-                var nextIndex = Math.Clamp(tabIndex - 1, 0, Tabs.Count - 1);
-                SelectedTab = Tabs[nextIndex];
-            }
-            else
-            {
-                SelectedTab = null;
-            }
-        }
-
-        // 后台异步清理底层会话与网络资源，避免任何网络读取阻塞导致 UI 卡顿
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await tab.DisposeAsync();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "后台释放终端标签异常 标题={Title}", tab.Title);
-            }
-        });
-
-        return Task.CompletedTask;
-    });
-
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(IsTerminalWorkspaceActive))]
     private Task SendComposeAsync() => Safe.RunAsync(_logger, "发送快捷命令", async () =>
     {
-        if (string.IsNullOrEmpty(ComposeText) || SelectedTab == null)
+        if (string.IsNullOrEmpty(ComposeText) || SelectedTab == null || !IsTerminalWorkspaceActive)
         {
             return;
         }
@@ -1325,9 +1062,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         ComposeText = string.Empty;
     });
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(IsTerminalWorkspaceActive))]
     private void ToggleComposeBar()
     {
+        if (!IsTerminalWorkspaceActive) return;
         IsComposeBarVisible = !IsComposeBarVisible;
         if (_settingsService.Current.ComposeBarVisibilityMode == PanelVisibilityMode.RememberLastState)
         {
@@ -1341,7 +1079,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
     {
         if (SelectedTab != null)
         {
-            SelectedTab.ToggleFileManager();
+            if (SelectedTab.FileManager is { } manager && FindFileManagerTab(manager) is { } files)
+                Workspace.Activate(files);
+            else
+                SelectedTab.ToggleFileManager();
         }
     }
 

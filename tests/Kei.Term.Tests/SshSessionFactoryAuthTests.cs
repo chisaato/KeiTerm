@@ -57,6 +57,39 @@ public class SshSessionFactoryAuthTests
     }
 
     [Fact]
+    public async Task CreateSession_KeyOnlyWithInteractiveCallback_RegistersOnlyConfiguredKey()
+    {
+        var factory = new SshSessionFactory();
+        var material = new MaterializedAuthMethod(AuthMaterialKind.PrivateKey,
+            new Kei.Term.Core.Vault.SecretPayload { PrivateKeyContent = PrivateKeyFormatTests.PlainOpenSsh });
+        var session = (SshNetSession)await factory.CreateSessionAsync(Config(), [material],
+            new SshConnectOptions { InteractivePrompt = _ => Task.FromResult<string?>("unconfigured password") });
+
+        try
+        {
+            Assert.IsType<PrivateKeyAuthenticationMethod>(Assert.Single(GetAuthMethods(session)));
+        }
+        finally
+        {
+            await session.DisposeAsync();
+        }
+    }
+
+    [Fact]
+    public async Task CreateSession_UnavailableAgentWithInteractiveCallback_DoesNotFallBackToInteractive()
+    {
+        var factory = new SshSessionFactory();
+        var material = new MaterializedAuthMethod(AuthMaterialKind.Agent, null);
+
+        await Assert.ThrowsAsync<ArgumentException>(() => factory.CreateSessionAsync(Config(), [material],
+            new SshConnectOptions
+            {
+                AgentSocketPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), Guid.NewGuid().ToString("N")),
+                InteractivePrompt = _ => Task.FromResult<string?>("unconfigured password")
+            }));
+    }
+
+    [Fact]
     public async Task CreateSession_ZeroMaterialsWithoutPrompt_ThrowsNoAuthMethod()
     {
         var factory = new SshSessionFactory();

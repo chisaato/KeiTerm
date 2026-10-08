@@ -13,7 +13,8 @@
         MinWidth="760" MinHeight="520"
         WindowStartupLocation="CenterOwner"
         CanResize="True"
-        Background="{DynamicResource Kei.Bg.Window}">
+        Background="{DynamicResource Kei.Bg.Window}"
+        FontFamily="{DynamicResource Kei.Font.UI}">
 
     <Window.Styles>
         <!-- 色块按键公共样式 -->
@@ -53,6 +54,11 @@
                             <TextBox Text="{Binding Name}"
                                      Height="28"
                                      VerticalContentAlignment="Center"/>
+                            <Button Content="{loc:KeiString FontDialog.Open}"
+                                    Click="OnOpenFontDialogClick"
+                                    HorizontalAlignment="Left"
+                                    Height="28"
+                                    Padding="10,0"/>
                         </StackPanel>
 
                         <Separator Background="{DynamicResource Kei.Border}" Height="1"/>
@@ -72,7 +78,7 @@
                                             Command="{Binding SelectTargetCommand}"
                                             CommandParameter="Background"/>
                                     <TextBlock Text="{loc:KeiString TerminalProfileEdit.Background}"
-                                               FontSize="11"
+                                               FontSize="12"
                                                HorizontalAlignment="Center"
                                                Foreground="{DynamicResource Kei.Text.Secondary}"/>
                                 </StackPanel>
@@ -84,7 +90,7 @@
                                             Command="{Binding SelectTargetCommand}"
                                             CommandParameter="Foreground"/>
                                     <TextBlock Text="{loc:KeiString TerminalProfileEdit.Foreground}"
-                                               FontSize="11"
+                                               FontSize="12"
                                                HorizontalAlignment="Center"
                                                Foreground="{DynamicResource Kei.Text.Secondary}"/>
                                 </StackPanel>
@@ -96,7 +102,7 @@
                                             Command="{Binding SelectTargetCommand}"
                                             CommandParameter="Cursor"/>
                                     <TextBlock Text="{loc:KeiString TerminalProfileEdit.Cursor}"
-                                               FontSize="11"
+                                               FontSize="12"
                                                HorizontalAlignment="Center"
                                                Foreground="{DynamicResource Kei.Text.Secondary}"/>
                                 </StackPanel>
@@ -108,7 +114,7 @@
                                             Command="{Binding SelectTargetCommand}"
                                             CommandParameter="Selection"/>
                                     <TextBlock Text="{loc:KeiString TerminalProfileEdit.Selection}"
-                                               FontSize="11"
+                                               FontSize="12"
                                                HorizontalAlignment="Center"
                                                Foreground="{DynamicResource Kei.Text.Secondary}"/>
                                 </StackPanel>
@@ -165,12 +171,12 @@
                                                VerticalAlignment="Center"/>
                                     <TextBox Grid.Column="2"
                                              Text="{Binding ActiveHex, Mode=TwoWay}"
-                                             Height="26"
+                                             Height="28"
                                              VerticalContentAlignment="Center"
                                              FontFamily="{DynamicResource Kei.Font.Mono}"/>
                                     <Button Grid.Column="4"
                                             Classes="colorSwatch"
-                                            Width="28" Height="26"
+                                            Width="28" Height="28"
                                             Margin="0"
                                             Click="OnOpenColorChooserClick"
                                             IsEnabled="{Binding IsCurrentColorValid}"
@@ -179,8 +185,8 @@
                                 </Grid>
                                 <!-- 校验错误提示 -->
                                 <TextBlock Text="{Binding ValidationMessage}"
-                                           Foreground="#E53935"
-                                           FontSize="11"
+                                           Foreground="{DynamicResource Kei.Status.Error}"
+                                           FontSize="12"
                                            IsVisible="{Binding !IsCurrentColorValid}"
                                            TextWrapping="Wrap"/>
                             </StackPanel>

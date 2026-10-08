@@ -9,6 +9,28 @@ namespace Kei.Term.Tests;
 
 public class TreeAndResolverTests
 {
+    [Theory]
+    [InlineData("")]
+    [InlineData("xterm-256color")]
+    public async Task SqliteTreeRepository_TerminalType_PreservesGlobalInheritanceAndExplicitChoice(string terminalType)
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"keiterm_term_{Guid.NewGuid():N}.db");
+        try
+        {
+            SqliteTreeRepository repository = new($"Data Source={path}");
+            await repository.InitializeAsync();
+            SessionNode session = new() { Name = "server", Host = "server", TerminalType = terminalType };
+            await repository.SaveNodeAsync(session);
+
+            SessionNode loaded = Assert.IsType<SessionNode>(await repository.GetNodeByIdAsync(session.Id));
+            Assert.Equal(terminalType, loaded.TerminalType);
+            Kei.Term.Core.Settings.AppSettings settings = new() { DefaultTerminalType = "vt100" };
+            Assert.Equal(string.IsNullOrEmpty(terminalType) ? "vt100" : terminalType,
+                Kei.Term.Core.Services.SessionConfigBuilder.Build(loaded, settings).TerminalType);
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
+    }
+
     [Fact]
     public async Task SqliteTreeRepository_CrudAndCascadeOperations()
     {

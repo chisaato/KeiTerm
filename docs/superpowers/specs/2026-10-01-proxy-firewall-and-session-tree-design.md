@@ -16,7 +16,7 @@
 ## 2. 不做
 
 - HTTP、SOCKS4 拨号。可以建档，连接时明确失败，设置里标成尚未接入，不假装可用。
-- SOCKS5 用户名口令。截图和本机客户端（nekoray / v2ray）都是无认证。`IVaultSecretStore` 只按身份 id 存密钥，本轮不把代理伪装成身份，也不把口令写进 JSON。
+- 把 SOCKS5 口令写进 JSON 或伪装成身份。用户名进 `config_json`。口令进 `proxy_secrets`，不进 JSON。
 - 同一条会话同时挂「SOCKS5」和「跳板会话」。字段只有一个引用。跳板那条会话自己的 SOCKS5 在拨那一跳时生效，这是两条会话各持一个引用，不是一条会话持有两个。
 - 端口转发、自动重连、Agent 转发。
 - 把 `MainViewModel` 的树命令整段拆成 `SessionTreeViewModel`。那是路线图里的另一项。
@@ -39,9 +39,12 @@
 
 ```json
 { "type": "socks5", "host": "127.0.0.1", "port": 2080 }
+{ "type": "socks5", "host": "127.0.0.1", "port": 2080, "username": "proxy-user" }
 { "type": "http", "host": "127.0.0.1", "port": 8118 }
 { "type": "session", "sessionId": "…" }
 ```
+
+SOCKS5 可以带用户名。用户名空白则不写 `username`。口令不进这份 JSON，进 `proxy_secrets`（迁移 v6，加密方式与 `identity_secrets` 相同）。无用户名且无口令仍是无认证 SOCKS5。
 
 SOCKS5 / HTTP 的 `host` 去空白后非空，`port` 为 1–65535。`session` 的 `sessionId` 必须是 GUID。不符合的行视为损坏，与未知 type 同样跳过。
 
@@ -65,9 +68,9 @@ OpenSSH 导入仍产生会话跳板，写入 `kind: session`，不写 `jump_host
 
 ## 4. 连接
 
-`SshConnectOptions` 增加可选的无认证 SOCKS5：`host` + `port`。空则直连。
+`SshConnectOptions` 增加可选的 SOCKS5：`host` + `port`，以及可选的用户名和口令。空主机则直连。无用户名且无口令时用户名和口令参数仍是空字符串。
 
-拨号只走现有 SSH.NET 路径。`SshJumpChain.BuildConnectionInfo` 在**最外层直连**时使用 SSH.NET 的 `ConnectionInfo(..., ProxyTypes.Socks5, host, port, "", "", methods)`。跳板链内部的 `127.0.0.1` 转发端口不套代理。
+拨号只走现有 SSH.NET 路径。`SshJumpChain.BuildConnectionInfo` 在**最外层直连**时使用 SSH.NET 的 `ConnectionInfo(..., ProxyTypes.Socks5, host, port, username, password, methods)`。有口令才传入已存口令；跳板链内部的 `127.0.0.1` 转发端口不套代理，也不带口令。
 
 一条会话的出口：
 
@@ -79,7 +82,7 @@ OpenSSH 导入仍产生会话跳板，写入 `kind: session`，不写 `jump_host
 | `proxy` 且 type 为 `http` 或其他 | 不连接。错误写明「此代理类型尚未接入拨号」 |
 | `proxy` 或 `session` 的 id 已删除 | 不连接。错误写明目标已删除。编辑器里打开时保留原 id，显示「已删除」，不因打开就清空 |
 
-终端、SFTP、SCP 都经 `SshDialer`，因此共用同一条 SOCKS5 规则。日志可以记代理 host:port，禁止出现口令字段。本轮没有口令可记，也不要为「以后也许有」把密码参数写进日志模板。
+终端、SFTP、SCP 都经 `SshDialer`，因此共用同一条 SOCKS5 规则。日志只记代理 host:port 和是否带认证的布尔值，禁止出现口令。
 
 不改 Tmds.Ssh。当前默认引擎就是 SSH.NET。
 
@@ -93,7 +96,7 @@ OpenSSH 导入仍产生会话跳板，写入 `kind: session`，不写 `jump_host
 
 类型：
 
-- SOCKS5：主机、端口。无用户名口令字段。
+- SOCKS5：主机、端口、用户名、口令。口令框用密码字符，不回填已存口令。留空表示不改；已有口令时可勾选清除。HTTP 不加口令字段。
 - HTTP：同样的主机、端口。保存时不拒绝，说明文字写「尚未接入拨号」。
 - 已有会话：按钮打开 §5.3 的树，结果写入 `sessionId`。
 

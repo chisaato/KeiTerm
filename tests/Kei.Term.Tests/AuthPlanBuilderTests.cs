@@ -53,35 +53,21 @@ public class AuthPlanBuilderTests
         Assert.Equal("bob", ((SingleUsePromptStep)plan[0]).SuggestedUsername);
     }
 
-    [Fact]
-    public void Plan_NoMethods_PreferAgent_AddsAgentFallbackThenPrompt()
+    [Theory]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    [InlineData(false, false)]
+    public void Plan_WithoutMethods_UsesConfiguredFallback(bool emptyList, bool preferAgent)
     {
-        var plan = AuthPlanBuilder.Plan(methods: null, preferAgentFallback: true);
+        IReadOnlyList<AuthMethodEntry>? methods = emptyList ? Array.Empty<AuthMethodEntry>() : null;
+        var plan = AuthPlanBuilder.Plan(methods, preferAgentFallback: preferAgent);
 
-        Assert.Equal(2, plan.Count);
-        Assert.IsType<AgentFallbackStep>(plan[0]);
-        var prompt = Assert.IsType<SingleUsePromptStep>(plan[1]);
-        // 无 Identity 时无可预填用户名
-        Assert.Null(prompt.SuggestedUsername);
-    }
-
-    [Fact]
-    public void Plan_EmptyMethods_PreferAgent_AddsAgentFallback()
-    {
-        var plan = AuthPlanBuilder.Plan(Array.Empty<AuthMethodEntry>(), preferAgentFallback: true);
-
-        Assert.Equal(2, plan.Count);
-        Assert.IsType<AgentFallbackStep>(plan[0]);
-        Assert.IsType<SingleUsePromptStep>(plan[1]);
-    }
-
-    [Fact]
-    public void Plan_NoMethods_NoAgent_PromptOnly()
-    {
-        var plan = AuthPlanBuilder.Plan(methods: null, preferAgentFallback: false);
-
-        Assert.Single(plan);
-        var prompt = Assert.IsType<SingleUsePromptStep>(plan[0]);
+        Assert.Equal(preferAgent ? 2 : 1, plan.Count);
+        if (preferAgent)
+        {
+            Assert.IsType<AgentFallbackStep>(plan[0]);
+        }
+        var prompt = Assert.IsType<SingleUsePromptStep>(plan[^1]);
         Assert.Null(prompt.SuggestedUsername);
     }
 

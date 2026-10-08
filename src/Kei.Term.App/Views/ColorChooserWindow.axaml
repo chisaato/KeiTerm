@@ -12,12 +12,15 @@
         CanResize="false"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource Kei.Bg.Window}"
-        Foreground="{DynamicResource Kei.Text.Primary}">
+        Foreground="{DynamicResource Kei.Text.Primary}"
+        FontFamily="{DynamicResource Kei.Font.UI}">
 
     <Window.Styles>
         <Style Selector="Button.paletteSwatch">
-            <Setter Property="Width" Value="22"/>
-            <Setter Property="Height" Value="20"/>
+            <Setter Property="Width" Value="24"/>
+            <Setter Property="Height" Value="24"/>
+            <Setter Property="MinWidth" Value="24"/>
+            <Setter Property="MinHeight" Value="24"/>
             <Setter Property="Margin" Value="1"/>
             <Setter Property="Padding" Value="0"/>
             <Setter Property="BorderThickness" Value="1"/>
@@ -25,7 +28,7 @@
             <Setter Property="CornerRadius" Value="{DynamicResource Kei.Radius.Control}"/>
         </Style>
         <Style Selector="NumericUpDown">
-            <Setter Property="Height" Value="26"/>
+            <Setter Property="Height" Value="28"/>
             <Setter Property="Padding" Value="4,0"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="CornerRadius" Value="{DynamicResource Kei.Radius.Control}"/>
@@ -92,11 +95,11 @@
 
                     <Button Content="{loc:KeiString ColorChooser.AddToCustom}"
                             Command="{Binding AddToCustomColorsCommand}"
-                            Height="26"
+                            Height="28"
                             Margin="0,4,0,0"
                             HorizontalAlignment="Stretch"
                             HorizontalContentAlignment="Center"
-                            FontSize="11"/>
+                            FontSize="12"/>
                 </StackPanel>
             </Border>
 
@@ -144,8 +147,8 @@
                                     CornerRadius="{DynamicResource Kei.Radius.Control}"/>
                             
                             <TextBox Text="{Binding Hex, Mode=TwoWay}"
-                                     Height="26"
-                                     FontSize="11"
+                                     Height="28"
+                                     FontSize="12"
                                      FontFamily="{DynamicResource Kei.Font.Mono}"
                                      HorizontalContentAlignment="Center"
                                      VerticalContentAlignment="Center"/>
@@ -154,28 +157,28 @@
                         <!-- 数值微调表单 (HSV 与 RGB 与 Alpha) -->
                         <Grid Grid.Column="2" ColumnDefinitions="Auto, *, Auto, *" RowDefinitions="Auto, 4, Auto, 4, Auto, 4, Auto" VerticalAlignment="Center">
                             <!-- H / R -->
-                            <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString ColorChooser.Hue}" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}" Margin="0,0,4,0"/>
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString ColorChooser.Hue}" FontSize="12" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}" Margin="0,0,4,0"/>
                             <NumericUpDown Grid.Row="0" Grid.Column="1" Value="{Binding Hue, Mode=TwoWay, Converter={x:Static conv:DecimalIntegerConverter.Instance}}" Minimum="0" Maximum="359" ParsingNumberStyle="Integer" FormatString="0" Margin="0,0,8,0"/>
 
-                            <TextBlock Grid.Row="0" Grid.Column="2" Text="{loc:KeiString ColorChooser.Red}" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}" Margin="0,0,4,0"/>
+                            <TextBlock Grid.Row="0" Grid.Column="2" Text="{loc:KeiString ColorChooser.Red}" FontSize="12" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}" Margin="0,0,4,0"/>
                             <NumericUpDown Grid.Row="0" Grid.Column="3" Value="{Binding Red, Mode=TwoWay, Converter={x:Static conv:DecimalIntegerConverter.Instance}}" Minimum="0" Maximum="255" ParsingNumberStyle="Integer" FormatString="0"/>
 
                             <!-- S / G -->
-                            <TextBlock Grid.Row="2" Grid.Column="0" Text="{loc:KeiString ColorChooser.Sat}" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}" Margin="0,0,4,0"/>
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="{loc:KeiString ColorChooser.Sat}" FontSize="12" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}" Margin="0,0,4,0"/>
                             <NumericUpDown Grid.Row="2" Grid.Column="1" Value="{Binding Sat, Mode=TwoWay, Converter={x:Static conv:DecimalIntegerConverter.Instance}}" Minimum="0" Maximum="255" ParsingNumberStyle="Integer" FormatString="0" Margin="0,0,8,0"/>
 
-                            <TextBlock Grid.Row="2" Grid.Column="2" Text="{loc:KeiString ColorChooser.Green}" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}" Margin="0,0,4,0"/>
+                            <TextBlock Grid.Row="2" Grid.Column="2" Text="{loc:KeiString ColorChooser.Green}" FontSize="12" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}" Margin="0,0,4,0"/>
                             <NumericUpDown Grid.Row="2" Grid.Column="3" Value="{Binding Green, Mode=TwoWay, Converter={x:Static conv:DecimalIntegerConverter.Instance}}" Minimum="0" Maximum="255" ParsingNumberStyle="Integer" FormatString="0"/>
 
                             <!-- V / B -->
-                            <TextBlock Grid.Row="4" Grid.Column="0" Text="{loc:KeiString ColorChooser.Val}" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}" Margin="0,0,4,0"/>
+                            <TextBlock Grid.Row="4" Grid.Column="0" Text="{loc:KeiString ColorChooser.Val}" FontSize="12" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}" Margin="0,0,4,0"/>
                             <NumericUpDown Grid.Row="4" Grid.Column="1" Value="{Binding Val, Mode=TwoWay, Converter={x:Static conv:DecimalIntegerConverter.Instance}}" Minimum="0" Maximum="255" ParsingNumberStyle="Integer" FormatString="0" Margin="0,0,8,0"/>
 
-                            <TextBlock Grid.Row="4" Grid.Column="2" Text="{loc:KeiString ColorChooser.Blue}" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}" Margin="0,0,4,0"/>
+                            <TextBlock Grid.Row="4" Grid.Column="2" Text="{loc:KeiString ColorChooser.Blue}" FontSize="12" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}" Margin="0,0,4,0"/>
                             <NumericUpDown Grid.Row="4" Grid.Column="3" Value="{Binding Blue, Mode=TwoWay, Converter={x:Static conv:DecimalIntegerConverter.Instance}}" Minimum="0" Maximum="255" ParsingNumberStyle="Integer" FormatString="0"/>
 
                             <!-- Alpha -->
-                            <TextBlock Grid.Row="6" Grid.Column="2" Text="{loc:KeiString ColorChooser.Alpha}" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}" Margin="0,0,4,0"/>
+                            <TextBlock Grid.Row="6" Grid.Column="2" Text="{loc:KeiString ColorChooser.Alpha}" FontSize="12" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}" Margin="0,0,4,0"/>
                             <NumericUpDown Grid.Row="6" Grid.Column="3" Value="{Binding Alpha, Mode=TwoWay, Converter={x:Static conv:DecimalIntegerConverter.Instance}}" Minimum="0" Maximum="255" ParsingNumberStyle="Integer" FormatString="0"/>
                         </Grid>
                     </Grid>

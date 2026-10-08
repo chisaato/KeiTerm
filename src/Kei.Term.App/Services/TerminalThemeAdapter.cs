@@ -31,7 +31,9 @@ public static class TerminalThemeAdapter
             ResolveArgb(profile.Foreground, fallback.Foreground),
             ResolveArgb(profile.Background, fallback.Background),
             cursorColor: ResolveArgb(profile.CursorColor, fallback.CursorColor),
-            // 保持 Canonical 扩展色：不承诺 truecolor/256 色随 16 色改变
+            // 16–255 没有单独槽位：Canonical 即 xterm 6×6×6 色立方 + 灰度阶，不随 16 色重刷。
+            // 真彩色由控件以 TerminalColorKind.Rgb 交给渲染器；ApplyTheme 解析时保留该 RGB，
+            // 这里只换调色板，不把直接 RGB 收成 256 色索引。
             TerminalPaletteGenerationMode.Canonical,
             TerminalOscColorReportFormat.Bit16,
             selectionForeground: null,

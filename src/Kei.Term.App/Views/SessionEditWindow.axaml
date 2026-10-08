@@ -49,7 +49,7 @@
                     <StackPanel Spacing="14">
                         <!-- 1. 连接分类 -->
                         <StackPanel Spacing="14" IsVisible="{Binding SelectedCategory.Page, Converter={x:Static ObjectConverters.Equal}, ConverterParameter='Connection'}">
-                            <TextBlock Text="{loc:KeiString SessionEdit.BasicSection}" FontWeight="Bold" Foreground="{DynamicResource Kei.Session.Foreground}" FontSize="13"/>
+                            <TextBlock Text="{loc:KeiString SessionEdit.BasicSection}" FontWeight="Bold" Foreground="{DynamicResource Kei.Text.Primary}" FontSize="13"/>
 
                             <Grid ColumnDefinitions="120, *" ColumnSpacing="12" RowDefinitions="Auto, Auto, Auto, Auto, Auto, Auto, Auto, Auto" RowSpacing="10">
                                 <!-- 显示名称 -->
@@ -100,7 +100,7 @@
 
                         <!-- 2. 终端与脚本 (Terminal) -->
                         <StackPanel Spacing="14" IsVisible="{Binding SelectedCategory.Page, Converter={x:Static ObjectConverters.Equal}, ConverterParameter='Terminal'}">
-                            <TextBlock Text="{loc:KeiString SessionEdit.AdvancedSection}" FontWeight="Bold" Foreground="{DynamicResource Kei.Session.Foreground}" FontSize="13"/>
+                            <TextBlock Text="{loc:KeiString SessionEdit.AdvancedSection}" FontWeight="Bold" Foreground="{DynamicResource Kei.Text.Primary}" FontSize="13"/>
 
                             <Grid ColumnDefinitions="120, *" ColumnSpacing="12" RowDefinitions="Auto, Auto" RowSpacing="10">
                                 <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString SessionEdit.TerminalType}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
@@ -113,7 +113,7 @@
 
                         <!-- 3. 文件传输 (FileTransfer) -->
                         <StackPanel Spacing="14" IsVisible="{Binding SelectedCategory.Page, Converter={x:Static ObjectConverters.Equal}, ConverterParameter='FileTransfer'}">
-                            <TextBlock Text="文件传输 (SFTP / SCP)" FontWeight="Bold" Foreground="{DynamicResource Kei.Session.Foreground}" FontSize="13"/>
+                            <TextBlock Text="文件传输 (SFTP / SCP)" FontWeight="Bold" Foreground="{DynamicResource Kei.Text.Primary}" FontSize="13"/>
 
                             <Grid ColumnDefinitions="120, *" ColumnSpacing="12" RowDefinitions="Auto, Auto" RowSpacing="10">
                                 <TextBlock Grid.Row="0" Grid.Column="0" Text="传输协议:" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
@@ -126,7 +126,7 @@
 
                         <!-- 4. 会话行为 (Behavior) -->
                         <StackPanel Spacing="14" IsVisible="{Binding SelectedCategory.Page, Converter={x:Static ObjectConverters.Equal}, ConverterParameter='Behavior'}">
-                            <TextBlock Text="{loc:KeiString SessionEdit.BehaviorSection}" FontWeight="Bold" Foreground="{DynamicResource Kei.Session.Foreground}" FontSize="13"/>
+                            <TextBlock Text="{loc:KeiString SessionEdit.BehaviorSection}" FontWeight="Bold" Foreground="{DynamicResource Kei.Text.Primary}" FontSize="13"/>
 
                             <Grid ColumnDefinitions="120, *" ColumnSpacing="12" RowDefinitions="Auto, Auto" RowSpacing="10">
                                 <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString SessionEdit.TabTitle}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
@@ -139,7 +139,7 @@
 
                         <!-- 5. 端口转发。不改连接页的防火墙行。 -->
                         <StackPanel Spacing="14" IsVisible="{Binding SelectedCategory.Page, Converter={x:Static ObjectConverters.Equal}, ConverterParameter='Ports'}">
-                            <TextBlock Text="{loc:KeiString SessionEdit.Category.Ports}" FontWeight="Bold" Foreground="{DynamicResource Kei.Session.Foreground}" FontSize="13"/>
+                            <TextBlock Text="{loc:KeiString SessionEdit.Category.Ports}" FontWeight="Bold" Foreground="{DynamicResource Kei.Text.Primary}" FontSize="13"/>
                             <TextBlock Text="{loc:KeiString PortForward.Hint}" Foreground="{DynamicResource Kei.Text.Secondary}" TextWrapping="Wrap"/>
                             <ListBox ItemsSource="{Binding PortForwards}" SelectedItem="{Binding SelectedPortForward}" MaxHeight="220" Background="Transparent">
                                 <ListBox.ItemTemplate>
@@ -157,7 +157,7 @@
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <Button Content="{loc:KeiString PortForward.Add}" Command="{Binding AddPortForwardCommand}" MinWidth="72"/>
                                 <Button Content="{loc:KeiString PortForward.Edit}" Command="{Binding EditPortForwardCommand}" MinWidth="72"/>
-                                <Button Content="{loc:KeiString Common.Delete}" Command="{Binding DeletePortForwardCommand}" MinWidth="72"/>
+                                <Button Classes="danger" Content="{loc:KeiString Common.Delete}" Command="{Binding DeletePortForwardCommand}" MinWidth="72"/>
                             </StackPanel>
                         </StackPanel>
                     </StackPanel>

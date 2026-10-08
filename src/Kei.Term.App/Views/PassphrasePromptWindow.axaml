@@ -6,30 +6,31 @@
         mc:Ignorable="d" d:DesignWidth="440" d:DesignHeight="250"
         x:Class="Kei.Term.App.Views.PassphrasePromptWindow"
         Title="{loc:KeiString PassphrasePrompt.Title}"
-        Width="450" Height="270"
+        Width="450" MinHeight="270" SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
         CanResize="False"
         ShowInTaskbar="False"
-        Background="#1E1E1E">
+        Background="{DynamicResource Kei.Bg.Window}"
+        FontFamily="{DynamicResource Kei.Font.UI}">
 
     <Grid RowDefinitions="*, Auto" Margin="20">
-        <StackPanel Grid.Row="0" Spacing="12">
-            <TextBlock Text="{loc:KeiString PassphrasePrompt.Header}" FontWeight="Bold" Foreground="#4EC9B0" FontSize="14"/>
+        <StackPanel Grid.Row="0" Spacing="8">
+            <TextBlock Text="{loc:KeiString PassphrasePrompt.Header}" FontWeight="Bold" Foreground="{DynamicResource Kei.Text.Primary}" FontSize="14"/>
 
-            <TextBlock x:Name="KeyPathText" Foreground="#CCCCCC" FontSize="11"
+            <TextBlock x:Name="KeyPathText" Foreground="{DynamicResource Kei.Text.Secondary}" FontSize="12"
                        TextWrapping="Wrap" TextTrimming="CharacterEllipsis"/>
 
             <TextBox x:Name="PasswordBox" PasswordChar="•" PlaceholderText="{loc:KeiString PassphrasePrompt.Placeholder}"/>
 
             <CheckBox x:Name="RememberCheck" Content="{loc:KeiString PassphrasePrompt.RememberSession}" IsChecked="True" IsVisible="False"/>
 
-            <TextBlock x:Name="ModeHintText" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/>
+            <TextBlock x:Name="ModeHintText" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}" TextWrapping="Wrap"/>
 
-            <TextBlock x:Name="ErrorText" Foreground="#FF6B6B" FontSize="11"
+            <TextBlock x:Name="ErrorText" Foreground="{DynamicResource Kei.Status.Error}" FontSize="12"
                        TextWrapping="Wrap" IsVisible="False"/>
         </StackPanel>
 
-        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12" Margin="0,14,0,0">
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,14,0,0">
             <Button Content="{loc:KeiString Common.Cancel}" Click="OnCancel" Width="85" HorizontalContentAlignment="Center"/>
             <Button Content="{loc:KeiString Common.Confirm}" Click="OnConfirm" Width="85" HorizontalContentAlignment="Center"
                     Classes="accent"/>

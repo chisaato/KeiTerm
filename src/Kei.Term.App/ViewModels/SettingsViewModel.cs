@@ -13,6 +13,7 @@ using Kei.Term.Core.Models;
 using Kei.Term.Core.Models.Profiles;
 using Kei.Term.Core.Settings;
 using Kei.Term.Core.Storage;
+using Kei.Term.Core.Vault;
 
 namespace Kei.Term.App.ViewModels;
 
@@ -30,6 +31,8 @@ public partial class SettingsViewModel : ViewModelBase
     public IReadOnlyList<SettingsCategoryItem> Categories { get; private set; }
 
     public ProxySettingsPage? ProxyPage { get; }
+
+    public IProxySecretStore? ProxySecrets { get; }
 
     public Func<IReadOnlyList<TreeNodeBase>>? SessionTreeSnapshot { get; }
 
@@ -69,18 +72,21 @@ public partial class SettingsViewModel : ViewModelBase
         IExternalEditorRepository? editorRepo = null,
         IProxyRepository? proxyRepo = null,
         Func<IReadOnlyList<SessionNode>>? sessionSnapshot = null,
-        Func<IReadOnlyList<TreeNodeBase>>? sessionTree = null)
+        Func<IReadOnlyList<TreeNodeBase>>? sessionTree = null,
+        IProxySecretStore? proxySecrets = null)
     {
+        ProxySecrets = proxySecrets;
         _settingsService = settingsService;
         _profileManager = profileManager ?? new Services.ProfileManagerService(settingsService, dataDirectory);
         _general = new GeneralSettingsPage(dataDirectory);
         _appearance = new AppearanceSettingsPage();
         _terminal = new TerminalSettingsPage();
-        _ssh = new SshSettingsPage(identityRepo);
-        _fileTransfer = new FileTransferSettingsPage(editorRepo);
+        _ssh = new SshSettingsPage(identityRepo, _general);
+        _fileTransfer = new FileTransferSettingsPage(editorRepo, _terminal);
         if (proxyRepo != null)
         {
             ProxyPage = new ProxySettingsPage(proxyRepo, sessionSnapshot ?? (() => []));
+            ProxyPage.Secrets = proxySecrets;
             SessionTreeSnapshot = sessionTree;
         }
 
@@ -99,7 +105,7 @@ public partial class SettingsViewModel : ViewModelBase
             new SettingsCategoryItem(
                 Strings.Get("Settings.Categories.Tree"),
                 Strings.Get("Settings.Categories.TreeDesc"),
-                new TreeSettingsProxyPage(_appearance),
+                new TreeSettingsProxyPage(_appearance, _general),
                 SettingsIcons.Tree),
             new SettingsCategoryItem(
                 Strings.Get("Settings.Categories.Terminal"),
@@ -114,7 +120,7 @@ public partial class SettingsViewModel : ViewModelBase
             new SettingsCategoryItem(
                 Strings.Get("Settings.Categories.TabBar"),
                 Strings.Get("Settings.Categories.TabBarDesc"),
-                new TabBarSettingsProxyPage(_appearance),
+                new TabBarSettingsProxyPage(_appearance, _terminal),
                 SettingsIcons.TabBar),
             new SettingsCategoryItem(
                 Strings.Get("Settings.Categories.Ssh"),
@@ -122,8 +128,8 @@ public partial class SettingsViewModel : ViewModelBase
                 _ssh,
                 SettingsIcons.Ssh),
             new SettingsCategoryItem(
-                "文件传输",
-                "传输缓存、变动监视与外部编辑器关联",
+                Strings.Get("Settings.Categories.FileTransfer"),
+                Strings.Get("Settings.Categories.FileTransferDesc"),
                 _fileTransfer,
                 SettingsIcons.FileTransfer),
         };
@@ -141,6 +147,7 @@ public partial class SettingsViewModel : ViewModelBase
         // 选择即草稿预览：选择回调交回本 VM 统一广播，但不落盘
         _appearance.SetDraftPreviewHandler(OnTerminalProfileDraftPreview);
 
+        SubscribeExternalFontSize();
         Reload();
     }
 
@@ -164,9 +171,11 @@ public partial class SettingsViewModel : ViewModelBase
         _general.ConfirmBeforeClose = current.ConfirmBeforeClose;
         _general.AutoReconnectOnDisconnect = current.AutoReconnectOnDisconnect;
         _general.UseNativeGlobalMenu = current.UseNativeGlobalMenu;
+        _general.UseNativeContextMenus = current.UseNativeContextMenus;
+        _general.SetCommandPaletteShortcut(current.CommandPaletteShortcut);
         _general.SetTreeSortMode(current.TreeSortMode);
-        _fileTransfer.CacheDirectory = current.FileTransfer.CacheDirectory;
-        _fileTransfer.SelectedWatcherMode = current.FileTransfer.WatcherMode.ToString();
+        _general.SessionManagerPinned = current.SessionManagerPinned;
+        LoadFileTransferSettings(current);
         _ = _fileTransfer.ReloadAsync();
         _general.SelectedSessionManagerMode = current.SessionManagerVisibilityMode switch
         {
@@ -194,6 +203,7 @@ public partial class SettingsViewModel : ViewModelBase
         _appearance.FontFamily = current.FontFamily;
         _appearance.FallbackFontFamily = current.TerminalFallbackFontFamily;
         _appearance.FontSize = current.FontSize;
+        RememberSyncedFontSize(current.FontSize);
         _appearance.CursorBlink = current.CursorBlink;
         _appearance.SetTabPlacement(current.TabPlacement);
 
@@ -254,7 +264,10 @@ public partial class SettingsViewModel : ViewModelBase
         settings.ConfirmBeforeClose = _general.ConfirmBeforeClose;
         settings.AutoReconnectOnDisconnect = _general.AutoReconnectOnDisconnect;
         settings.UseNativeGlobalMenu = _general.UseNativeGlobalMenu;
+        settings.UseNativeContextMenus = _general.UseNativeContextMenus;
+        settings.CommandPaletteShortcut = _general.CommandPaletteShortcut;
         settings.TreeSortMode = _general.SelectedTreeSort?.Mode ?? "AsciiFirst";
+        settings.SessionManagerPinned = _general.SessionManagerPinned;
         settings.SessionManagerVisibilityMode = _general.SelectedSessionManagerMode switch
         {
             "常开 (Always Visible)" => PanelVisibilityMode.AlwaysVisible,
@@ -267,8 +280,7 @@ public partial class SettingsViewModel : ViewModelBase
             "常关 (Always Hidden)" => PanelVisibilityMode.AlwaysHidden,
             _ => PanelVisibilityMode.RememberLastState
         };
-        settings.FileTransfer.CacheDirectory = _fileTransfer.CacheDirectory;
-        settings.FileTransfer.WatcherMode = Enum.TryParse<FileWatcherMode>(_fileTransfer.SelectedWatcherMode, out var wm) ? wm : FileWatcherMode.Auto;
+        ApplyFileTransferSettings(settings);
 
         // 外观：主题值归一化，仅接受 Dark/System
         settings.UiTheme = _appearance.NormalizedThemeKey;
@@ -286,7 +298,13 @@ public partial class SettingsViewModel : ViewModelBase
         settings.TerminalFallbackFontFamily = string.IsNullOrWhiteSpace(_appearance.FallbackFontFamily)
             ? "Noto Sans Mono CJK SC, Source Han Sans HW SC, Microsoft YaHei, monospace"
             : _appearance.FallbackFontFamily.Trim();
-        settings.FontSize = Math.Clamp(_appearance.FontSize, TerminalFontZoom.MinFontSize, TerminalFontZoom.MaxFontSize);
+        // 未手改字号时采用已提交值（含外部缩放），避免打开设置时读到的旧草稿覆盖滚轮结果
+        settings.FontSize = ResolveFontSizeForSave();
+        if (IsFontSizeDraftClean)
+        {
+            ApplySyncedFontSize(settings.FontSize);
+        }
+
         settings.CursorBlink = _appearance.CursorBlink;
         settings.TabPlacement = _appearance.SelectedTabPlacement?.Key ?? "Top";
         settings.ActiveGuiProfileId = _appearance.SelectedGuiProfile?.Id;
@@ -348,6 +366,8 @@ public partial class SettingsViewModel : ViewModelBase
             }
 
             _lastAppliedSettings = CloneSettings(settings);
+            RememberSyncedFontSize(settings.FontSize);
+            NotifyFileDisplaySettings();
             return true;
         }
         finally
@@ -500,149 +520,4 @@ public partial class SettingsViewModel : ViewModelBase
         RequestClose?.Invoke();
     }
 
-    [RelayCommand]
-    private async Task ExportBundleAsync()
-    {
-        if (IsBusy || SaveBundleFileDialogAsync == null) return;
-        var filePath = await SaveBundleFileDialogAsync();
-        if (string.IsNullOrWhiteSpace(filePath)) return;
-
-        try
-        {
-            // 导出“已提交”权威，不含未应用草稿
-            var json = _profileManager.ExportBundle();
-            await System.IO.File.WriteAllTextAsync(filePath, json);
-            if (ShowNotificationAsync != null)
-            {
-                await ShowNotificationAsync(
-                    Strings.Get("Settings.Appearance.ProfileBackupSection"),
-                    string.Format(Strings.Get("Settings.Appearance.BundleExportSuccess"), System.IO.Path.GetFileName(filePath)));
-            }
-        }
-        catch (Exception ex)
-        {
-            if (ShowNotificationAsync != null)
-            {
-                await ShowNotificationAsync(
-                    Strings.Get("Settings.Appearance.ProfileBackupSection"),
-                    ex.Message);
-            }
-        }
-    }
-
-    [RelayCommand]
-    private async Task ImportBundleAsync()
-    {
-        if (IsBusy || OpenBundleFileDialogAsync == null) return;
-        var filePath = await OpenBundleFileDialogAsync();
-        if (string.IsNullOrWhiteSpace(filePath) || !System.IO.File.Exists(filePath)) return;
-
-        try
-        {
-            var json = await System.IO.File.ReadAllTextAsync(filePath);
-            // 纳入父事务：只并入有效状态，Apply 时统一提交；取消无副作用、不落盘
-            await _profileManager.ImportBundleAsync(json, overwrite: true, persist: false);
-            RefreshAllProfiles();
-            if (ShowNotificationAsync != null)
-            {
-                await ShowNotificationAsync(
-                    Strings.Get("Settings.Appearance.ProfileBackupSection"),
-                    Strings.Get("Settings.Appearance.BundleImportSuccess"));
-            }
-        }
-        catch (Exception ex)
-        {
-            if (ShowNotificationAsync != null)
-            {
-                await ShowNotificationAsync(
-                    Strings.Get("Settings.Appearance.ProfileBackupSection"),
-                    string.Format(Strings.Get("Settings.Appearance.BundleImportError"), ex.Message));
-            }
-        }
-    }
-
-    [RelayCommand]
-    private async Task NewTerminalProfileAsync()
-    {
-        if (IsBusy || OpenTerminalProfileEditDialogAsync == null) return;
-
-        var draft = new TerminalProfile { Name = "新建终端主题" };
-        var confirmed = await OpenTerminalProfileEditDialogAsync(draft, _appearance.DraftFontSnapshot);
-        if (confirmed == null) return;
-
-        // 子编辑器确认：仅并入父设置草稿并广播，不提前持久化
-        _profileManager.AddOrUpdateCustomTerminalProfile(confirmed.DeepCopy());
-        RefreshTerminalProfiles(confirmed.Id);
-    }
-
-    [RelayCommand]
-    private async Task EditTerminalProfileAsync()
-    {
-        if (IsBusy || OpenTerminalProfileEditDialogAsync == null || _appearance.SelectedTerminalProfile == null) return;
-
-        var confirmed = await OpenTerminalProfileEditDialogAsync(
-            _appearance.SelectedTerminalProfile,
-            _appearance.DraftFontSnapshot);
-        if (confirmed == null) return;
-
-        // 同 ID 内容修改：并入草稿并广播内容变更（ID 不变也刷新），不提前持久化
-        _profileManager.AddOrUpdateCustomTerminalProfile(confirmed.DeepCopy());
-        RefreshTerminalProfiles(confirmed.Id);
-    }
-
-    [RelayCommand]
-    private async Task ImportKonsoleSchemeAsync()
-    {
-        if (IsBusy || OpenKonsoleFileDialogAsync == null || OpenTerminalProfileEditDialogAsync == null) return;
-        var filePath = await OpenKonsoleFileDialogAsync();
-        if (string.IsNullOrWhiteSpace(filePath) || !System.IO.File.Exists(filePath)) return;
-
-        try
-        {
-            var content = await System.IO.File.ReadAllTextAsync(filePath);
-            var defaultName = System.IO.Path.GetFileNameWithoutExtension(filePath);
-            var parsed = Kei.Term.Core.Services.KonsoleColorSchemeParser.Parse(content, defaultName);
-
-            // 使用当前字体草稿快照；配色导入不读取也不写回字体设置
-            var confirmed = await OpenTerminalProfileEditDialogAsync(parsed, _appearance.DraftFontSnapshot);
-            if (confirmed == null) return; // 取消无副作用
-
-            // 确认后才并入父草稿并广播；落盘延后到“应用”
-            _profileManager.AddOrUpdateCustomTerminalProfile(confirmed.DeepCopy());
-            RefreshTerminalProfiles(confirmed.Id);
-        }
-        catch (Exception ex)
-        {
-            await NotifyAsync(Strings.Get("TerminalProfileEdit.Title"), ex.Message);
-        }
-    }
-
-    private void RefreshTerminalProfiles(string selectedId)
-    {
-        _appearance.TerminalProfiles.Clear();
-        foreach (var p in _profileManager.AllTerminalProfiles)
-        {
-            _appearance.TerminalProfiles.Add(p);
-        }
-        _appearance.SelectedTerminalProfile = _appearance.TerminalProfiles.FirstOrDefault(p => string.Equals(p.Id, selectedId, StringComparison.OrdinalIgnoreCase))
-            ?? _appearance.TerminalProfiles.FirstOrDefault();
-    }
-
-    // Bundle 导入后刷新两套 Profile 下拉（抑制预览广播）
-    private void RefreshAllProfiles()
-    {
-        _isReloading = true;
-        try
-        {
-            _appearance.SetProfiles(
-                _profileManager.AllGuiProfiles,
-                _profileManager.ActiveGuiProfile.Id,
-                _profileManager.AllTerminalProfiles,
-                _profileManager.DefaultTerminalProfile.Id);
-        }
-        finally
-        {
-            _isReloading = false;
-        }
-    }
 }

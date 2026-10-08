@@ -1,0 +1,58 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Kei.Term.App.ViewModels"
+             xmlns:loc="using:Kei.Term.App.Helpers"
+             x:Class="Kei.Term.App.Views.CommandPaletteView"
+             x:DataType="vm:CommandPaletteViewModel"
+             Width="600" MaxWidth="600"
+             FontFamily="{DynamicResource Kei.Font.UI}">
+    <Border Background="{DynamicResource Kei.Bg.Panel}" BorderBrush="{DynamicResource Kei.Border}"
+            BorderThickness="1" CornerRadius="{DynamicResource Kei.Radius.Card}" Padding="6">
+        <StackPanel Spacing="4">
+            <TextBox x:Name="QueryBox" Text="{Binding Query, Mode=TwoWay}"
+                     PlaceholderText="{loc:KeiString CommandPalette.SearchPlaceholder}"
+                     Height="32" MinHeight="32" FontSize="13" Padding="10,4"/>
+            <Panel>
+                <ListBox x:Name="ResultsList" ItemsSource="{Binding Results}" SelectedItem="{Binding SelectedResult, Mode=TwoWay}"
+                         IsVisible="{Binding HasResults}" MaxHeight="256" Background="Transparent" BorderThickness="0"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.Styles>
+                        <Style Selector="ListBoxItem" x:DataType="vm:CommandPaletteItem">
+                            <Setter Property="AutomationProperties.Name" Value="{Binding Title}"/>
+                            <Setter Property="IsEnabled" Value="{Binding IsEnabled}"/>
+                            <Setter Property="Padding" Value="10,4"/>
+                            <Setter Property="MinHeight" Value="32"/>
+                            <Setter Property="Height" Value="32"/>
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                        </Style>
+                        <Style Selector="TextBlock.paletteTitle">
+                            <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}"/>
+                        </Style>
+                        <Style Selector="TextBlock.paletteDescription, TextBlock.paletteShortcut">
+                            <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Secondary}"/>
+                        </Style>
+                        <Style Selector="ListBoxItem:selected TextBlock.paletteTitle, ListBoxItem:selected TextBlock.paletteDescription, ListBoxItem:selected TextBlock.paletteShortcut">
+                            <Setter Property="Foreground" Value="{DynamicResource Kei.Accent.Foreground}"/>
+                        </Style>
+                    </ListBox.Styles>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:CommandPaletteItem">
+                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                                <TextBlock Classes="paletteTitle" Grid.Column="0" Text="{Binding Title}" FontSize="13"
+                                           MaxWidth="230" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                <TextBlock Classes="paletteDescription" Grid.Column="1" Text="{Binding Description}" FontSize="12"
+                                           TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                <TextBlock Classes="paletteShortcut" Grid.Column="2" Text="{Binding ShortcutLabel}" FontSize="12"
+                                           VerticalAlignment="Center"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+                <TextBlock Text="{Binding EmptyMessage}" IsVisible="{Binding !HasResults}" FontSize="12"
+                           Foreground="{DynamicResource Kei.Text.Secondary}" TextWrapping="Wrap" Margin="10,8"
+                           VerticalAlignment="Center"/>
+            </Panel>
+            <TextBlock Text="{loc:KeiString CommandPalette.KeyHints}" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}" Margin="10,2"/>
+        </StackPanel>
+    </Border>
+</UserControl>

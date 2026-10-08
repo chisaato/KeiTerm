@@ -22,6 +22,13 @@ public static class SessionConfigBuilder
         // 身份：会话自身 → 全局默认身份
         var identityId = node.IdentityId ?? settings.DefaultIdentityId;
 
+        // 终端仿真类型也遵循会话 → 全局 → 内建；空白会话字段保留继承语义。
+        string terminalType = !string.IsNullOrWhiteSpace(node.TerminalType)
+            ? node.TerminalType
+            : !string.IsNullOrWhiteSpace(settings.DefaultTerminalType)
+                ? settings.DefaultTerminalType
+                : "xterm-256color";
+
         return new ResolvedSessionConfig(
             SessionId: node.Id,
             SessionName: node.Name,
@@ -29,7 +36,7 @@ public static class SessionConfigBuilder
             Port: port,
             Username: username,
             IdentityId: identityId,
-            TerminalType: string.IsNullOrWhiteSpace(node.TerminalType) ? "xterm-256color" : node.TerminalType,
+            TerminalType: terminalType,
             StartupScript: node.StartupScript,
             // 跳板机为会话级配置，不回退
             JumpHostSessionId: node.JumpHostSessionId,

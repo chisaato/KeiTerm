@@ -10,7 +10,8 @@
         Title="{loc:KeiString BatchEdit.Title}"
         Width="960" Height="600" MinWidth="720" MinHeight="420"
         WindowStartupLocation="CenterOwner"
-        Background="{DynamicResource Kei.Bg.Window}">
+        Background="{DynamicResource Kei.Bg.Window}"
+        FontFamily="{DynamicResource Kei.Font.UI}">
 
     <Grid RowDefinitions="*, Auto" Margin="16" RowSpacing="12">
         <Grid Grid.Row="0" ColumnDefinitions="380, *" ColumnSpacing="16">
@@ -32,13 +33,13 @@
                         <Button Grid.Column="1" Content="{loc:KeiString BatchEdit.SelectVisible}" Command="{Binding SelectAllVisibleCommand}"/>
                         <Button Grid.Column="2" Content="{loc:KeiString BatchEdit.ClearSelection}" Command="{Binding ClearSelectionCommand}"/>
                     </Grid>
-                    <ListBox Grid.Row="3" ItemsSource="{Binding FilteredSessions}" Background="Transparent">
+                    <ListBox Classes="popupList" Grid.Row="3" ItemsSource="{Binding FilteredSessions}" Background="Transparent">
                         <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="vm:BatchSessionItem">
                                 <CheckBox IsChecked="{Binding IsSelected}">
                                     <StackPanel Spacing="1">
-                                        <TextBlock Text="{Binding Node.Name}" Foreground="{DynamicResource Kei.Text.Primary}"/>
-                                        <TextBlock FontSize="11" Foreground="{DynamicResource Kei.Text.Muted}" TextTrimming="CharacterEllipsis">
+                                        <TextBlock Classes="popupPrimary" Text="{Binding Node.Name}"/>
+                                        <TextBlock Classes="popupMuted" FontSize="12" TextTrimming="CharacterEllipsis">
                                             <Run Text="{Binding Target}"/>
                                             <Run Text="  "/>
                                             <Run Text="{Binding Path}"/>
@@ -81,14 +82,14 @@
                                                  IsVisible="{Binding IsText}"
                                                  Text="{Binding Text}"
                                                  PlaceholderText="{Binding Definition.Placeholder}"/>
-                                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Summary}" FontSize="11"
+                                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Summary}" FontSize="12"
                                                    Foreground="{DynamicResource Kei.Text.Muted}"/>
                                     </Grid>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                     </ScrollViewer>
-                    <TextBlock Grid.Row="2" Text="{loc:KeiString BatchEdit.OpenTabsHint}" FontSize="11" TextWrapping="Wrap"
+                    <TextBlock Grid.Row="2" Text="{loc:KeiString BatchEdit.OpenTabsHint}" FontSize="12" TextWrapping="Wrap"
                                Foreground="{DynamicResource Kei.Text.Muted}"/>
                 </Grid>
             </Border>

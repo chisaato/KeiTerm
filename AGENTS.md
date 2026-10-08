@@ -44,7 +44,7 @@ dotnet run --project src/Kei.Term.App/Kei.Term.App.csproj
 
 ## Agent 的选用
 
-对于界面修复类的 Agent 使用 @designer.
+对于界面修复类的 Agent 优先使用 @designer.
 
 代码逻辑类的,可以使用主会话进行,或 @fixer 视任务复杂度决定.
 

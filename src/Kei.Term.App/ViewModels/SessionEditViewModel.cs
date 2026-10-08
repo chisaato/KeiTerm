@@ -35,7 +35,7 @@ public partial class SessionEditViewModel : ViewModelBase
     private string _description = string.Empty;
 
     [ObservableProperty]
-    private string _terminalType = "xterm-256color";
+    private string _terminalType = string.Empty;
 
     [ObservableProperty]
     private string _startupScript = string.Empty;
@@ -156,7 +156,7 @@ public partial class SessionEditViewModel : ViewModelBase
             Port = existing.Port ?? 22;
             Username = existing.Username ?? string.Empty;
             Description = existing.Description ?? string.Empty;
-            TerminalType = existing.TerminalType ?? "xterm-256color";
+            TerminalType = existing.TerminalType ?? string.Empty;
             StartupScript = existing.StartupScript ?? string.Empty;
             SelectedProtocol = existing.FileTransferProtocol;
             SelectedSftpMode = existing.SftpMode;
@@ -304,7 +304,7 @@ public partial class SessionEditViewModel : ViewModelBase
         model.Port = Port;
         model.Username = string.IsNullOrWhiteSpace(Username) ? null : Username.Trim();
         model.Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim();
-        model.TerminalType = string.IsNullOrWhiteSpace(TerminalType) ? "xterm-256color" : TerminalType.Trim();
+        model.TerminalType = string.IsNullOrWhiteSpace(TerminalType) ? string.Empty : TerminalType.Trim();
         model.StartupScript = string.IsNullOrWhiteSpace(StartupScript) ? null : StartupScript.Trim();
         model.IdentityId = SelectedIdentity?.Id;
         ApplyFirewall(model);

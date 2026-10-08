@@ -1,0 +1,169 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:dm="using:Dock.Model.Core"
+        xmlns:dc="using:Dock.Avalonia.Controls"
+        xmlns:vm="using:Kei.Term.App.ViewModels"
+        xmlns:ws="using:Kei.Term.App.Workspaces"
+        xmlns:conv="using:Kei.Term.App.Converters"
+        xmlns:loc="using:Kei.Term.App.Helpers">
+
+    <!-- 覆盖 Dock 主题默认颜色为 Kei 设计系统变量 -->
+    <Styles.Resources>
+        <ResourceDictionary>
+            <SolidColorBrush x:Key="DockSurfaceWorkbenchBrush" Color="{DynamicResource Kei.Color.Bg.Window}" />
+            <SolidColorBrush x:Key="DockSurfaceSidebarBrush" Color="{DynamicResource Kei.Color.Bg.Panel}" />
+            <SolidColorBrush x:Key="DockSurfaceEditorBrush" Color="{DynamicResource Kei.Color.Bg.Window}" />
+            <SolidColorBrush x:Key="DockSurfacePanelBrush" Color="{DynamicResource Kei.Color.Bg.Panel}" />
+            <SolidColorBrush x:Key="DockSurfaceHeaderBrush" Color="{DynamicResource Kei.Color.Bg.Panel}" />
+            <SolidColorBrush x:Key="DockSurfaceHeaderActiveBrush" Color="{DynamicResource Kei.Color.Bg.PanelAlt}" />
+            <SolidColorBrush x:Key="DockBorderSubtleBrush" Color="{DynamicResource Kei.Color.Border.Subtle}" />
+            <SolidColorBrush x:Key="DockBorderStrongBrush" Color="{DynamicResource Kei.Color.Border}" />
+            <SolidColorBrush x:Key="DockSeparatorBrush" Color="{DynamicResource Kei.Color.Border}" />
+            <SolidColorBrush x:Key="DockSplitterIdleBrush" Color="{DynamicResource Kei.Color.Border}" />
+            <SolidColorBrush x:Key="DockSplitterHoverBrush" Color="{DynamicResource Kei.Color.Accent}" />
+            <SolidColorBrush x:Key="DockSplitterDragBrush" Color="{DynamicResource Kei.Color.Accent.Pressed}" />
+            <SolidColorBrush x:Key="DockTabBackgroundBrush" Color="{DynamicResource Kei.Color.Bg.Panel}" />
+            <SolidColorBrush x:Key="DockTabHoverBackgroundBrush" Color="{DynamicResource Kei.Color.Bg.Hover}" />
+            <SolidColorBrush x:Key="DockTabActiveBackgroundBrush" Color="{DynamicResource Kei.Color.Bg.Window}" />
+            <SolidColorBrush x:Key="DockTabActiveIndicatorBrush" Color="{DynamicResource Kei.Color.Accent}" />
+            <SolidColorBrush x:Key="DockTabForegroundBrush" Color="{DynamicResource Kei.Color.Text.Secondary}" />
+            <SolidColorBrush x:Key="DockTabSelectedForegroundBrush" Color="{DynamicResource Kei.Color.Text.Primary}" />
+            <SolidColorBrush x:Key="DockTabActiveForegroundBrush" Color="{DynamicResource Kei.Color.Text.Primary}" />
+            <SolidColorBrush x:Key="DockDocumentTabSelectedForegroundBrush" Color="{DynamicResource Kei.Color.Text.Primary}" />
+            <SolidColorBrush x:Key="DockDocumentTabPointerOverForegroundBrush" Color="{DynamicResource Kei.Color.Text.Primary}" />
+            <SolidColorBrush x:Key="DockTargetIndicatorBrush" Color="{DynamicResource Kei.Color.Accent}" />
+            <conv:ConnectionStateBrushConverter x:Key="ConnectionStateBrush" />
+        </ResourceDictionary>
+    </Styles.Resources>
+
+    <!-- 底部标签栏穿透覆盖：当 DockControl 带有 .tabs-bottom class 时，命中文档控件内的 TabStrip 与分割线并停靠至底部 -->
+    <Style Selector="dc|DockControl.tabs-bottom dc|DocumentControl /template/ dc|DocumentTabStrip#PART_TabStrip">
+        <Setter Property="DockPanel.Dock" Value="Bottom" />
+    </Style>
+    <Style Selector="dc|DockControl.tabs-bottom dc|DocumentControl /template/ Panel#PART_DocumentSeperatorHost">
+        <Setter Property="DockPanel.Dock" Value="Bottom" />
+    </Style>
+
+    <!-- 顶部标签栏明确指定停靠至顶部（支持运行时从 Bottom 切回 Top） -->
+    <Style Selector="dc|DockControl.tabs-top dc|DocumentControl /template/ dc|DocumentTabStrip#PART_TabStrip">
+        <Setter Property="DockPanel.Dock" Value="Top" />
+    </Style>
+    <Style Selector="dc|DockControl.tabs-top dc|DocumentControl /template/ Panel#PART_DocumentSeperatorHost">
+        <Setter Property="DockPanel.Dock" Value="Top" />
+    </Style>
+
+    <!-- 标签条外观定制：紧凑桌面密度、去除未启用浮动/pin的复杂菜单 -->
+    <Style Selector="dc|DocumentTabStripItem">
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="FontFamily" Value="{DynamicResource Kei.Font.UI}" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="MinHeight" Value="28" />
+        <Setter Property="Height" Value="28" />
+        <Setter Property="Padding" Value="6,2" />
+        <Setter Property="Margin" Value="0,0,2,0" />
+        <!-- 业务菜单来自 typed header，由工作区将其转接至整片标签。 -->
+        <Setter Property="DocumentContextMenu" Value="{x:Null}" />
+    </Style>
+
+    <Style Selector="dc|DocumentTabStripItem Button">
+        <Setter Property="Width" Value="24" />
+        <Setter Property="Height" Value="24" />
+        <Setter Property="MinWidth" Value="24" />
+        <Setter Property="MinHeight" Value="24" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
+    <!-- Dock 12.1.0.6 的关闭模板是 Button 内容中的 PART_ClosePath，不能用 Button /template/ Path 命中。 -->
+    <Style Selector="dc|DocumentTabStripItem /template/ ContentPresenter#PART_ClosePresenter Path#PART_ClosePath, dc|DocumentTabStripItem /template/ ContentPresenter#PART_CompactClosePresenter Path#PART_ClosePath">
+        <Setter Property="Width" Value="12" />
+        <Setter Property="Height" Value="12" />
+        <Setter Property="Margin" Value="0" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- 内容表面不画整圈边框；标签栏与分屏分割条继续提供层级边界。 -->
+    <Style Selector="dc|DocumentControl /template/ Border#PART_Border">
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <!-- 混合工作区的标题按 VM 分发，保留连接状态与原有业务菜单。 -->
+    <Style Selector="dc|DocumentControl">
+        <Setter Property="HeaderTemplate">
+            <DataTemplate x:DataType="ws:WorkspaceDocument">
+                <ContentControl Content="{Binding Item}" HorizontalContentAlignment="Left" VerticalContentAlignment="Center">
+                    <ContentControl.DataTemplates>
+                        <DataTemplate DataType="vm:TerminalTabViewModel" x:DataType="vm:TerminalTabViewModel">
+                            <Grid x:Name="TerminalTabHeader" Background="Transparent" ToolTip.Tip="{Binding ToolTip}">
+                                <Grid.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="{loc:KeiString Main.Tab.Menu.Reconnect}" Command="{Binding RequestReconnectCommand}"/>
+                                        <MenuItem Header="{loc:KeiString Main.Tab.Menu.Disconnect}" Command="{Binding DisconnectCommand}"/>
+                                        <MenuItem Header="{loc:KeiString Main.Tab.Menu.Clone}" Command="{Binding RequestCloneCommand}"/>
+                                        <Separator/>
+                                        <MenuItem Header="{loc:KeiString Main.Tab.Menu.Rename}" Command="{Binding RequestRenameCommand}"/>
+                                        <MenuItem Header="{loc:KeiString Main.Tab.Menu.FollowRemoteTitle}" ToggleType="CheckBox"
+                                                  IsChecked="{Binding FollowRemoteTitle, Mode=OneWay}" Command="{Binding ToggleFollowRemoteTitleCommand}"/>
+                                        <Separator/>
+                                        <MenuItem Header="{loc:KeiString Main.Tab.Menu.Close}" Command="{Binding RequestCloseCommand}"/>
+                                        <MenuItem Header="{loc:KeiString Main.Tab.Menu.CloseOthers}" Command="{Binding RequestCloseOthersCommand}"/>
+                                        <MenuItem Header="{loc:KeiString Main.Tab.Menu.CloseToRight}" Command="{Binding RequestCloseToRightCommand}"/>
+                                    </ContextMenu>
+                                </Grid.ContextMenu>
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Border Width="3" Height="16" CornerRadius="1" VerticalAlignment="Center"
+                                            Background="{Binding State, Converter={StaticResource ConnectionStateBrush}}"/>
+                                    <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontSize="12"
+                                               MaxWidth="220" TextTrimming="CharacterEllipsis"/>
+                                    <Ellipse Width="6" Height="6" VerticalAlignment="Center" Fill="{DynamicResource Kei.Accent}"
+                                             IsVisible="{Binding HasActivity}"/>
+                                </StackPanel>
+                            </Grid>
+                        </DataTemplate>
+                        <DataTemplate DataType="vm:FileManagerTabViewModel" x:DataType="vm:FileManagerTabViewModel">
+                            <Grid Background="Transparent" ToolTip.Tip="{Binding ToolTip}">
+                                <Grid.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="{loc:KeiString Main.Tab.Menu.Close}" Command="{Binding RequestCloseCommand}"/>
+                                    </ContextMenu>
+                                </Grid.ContextMenu>
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Viewbox Width="16" Height="16" Stretch="Uniform" VerticalAlignment="Center">
+                                        <Grid Width="24" Height="24">
+                                            <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Folder}"/>
+                                        </Grid>
+                                    </Viewbox>
+                                    <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontSize="12"
+                                               MaxWidth="220" TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+                            </Grid>
+                        </DataTemplate>
+                        <DataTemplate DataType="vm:NewTabViewModel" x:DataType="vm:NewTabViewModel">
+                            <Grid x:Name="NewTabHeader" Background="Transparent" ToolTip.Tip="{Binding ToolTip}">
+                                <Grid.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="{loc:KeiString Main.Tab.Menu.Close}"
+                                                  Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).CloseWorkspaceTabCommand}"
+                                                  CommandParameter="{Binding}"/>
+                                    </ContextMenu>
+                                </Grid.ContextMenu>
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <Grid Width="24" Height="24">
+                                            <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Terminal}"/>
+                                        </Grid>
+                                    </Viewbox>
+                                    <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontSize="12"
+                                               MaxWidth="220" TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+                            </Grid>
+                        </DataTemplate>
+                    </ContentControl.DataTemplates>
+                </ContentControl>
+            </DataTemplate>
+        </Setter>
+    </Style>
+
+</Styles>

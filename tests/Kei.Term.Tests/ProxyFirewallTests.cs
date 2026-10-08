@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Dapper;
@@ -17,6 +18,7 @@ using Kei.Term.Core.Storage;
 using Kei.Term.Core.Vault;
 using Kei.Term.Infrastructure.Storage;
 using Kei.Term.Infrastructure.Storage.Schema;
+using Kei.Term.Infrastructure.Vault;
 using Kei.Term.Ssh.Abstractions;
 using Kei.Term.Ssh.Services;
 using Microsoft.Data.Sqlite;
@@ -506,6 +508,241 @@ public class ProxyFirewallTests : IDisposable
         Assert.Equal("corp-http", built.Name);
     }
 
+    [Fact]
+    public async Task Socks5ConfigJson_RoundTripsUsername_AndSerializedStringOmitsPassword()
+    {
+        var repo = new SqliteProxyRepository(ConnStr);
+        await repo.InitializeAsync();
+
+        var named = new ProxyProfile
+        {
+            Name = "auth-socks",
+            SortOrder = 0,
+            Config = new Socks5ProxyConfig("10.8.0.1", 2080, "proxy-user")
+        };
+        var blankUser = new ProxyProfile
+        {
+            Name = "blank-user",
+            SortOrder = 1,
+            Config = new Socks5ProxyConfig("10.8.0.2", 1080, "   ")
+        };
+        await repo.SaveAsync(named);
+        await repo.SaveAsync(blankUser);
+
+        var loaded = Assert.IsType<Socks5ProxyConfig>((await repo.GetByIdAsync(named.Id))!.Config);
+        Assert.Equal("proxy-user", loaded.Username);
+        Assert.Equal("10.8.0.1", loaded.Host);
+        Assert.Equal(2080, loaded.Port);
+
+        using var conn = new SqliteConnection(ConnStr);
+        await conn.OpenAsync();
+        var namedJson = await conn.ExecuteScalarAsync<string>(
+            "SELECT config_json FROM proxies WHERE id = @id;",
+            new { id = named.Id.ToString() });
+        var blankJson = await conn.ExecuteScalarAsync<string>(
+            "SELECT config_json FROM proxies WHERE id = @id;",
+            new { id = blankUser.Id.ToString() });
+
+        Assert.Contains("proxy-user", namedJson, StringComparison.Ordinal);
+        Assert.Contains("username", namedJson, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("password", namedJson, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("username", blankJson, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("password", blankJson, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ProxySecretStore_RoundTripsPassword_AndNullClears()
+    {
+        var repo = new SqliteProxyRepository(ConnStr);
+        await repo.InitializeAsync();
+        var proxy = new ProxyProfile
+        {
+            Name = "socks",
+            Config = new Socks5ProxyConfig("10.8.0.1", 1080, "proxy-user")
+        };
+        await repo.SaveAsync(proxy);
+
+        var vault = new InternalVaultManager(ConnStr);
+        IProxySecretStore store = vault;
+        await store.SetPasswordAsync(proxy.Id, "s3cret-proxy");
+
+        Assert.Equal("s3cret-proxy", await store.GetPasswordAsync(proxy.Id));
+        Assert.True(await store.HasPasswordAsync(proxy.Id));
+
+        using (var conn = new SqliteConnection(ConnStr))
+        {
+            await conn.OpenAsync();
+            var json = await conn.ExecuteScalarAsync<string>(
+                "SELECT config_json FROM proxies WHERE id = @id;",
+                new { id = proxy.Id.ToString() });
+            Assert.DoesNotContain("s3cret-proxy", json, StringComparison.Ordinal);
+            Assert.DoesNotContain("password", json, StringComparison.OrdinalIgnoreCase);
+        }
+
+        await store.SetPasswordAsync(proxy.Id, null);
+        Assert.False(await store.HasPasswordAsync(proxy.Id));
+        Assert.Null(await store.GetPasswordAsync(proxy.Id));
+    }
+
+    [Fact]
+    public async Task SetMasterPassword_RewrapsProxySecret_SoItStillDecrypts()
+    {
+        var repo = new SqliteProxyRepository(ConnStr);
+        await repo.InitializeAsync();
+        var proxy = new ProxyProfile { Name = "socks", Config = new Socks5ProxyConfig("10.8.0.1", 1080) };
+        await repo.SaveAsync(proxy);
+
+        var vault = new InternalVaultManager(ConnStr);
+        IProxySecretStore store = vault;
+        await store.SetPasswordAsync(proxy.Id, "s3cret-proxy");
+        await vault.SetMasterPasswordAsync("master-one");
+
+        using (var conn = new SqliteConnection(ConnStr))
+        {
+            await conn.OpenAsync();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT secrets_blob, encryption_algorithm FROM proxy_secrets WHERE proxy_id = $id;";
+            cmd.Parameters.AddWithValue("$id", proxy.Id.ToString());
+            using var reader = await cmd.ExecuteReaderAsync();
+            Assert.True(await reader.ReadAsync());
+            Assert.Equal("AES-256-GCM", reader.GetString(1));
+            Assert.DoesNotContain("s3cret-proxy", Encoding.UTF8.GetString((byte[])reader["secrets_blob"]));
+        }
+
+        vault.Lock();
+        await vault.UnlockAsync("master-one", false);
+        Assert.Equal("s3cret-proxy", await store.GetPasswordAsync(proxy.Id));
+
+        await vault.SetMasterPasswordAsync("master-two");
+        vault.Lock();
+        await vault.UnlockAsync("master-two", false);
+        Assert.Equal("s3cret-proxy", await store.GetPasswordAsync(proxy.Id));
+    }
+
+    [Fact]
+    public void BuildConnectionInfo_PassesSocks5Credentials_AndOmitsThemOnLoopback()
+    {
+        var auth = new AuthenticationMethod[] { new PasswordAuthenticationMethod("ops", "secret") };
+        var target = new SshTarget(
+            "bastion.example",
+            22,
+            "ops",
+            auth,
+            "10.8.0.1",
+            2080,
+            "proxy-user",
+            "s3cret-proxy");
+        var options = new SshClientOptions(TimeSpan.FromSeconds(15), TimeSpan.Zero, null);
+
+        var direct = SshJumpChain.BuildConnectionInfo(target, "bastion.example", 22, options);
+        Assert.Equal(ProxyTypes.Socks5, direct.ProxyType);
+        Assert.Equal("proxy-user", direct.ProxyUsername);
+        Assert.Equal("s3cret-proxy", direct.ProxyPassword);
+
+        var forwarded = SshJumpChain.BuildConnectionInfo(target, SshJumpChain.IPAddressLoopback, 43210, options);
+        Assert.Equal(ProxyTypes.None, forwarded.ProxyType);
+        Assert.Equal(SshJumpChain.IPAddressLoopback, forwarded.Host);
+        Assert.True(string.IsNullOrEmpty(forwarded.ProxyUsername));
+        Assert.True(string.IsNullOrEmpty(forwarded.ProxyPassword));
+    }
+
+    [Fact]
+    public async Task LegacySocks5Json_LoadsWithoutUsername_AndDialUsesEmptyCredentials()
+    {
+        var repo = new SqliteProxyRepository(ConnStr);
+        await repo.InitializeAsync();
+        var id = Guid.NewGuid();
+        var now = DateTime.UtcNow.ToString("O");
+        using (var conn = new SqliteConnection(ConnStr))
+        {
+            await conn.OpenAsync();
+            await conn.ExecuteAsync(@"
+                INSERT INTO proxies (id, name, sort_order, config_json, created_at, updated_at)
+                VALUES (@id, 'legacy', 0, @json, @now, @now);",
+                new { id = id.ToString(), json = """{"type":"socks5","host":"10.1.1.1","port":1080}""", now });
+        }
+
+        var loaded = Assert.IsType<Socks5ProxyConfig>((await repo.GetByIdAsync(id))!.Config);
+        Assert.Equal("10.1.1.1", loaded.Host);
+        Assert.Equal(1080, loaded.Port);
+        Assert.True(string.IsNullOrEmpty(loaded.Username));
+
+        var auth = new AuthenticationMethod[] { new PasswordAuthenticationMethod("ops", "secret") };
+        var target = new SshTarget("bastion.example", 22, "ops", auth, loaded.Host, loaded.Port, loaded.Username, null);
+        var info = SshJumpChain.BuildConnectionInfo(
+            target,
+            "bastion.example",
+            22,
+            new SshClientOptions(TimeSpan.FromSeconds(15), TimeSpan.Zero, null));
+        Assert.Equal(ProxyTypes.Socks5, info.ProxyType);
+        Assert.Equal(string.Empty, info.ProxyUsername);
+        Assert.Equal(string.Empty, info.ProxyPassword);
+    }
+
+    [Fact]
+    public async Task ProxyEditor_EmptyPasswordBox_DoesNotClearSavedPassword()
+    {
+        var existing = new ProxyProfile
+        {
+            Name = "socks",
+            Config = new Socks5ProxyConfig("10.1.1.1", 1080, "alice")
+        };
+        var vm = new ProxyEditViewModel(existing, hasSavedPassword: true);
+        Assert.Equal(string.Empty, vm.Password);
+        Assert.Equal("alice", vm.Username);
+        Assert.Equal("已设置，留空不改", vm.PasswordPlaceholder);
+        Assert.True(vm.ShowClearPassword);
+
+        var store = new RecordingProxySecrets();
+        await vm.ApplyPasswordAsync(store);
+        Assert.Empty(store.Writes);
+
+        vm.ClearSavedPassword = true;
+        await vm.ApplyPasswordAsync(store);
+        var cleared = Assert.Single(store.Writes);
+        Assert.Equal(existing.Id, cleared.Id);
+        Assert.Null(cleared.Password);
+    }
+
+    [Fact]
+    public async Task Orchestrator_Socks5Credentials_LandOnOptionsAndHop_NotOnLaterHops()
+    {
+        var socks = new ProxyProfile
+        {
+            Name = "local",
+            Config = new Socks5ProxyConfig("10.8.0.1", 2080, "proxy-user")
+        };
+        var store = new FixedProxySecrets(socks.Id, "s3cret-proxy");
+        var proxies = new InMemoryProxies([socks]);
+        var outer = new SessionNode { Name = "outer", Host = "outer.example", Username = "jump", ProxyProfileId = socks.Id };
+        var host = new ProxyHost();
+        host.Sessions[outer.Id] = outer;
+        var factory = new RecordingFactory();
+        var ui = new ScriptedInteraction();
+        var settings = new FixedSettingsService(new AppSettings { PreferSystemAgent = true });
+        var orchestrator = CreateOrchestrator(factory, ui, settings, proxies, store);
+
+        await orchestrator.ConnectAsync(
+            new ConnectionRequest(Config(proxy: socks.Id), UseIdentity: false, Password("p1")),
+            host);
+
+        var direct = Assert.Single(factory.Calls);
+        Assert.Equal("proxy-user", direct.Options.Socks5Username);
+        Assert.Equal("s3cret-proxy", direct.Options.Socks5Password);
+        Assert.Equal("10.8.0.1", direct.Options.Socks5Host);
+
+        factory.Calls.Clear();
+        await orchestrator.ConnectAsync(
+            new ConnectionRequest(Config(jump: outer.Id), UseIdentity: false, Password("p1")),
+            host);
+
+        var viaHop = Assert.Single(factory.Calls);
+        Assert.Equal("proxy-user", viaHop.Options.JumpHosts[0].Socks5Username);
+        Assert.Equal("s3cret-proxy", viaHop.Options.JumpHosts[0].Socks5Password);
+        Assert.True(string.IsNullOrEmpty(viaHop.Options.Socks5Password));
+        Assert.True(string.IsNullOrEmpty(viaHop.Options.Socks5Username));
+    }
+
     private static List<TreeNodeBase> Flatten(IEnumerable<TreeNodeBase> nodes)
     {
         var list = new List<TreeNodeBase>();
@@ -525,11 +762,20 @@ public class ProxyFirewallTests : IDisposable
         RecordingFactory factory,
         ScriptedInteraction ui,
         FixedSettingsService settings,
-        IProxyRepository proxies)
+        IProxyRepository proxies,
+        IProxySecretStore? proxySecrets = null)
     {
         var vault = new VaultSessionService(new PlainVault(), new PlainVault(), settings, () => ui);
         var collector = new AuthMaterialCollector(new InMemoryIdentities(), settings, vault, () => ui);
-        return new ConnectionOrchestrator(factory, collector, null, settings, () => ui, action => action(), proxies: proxies);
+        return new ConnectionOrchestrator(
+            factory,
+            collector,
+            null,
+            settings,
+            () => ui,
+            action => action(),
+            proxies: proxies,
+            proxySecrets: proxySecrets);
     }
 
     private static ResolvedSessionConfig Config(Guid? jump = null, Guid? proxy = null) => new(
@@ -654,6 +900,44 @@ public class ProxyFirewallTests : IDisposable
             => Task.FromResult(new Dictionary<string, SecretPayload>());
         public Task SaveSecretsAsync(Guid identityId, Dictionary<string, SecretPayload> secrets, CancellationToken ct = default) => Task.CompletedTask;
         public Task DeleteSecretsAsync(Guid identityId, CancellationToken ct = default) => Task.CompletedTask;
+    }
+
+    private sealed class RecordingProxySecrets : IProxySecretStore
+    {
+        public List<(Guid Id, string? Password)> Writes { get; } = [];
+
+        public Task<string?> GetPasswordAsync(Guid proxyId, CancellationToken ct = default)
+            => Task.FromResult<string?>(null);
+
+        public Task SetPasswordAsync(Guid proxyId, string? password, CancellationToken ct = default)
+        {
+            Writes.Add((proxyId, password));
+            return Task.CompletedTask;
+        }
+
+        public Task<bool> HasPasswordAsync(Guid proxyId, CancellationToken ct = default)
+            => Task.FromResult(false);
+    }
+
+    private sealed class FixedProxySecrets : IProxySecretStore
+    {
+        private readonly Guid _id;
+        private readonly string _password;
+
+        public FixedProxySecrets(Guid id, string password)
+        {
+            _id = id;
+            _password = password;
+        }
+
+        public Task<string?> GetPasswordAsync(Guid proxyId, CancellationToken ct = default)
+            => Task.FromResult(proxyId == _id ? _password : null);
+
+        public Task SetPasswordAsync(Guid proxyId, string? password, CancellationToken ct = default)
+            => Task.CompletedTask;
+
+        public Task<bool> HasPasswordAsync(Guid proxyId, CancellationToken ct = default)
+            => Task.FromResult(proxyId == _id);
     }
 
     private sealed class InMemoryIdentities : IIdentityRepository

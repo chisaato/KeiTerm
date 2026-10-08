@@ -7,6 +7,8 @@ using Kei.Term.App.Logging;
 using Kei.Term.App.Services.Connection;
 using Kei.Term.Core.Models;
 using Kei.Term.Core.Services;
+using Kei.Term.App.Workspaces;
+using Dock.Model.Controls;
 using Microsoft.Extensions.Logging;
 
 namespace Kei.Term.App.ViewModels;
@@ -24,11 +26,18 @@ public partial class MainViewModel
             TabAction.Reconnect => ReconnectTabAsync(tab),
             TabAction.Clone => CloneTabAsync(tab),
             TabAction.Rename => RenameTabAsync(tab),
-            TabAction.CloseOthers => CloseTabsAsync(Tabs.Where(t => t != tab).ToList()),
-            TabAction.CloseToRight => CloseTabsAsync(Tabs.Skip(Tabs.IndexOf(tab) + 1).ToList()),
+            TabAction.CloseOthers => CloseWorkspaceTabsAsync(WorkspaceTabs.Where(t => t != tab).ToList()),
+            TabAction.CloseToRight => CloseWorkspaceTabsAsync(TabsToRight(tab)),
             _ => Task.CompletedTask
         };
         _ = Safe.RunAsync(_logger, $"标签动作 {action}", () => work);
+    }
+
+    private System.Collections.Generic.IReadOnlyList<ViewModelBase> TabsToRight(TerminalTabViewModel tab)
+    {
+        if (Workspace.FindDocument(tab) is not { Owner: IDocumentDock { VisibleDockables: { } items } } document)
+            return [];
+        return items.Skip(items.IndexOf(document) + 1).OfType<WorkspaceDocument>().Select(item => item.Item).ToArray();
     }
 
     // 已保存的会话按最新会话配置重新解析（期间可能改过主机/身份）；快速连接等无节点的标签沿用原配置并重新询问认证
@@ -58,7 +67,7 @@ public partial class MainViewModel
             UserDisconnected: false,
             AuthCancelled: false,
             HostKeyRejected: false,
-            InteractiveRequired: _connections.LastAttemptRequiredInteraction,
+            InteractiveRequired: tab.RequiresInteractiveAuthentication,
             attempt);
         return _connections.ScheduleReconnectAsync(
             new ConnectionRequest(target.Config, target.UseIdentity, ReuseTarget: CreateConnectionTarget(tab)),
@@ -70,16 +79,25 @@ public partial class MainViewModel
     // 原地重连：沿用同一标签与其终端历史
     public async Task ReconnectTabAsync(TerminalTabViewModel tab)
     {
-        if (tab.IsDisposed || ResolveForReopen(tab) is not { } target)
+        if (tab.IsDisposed || tab.IsReconnectPending || ResolveForReopen(tab) is not { } target)
         {
             return;
         }
 
-        _logger.LogInformation("标签原地重连 标题={Title}", tab.Title);
-        SelectedTab = tab;
-        await _connections.ConnectAsync(
-            new ConnectionRequest(target.Config, target.UseIdentity, ReuseTarget: CreateConnectionTarget(tab)),
-            this);
+        tab.IsReconnectPending = true;
+        try
+        {
+            tab.CancelReconnect();
+            _logger.LogInformation("标签原地重连 标题={Title}", tab.Title);
+            SelectedTab = tab;
+            await _connections.ConnectAsync(
+                new ConnectionRequest(target.Config, target.UseIdentity, ReuseTarget: CreateConnectionTarget(tab)),
+                this);
+        }
+        finally
+        {
+            tab.IsReconnectPending = false;
+        }
     }
 
     // 克隆：以同一会话在新标签中再开一个连接
@@ -105,11 +123,11 @@ public partial class MainViewModel
         }
     }
 
-    private async Task CloseTabsAsync(System.Collections.Generic.IReadOnlyList<TerminalTabViewModel> tabs)
+    private async Task CloseWorkspaceTabsAsync(System.Collections.Generic.IReadOnlyList<ViewModelBase> tabs)
     {
-        foreach (TerminalTabViewModel tab in tabs)
+        foreach (ViewModelBase tab in tabs)
         {
-            await CloseTabCommand.ExecuteAsync(tab);
+            await CloseWorkspaceTabCommand.ExecuteAsync(tab);
         }
     }
 }

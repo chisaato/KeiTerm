@@ -48,10 +48,10 @@
             <Setter Property="BorderThickness" Value="2,0,0,0"/>
         </Style>
         <Style Selector=".sessionTree TreeViewItem.drop-target-invalid /template/ Border#PART_ContentPill">
-            <Setter Property="Background" Value="#33E53935"/>
+            <Setter Property="Background" Value="{DynamicResource Kei.Bg.ErrorSubtle}"/>
         </Style>
         <Style Selector=".sessionTree TreeViewItem.drop-target-invalid">
-            <Setter Property="Background" Value="#33E53935"/>
+            <Setter Property="Background" Value="{DynamicResource Kei.Bg.ErrorSubtle}"/>
         </Style>
 
         <!-- 控件外观类样式（iconBtn/tabItem/closeBtn）已迁至 DesignSystem/KeiControls.axaml，
@@ -76,9 +76,13 @@
             <NativeMenuItem Header="{loc:KeiString Menu.File}">
                 <NativeMenuItem.Menu>
                     <NativeMenu>
+                        <NativeMenuItem Header="{loc:KeiString Menu.File.NewTab}" Command="{Binding NewTabCommand}"/>
+                        <NativeMenuItem Header="{loc:KeiString Menu.File.CloseTab}" Command="{Binding CloseCurrentWorkspaceTabCommand}"/>
+                        <NativeMenuItem Header="{loc:KeiString Menu.File.ConnectSavedSession}" Command="{Binding ConnectSavedSessionCommand}"/>
+                        <NativeMenuItem Header="{loc:KeiString Menu.File.QuickConnect}" Command="{Binding QuickConnectCommand}"/>
+                        <NativeMenuItemSeparator/>
                         <NativeMenuItem Header="{loc:KeiString Menu.File.NewSession}" Command="{Binding CreateSessionCommand}"/>
                         <NativeMenuItem Header="{loc:KeiString Menu.File.NewFolder}" Command="{Binding CreateFolderCommand}"/>
-                        <NativeMenuItem Header="{loc:KeiString Menu.File.QuickConnect}" Command="{Binding QuickConnectCommand}"/>
                         <NativeMenuItemSeparator/>
                         <NativeMenuItem Header="{loc:KeiString Menu.File.ImportSecureCrt}" Command="{Binding ImportSecureCrtCommand}"/>
                         <NativeMenuItem Header="{loc:KeiString Menu.File.ImportOpenSshConfig}" Command="{Binding ImportOpenSshConfigCommand}"/>
@@ -94,18 +98,21 @@
             <NativeMenuItem Header="{loc:KeiString Menu.Edit}">
                 <NativeMenuItem.Menu>
                     <NativeMenu>
-                        <NativeMenuItem Header="{loc:KeiString Menu.Edit.Cut}" Command="{Binding CutNodeCommand}"/>
-                        <NativeMenuItem Header="{loc:KeiString Menu.Edit.Copy}" Command="{Binding CopyNodeCommand}"/>
-                        <NativeMenuItem Header="{loc:KeiString Menu.Edit.Paste}" Command="{Binding PasteNodeCommand}"/>
+                        <NativeMenuItem Header="{loc:KeiString Menu.Edit.Cut}"/>
+                        <NativeMenuItem Header="{loc:KeiString Menu.Edit.Copy}"/>
+                        <NativeMenuItem Header="{loc:KeiString Menu.Edit.Paste}"/>
+                        <NativeMenuItem Header="{loc:KeiString Menu.Edit.SelectAll}"/>
                         <NativeMenuItemSeparator/>
-                        <NativeMenuItem Header="{loc:KeiString Menu.Edit.DeleteSelected}" Command="{Binding DeleteSelectedNodeCommand}"/>
+                        <NativeMenuItem Header="{loc:KeiString Menu.Edit.DeleteSelected}"/>
+                        <NativeMenuItemSeparator/>
+                        <NativeMenuItem Header="{loc:KeiString Terminal.Find.Menu}" Command="{Binding OpenTerminalFindCommand}"/>
                     </NativeMenu>
                 </NativeMenuItem.Menu>
             </NativeMenuItem>
             <NativeMenuItem Header="{loc:KeiString Menu.View}">
                 <NativeMenuItem.Menu>
                     <NativeMenu>
-                        <NativeMenuItem Header="{loc:KeiString Menu.View.SessionManager}" ToggleType="CheckBox" IsChecked="{Binding IsSessionManagerVisible, Mode=TwoWay}"/>
+                        <NativeMenuItem Header="{loc:KeiString Menu.View.SessionManager}" ToggleType="CheckBox" IsChecked="{Binding IsSessionManagerPinned, Mode=TwoWay}"/>
                         <NativeMenuItem Header="{loc:KeiString Menu.View.Compose}">
                             <NativeMenuItem.Menu>
                                 <NativeMenu>
@@ -135,6 +142,8 @@
             <NativeMenuItem Header="{loc:KeiString Menu.Tools}">
                 <NativeMenuItem.Menu>
                     <NativeMenu>
+                        <NativeMenuItem Header="{loc:KeiString Menu.Tools.CommandPalette}" Command="{Binding OpenCommandPaletteCommand}"/>
+                        <NativeMenuItemSeparator/>
                         <NativeMenuItem Header="{loc:KeiString Menu.Tools.IdentityManager}" Command="{Binding OpenIdentityManagerCommand}"/>
                         <NativeMenuItem Header="{loc:KeiString Menu.Tools.KnownHosts}" Command="{Binding OpenKnownHostsCommand}"/>
                         <NativeMenuItem Header="{loc:KeiString Menu.Tools.BatchEdit}" Command="{Binding OpenBatchEditCommand}"/>
@@ -151,12 +160,6 @@
             </NativeMenuItem>
         </NativeMenu>
     </NativeMenu.Menu>
-
-    <!-- 快捷键：修饰键随平台切换，由代码后置统一装配（见 SetUpShortcuts） -->
-    <Window.KeyBindings>
-        <KeyBinding Gesture="Ctrl+Q" Command="{Binding QuickConnectCommand}"/>
-        <KeyBinding Gesture="Ctrl+N" Command="{Binding CreateSessionCommand}"/>
-    </Window.KeyBindings>
 
     <!-- 根布局：Row0 菜单 / Row1 全宽工具栏 / Row2 左右分栏（SecureCRT 式：菜单与工具栏横贯顶部） -->
     <Grid x:Name="RootGrid" RowDefinitions="Auto,Auto,*">
@@ -179,25 +182,83 @@
             <Grid ColumnDefinitions="Auto,*,Auto">
                 <!-- 全局功能操作组（连接、工具、设置） -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4">
+                    <Button x:Name="SessionManagerToggleButton" Classes="iconBtn sessionManagerPin" Classes.pinned="{Binding IsSessionManagerPinned}" Width="28" Height="28"
+                            ToolTip.Tip="{Binding SessionManagerToggleToolTip}" Command="{Binding ToggleSessionManagerPinCommand}">
+                        <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Grid Width="24" Height="24">
+                                <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Sidebar}"/>
+                            </Grid>
+                        </Viewbox>
+                    </Button>
+                    <Separator Classes="toolSep"/>
                     <!-- 连接操作区 -->
-                    <Button Classes="iconBtn" ToolTip.Tip="{loc:KeiString Toolbar.QuickConnectTip}" Command="{Binding QuickConnectCommand}">
-                        <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.QuickConnect}"/>
+                    <Button x:Name="NewTabButton" Classes="iconBtn" Width="28" Height="28"
+                            Command="{Binding NewTabCommand}" AutomationProperties.Name="{loc:KeiString Menu.File.NewTab}">
+                        <ToolTip.Tip>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="{loc:KeiString Menu.File.NewTab}"/>
+                                <TextBlock Text="{Binding NewTabShortcutLabel}"/>
+                            </StackPanel>
+                        </ToolTip.Tip>
+                        <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Grid Width="24" Height="24">
+                                <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.NewSession}"/>
+                            </Grid>
+                        </Viewbox>
                     </Button>
-                    <Button Classes="iconBtn" ToolTip.Tip="{loc:KeiString Toolbar.ConnectSelected}" Command="{Binding ConnectSelectedSessionCommand}">
-                        <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Connect}"/>
+                    <Button x:Name="QuickConnectButton" Classes="iconBtn" Width="28" Height="28"
+                            ToolTip.Tip="{Binding QuickConnectToolTip}" Command="{Binding QuickConnectCommand}"
+                            AutomationProperties.Name="{loc:KeiString Menu.File.QuickConnect}">
+                        <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Grid Width="24" Height="24">
+                                <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.QuickConnect}"/>
+                            </Grid>
+                        </Viewbox>
                     </Button>
-                    <Button Classes="iconBtn" ToolTip.Tip="{loc:KeiString Toolbar.DisconnectTab}" Command="{Binding DisconnectCurrentTabCommand}">
-                        <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Disconnect}"/>
+                    <Button x:Name="ConnectSelectedSessionButton" Classes="iconBtn" Width="28" Height="28"
+                            ToolTip.Tip="{loc:KeiString Toolbar.ConnectSelected}" ToolTip.ShowOnDisabled="True"
+                            Command="{Binding ConnectSelectedSessionCommand}"
+                            AutomationProperties.Name="{loc:KeiString Toolbar.ConnectSelected}">
+                        <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Grid Width="24" Height="24">
+                                <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Connect}"/>
+                            </Grid>
+                        </Viewbox>
+                    </Button>
+                    <Button x:Name="DisconnectCurrentTabButton" Classes="iconBtn" Width="28" Height="28"
+                            ToolTip.Tip="{loc:KeiString Toolbar.DisconnectTab}" ToolTip.ShowOnDisabled="True"
+                            Command="{Binding DisconnectCurrentTabCommand}"
+                            AutomationProperties.Name="{loc:KeiString Toolbar.DisconnectTab}">
+                        <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Grid Width="24" Height="24">
+                                <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Disconnect}"/>
+                            </Grid>
+                        </Viewbox>
                     </Button>
 
                     <Separator Classes="toolSep"/>
 
                     <!-- 工具与设置区 -->
                     <Button Classes="iconBtn" ToolTip.Tip="{loc:KeiString Toolbar.IdentityManager}" Command="{Binding OpenIdentityManagerCommand}">
-                        <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Key}"/>
+                        <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Grid Width="24" Height="24">
+                                <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Key}" Width="24" Height="24" Stretch="None"/>
+                            </Grid>
+                        </Viewbox>
                     </Button>
                     <Button Classes="iconBtn" ToolTip.Tip="{loc:KeiString Toolbar.Settings}" Command="{Binding OpenSettingsCommand}">
-                        <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Settings}"/>
+                        <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Grid Width="24" Height="24">
+                                <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Settings}" Width="24" Height="24" Stretch="None"/>
+                            </Grid>
+                        </Viewbox>
+                    </Button>
+                    <Button Classes="iconBtn" ToolTip.Tip="{Binding CommandPaletteToolTip}" Command="{Binding OpenCommandPaletteCommand}">
+                        <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Grid Width="24" Height="24">
+                                <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Search}" Width="24" Height="24" Stretch="None"/>
+                            </Grid>
+                        </Viewbox>
                     </Button>
                 </StackPanel>
 
@@ -214,8 +275,12 @@
 
                 <!-- 视图控制区（文件管理） -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
-                    <Button Classes="iconBtn" ToolTip.Tip="切换文件管理侧栏" Command="{Binding ToggleFileManagerCommand}">
-                        <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.FileManager}"/>
+                    <Button x:Name="FileManagerToggleButton" Classes="iconBtn" ToolTip.Tip="{loc:KeiString Terminal.FileManager.Toggle}" Command="{Binding ToggleFileManagerCommand}">
+                        <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Grid Width="24" Height="24">
+                                <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.SidebarRight}"/>
+                            </Grid>
+                        </Viewbox>
                     </Button>
                 </StackPanel>
             </Grid>
@@ -225,122 +290,135 @@
         <Grid x:Name="MainSplitGrid" Grid.Row="2" ColumnDefinitions="260,4,*">
 
             <!-- 左：连接管理器（树操作工具栏 → 过滤框 → 目录树/空态） -->
-            <Border Grid.Column="0"
-                    Background="{DynamicResource Kei.Bg.Panel}"
-                    BorderBrush="{DynamicResource Kei.Border}"
-                    BorderThickness="0,0,1,0"
-                    IsVisible="{Binding IsSessionManagerVisible}">
-                <Grid RowDefinitions="Auto,Auto,*">
+            <Border x:Name="SessionManagerBorder" Grid.Column="0" Background="Transparent" ClipToBounds="True"
+                    IsVisible="False" IsHitTestVisible="False">
+                <Border x:Name="SessionManagerSurface" Background="{DynamicResource Kei.Bg.Panel}"
+                        BorderBrush="{DynamicResource Kei.Border}" BorderThickness="0,0,1,0">
+                    <Border.RenderTransform>
+                        <TranslateTransform/>
+                    </Border.RenderTransform>
+                    <Grid RowDefinitions="Auto,Auto,*">
 
-                    <!-- Row0 面板头：专属于会话管理器的操作工具栏（新建会话/目录、剪切、复制、粘贴、折叠全部） -->
-                    <Border Grid.Row="0"
-                            Background="{DynamicResource Kei.Bg.PanelAlt}"
-                            BorderBrush="{DynamicResource Kei.Border}"
-                            BorderThickness="0,0,0,1"
-                            Padding="6,3">
-                        <StackPanel Orientation="Horizontal" Spacing="3">
-                            <Button Classes="iconBtn" ToolTip.Tip="{loc:KeiString Toolbar.NewSession}" Command="{Binding CreateSessionCommand}">
-                                <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.NewSession}"/>
-                            </Button>
-                            <Button Classes="iconBtn" ToolTip.Tip="{loc:KeiString Toolbar.NewFolder}" Command="{Binding CreateFolderCommand}">
-                                <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.NewFolder}"/>
-                            </Button>
+                        <!-- Row0 面板头：专属于会话管理器的操作工具栏（新建会话/目录、剪切、复制、粘贴、折叠全部） -->
+                        <Border Grid.Row="0"
+                                Background="{DynamicResource Kei.Bg.PanelAlt}"
+                                BorderBrush="{DynamicResource Kei.Border}"
+                                BorderThickness="0,0,0,1"
+                                Padding="6,3">
+                            <StackPanel Orientation="Horizontal" Spacing="3">
+                                <Button Classes="iconBtn" ToolTip.Tip="{loc:KeiString Toolbar.NewSession}" Command="{Binding CreateSessionCommand}">
+                                    <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <Grid Width="24" Height="24">
+                                            <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.NewSession}" Width="24" Height="24" Stretch="None"/>
+                                        </Grid>
+                                    </Viewbox>
+                                </Button>
+                                <Button Classes="iconBtn" ToolTip.Tip="{loc:KeiString Toolbar.NewFolder}" Command="{Binding CreateFolderCommand}">
+                                    <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <Grid Width="24" Height="24">
+                                            <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.NewFolder}" Width="24" Height="24" Stretch="None"/>
+                                        </Grid>
+                                    </Viewbox>
+                                </Button>
 
-                            <Separator Classes="toolSep"/>
+                                <Separator Classes="toolSep"/>
 
-                            <Button Classes="iconBtn" ToolTip.Tip="{loc:KeiString Toolbar.Cut}" Command="{Binding CutNodeCommand}">
-                                <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Cut}"/>
-                            </Button>
-                            <Button Classes="iconBtn" ToolTip.Tip="{loc:KeiString Toolbar.Copy}" Command="{Binding CopyNodeCommand}">
-                                <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Copy}"/>
-                            </Button>
-                            <Button Classes="iconBtn" ToolTip.Tip="{loc:KeiString Toolbar.Paste}" Command="{Binding PasteNodeCommand}">
-                                <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Paste}"/>
-                            </Button>
+                                <Button Classes="iconBtn" ToolTip.Tip="{loc:KeiString Toolbar.Cut}" Command="{Binding CutNodeCommand}">
+                                    <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <Grid Width="24" Height="24">
+                                            <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Cut}" Width="24" Height="24" Stretch="None"/>
+                                        </Grid>
+                                    </Viewbox>
+                                </Button>
+                                <Button Classes="iconBtn" ToolTip.Tip="{loc:KeiString Toolbar.Copy}" Command="{Binding CopyNodeCommand}">
+                                    <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <Grid Width="24" Height="24">
+                                            <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Copy}" Width="24" Height="24" Stretch="None"/>
+                                        </Grid>
+                                    </Viewbox>
+                                </Button>
+                                <Button Classes="iconBtn" ToolTip.Tip="{loc:KeiString Toolbar.Paste}" Command="{Binding PasteNodeCommand}">
+                                    <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <Grid Width="24" Height="24">
+                                            <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Paste}" Width="24" Height="24" Stretch="None"/>
+                                        </Grid>
+                                    </Viewbox>
+                                </Button>
 
-                            <Separator Classes="toolSep"/>
+                                <Separator Classes="toolSep"/>
 
-                            <Button Classes="iconBtn" ToolTip.Tip="{loc:KeiString Toolbar.CollapseAll}" Command="{Binding CollapseAllCommand}">
-                                <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.CollapseAll}"/>
-                            </Button>
-                        </StackPanel>
-                    </Border>
+                                <Button Classes="iconBtn" ToolTip.Tip="{loc:KeiString Toolbar.CollapseAll}" Command="{Binding CollapseAllCommand}">
+                                    <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <Grid Width="24" Height="24">
+                                            <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.CollapseAll}" Width="24" Height="24" Stretch="None"/>
+                                        </Grid>
+                                    </Viewbox>
+                                </Button>
+                            </StackPanel>
+                        </Border>
 
-                    <!-- Row1 过滤框：即时过滤，右侧内嵌收起面板按钮 -->
-                    <Grid Grid.Row="1" Margin="6,6,6,4">
-                        <TextBox Text="{Binding FilterText}"
-                                 PlaceholderText="{loc:KeiString Main.Filter.Placeholder}"
-                                 Background="{DynamicResource Kei.Bg.PanelAlt}"
-                                 Foreground="{DynamicResource Kei.Text.Primary}"
-                                 BorderBrush="{DynamicResource Kei.Border}"
-                                 CornerRadius="4"
-                                 Padding="6,4,26,4"
-                                 FontSize="12"/>
-                        <Button Classes="iconBtn" Width="20" Height="20"
-                                HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,3,0"
-                                ToolTip.Tip="{loc:KeiString Main.SessionManager.CollapseTip}"
-                                Command="{Binding ToggleSessionManagerCommand}">
-                            <TextBlock Text="«" FontSize="12" Foreground="{DynamicResource Kei.Text.Secondary}"/>
-                        </Button>
-                    </Grid>
+                        <!-- Row1 过滤框：即时过滤；展开和固定操作统一放在顶部侧栏按钮。 -->
+                        <Grid Grid.Row="1" Margin="6,6,6,4">
+                            <TextBox x:Name="SessionManagerFilter" Text="{Binding FilterText}"
+                                     PlaceholderText="{loc:KeiString Main.Filter.Placeholder}"
+                                     Background="{DynamicResource Kei.Bg.PanelAlt}"
+                                     Foreground="{DynamicResource Kei.Text.Primary}"
+                                     BorderBrush="{DynamicResource Kei.Border}"
+                                     CornerRadius="4"
+                                     Padding="6,4"
+                                     FontSize="12"/>
+                        </Grid>
 
-                    <!-- Row2 目录树 + 空树引导态 -->
-                    <Grid Grid.Row="2">
-                        <TreeView x:Name="SessionTree"
-                                  Classes="sessionTree"
-                                  ItemsSource="{Binding TreeNodes}"
-                                  SelectedItem="{Binding SelectedTreeNode}"
-                                  DoubleTapped="Tree_DoubleTapped"
-                                  DragDrop.AllowDrop="True"
-                                  Background="Transparent">
-                            <TreeView.ContextMenu>
-                                <ContextMenu>
-                                    <MenuItem Header="{loc:KeiString Tree.Menu.NewSession}" Command="{Binding CreateSessionCommand}"/>
-                                    <MenuItem Header="{loc:KeiString Tree.Menu.NewFolder}" Command="{Binding CreateFolderCommand}"/>
-                                    <Separator/>
-                                    <MenuItem Header="{loc:KeiString Tree.Menu.Rename}" Command="{Binding RenameSelectedNodeCommand}"/>
-                                    <MenuItem Header="{loc:KeiString Tree.Menu.EditSelected}" Command="{Binding EditSelectedNodeCommand}"/>
-                                    <MenuItem Header="{loc:KeiString Tree.Menu.DeleteSelected}" Command="{Binding DeleteSelectedNodeCommand}"/>
-                                    <Separator/>
-                                    <MenuItem Header="{loc:KeiString Tree.Menu.BatchEdit}" Command="{Binding OpenBatchEditCommand}"/>
-                                </ContextMenu>
-                            </TreeView.ContextMenu>
-                            <TreeView.DataTemplates>
-                                <!-- 条目视觉在 SessionTreeItemView。右键、双击连接、拖放仍留在本窗口。 -->
-                                <TreeDataTemplate DataType="models:VirtualRootNode" ItemsSource="{Binding Children}">
-                                    <controls:SessionTreeItemView/>
-                                </TreeDataTemplate>
-                                <TreeDataTemplate DataType="models:FolderNode" ItemsSource="{Binding Children}">
-                                    <Grid>
-                                        <controls:SessionTreeItemView>
-                                            <controls:SessionTreeItemView.HideName>
-                                                <MultiBinding Converter="{x:Static conv:SameNodeConverter.Instance}">
-                                                    <Binding />
-                                                    <Binding Path="$parent[Window].((vm:MainViewModel)DataContext).RenamingNode"/>
-                                                </MultiBinding>
-                                            </controls:SessionTreeItemView.HideName>
-                                        </controls:SessionTreeItemView>
-                                        <TextBox Classes="treeRenameBox" Margin="22,0,0,0"
-                                                 Text="{Binding $parent[Window].((vm:MainViewModel)DataContext).TreeRenameText, Mode=TwoWay}">
-                                            <TextBox.IsVisible>
-                                                <MultiBinding Converter="{x:Static conv:SameNodeConverter.Instance}">
-                                                    <Binding />
-                                                    <Binding Path="$parent[Window].((vm:MainViewModel)DataContext).RenamingNode"/>
-                                                </MultiBinding>
-                                            </TextBox.IsVisible>
-                                        </TextBox>
-                                    </Grid>
-                                </TreeDataTemplate>
-                                <DataTemplate DataType="models:SessionNode">
-                                    <Grid>
-                                        <controls:SessionTreeItemView>
-                                            <controls:SessionTreeItemView.HideName>
-                                                <MultiBinding Converter="{x:Static conv:SameNodeConverter.Instance}">
-                                                    <Binding />
-                                                    <Binding Path="$parent[Window].((vm:MainViewModel)DataContext).RenamingNode"/>
-                                                </MultiBinding>
-                                            </controls:SessionTreeItemView.HideName>
-                                            <controls:SessionTreeItemView.ContextMenu>
+                        <!-- Row2 目录树 + 空树引导态 -->
+                        <Grid Grid.Row="2">
+                            <TreeView x:Name="SessionTree"
+                                      Classes="sessionTree"
+                                      ItemsSource="{Binding TreeNodes}"
+                                      SelectedItem="{Binding SelectedTreeNode}"
+                                      DoubleTapped="Tree_DoubleTapped"
+                                      DragDrop.AllowDrop="True"
+                                      Background="Transparent">
+                                <TreeView.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="{loc:KeiString Tree.Menu.NewSession}" Command="{Binding CreateSessionCommand}"/>
+                                        <MenuItem Header="{loc:KeiString Tree.Menu.NewFolder}" Command="{Binding CreateFolderCommand}"/>
+                                        <Separator/>
+                                        <MenuItem Header="{loc:KeiString Tree.Menu.Rename}" Command="{Binding RenameSelectedNodeCommand}"/>
+                                        <MenuItem Header="{loc:KeiString Tree.Menu.EditSelected}" Command="{Binding EditSelectedNodeCommand}"/>
+                                        <MenuItem Header="{loc:KeiString Tree.Menu.DeleteSelected}" Command="{Binding DeleteSelectedNodeCommand}"/>
+                                        <Separator/>
+                                        <MenuItem Header="{loc:KeiString Tree.Menu.BatchEdit}" Command="{Binding OpenBatchEditCommand}"/>
+                                    </ContextMenu>
+                                </TreeView.ContextMenu>
+                                <TreeView.DataTemplates>
+                                    <!-- 条目视觉在 SessionTreeItemView。右键、双击连接、拖放仍留在本窗口。 -->
+                                    <TreeDataTemplate DataType="models:VirtualRootNode" ItemsSource="{Binding Children}">
+                                        <controls:SessionTreeItemView/>
+                                    </TreeDataTemplate>
+                                    <TreeDataTemplate DataType="models:FolderNode" ItemsSource="{Binding Children}">
+                                        <Grid>
+                                            <controls:SessionTreeItemView>
+                                                <controls:SessionTreeItemView.HideName>
+                                                    <MultiBinding Converter="{x:Static conv:SameNodeConverter.Instance}">
+                                                        <Binding />
+                                                        <Binding Path="$parent[Window].((vm:MainViewModel)DataContext).RenamingNode"/>
+                                                    </MultiBinding>
+                                                </controls:SessionTreeItemView.HideName>
+                                            </controls:SessionTreeItemView>
+                                            <TextBox Classes="treeRenameBox" Margin="22,0,0,0"
+                                                     Text="{Binding $parent[Window].((vm:MainViewModel)DataContext).TreeRenameText, Mode=TwoWay}">
+                                                <TextBox.IsVisible>
+                                                    <MultiBinding Converter="{x:Static conv:SameNodeConverter.Instance}">
+                                                        <Binding />
+                                                        <Binding Path="$parent[Window].((vm:MainViewModel)DataContext).RenamingNode"/>
+                                                    </MultiBinding>
+                                                </TextBox.IsVisible>
+                                            </TextBox>
+                                        </Grid>
+                                    </TreeDataTemplate>
+                                    <DataTemplate DataType="models:SessionNode" x:DataType="models:SessionNode">
+                                        <Grid Background="Transparent">
+                                            <Grid.ContextMenu>
                                                 <ContextMenu>
                                                     <MenuItem Header="{loc:KeiString Tree.Menu.Connect}"
                                                               Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).OpenSessionCommand}"
@@ -349,196 +427,76 @@
                                                               Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).RenameSelectedNodeCommand}"/>
                                                     <MenuItem Header="{loc:KeiString Tree.Menu.Edit}"
                                                               Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).EditSelectedNodeCommand}"/>
+                                                    <MenuItem Header="{loc:KeiString Tree.Menu.DuplicateSession}"
+                                                              Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).DuplicateSelectedSessionCommand}"/>
                                                     <MenuItem Header="{loc:KeiString Tree.Menu.Delete}"
                                                               Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).DeleteSelectedNodeCommand}"/>
                                                     <Separator/>
                                                     <MenuItem Header="{loc:KeiString Tree.Menu.BatchEdit}"
                                                               Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).OpenBatchEditCommand}"/>
                                                 </ContextMenu>
-                                            </controls:SessionTreeItemView.ContextMenu>
-                                        </controls:SessionTreeItemView>
-                                        <TextBox Classes="treeRenameBox" Margin="22,0,0,0"
-                                                 Text="{Binding $parent[Window].((vm:MainViewModel)DataContext).TreeRenameText, Mode=TwoWay}">
-                                            <TextBox.IsVisible>
-                                                <MultiBinding Converter="{x:Static conv:SameNodeConverter.Instance}">
-                                                    <Binding />
-                                                    <Binding Path="$parent[Window].((vm:MainViewModel)DataContext).RenamingNode"/>
-                                                </MultiBinding>
-                                            </TextBox.IsVisible>
-                                        </TextBox>
-                                    </Grid>
-                                </DataTemplate>
-                            </TreeView.DataTemplates>
-                        </TreeView>
+                                            </Grid.ContextMenu>
+                                            <controls:SessionTreeItemView>
+                                                <controls:SessionTreeItemView.HideName>
+                                                    <MultiBinding Converter="{x:Static conv:SameNodeConverter.Instance}">
+                                                        <Binding />
+                                                        <Binding Path="$parent[Window].((vm:MainViewModel)DataContext).RenamingNode"/>
+                                                    </MultiBinding>
+                                                </controls:SessionTreeItemView.HideName>
+                                            </controls:SessionTreeItemView>
+                                            <TextBox Classes="treeRenameBox" Margin="22,0,0,0"
+                                                     Text="{Binding $parent[Window].((vm:MainViewModel)DataContext).TreeRenameText, Mode=TwoWay}">
+                                                <TextBox.IsVisible>
+                                                    <MultiBinding Converter="{x:Static conv:SameNodeConverter.Instance}">
+                                                        <Binding />
+                                                        <Binding Path="$parent[Window].((vm:MainViewModel)DataContext).RenamingNode"/>
+                                                    </MultiBinding>
+                                                </TextBox.IsVisible>
+                                            </TextBox>
+                                        </Grid>
+                                    </DataTemplate>
+                                </TreeView.DataTemplates>
+                            </TreeView>
 
-                        <!-- 空树引导态 -->
-                        <StackPanel IsVisible="{Binding !HasNodes}"
-                                    VerticalAlignment="Center"
-                                    HorizontalAlignment="Center"
-                                    Spacing="10"
-                                    Margin="16">
-                            <TextBlock Text="{loc:KeiString Tree.EmptyGuide}" Foreground="{DynamicResource Kei.Text.Muted}" HorizontalAlignment="Center" FontSize="13"/>
-                            <Button Content="{loc:KeiString Tree.AddFirstSession}"
-                                    Command="{Binding CreateSessionCommand}"
-                                    HorizontalAlignment="Center"
-                                    Background="{DynamicResource Kei.Accent}"
-                                    Foreground="{DynamicResource Kei.Accent.Foreground}"
-                                    Padding="10,6"
-                                    CornerRadius="4"/>
-                        </StackPanel>
+                            <!-- 空树引导态 -->
+                            <StackPanel IsVisible="{Binding !HasNodes}"
+                                        VerticalAlignment="Center"
+                                        HorizontalAlignment="Center"
+                                        Spacing="10"
+                                        Margin="16">
+                                <TextBlock Text="{loc:KeiString Tree.EmptyGuide}" Foreground="{DynamicResource Kei.Text.Muted}" HorizontalAlignment="Center" FontSize="13"/>
+                                <Button Content="{loc:KeiString Tree.AddFirstSession}"
+                                        Command="{Binding CreateSessionCommand}"
+                                        HorizontalAlignment="Center"
+                                        Background="{DynamicResource Kei.Accent}"
+                                        Foreground="{DynamicResource Kei.Accent.Foreground}"
+                                        Padding="10,6"
+                                        CornerRadius="4"/>
+                            </StackPanel>
+                        </Grid>
                     </Grid>
-                </Grid>
+                </Border>
             </Border>
 
             <!-- 中：垂直分割条 -->
-            <GridSplitter Grid.Column="1"
+            <GridSplitter x:Name="SessionManagerSplitter" Grid.Column="1"
                           Background="{DynamicResource Kei.Bg.PanelAlt}"
                           ResizeDirection="Columns"
-                          IsVisible="{Binding IsSessionManagerVisible}"/>
+                          IsVisible="False" IsHitTestVisible="False"/>
 
-            <!-- 右：主内容区（标签条 → 终端区 → 撰写栏） -->
-            <Grid x:Name="RightContentGrid" Grid.Column="2" RowDefinitions="Auto,*,Auto">
+            <!-- 右：Dock 工作区包含各组标签；底部保留共享撰写栏。 -->
+            <Grid x:Name="RightContentGrid" Grid.Column="2" RowDefinitions="*,Auto">
 
-                <!-- 标签条：状态指示竖条 + 标题 + 关闭；无标签时整行隐藏 -->
-                <Border x:Name="TabsBarBorder"
-                        Grid.Row="0"
-                        Background="{DynamicResource Kei.Bg.Panel}"
-                        BorderBrush="{DynamicResource Kei.Border}"
-                        BorderThickness="0,0,0,1"
-                        IsVisible="{Binding HasTabs}">
-                    <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled">
-                        <ItemsControl x:Name="TabsItemsControl" ItemsSource="{Binding Tabs}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <StackPanel Orientation="Horizontal" Spacing="2"/>
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate DataType="vm:TerminalTabViewModel">
-                                    <Button Classes="tabItem"
-                                            Classes.selected="{Binding IsSelected}"
-                                            Classes.activity="{Binding HasActivity}"
-                                            DragDrop.AllowDrop="True"
-                                            Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).SelectTabCommand}"
-                                            CommandParameter="{Binding}"
-                                            ToolTip.Tip="{Binding ToolTip}">
-                                        <Button.ContextMenu>
-                                            <ContextMenu>
-                                                <MenuItem Header="{loc:KeiString Main.Tab.Menu.Reconnect}" Command="{Binding RequestReconnectCommand}"/>
-                                                <MenuItem Header="{loc:KeiString Main.Tab.Menu.Disconnect}" Command="{Binding DisconnectCommand}"/>
-                                                <MenuItem Header="{loc:KeiString Main.Tab.Menu.Clone}" Command="{Binding RequestCloneCommand}"/>
-                                                <Separator/>
-                                                <MenuItem Header="{loc:KeiString Main.Tab.Menu.Rename}" Command="{Binding RequestRenameCommand}"/>
-                                                <MenuItem Header="{loc:KeiString Main.Tab.Menu.FollowRemoteTitle}"
-                                                          ToggleType="CheckBox"
-                                                          IsChecked="{Binding FollowRemoteTitle, Mode=OneWay}"
-                                                          Command="{Binding ToggleFollowRemoteTitleCommand}"/>
-                                                <Separator/>
-                                                <MenuItem Header="{loc:KeiString Main.Tab.Menu.Close}" Command="{Binding RequestCloseCommand}"/>
-                                                <MenuItem Header="{loc:KeiString Main.Tab.Menu.CloseOthers}" Command="{Binding RequestCloseOthersCommand}"/>
-                                                <MenuItem Header="{loc:KeiString Main.Tab.Menu.CloseToRight}" Command="{Binding RequestCloseToRightCommand}"/>
-                                            </ContextMenu>
-                                        </Button.ContextMenu>
-                                        <StackPanel Orientation="Horizontal" Spacing="6" Margin="10,5">
-                                            <!-- SecureCRT 风格 3px 宽状态指示竖条，替代原圆点 -->
-                                            <Border Width="3" Height="16" CornerRadius="1" VerticalAlignment="Center"
-                                                    Background="{Binding State, Converter={StaticResource ConnectionStateBrush}}"/>
-                                            <!-- 远端标题可能很长（如 byobu 的 user@host (ip) - byobu）：限宽省略，完整内容见悬停提示 -->
-                                            <TextBlock Classes="tabTitle" Text="{Binding Title}" VerticalAlignment="Center" FontSize="12"
-                                                       MaxWidth="220" TextTrimming="CharacterEllipsis"
-                                                       Foreground="{DynamicResource Kei.Text.Primary}"/>
-                                            <!-- 后台标签有新输出 / 响铃 -->
-                                            <Ellipse Width="6" Height="6" VerticalAlignment="Center"
-                                                     Fill="{DynamicResource Kei.Accent}"
-                                                     IsVisible="{Binding HasActivity}"/>
-                                            <Button Classes="closeBtn"
-                                                    Content="✕"
-                                                    ToolTip.Tip="{loc:KeiString Main.Tab.CloseTip}"
-                                                    Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).CloseTabCommand}"
-                                                    CommandParameter="{Binding}"/>
-                                        </StackPanel>
-                                    </Button>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
-                </Border>
-
-                <!-- 终端区：无标签时纯色填充，无任何文字 -->
-                <Panel x:Name="TerminalContainer" Grid.Row="1">
-                    <Border Background="{DynamicResource Kei.Bg.Window}"
-                            IsVisible="{Binding SelectedTab, Converter={x:Static ObjectConverters.IsNull}}"/>
-                    <!-- 终端区：无标签时纯色填充，有标签时通过 ItemsControl 单独承载每个标签的 Terminal 实例，避免 ContentControl 切换带来的卸载与焦点失效 -->
-                    <ItemsControl ItemsSource="{Binding Tabs}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <Panel/>
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate DataType="vm:TerminalTabViewModel">
-                                <Grid IsVisible="{Binding IsSelected}">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition>
-                                            <ColumnDefinition.Width>
-                                                <MultiBinding Converter="{x:Static conv:FileManagerColumnWidthConverter.Instance}" ConverterParameter="Left">
-                                                    <Binding Path="IsFileManagerVisible"/>
-                                                    <Binding Path="IsFileManagerOnLeft"/>
-                                                </MultiBinding>
-                                            </ColumnDefinition.Width>
-                                        </ColumnDefinition>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition>
-                                            <ColumnDefinition.Width>
-                                                <MultiBinding Converter="{x:Static conv:FileManagerColumnWidthConverter.Instance}" ConverterParameter="Right">
-                                                    <Binding Path="IsFileManagerVisible"/>
-                                                    <Binding Path="IsFileManagerOnLeft"/>
-                                                </MultiBinding>
-                                            </ColumnDefinition.Width>
-                                        </ColumnDefinition>
-                                    </Grid.ColumnDefinitions>
-
-                                    <!-- 终端控件：根据 IsFileManagerOnLeft 动态停靠在 Column 0 或 Column 2。
-                                         外层 ScrollViewer 提供回滚滚动条（TerminalControl 实现 ILogicalScrollable）；
-                                         底色取配色背景，覆盖网格贴底后顶部的余量区域 -->
-                                    <Border Grid.Column="{Binding IsFileManagerOnLeft, Converter={x:Static conv:FileManagerDockConverter.Instance}, ConverterParameter=Terminal}"
-                                            Background="{Binding TerminalBackground}">
-                                        <Border.ContextMenu>
-                                            <ContextMenu>
-                                                <MenuItem Header="{loc:KeiString Terminal.Menu.Copy}" Command="{Binding CopySelectionCommand}"/>
-                                                <MenuItem Header="{loc:KeiString Terminal.Menu.Paste}" Command="{Binding PasteToTerminalCommand}"/>
-                                                <Separator/>
-                                                <MenuItem Header="{loc:KeiString Terminal.Menu.SelectAll}" Command="{Binding SelectAllTerminalTextCommand}"/>
-                                                <MenuItem Header="{loc:KeiString Terminal.Menu.Clear}" Command="{Binding ClearTerminalScreenCommand}"/>
-                                                <MenuItem Header="{loc:KeiString Terminal.Menu.ClearScrollback}" Command="{Binding ClearTerminalScrollbackCommand}"/>
-                                            </ContextMenu>
-                                        </Border.ContextMenu>
-                                        <ScrollViewer Classes="terminalScroll"
-                                                      Content="{Binding Terminal}"
-                                                      Background="Transparent"
-                                                      AllowAutoHide="False"
-                                                      VerticalScrollBarVisibility="Visible"
-                                                      HorizontalScrollBarVisibility="Disabled"/>
-                                    </Border>
-
-                                    <!-- 分割条：固定在 Column 1，仅在文件管理器侧栏展开时呈现 -->
-                                    <GridSplitter Grid.Column="1" Width="4"
-                                                  Background="{DynamicResource Kei.Bg.PanelAlt}"
-                                                  ResizeDirection="Columns"
-                                                  IsVisible="{Binding IsFileManagerVisible}"/>
-
-                                    <!-- 文件管理器侧栏视图：根据 IsFileManagerOnLeft 动态停靠在 Column 0 或 Column 2 -->
-                                    <views:RemoteFileManagerView Grid.Column="{Binding $parent[Grid].((vm:TerminalTabViewModel)DataContext).IsFileManagerOnLeft, Converter={x:Static conv:FileManagerDockConverter.Instance}, ConverterParameter=FileManager}"
-                                                                 DataContext="{Binding FileManager}"
-                                                                 IsVisible="{Binding $parent[Grid].((vm:TerminalTabViewModel)DataContext).IsFileManagerVisible}"/>
-                                </Grid>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                <!-- 空工作区与新标签共用连接入口，操作成功后直接替换为终端。 -->
+                <Panel x:Name="TerminalContainer" Grid.Row="0">
+                    <Border IsVisible="{Binding !HasTabs}">
+                        <views:NewTabView x:Name="WelcomeView" DataContext="{Binding WelcomePage}"/>
+                    </Border>
+                    <views:TerminalWorkspaceView x:Name="WorkspaceHost" IsVisible="{Binding HasTabs}"/>
                 </Panel>
 
-                <!-- Row2 撰写栏：显示条件 = 撰写栏开关打开且有选中标签 -->
-                <Border Grid.Row="2"
+                <!-- 撰写栏：显示条件 = 撰写栏开关打开且有选中标签 -->
+                <Border Grid.Row="1"
                         Background="{DynamicResource Kei.Bg.PanelAlt}"
                         BorderBrush="{DynamicResource Kei.Border}"
                         BorderThickness="0,1,0,0"
@@ -546,7 +504,7 @@
                     <Border.IsVisible>
                         <MultiBinding Converter="{x:Static BoolConverters.And}">
                             <Binding Path="IsComposeBarVisible"/>
-                            <Binding Path="SelectedTab" Converter="{x:Static ObjectConverters.IsNotNull}"/>
+                            <Binding Path="IsTerminalWorkspaceActive"/>
                         </MultiBinding>
                     </Border.IsVisible>
                     <Grid ColumnDefinitions="Auto,*,Auto">
@@ -627,6 +585,13 @@
                     </Grid>
                 </Border>
             </Grid>
+            <!-- 仅在未固定且收起时命中；覆盖布局不占用终端宽度。 -->
+            <Border x:Name="SessionManagerRevealZone" Grid.ColumnSpan="3" Width="6" HorizontalAlignment="Left"
+                    Background="Transparent" IsVisible="False" IsHitTestVisible="False" ZIndex="11"/>
+        </Grid>
+        <Grid x:Name="CommandPaletteOverlay" Grid.RowSpan="3" IsVisible="False" Background="Transparent" ZIndex="1000"
+              PointerPressed="CommandPaletteOverlay_PointerPressed">
+            <ContentControl x:Name="CommandPaletteHost" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="12"/>
         </Grid>
     </Grid>
 </Window>

@@ -10,11 +10,20 @@ public enum PanelVisibilityMode
     RememberLastState = 2
 }
 
+public enum FileSizeDisplayMode
+{
+    Iec = 0,
+    Si = 1,
+    Bytes = 2
+}
+
 public class AppSettings
 {
     // 连接管理器显示模式与最后状态
     public PanelVisibilityMode SessionManagerVisibilityMode { get; set; } = PanelVisibilityMode.RememberLastState;
     public bool LastSessionManagerVisible { get; set; } = true;
+    // 不固定时作为临时覆盖面板展开，不占用终端宽度；重启后保持收起。
+    public bool SessionManagerPinned { get; set; } = true;
 
     // 撰写栏显示模式与最后状态
     public PanelVisibilityMode ComposeBarVisibilityMode { get; set; } = PanelVisibilityMode.RememberLastState;
@@ -40,7 +49,7 @@ public class AppSettings
     // 控件库主题："KeiClassic" | "Semi" | "Material"（Semi/Material 为覆盖式第三方控件主题）
     public string ControlLibraryTheme { get; set; } = "KeiClassic";
 
-    // 关闭窗口前是否弹出确认
+    // 关闭窗口或通过快捷键退出前是否确认；“不再提示”在确认退出时关闭此选项。
     public bool ConfirmBeforeClose { get; set; } = true;
 
     // 意外断开后在原标签里自动重连。默认关：误锤生产机比少一次重连更糟。
@@ -52,6 +61,12 @@ public class AppSettings
     // 无对应开关，Windows 无全局菜单概念，两端均为无操作。
     // 该值在 AppBuilder 阶段被读取，改动需重启应用才生效。
     public bool UseNativeGlobalMenu { get; set; } = true;
+
+    // 支持的平台使用系统原生上下文菜单，其余平台回退应用菜单；默认关闭，保存后立即生效。
+    public bool UseNativeContextMenus { get; set; }
+
+    // Primary 在 macOS 表示 Command，在其他平台表示 Ctrl；快捷面板仅在应用前台响应。
+    public string CommandPaletteShortcut { get; set; } = "Primary+Shift+P";
 
     // 目录树排序规则："AsciiFirst" (英文优先，默认) | "Pinyin" (中文拼音本地化优先)
     public string TreeSortMode { get; set; } = "AsciiFirst";
@@ -111,6 +126,9 @@ public class AppSettings
 
 public class FileTransferSettings
 {
+    // 文件列表大小的显示单位；不影响远程文件大小或传输字节计数。
+    public FileSizeDisplayMode SizeDisplayMode { get; set; } = FileSizeDisplayMode.Iec;
+
     // 本地缓存基目录，为空时默认使用应用标准缓存路径
     public string CacheDirectory { get; set; } = string.Empty;
 
@@ -135,4 +153,19 @@ public interface ISettingsService
     AppSettings Current { get; }
     Task<AppSettings> LoadSettingsAsync(CancellationToken ct = default);
     Task SaveSettingsAsync(AppSettings settings, CancellationToken ct = default);
+
+    // 只提交字号。默认实现改内存后整对象保存。
+    // 生产实现应在保存锁内补丁当前对象，避免用调用时的完整快照回滚其他字段。
+    Task CommitFontSizeAsync(double fontSize, CancellationToken ct = default)
+    {
+        Current.FontSize = fontSize;
+        return SaveSettingsAsync(Current, ct);
+    }
+}
+
+// 已提交设置的内存值已变化（当前由外部字号提交触发）。
+// 订阅方只同步自己尚未编辑的字段，禁止据此全量重载草稿。
+public interface INotifySettingsCommitted
+{
+    event EventHandler? SettingsCommitted;
 }

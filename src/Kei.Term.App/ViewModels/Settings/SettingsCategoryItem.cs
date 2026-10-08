@@ -22,6 +22,6 @@ public sealed class SettingsCategoryItem
     // 右侧内容区通过 DataTemplate 按实际类型分发的设置页 VM
     public object Page { get; }
 
-    // 16×16 线性图标几何数据
+    // 24×24 Lucide 中心线数据，视图统一轮廓后缩放到分类导航尺寸。
     public string Icon { get; }
 }

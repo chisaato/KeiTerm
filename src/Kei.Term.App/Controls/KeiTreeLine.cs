@@ -1,20 +1,19 @@
 namespace Kei.Term.App.Controls;
 
 using System;
+using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Presenters;
-using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.VisualTree;
 
 /// <summary>
-/// 树形视图连接垂直引导线：
-/// 替代原先无节制铺满整个展开区域的 Rectangle，
-/// 根据其同级 ItemsPresenter 中的最后一个直接子节点，精准将竖线长度截断在最后一个子节点的 Header 中心水平横线处，
-/// 消除树形视图末尾子项下方凸出一条竖线的问题。
+/// 按父项箭头中心和直接子项的实际行坐标绘制树连接线。
+/// 横线与竖线共用一个坐标系，末端停在最后一个直接子项的行中点，
+/// 不受缩进、行高、内边距以及子项自身展开高度的影响。
 /// </summary>
 public class KeiTreeLine : Control
 {
@@ -51,9 +50,6 @@ public class KeiTreeLine : Control
     {
         UnhookEvents();
 
-        AddHandler(TreeViewItem.ExpandedEvent, OnSubtreeExpandedCollapsed, RoutingStrategies.Bubble, handledEventsToo: true);
-        AddHandler(TreeViewItem.CollapsedEvent, OnSubtreeExpandedCollapsed, RoutingStrategies.Bubble, handledEventsToo: true);
-
         if (Parent is Panel parentPanel)
         {
             _itemsPresenter = parentPanel.Children.OfType<ItemsPresenter>().FirstOrDefault();
@@ -61,6 +57,7 @@ public class KeiTreeLine : Control
             {
                 _itemsPresenter.SizeChanged += OnPresenterSizeChanged;
                 _itemsPresenter.EffectiveViewportChanged += OnPresenterEffectiveViewportChanged;
+                _itemsPresenter.LayoutUpdated += OnTreeLayoutUpdated;
                 HookPanel(_itemsPresenter.Panel);
             }
         }
@@ -89,13 +86,11 @@ public class KeiTreeLine : Control
 
     private void UnhookEvents()
     {
-        RemoveHandler(TreeViewItem.ExpandedEvent, OnSubtreeExpandedCollapsed);
-        RemoveHandler(TreeViewItem.CollapsedEvent, OnSubtreeExpandedCollapsed);
-
         if (_itemsPresenter != null)
         {
             _itemsPresenter.SizeChanged -= OnPresenterSizeChanged;
             _itemsPresenter.EffectiveViewportChanged -= OnPresenterEffectiveViewportChanged;
+            _itemsPresenter.LayoutUpdated -= OnTreeLayoutUpdated;
             _itemsPresenter = null;
         }
 
@@ -128,105 +123,90 @@ public class KeiTreeLine : Control
         InvalidateVisual();
     }
 
-    private void OnSubtreeExpandedCollapsed(object? sender, RoutedEventArgs e)
+    private void OnTreeLayoutUpdated(object? sender, EventArgs e)
     {
+        // 展开、改密度或行内容高度变化后，重新读取布局；竖横线不缓存旧坐标。
+        if (_itemsPresenter?.Panel != _itemsPanel)
+        {
+            HookPanel(_itemsPresenter?.Panel);
+        }
         InvalidateVisual();
     }
 
-    public double CalculateLineLength()
+    private IReadOnlyList<Point> GetChildBranches()
     {
-        if (_itemsPresenter == null)
+        if (_itemsPresenter == null && Parent is Panel)
         {
-            if (Parent is Panel parentPanel)
-            {
-                _itemsPresenter = parentPanel.Children.OfType<ItemsPresenter>().FirstOrDefault();
-                if (_itemsPresenter != null)
-                {
-                    HookPanel(_itemsPresenter.Panel);
-                }
-            }
+            HookEvents();
         }
 
         if (_itemsPresenter == null)
         {
-            return 0;
+            return Array.Empty<Point>();
         }
 
-        var panel = _itemsPresenter.Panel ?? _itemsPanel;
+        Panel? panel = _itemsPresenter.Panel ?? _itemsPanel;
         if (panel == null || panel.Children.Count == 0)
         {
-            return 0;
+            return Array.Empty<Point>();
         }
 
-        TreeViewItem? lastItem = null;
-        for (int i = panel.Children.Count - 1; i >= 0; i--)
+        List<Point> branches = new(panel.Children.Count);
+        foreach (Control child in panel.Children)
         {
-            if (panel.Children[i] is TreeViewItem tvi && tvi.IsVisible)
+            if (child is not TreeViewItem item || !item.IsVisible)
             {
-                lastItem = tvi;
-                break;
+                continue;
+            }
+            Control? header = FindPart(item, "PART_Header");
+            if (header?.Bounds.Height > 0 && header.TranslatePoint(new Point(0, header.Bounds.Height / 2), this) is { } point)
+            {
+                branches.Add(point);
             }
         }
+        return branches;
+    }
 
-        if (lastItem == null)
-        {
-            return 0;
-        }
+    private static Control? FindPart(TreeViewItem item, string name) => item.GetVisualDescendants()
+        .OfType<Control>().FirstOrDefault(control => control.Name == name && ReferenceEquals(control.TemplatedParent, item));
 
-        var transform = lastItem.TransformToVisual(this);
-        if (!transform.HasValue)
-        {
-            return 0;
-        }
-
-        Point lastOrigin = transform.Value.Transform(new Point(0, 0));
-
-        double headerHeight = 0;
-        var layoutRoot = lastItem.GetVisualDescendants()
-            .OfType<Border>()
-            .FirstOrDefault(b => b.Name == "PART_ContentPill" || b.Classes.Contains("TreeViewItemContentPill") || b.Name == "PART_LayoutRoot" || b.Classes.Contains("TreeViewItemLayoutRoot"));
-        if (layoutRoot != null && layoutRoot.Bounds.Height > 0)
-        {
-            headerHeight = layoutRoot.Bounds.Height;
-        }
-
-        if (headerHeight <= 0)
-        {
-            if (lastItem.TryFindResource("Kei.Tree.ItemHeight", out var res) && res is double d && d > 0)
-            {
-                headerHeight = d;
-            }
-            else if (lastItem.MinHeight > 0 && !double.IsNaN(lastItem.MinHeight))
-            {
-                headerHeight = lastItem.MinHeight;
-            }
-            else
-            {
-                headerHeight = 22.0;
-            }
-        }
-
-        double endY = lastOrigin.Y + (headerHeight / 2.0);
-        return Math.Max(0, endY);
+    public double CalculateLineLength()
+    {
+        IReadOnlyList<Point> branches = GetChildBranches();
+        return branches.Count > 0 ? Math.Max(0, branches[^1].Y) : 0;
     }
 
     public override void Render(DrawingContext context)
     {
         base.Render(context);
 
-        var brush = LineBrush;
+        IBrush? brush = LineBrush;
         if (brush == null)
         {
             return;
         }
 
-        double length = CalculateLineLength();
-        if (length <= 0)
+        IReadOnlyList<Point> branches = GetChildBranches();
+        TreeViewItem? parentItem = TemplatedParent as TreeViewItem ?? this.FindAncestorOfType<TreeViewItem>();
+        Control? chevron = parentItem == null ? null : FindPart(parentItem, "PART_ExpandCollapseChevronContainer");
+        if (branches.Count == 0 || chevron == null || chevron.TranslatePoint(new Point(chevron.Bounds.Width / 2, 0), this) is not { } axis)
         {
             return;
         }
 
-        double width = Bounds.Width > 0 ? Bounds.Width : 1.0;
-        context.FillRectangle(brush, new Rect(0, 0, width, length));
+        // 将 1px 线条边缘贴到设备像素，避免不同密度下出现半像素发虚。
+        double scale = TopLevel.GetTopLevel(this)?.RenderScaling ?? 1;
+        double x = Math.Floor(axis.X * scale) / scale;
+        double endY = Math.Floor(branches[^1].Y * scale) / scale;
+        context.FillRectangle(brush, new Rect(x, 0, 1, Math.Max(0, endY) + 1));
+        foreach (Point branch in branches)
+        {
+            double y = Math.Floor(branch.Y * scale) / scale;
+            double endX = Math.Floor(branch.X * scale) / scale;
+            if (endX > x)
+            {
+                context.FillRectangle(brush, new Rect(x, y, endX - x, 1));
+            }
+        }
     }
 }

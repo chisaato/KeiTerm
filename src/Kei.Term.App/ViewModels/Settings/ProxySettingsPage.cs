@@ -6,13 +6,15 @@ using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Kei.Term.App.Helpers;
+using Kei.Term.App.Services;
 using Kei.Term.Core.Models;
 using Kei.Term.Core.Storage;
+using Kei.Term.Core.Vault;
 
 namespace Kei.Term.App.ViewModels.Settings;
 
 // 设置 › 代理。表格只读，编辑走对话框。删除被引用的代理允许，连接时再失败。
-public partial class ProxySettingsPage : ObservableObject
+public partial class ProxySettingsPage : ViewModelBase
 {
     private readonly IProxyRepository _repository;
     private readonly Func<IReadOnlyList<SessionNode>> _sessions;
@@ -28,7 +30,20 @@ public partial class ProxySettingsPage : ObservableObject
     [ObservableProperty]
     private ProxyRow? _selectedRow;
 
-    public Func<ProxyProfile?, Task<ProxyProfile?>>? EditProxyAsync { get; set; }
+    public IInteractionService Interaction { get; set; } = NullInteractionService.Instance;
+
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasError))]
+    private string _errorMessage = string.Empty;
+    public bool HasError => !string.IsNullOrEmpty(ErrorMessage);
+
+    partial void OnSelectedRowChanged(ProxyRow? value)
+    {
+        EditCommand.NotifyCanExecuteChanged();
+        DeleteCommand.NotifyCanExecuteChanged();
+    }
+    private bool HasSelection() => SelectedRow != null;
+
+    public IProxySecretStore? Secrets { get; set; }
 
     public async Task ReloadAsync()
     {
@@ -45,59 +60,49 @@ public partial class ProxySettingsPage : ObservableObject
     }
 
     [RelayCommand]
-    private async Task Add()
+    private Task Add() => RunAsync(async () =>
     {
-        if (EditProxyAsync == null)
-        {
-            return;
-        }
-
-        ProxyProfile? created = await EditProxyAsync(null);
-        if (created == null)
-        {
-            return;
-        }
-
-        created.SortOrder = Rows.Count == 0 ? 0 : Rows.Max(r => r.SortOrder) + 1;
-        await _repository.SaveAsync(created);
+        ProxyEditCommit? created = await Interaction.EditProxyAsync(null, false);
+        if (created == null) return;
+        created.Profile.SortOrder = Rows.Count == 0 ? 0 : Rows.Max(r => r.SortOrder) + 1;
+        await SaveCommitAsync(created);
         await ReloadAsync();
-    }
+        SelectedRow = Rows.FirstOrDefault(r => r.Id == created.Profile.Id);
+    });
 
-    [RelayCommand]
-    private async Task Edit()
+    [RelayCommand(CanExecute = nameof(HasSelection))]
+    private Task Edit() => RunAsync(async () =>
     {
-        if (EditProxyAsync == null || SelectedRow == null)
-        {
-            return;
-        }
-
+        if (SelectedRow == null) return;
         ProxyProfile? current = await _repository.GetByIdAsync(SelectedRow.Id);
-        if (current == null)
-        {
-            await ReloadAsync();
-            return;
-        }
-
-        ProxyProfile? edited = await EditProxyAsync(current);
-        if (edited == null)
-        {
-            return;
-        }
-
-        await _repository.SaveAsync(edited);
+        if (current == null) { await ReloadAsync(); return; }
+        bool hasPassword = Secrets != null && await Secrets.HasPasswordAsync(current.Id);
+        ProxyEditCommit? edited = await Interaction.EditProxyAsync(current, hasPassword);
+        if (edited == null) return;
+        await SaveCommitAsync(edited);
         await ReloadAsync();
+    });
+
+    private async Task SaveCommitAsync(ProxyEditCommit commit)
+    {
+        await _repository.SaveAsync(commit.Profile);
+        if (Secrets != null) await commit.ApplyPassword(Secrets);
     }
 
-    [RelayCommand]
-    private async Task Delete()
+    [RelayCommand(CanExecute = nameof(HasSelection))]
+    private Task Delete() => RunAsync(async () =>
     {
-        if (SelectedRow == null)
-        {
-            return;
-        }
-
+        if (SelectedRow == null) return;
         await _repository.DeleteAsync(SelectedRow.Id);
         await ReloadAsync();
+    });
+
+    private async Task RunAsync(Func<Task> operation)
+    {
+        ErrorMessage = string.Empty;
+        try { await operation(); }
+        // 错误区不回显异常内容，避免连接信息或口令出现在界面日志中。
+        catch (Exception) { ErrorMessage = "代理操作失败，请检查本地配置数据库或凭据存储后重试。"; }
     }
 
     public static ProxyRow Describe(ProxyProfile proxy, IReadOnlyDictionary<Guid, SessionNode> sessions)

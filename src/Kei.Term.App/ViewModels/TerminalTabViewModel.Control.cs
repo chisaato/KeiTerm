@@ -62,6 +62,7 @@ public partial class TerminalTabViewModel
                     OnTerminalPointerWheelChanged,
                     RoutingStrategies.Tunnel,
                     handledEventsToo: true);
+                terminal.AddHandler(InputElement.KeyDownEvent, OnTerminalKeyDown, RoutingStrategies.Tunnel);
                 terminal.Loaded += OnTerminalLoaded;
                 terminal.SizeChanged += OnTerminalSizeChanged;
                 terminal.TerminalResized += OnTerminalGridResized;
@@ -70,6 +71,21 @@ public partial class TerminalTabViewModel
 
             return _terminal;
         }
+    }
+
+    // 失败或断开状态下，终端内的普通回车重用当前标签重新连接。
+    private void OnTerminalKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter || e.KeyModifiers != KeyModifiers.None
+            || IsDisposed || Config == null
+            || State is not (ConnectionState.Error or ConnectionState.Disconnected))
+        {
+            return;
+        }
+
+        // 在终端自身处理 Enter 之前截获；连接正常时仍把回车交给远端 shell。
+        e.Handled = true;
+        if (!IsReconnectPending) RequestReconnectCommand.Execute(null);
     }
 
     // Ctrl + 垂直滚轮缩放：普通滚轮放行给终端滚动，不标记 Handled
@@ -102,6 +118,7 @@ public partial class TerminalTabViewModel
         TerminalControl terminal = TerminalControlFactory.Create(hooks);
         terminal.FontLinearMetrics = true;
         terminal.FontSubpixelPositioning = true;
+        TerminalKeywordHighlight.Apply(terminal);
         return terminal;
     }
 
@@ -267,7 +284,9 @@ public partial class TerminalTabViewModel
             return;
         }
 
-        double inset = TerminalGridAlignment.TopInset(_terminal.Bounds.Height, renderer.CellHeight);
+        double inset = !_hasRemoteOutput && State is ConnectionState.Error or ConnectionState.Disconnected
+            ? 0
+            : TerminalGridAlignment.TopInset(_terminal.Bounds.Height, renderer.CellHeight);
         if (Math.Abs(_terminal.Padding.Top - inset) > 0.001)
         {
             _terminal.Padding = new Thickness(0, inset, 0, 0);

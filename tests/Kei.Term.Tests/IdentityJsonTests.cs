@@ -21,22 +21,9 @@ public class IdentityJsonTests
             KeyFilePath = "~/.ssh/id_ed25519",
             PassphraseMode = PassphrasePersistence.Persistent
         },
-        new AgentMethod { Id = Guid.NewGuid(), SortOrder = 3, AgentFingerprint = "SHA256:abc" },
+        new AgentMethod { Id = Guid.NewGuid(), SortOrder = 3, AgentFingerprint = "SHA256:abc", Enabled = false },
         new InteractiveMethod { Id = Guid.NewGuid(), SortOrder = 4 }
     ];
-
-    [Fact]
-    public void Serialize_EmitsAllKindDiscriminators()
-    {
-        var json = JsonSerializer.Serialize(SampleMethods());
-
-        Assert.Contains("$kind", json);
-        Assert.Contains("ssh/vault-password", json);
-        Assert.Contains("ssh/vault-key", json);
-        Assert.Contains("ssh/file-key", json);
-        Assert.Contains("ssh/agent", json);
-        Assert.Contains("ssh/interactive", json);
-    }
 
     [Fact]
     public void RoundTrip_PreservesTypesFieldsAndOrder()
@@ -44,6 +31,11 @@ public class IdentityJsonTests
         var methods = SampleMethods();
 
         var json = JsonSerializer.Serialize(methods);
+        // 判别值属于配置格式契约，往返成功之外还要保证旧配置可兼容。
+        foreach (string kind in new[] { "ssh/vault-password", "ssh/vault-key", "ssh/file-key", "ssh/agent", "ssh/interactive" })
+        {
+            Assert.Contains(kind, json);
+        }
         var back = JsonSerializer.Deserialize<List<AuthMethodEntry>>(json);
 
         Assert.NotNull(back);
@@ -64,6 +56,7 @@ public class IdentityJsonTests
         // 数组序与各方法 Id/SortOrder 原样保持
         Assert.Equal(new[] { 0, 1, 2, 3, 4 }, back.Select(m => m.SortOrder).ToArray());
         Assert.Equal(methods.Select(m => m.Id).ToArray(), back.Select(m => m.Id).ToArray());
+        Assert.Equal(methods.Select(m => m.Enabled), back.Select(m => m.Enabled));
     }
 
     [Fact]
@@ -72,15 +65,5 @@ public class IdentityJsonTests
         var json = "[{\"$kind\":\"vnc/password\",\"Id\":\"" + Guid.NewGuid() + "\",\"SortOrder\":0,\"Enabled\":true}]";
 
         Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<List<AuthMethodEntry>>(json));
-    }
-
-    [Fact]
-    public void DisabledFlag_RoundTrips()
-    {
-        var methods = new List<AuthMethodEntry> { new AgentMethod { SortOrder = 0, Enabled = false } };
-
-        var back = JsonSerializer.Deserialize<List<AuthMethodEntry>>(JsonSerializer.Serialize(methods));
-
-        Assert.False(back![0].Enabled);
     }
 }

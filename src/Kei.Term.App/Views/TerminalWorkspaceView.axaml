@@ -1,0 +1,32 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Kei.Term.App.ViewModels"
+             xmlns:views="using:Kei.Term.App.Views"
+             xmlns:ws="using:Kei.Term.App.Workspaces"
+             xmlns:dc="using:Dock.Avalonia.Controls"
+             x:Class="Kei.Term.App.Views.TerminalWorkspaceView"
+             x:DataType="vm:MainViewModel"
+             FontFamily="{DynamicResource Kei.Font.UI}"
+             HorizontalAlignment="Stretch"
+             VerticalAlignment="Stretch">
+    <dc:DockControl x:Name="DockHost"
+                    Classes="tabs-top"
+                    Layout="{Binding Workspace.Layout}"
+                    Factory="{Binding Workspace.Factory}"
+                    InitializeLayout="False"
+                    InitializeFactory="False"
+                    EnableManagedWindowLayer="False"
+                    Background="{DynamicResource Kei.Bg.Window}">
+        <dc:DockControl.DataTemplates>
+            <DataTemplate DataType="ws:TerminalWorkspaceDocument" x:DataType="ws:TerminalWorkspaceDocument">
+                <views:TerminalConnectionView DataContext="{Binding Tab}"/>
+            </DataTemplate>
+            <DataTemplate DataType="ws:NewTabWorkspaceDocument" x:DataType="ws:NewTabWorkspaceDocument">
+                <views:NewTabView DataContext="{Binding Tab}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+            </DataTemplate>
+            <DataTemplate DataType="ws:FileManagerWorkspaceDocument" x:DataType="ws:FileManagerWorkspaceDocument">
+                <views:FileManagerWorkspaceView DataContext="{Binding Tab}"/>
+            </DataTemplate>
+        </dc:DockControl.DataTemplates>
+    </dc:DockControl>
+</UserControl>

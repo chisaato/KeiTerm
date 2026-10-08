@@ -3,6 +3,7 @@ namespace Kei.Term.Infrastructure.Storage;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Kei.Term.Core.Models;
+using Kei.Term.Core.Services;
 using Microsoft.Extensions.Logging;
 
 // proxy_json / config_json 的唯一编解码处。损坏行不抛到调用方。
@@ -79,7 +80,13 @@ internal static class ProxyJsonCodec
 
     public static string WriteConfig(ProxyConfig config) => config switch
     {
-        Socks5ProxyConfig socks => JsonSerializer.Serialize(new ConfigDto { Type = "socks5", Host = socks.Host, Port = socks.Port }, Json),
+        Socks5ProxyConfig socks => JsonSerializer.Serialize(new ConfigDto
+        {
+            Type = "socks5",
+            Host = socks.Host,
+            Port = socks.Port,
+            Username = SessionProxyExit.NormalizeUsername(socks.Username)
+        }, Json),
         HttpProxyConfig http => JsonSerializer.Serialize(new ConfigDto { Type = "http", Host = http.Host, Port = http.Port }, Json),
         SessionProxyConfig session => JsonSerializer.Serialize(new ConfigDto { Type = "session", SessionId = session.SessionId.ToString() }, Json),
         _ => throw new ArgumentException("未知代理配置", nameof(config))
@@ -121,9 +128,12 @@ internal static class ProxyJsonCodec
                 return null;
             }
 
-            return dto.Type.Equals("http", StringComparison.OrdinalIgnoreCase)
-                ? new HttpProxyConfig(host, dto.Port)
-                : new Socks5ProxyConfig(host, dto.Port);
+            if (dto.Type.Equals("http", StringComparison.OrdinalIgnoreCase))
+            {
+                return new HttpProxyConfig(host, dto.Port);
+            }
+
+            return new Socks5ProxyConfig(host, dto.Port, SessionProxyExit.NormalizeUsername(dto.Username));
         }
 
         if (dto.Type.Equals("session", StringComparison.OrdinalIgnoreCase))
@@ -148,6 +158,7 @@ internal static class ProxyJsonCodec
         public string? Type { get; set; }
         public string? Host { get; set; }
         public int Port { get; set; }
+        public string? Username { get; set; }
         public string? SessionId { get; set; }
     }
 }

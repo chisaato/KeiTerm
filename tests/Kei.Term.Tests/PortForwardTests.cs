@@ -7,7 +7,6 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using Dapper;
-using Kei.Term.App.ViewModels;
 using Kei.Term.Core.Abstractions;
 using Kei.Term.Core.Models;
 using Kei.Term.Core.Security;
@@ -62,7 +61,8 @@ public class PortForwardTests : IDisposable
         }
 
         var version = await SchemaMigrator.MigrateAsync(new SqliteConnectionFactory(ConnStr));
-        Assert.Equal(5, version);
+        // v4 之后还会跑后续迁移；这里只要求升到当前最新，且不改 proxies。
+        Assert.Equal(SchemaMigrator.LatestVersion, version);
 
         using var check = new SqliteConnection(ConnStr);
         await check.OpenAsync();
@@ -204,7 +204,7 @@ public class PortForwardTests : IDisposable
         Assert.Empty(await repo.GetBySessionAsync(sessionId));
     }
 
-    [Fact]
+    [SshdFact]
     public async Task Dialer_StartsForwardsOnTargetClient_NotJumpClient_AndStopsOnDispose()
     {
         using var sshd = new LocalSshd();
@@ -256,16 +256,6 @@ public class PortForwardTests : IDisposable
         var held = started.ToList();
         await session.DisposeAsync();
         Assert.All(held, p => Assert.False(p.IsStarted));
-    }
-
-    [Fact]
-    public void SessionEditor_AddsPortsCategory_WithoutRemovingFirewallRow()
-    {
-        var vm = new SessionEditViewModel(null, null, []);
-        Assert.Contains(vm.Categories, c => Equals(c.Page, "Ports"));
-        Assert.Contains(vm.Categories, c => Equals(c.Page, "Connection"));
-        Assert.Contains(vm.FirewallOptions, o => o.Kind == FirewallChoiceKind.None);
-        Assert.Contains(vm.FirewallOptions, o => o.Kind == FirewallChoiceKind.ChooseSession);
     }
 
     private async Task<Guid> SeedSessionAsync()

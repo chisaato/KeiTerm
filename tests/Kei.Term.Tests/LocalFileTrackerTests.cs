@@ -9,6 +9,28 @@ namespace Kei.Term.Tests;
 public class LocalFileTrackerTests
 {
     [Fact]
+    public async Task Dispose_CancelsPendingNativeNotificationAndPreservesCache()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), "keiterm_tracker_dispose_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            await using LocalFileTracker tracker = new(directory, FileWatcherMode.OSNative, 1, 800);
+            string file = tracker.GetLocalCachePath(Guid.NewGuid(), "/edit.txt");
+            await File.WriteAllTextAsync(file, "before");
+            await tracker.RegisterTrackedFileAsync(Guid.NewGuid(), "/edit.txt", file);
+            int notifications = 0;
+            tracker.FileChanged += (_, _) => Interlocked.Increment(ref notifications);
+            await File.WriteAllTextAsync(file, "saved just before close");
+            await tracker.DisposeAsync();
+            await Task.Delay(1000);
+            Assert.Equal(0, Volatile.Read(ref notifications));
+            Assert.Equal("saved just before close", await File.ReadAllTextAsync(file));
+        }
+        finally { Directory.Delete(directory, recursive: true); }
+    }
+
+    [Fact]
     public async Task LocalFileTracker_DetectsChange_WhenFileModified()
     {
         // 1. Arrange

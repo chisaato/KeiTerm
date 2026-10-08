@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -12,6 +13,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Kei.Term.App.Helpers;
+using Kei.Term.App.Views.Controls;
 using Kei.Term.App.Logging;
 using Kei.Term.App.ViewModels;
 using Kei.Term.Core.Models;
@@ -24,13 +26,6 @@ namespace Kei.Term.App.Views;
 
 public partial class MainWindow : Window
 {
-    // 侧栏默认宽度与记忆宽度（收起后恢复用）
-    private const double SidebarDefaultWidth = 260;
-    private double _lastSidebarWidth = SidebarDefaultWidth;
-
-    // 关闭确认放行标记：弹窗确认后直接放行本次关闭
-    private bool _closeConfirmed;
-
     // 拖拽进行中的节点 Id（PointerPressed 命中记录，移动超阈值后启动 DoDragDrop）
     private TreeNodeBase? _dragNode;
     private Guid? _activeDraggedId;
@@ -41,18 +36,12 @@ public partial class MainWindow : Window
     private PointerPressedEventArgs? _dragPressedArgs;
     private Point _dragStart;
 
-    // 标签栏拖拽状态
-    private TerminalTabViewModel? _dragTab;
-    private TerminalTabViewModel? _activeDraggedTab;
-    private PointerPressedEventArgs? _dragTabPressedArgs;
-    private Point _dragTabStart;
-    private bool _isDraggingTab;
-
     public MainWindow()
     {
         InitializeComponent();
 
         SetUpPlatformKeyBindings();
+        SetUpSessionManager();
         WireMenuClickHandlers();
 
         // 在 InitializeComponent 后拿到 SessionTree（先给 axaml 的 TreeView 加 x:Name="SessionTree"）
@@ -70,61 +59,11 @@ public partial class MainWindow : Window
         SessionTree.AddHandler(KeyDownEvent, Tree_KeyDown, RoutingStrategies.Tunnel, handledEventsToo: true);
         SessionTree.AddHandler(LostFocusEvent, Tree_RenameLostFocus, RoutingStrategies.Bubble);
 
-        // 标签栏拖拽与点击处理：在 TabsItemsControl 容器上附加事件
-        TabsItemsControl.AddHandler(PointerPressedEvent, Tab_PointerPressed, RoutingStrategies.Tunnel | RoutingStrategies.Bubble, handledEventsToo: true);
-        TabsItemsControl.AddHandler(Button.ClickEvent, Tab_ButtonClicked, RoutingStrategies.Bubble, handledEventsToo: true);
-        TabsItemsControl.AddHandler(PointerMovedEvent, Tab_PointerMoved, RoutingStrategies.Tunnel | RoutingStrategies.Bubble, handledEventsToo: true);
-        TabsItemsControl.AddHandler(DragDrop.DragOverEvent, Tab_DragOver);
-        TabsItemsControl.AddHandler(DragDrop.DropEvent, Tab_Drop);
+        // 隧道阶段吃掉 Ctrl+F，避免终端控件先把按键标成已处理
+        AddHandler(KeyDownEvent, OnTerminalFindKeyDown, RoutingStrategies.Tunnel);
 
         // DataContext 变化时挂接 VM 属性监听（侧栏收起/恢复需要联动列宽）
         PropertyChanged += OnWindowPropertyChanged;
-    }
-
-    // 新建会话：macOS 用 ⌘N，其余平台用 Ctrl+N
-    private static KeyGesture ShortcutNewSession => OperatingSystem.IsMacOS()
-        ? new KeyGesture(Key.N, KeyModifiers.Meta)
-        : new KeyGesture(Key.N, KeyModifiers.Control);
-
-    // 快速连接：macOS 用 ⌘K，其余平台用 Ctrl+Q。
-    // macOS 上不能沿用 Q —— ⌘Q 是系统「退出」，抢占会导致应用无法用标准方式退出。
-    private static KeyGesture ShortcutQuickConnect => OperatingSystem.IsMacOS()
-        ? new KeyGesture(Key.K, KeyModifiers.Meta)
-        : new KeyGesture(Key.Q, KeyModifiers.Control);
-
-    // 窗口级快捷键只在非 macOS 生效：macOS 的菜单经系统全局菜单栏承载，
-    // 原生 NSMenuItem 自带 keyEquivalent，窗口级绑定反而可能把 Ctrl+Q 解释成 ⌘Q 与系统退出冲突。
-    private void SetUpPlatformKeyBindings()
-    {
-        if (OperatingSystem.IsMacOS())
-        {
-            KeyBindings?.Clear();
-        }
-    }
-
-    // 菜单项手势按平台装配。菜单本体在 XAML 声明，此处不依赖索引或名称，
-    // 而是按 Command 身份匹配 —— 菜单项增删、重排或本地化都不会让它失效。
-    // 注意：NativeMenuItem.Gesture 自身不注册热键，它只是交给平台导出器
-    // （macOS -> NSMenuItem keyEquivalent；其余平台 -> 窗口内菜单的展示文本）。
-    private void ApplyMenuShortcuts(MainViewModel vm)
-    {
-        NativeMenu? menu = NativeMenu.GetMenu(this);
-        if (menu == null)
-        {
-            return;
-        }
-
-        foreach (NativeMenuItem item in EnumerateMenuItems(menu.Items))
-        {
-            if (ReferenceEquals(item.Command, vm.CreateSessionCommand))
-            {
-                item.Gesture = ShortcutNewSession;
-            }
-            else if (ReferenceEquals(item.Command, vm.QuickConnectCommand))
-            {
-                item.Gesture = ShortcutQuickConnect;
-            }
-        }
     }
 
     // NativeMenuItem 不是 Control，XAML 编译器不支持在其上写 Click="方法名"（只能在代码里订阅）。
@@ -208,6 +147,7 @@ public partial class MainWindow : Window
             settingsVm,
             knownHostsVm,
             logger ?? NullLogger.Instance);
+        identityMgrVm.Interaction = vm.Interaction;
 
         // 身份管理器编辑器由管理器窗口自身以模态方式打开（保证 owner 正确）
         identityMgrVm.ConfirmDeleteAsync = _ => Task.FromResult(true);
@@ -217,6 +157,40 @@ public partial class MainWindow : Window
         identityMgrVm.VaultKeyInfoLoader = vm.VaultSession.GetVaultKeyInfoAsync;
         identityMgrVm.PersistVaultKeysAsync = vm.VaultSession.PersistVaultKeyImportsAsync;
         vm.TreeRenameStarted += FocusTreeRenameBox;
+    }
+
+    // 终端聚焦时 Window.KeyBindings 到不了。文本框里的 Ctrl+F 留给输入框，不抢走。
+    private void OnTerminalFindKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (!AppShortcuts.Find.Matches(e))
+        {
+            return;
+        }
+
+        if (e.Source is TextBox box && !box.Classes.Contains("findQuery"))
+        {
+            return;
+        }
+
+        if (DataContext is not MainViewModel vm || !vm.OpenTerminalFindCommand.CanExecute(null))
+        {
+            return;
+        }
+
+        e.Handled = true;
+        vm.OpenTerminalFindCommand.Execute(null);
+        FocusOpenFindBar();
+    }
+
+    private void FocusOpenFindBar()
+    {
+        foreach (TerminalFindBar bar in this.GetVisualDescendants().OfType<TerminalFindBar>())
+        {
+            if (bar.IsEffectivelyVisible && ReferenceEquals(bar.DataContext, (DataContext as MainViewModel)?.SelectedTab))
+            {
+                bar.FocusQuery();
+            }
+        }
     }
 
     // 只有会话树持有焦点时才吃 F2。文本框、下拉、终端聚焦则放过。
@@ -548,167 +522,6 @@ public partial class MainWindow : Window
         _ = vm.MoveNodeToAsync(draggedId, newParentId);
     }
 
-    // ==========================================
-    // 标签栏拖拽重排 (Tab Reordering)
-    // ==========================================
-
-    private void Tab_PointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        _dragTab = null;
-        _dragTabPressedArgs = null;
-
-        // 中键点击关闭标签（浏览器 / SecureCRT 习惯）
-        if (e.GetCurrentPoint(TabsItemsControl).Properties.IsMiddleButtonPressed)
-        {
-            if (DataContext is MainViewModel mainVm && FindTabViewModelFromVisual(e.Source as Visual) is { } middleTab)
-            {
-                e.Handled = true;
-                _ = mainVm.CloseTabCommand.ExecuteAsync(middleTab);
-            }
-
-            return;
-        }
-
-        // 仅处理鼠标左键按下
-        if (!e.GetCurrentPoint(TabsItemsControl).Properties.IsLeftButtonPressed)
-        {
-            return;
-        }
-
-        // 排除关闭按钮点击触发的拖拽
-        if (e.Source is Visual sourceVisual)
-        {
-            var btn = sourceVisual.FindAncestorOfType<Button>(includeSelf: true);
-            if (btn != null && btn.Classes.Contains("closeBtn"))
-            {
-                return;
-            }
-        }
-
-        // 寻找命中的 TerminalTabViewModel
-        var tabVm = FindTabViewModelFromVisual(e.Source as Visual);
-        if (tabVm != null)
-        {
-            _dragTab = tabVm;
-            _dragTabPressedArgs = e;
-            _dragTabStart = e.GetPosition(TabsItemsControl);
-        }
-    }
-
-    private async void Tab_PointerMoved(object? sender, PointerEventArgs e)
-    {
-        if (_isDraggingTab
-            || _dragTab == null
-            || _dragTabPressedArgs == null
-            || !e.GetCurrentPoint(TabsItemsControl).Properties.IsLeftButtonPressed)
-        {
-            return;
-        }
-
-        var currentPos = e.GetPosition(TabsItemsControl);
-        // 水平位移阈值 >= 6px 启动拖拽，防止普通点击切换标签被拦截
-        if (Math.Abs(currentPos.X - _dragTabStart.X) < 6)
-        {
-            return;
-        }
-
-        var pressedArgs = _dragTabPressedArgs;
-        var tab = _dragTab;
-        _activeDraggedTab = tab;
-        _dragTab = null;
-        _dragTabPressedArgs = null;
-        _isDraggingTab = true;
-
-        try
-        {
-            var transfer = new DataTransfer();
-            transfer.Add(DataTransferItem.CreateText($"tab:{tab.Title}"));
-            await DragDrop.DoDragDropAsync(pressedArgs, transfer, DragDropEffects.Move);
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Tab DoDragDropAsync 异常");
-        }
-        finally
-        {
-            _isDraggingTab = false;
-            _activeDraggedTab = null;
-        }
-    }
-
-    private void Tab_DragOver(object? sender, DragEventArgs e)
-    {
-        if (DataContext is not MainViewModel vm || !_isDraggingTab)
-        {
-            e.DragEffects = DragDropEffects.None;
-            return;
-        }
-
-        var targetTab = FindTabViewModelFromVisual(e.Source as Visual);
-        if (targetTab != null && targetTab != _activeDraggedTab)
-        {
-            e.DragEffects = DragDropEffects.Move;
-            e.Handled = true;
-        }
-        else
-        {
-            e.DragEffects = DragDropEffects.None;
-        }
-    }
-
-    private void Tab_Drop(object? sender, DragEventArgs e)
-    {
-        if (DataContext is not MainViewModel vm)
-        {
-            return;
-        }
-
-        var targetTab = FindTabViewModelFromVisual(e.Source as Visual);
-        var sourceTab = _activeDraggedTab ?? vm.SelectedTab;
-
-        if (targetTab != null && sourceTab != null && targetTab != sourceTab)
-        {
-            var fromIdx = vm.Tabs.IndexOf(sourceTab);
-            var toIdx = vm.Tabs.IndexOf(targetTab);
-            if (fromIdx >= 0 && toIdx >= 0)
-            {
-                vm.MoveTab(fromIdx, toIdx);
-                e.DragEffects = DragDropEffects.Move;
-                e.Handled = true;
-            }
-        }
-    }
-
-    private void Tab_ButtonClicked(object? sender, RoutedEventArgs e)
-    {
-        // 显式拦截 ✕ 关闭按钮点击，阻止事件冒泡到外层 tabItem 切换标签，并直接触发关闭
-        if (e.Source is Visual visual)
-        {
-            var btn = visual.FindAncestorOfType<Button>(includeSelf: true);
-            if (btn != null && btn.Classes.Contains("closeBtn"))
-            {
-                e.Handled = true;
-                if (DataContext is MainViewModel vm && btn.DataContext is TerminalTabViewModel tab)
-                {
-                    _ = vm.CloseTabCommand.ExecuteAsync(tab);
-                }
-            }
-        }
-    }
-
-    private static TerminalTabViewModel? FindTabViewModelFromVisual(Visual? visual)
-    {
-        while (visual != null)
-        {
-            if (visual.DataContext is TerminalTabViewModel tab)
-            {
-                return tab;
-            }
-            visual = visual.GetVisualParent();
-        }
-        return null;
-    }
-
     // 双击会话节点直接连接（与右键菜单"连接"行为一致）
     private void Tree_DoubleTapped(object? sender, TappedEventArgs e)
     {
@@ -722,166 +535,18 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
-    // 菜单"退出"：走桌面生命周期正常关闭（触发 OnClosing 确认逻辑）
+    // 文件菜单与 macOS 原生退出快捷键共享同一确认流程。
     // NativeMenuItem.Click 是 EventHandler（EventArgs），签名必须与之一致才能直接订阅
     private void OnExitMenuClick(object? sender, EventArgs e)
     {
-        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        if (OperatingSystem.IsMacOS() && Application.Current is App app)
+        {
+            _ = Safe.RunAsync(_logger ?? NullLogger.Instance, "请求退出应用", app.RequestQuitAsync);
+        }
+        else if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             desktop.MainWindow?.Close();
         }
-    }
-
-    // 菜单"关于"：Help 菜单与 macOS 应用菜单共用同一实现
-    private void OnAboutClick(object? sender, EventArgs e) => _ = ShowAboutDialogAsync();
-
-    // 极简版本信息弹窗；公开供 App 的 macOS 应用菜单调用
-    public async Task ShowAboutDialogAsync()
-    {
-        var version = typeof(MainWindow).Assembly.GetName().Version?.ToString() ?? "unknown";
-        var about = new Window
-        {
-            Title = Strings.Get("About.Title"),
-            CanResize = false,
-            SizeToContent = SizeToContent.WidthAndHeight,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            ShowInTaskbar = false,
-            Background = GetThemeBrush("Kei.Bg.Panel"),
-            BorderBrush = GetThemeBrush("Kei.Border")
-        };
-        about.Content = new StackPanel
-        {
-            Margin = new Thickness(28, 22),
-            Spacing = 8,
-            Children =
-            {
-                new TextBlock
-                {
-                    Text = Strings.Get("About.AppName"),
-                    FontSize = 18,
-                    FontWeight = FontWeight.SemiBold,
-                    Foreground = GetThemeBrush("Kei.Text.Primary")
-                },
-                new TextBlock
-                {
-                    Text = string.Format(Strings.Get("About.VersionFormat"), version),
-                    FontSize = 12,
-                    Foreground = GetThemeBrush("Kei.Text.Secondary")
-                },
-                new TextBlock
-                {
-                    Text = Strings.Get("About.Description"),
-                    FontSize = 12,
-                    Foreground = GetThemeBrush("Kei.Text.Muted")
-                }
-            }
-        };
-        await about.ShowDialog(this);
-    }
-
-    // 关闭确认：设置允许且有打开标签时弹窗确认，取消则阻止关闭；
-    // 确认关闭后必须 await vm.DisposeAsync() 完成资源释放方可正式关闭
-    protected override async void OnClosing(WindowClosingEventArgs e)
-    {
-        base.OnClosing(e);
-
-        if (_closeConfirmed)
-        {
-            return;
-        }
-
-        e.Cancel = true;
-
-        if (DataContext is not MainViewModel vm)
-        {
-            _closeConfirmed = true;
-            Close();
-            return;
-        }
-
-        if (vm.ConfirmBeforeClose && vm.Tabs.Count > 0)
-        {
-            bool confirmed = await ShowCloseConfirmDialogAsync();
-            if (!confirmed)
-            {
-                return;
-            }
-        }
-
-        _closeConfirmed = true;
-
-        try
-        {
-            // 在窗口彻底销毁前等待异步生命周期释放完毕
-            await vm.DisposeAsync();
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "MainViewModel 异步释放异常");
-        }
-
-        Close();
-    }
-
-    // 简洁的深色确认窗口（中文文案）
-    private async Task<bool> ShowCloseConfirmDialogAsync()
-    {
-        var tcs = new TaskCompletionSource<bool>();
-        var dialog = new Window
-        {
-            Title = Strings.Get("Dialog.CloseConfirm.Title"),
-            CanResize = false,
-            SizeToContent = SizeToContent.WidthAndHeight,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            ShowInTaskbar = false,
-            Background = GetThemeBrush("Kei.Bg.Panel"),
-            BorderBrush = GetThemeBrush("Kei.Border")
-        };
-
-        var message = new TextBlock
-        {
-            Text = Strings.Get("Dialog.CloseConfirm.Message"),
-            Foreground = GetThemeBrush("Kei.Text.Primary"),
-            TextWrapping = TextWrapping.Wrap,
-            MaxWidth = 340,
-            FontSize = 13,
-            Margin = new Thickness(20, 18, 20, 4)
-        };
-
-        var cancelButton = new Button { Content = Strings.Get("Common.Cancel"), Padding = new Thickness(14, 5), MinWidth = 76 };
-        var confirmButton = new Button
-        {
-            Content = Strings.Get("Dialog.CloseConfirm.CloseButton"),
-            Padding = new Thickness(14, 5),
-            MinWidth = 76,
-            Margin = new Thickness(8, 0, 0, 0),
-            Background = GetThemeBrush("Kei.Accent"),
-            Foreground = GetThemeBrush("Kei.Accent.Foreground") ?? Brushes.White
-        };
-
-        cancelButton.Click += (_, _) => { tcs.TrySetResult(false); dialog.Close(); };
-        confirmButton.Click += (_, _) => { tcs.TrySetResult(true); dialog.Close(); };
-
-        var buttons = new StackPanel
-        {
-            Orientation = Avalonia.Layout.Orientation.Horizontal,
-            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,
-            Margin = new Thickness(20, 8, 20, 16),
-            Children = { cancelButton, confirmButton }
-        };
-
-        dialog.Content = new StackPanel { Children = { message, buttons } };
-        await dialog.ShowDialog(this);
-        return await tcs.Task;
-    }
-
-    // 从应用级主题资源取画刷
-    private static IBrush? GetThemeBrush(string key)
-    {
-        return Application.Current?.Resources is ResourceDictionary resources
-            && resources.TryGetValue(key, out var value)
-            ? value as IBrush
-            : null;
     }
 
     private void OnWindowPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
@@ -899,13 +564,13 @@ public partial class MainWindow : Window
         if (e.NewValue is MainViewModel newVm)
         {
             newVm.PropertyChanged += OnMainViewModelPropertyChanged;
-            UpdateSidebarColumn(newVm.IsSessionManagerVisible);
+            UpdateSessionManagerLayout(newVm);
             UpdateTabPlacement(newVm.TabPlacement);
             // 菜单手势依赖 VM 的 Command 实例，必须在 DataContext 就绪后装配
             ApplyMenuShortcuts(newVm);
             if (newVm.SelectedTab != null)
             {
-                Dispatcher.UIThread.Post(() => newVm.SelectedTab?.Terminal.Focus());
+                QueueWorkspaceFocus(newVm);
             }
         }
     }
@@ -914,9 +579,9 @@ public partial class MainWindow : Window
     {
         if (sender is not MainViewModel vm) return;
 
-        if (e.PropertyName == nameof(MainViewModel.IsSessionManagerVisible))
+        if (e.PropertyName is nameof(MainViewModel.IsSessionManagerVisible) or nameof(MainViewModel.IsSessionManagerPinned))
         {
-            UpdateSidebarColumn(vm.IsSessionManagerVisible);
+            UpdateSessionManagerLayout(vm);
         }
         else if (e.PropertyName == nameof(MainViewModel.TabPlacement))
         {
@@ -926,58 +591,18 @@ public partial class MainWindow : Window
         {
             if (vm.SelectedTab != null)
             {
-                Dispatcher.UIThread.Post(() => vm.SelectedTab?.Terminal.Focus());
+                QueueWorkspaceFocus(vm);
             }
         }
+        else if (e.PropertyName == nameof(MainViewModel.CommandPaletteShortcutLabel))
+        {
+            ApplyMenuShortcuts(vm);
+        }
+        else if (e.PropertyName == nameof(MainViewModel.ActiveWorkspaceTab)) QueueWorkspaceFocus(vm);
     }
 
-    /// <summary>
-    /// Konsole 风格标签条上下切换：调整 Grid.Row 及 RowDefinition 高度，绝不重新实例化终端控件！
-    /// </summary>
+    // 每个 Dock 窗格组遵循同一个标签停靠设置。
     public void UpdateTabPlacement(Kei.Term.Core.Models.Profiles.TabPlacement placement)
-    {
-        if (TabsBarBorder == null || TerminalContainer == null || RightContentGrid == null) return;
+        => WorkspaceHost.ApplyPlacement(placement);
 
-        if (placement == Kei.Term.Core.Models.Profiles.TabPlacement.Bottom)
-        {
-            // 终端占 Row 0 (*)，标签栏占 Row 1 (Auto)
-            RightContentGrid.RowDefinitions[0].Height = new GridLength(1, GridUnitType.Star);
-            RightContentGrid.RowDefinitions[1].Height = GridLength.Auto;
-
-            Grid.SetRow(TerminalContainer, 0);
-            Grid.SetRow(TabsBarBorder, 1);
-            TabsBarBorder.BorderThickness = new Thickness(0, 1, 0, 0);
-        }
-        else
-        {
-            // 标签栏占 Row 0 (Auto)，终端占 Row 1 (*)
-            RightContentGrid.RowDefinitions[0].Height = GridLength.Auto;
-            RightContentGrid.RowDefinitions[1].Height = new GridLength(1, GridUnitType.Star);
-
-            Grid.SetRow(TabsBarBorder, 0);
-            Grid.SetRow(TerminalContainer, 1);
-            TabsBarBorder.BorderThickness = new Thickness(0, 0, 0, 1);
-        }
-    }
-
-    // 收起时把侧栏列宽压为 0，恢复时回到记忆宽度（默认 260，可被 GridSplitter 拖拽覆盖）。
-    // 侧栏现位于 Row2 内嵌的 MainSplitGrid（第 0 列），非根 Grid。
-    private void UpdateSidebarColumn(bool visible)
-    {
-        var column = MainSplitGrid.ColumnDefinitions[0];
-        if (visible)
-        {
-            column.Width = new GridLength(
-                _lastSidebarWidth > 1 ? _lastSidebarWidth : SidebarDefaultWidth,
-                GridUnitType.Pixel);
-        }
-        else
-        {
-            if (column.Width.IsAbsolute && column.Width.Value > 1)
-            {
-                _lastSidebarWidth = column.Width.Value;
-            }
-            column.Width = new GridLength(0);
-        }
-    }
 }

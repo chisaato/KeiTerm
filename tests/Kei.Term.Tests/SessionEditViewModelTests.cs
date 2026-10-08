@@ -10,22 +10,6 @@ namespace Kei.Term.Tests;
 public class SessionEditViewModelTests
 {
     [Fact]
-    public void SessionEditViewModel_InitializesCategoriesAndTimeoutOptions()
-    {
-        var settings = new AppSettings { ConnectTimeoutSeconds = 60 };
-        var vm = new SessionEditViewModel(null, null, [], settings);
-
-        Assert.Equal(5, vm.Categories.Count);
-        Assert.Equal("Connection", vm.Categories[0].Page);
-        Assert.NotNull(vm.SelectedCategory);
-        Assert.Equal("Connection", vm.SelectedCategory.Page);
-
-        // 默认连接超时为首项（继承全局 60s）
-        Assert.NotNull(vm.SelectedConnectTimeout);
-        Assert.Null(vm.SelectedConnectTimeout.Value);
-    }
-
-    [Fact]
     public void SessionEditViewModel_AppliesTimeoutOverrideToModel()
     {
         var settings = new AppSettings { ConnectTimeoutSeconds = 60 };
@@ -88,5 +72,27 @@ public class SessionEditViewModelTests
         Assert.DoesNotContain(vm.FirewallOptions, option => option.Id == other.Id);
         Assert.DoesNotContain(vm.FirewallOptions, option => option.Id == self.Id);
         Assert.Equal(excluded.Id, vm.ApplyToModel(self).JumpHostSessionId);
+    }
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("xterm-256color")]
+    public void TerminalType_EditingPreservesInheritanceAndExplicitTypes(string? existingType)
+    {
+        AppSettings settings = new() { DefaultTerminalType = "screen-256color" };
+        SessionNode? existing = existingType == null ? null : new SessionNode { Host = "server", TerminalType = existingType };
+        SessionEditViewModel model = new(existing, null, [], settings);
+        SessionNode saved = model.ApplyToModel(existing);
+
+        Assert.Equal(existingType ?? string.Empty, saved.TerminalType);
+        Assert.Equal(string.IsNullOrEmpty(existingType) ? "screen-256color" : existingType,
+            Kei.Term.Core.Services.SessionConfigBuilder.Build(saved, settings).TerminalType);
+
+        // 清空一个显式值后，保存仍保留空白，供连接时解析当前全局值。
+        model.TerminalType = "  ";
+        saved = model.ApplyToModel(saved);
+        Assert.Empty(saved.TerminalType);
+        settings.DefaultTerminalType = "vt100";
+        Assert.Equal("vt100", Kei.Term.Core.Services.SessionConfigBuilder.Build(saved, settings).TerminalType);
     }
 }

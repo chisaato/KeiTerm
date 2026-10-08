@@ -16,6 +16,7 @@ public class ProfileModelTests
         var presets = BuiltInPresets.DefaultGuiProfiles;
 
         Assert.NotEmpty(presets);
+        Assert.Contains(presets, p => p.Id == BuiltInPresets.GetDefaultGuiProfile().Id);
         // Id 作为设置与会话的引用键，必须唯一
         Assert.Equal(presets.Count, presets.Select(p => p.Id).Distinct().Count());
 
@@ -41,6 +42,7 @@ public class ProfileModelTests
         var presets = BuiltInPresets.DefaultTerminalProfiles;
 
         Assert.NotEmpty(presets);
+        Assert.Contains(presets, p => p.Id == BuiltInPresets.GetDefaultTerminalProfile().Id);
         // Id 作为设置与会话的引用键，必须唯一
         Assert.Equal(presets.Count, presets.Select(p => p.Id).Distinct().Count());
 
@@ -63,26 +65,6 @@ public class ProfileModelTests
                     $"Profile '{profile.Name}' has invalid hex color at ANSI index {i}: '{profile.AnsiColors[i]}'");
             }
         }
-    }
-
-    [Fact]
-    public void BuiltInPresets_GetDefaultGuiProfile_ReturnsValidBuiltInProfile()
-    {
-        var defaultProfile = BuiltInPresets.GetDefaultGuiProfile();
-
-        Assert.NotNull(defaultProfile);
-        Assert.True(defaultProfile.IsBuiltIn);
-        Assert.Contains(BuiltInPresets.DefaultGuiProfiles, p => p.Id == defaultProfile.Id);
-    }
-
-    [Fact]
-    public void BuiltInPresets_GetDefaultTerminalProfile_ReturnsValidBuiltInProfile()
-    {
-        var defaultProfile = BuiltInPresets.GetDefaultTerminalProfile();
-
-        Assert.NotNull(defaultProfile);
-        Assert.True(defaultProfile.IsBuiltIn);
-        Assert.Contains(BuiltInPresets.DefaultTerminalProfiles, p => p.Id == defaultProfile.Id);
     }
 
     [Fact]

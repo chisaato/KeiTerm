@@ -11,17 +11,18 @@
         Width="460" Height="360"
         WindowStartupLocation="CenterOwner"
         CanResize="False"
-        Background="#1E1E1E">
+        Background="{DynamicResource Kei.Bg.Window}"
+        FontFamily="{DynamicResource Kei.Font.UI}">
 
     <Grid RowDefinitions="*, Auto" Margin="20">
         <StackPanel Grid.Row="0" Spacing="14">
-            <TextBlock Text="{loc:KeiString FolderEdit.Header}" FontWeight="Bold" Foreground="#4EC9B0" FontSize="14"/>
+            <TextBlock Text="{loc:KeiString FolderEdit.Header}" FontWeight="Bold" Foreground="{DynamicResource Kei.Text.Primary}" FontSize="14"/>
 
             <Grid ColumnDefinitions="100, *" RowDefinitions="Auto, Auto" Margin="0,4,0,10">
-                <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString FolderEdit.Name}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString FolderEdit.Name}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
                 <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Name}" PlaceholderText="{loc:KeiString FolderEdit.Name.Placeholder}" Margin="0,4"/>
 
-                <TextBlock Grid.Row="1" Grid.Column="0" Text="{loc:KeiString FolderEdit.Description}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="{loc:KeiString FolderEdit.Description}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
                 <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Description}" PlaceholderText="{loc:KeiString FolderEdit.Description.Placeholder}" Margin="0,4"/>
             </Grid>
         </StackPanel>

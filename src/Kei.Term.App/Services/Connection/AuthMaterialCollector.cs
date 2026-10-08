@@ -47,7 +47,7 @@ public sealed class AuthMaterialCollector
     }
 
     // 目标主机：计划物化 → 无材料则弹统一认证窗；返回 null 表示用户取消（不应建标签）
-    public async Task<CollectedAuth?> CollectTargetAsync(ConnectionRequest request)
+    public async Task<CollectedAuth?> CollectTargetAsync(ConnectionRequest request, bool allowInteraction = true, Action? onInteraction = null)
     {
         ResolvedSessionConfig config = request.Config;
         Identity? identity = request.UseIdentity ? await ResolveIdentityAsync(config) : null;
@@ -58,17 +58,23 @@ public sealed class AuthMaterialCollector
             materials.Add(request.Preloaded);
         }
 
-        materials.AddRange(await MaterializePlanAsync(config, identity));
+        materials.AddRange(await MaterializePlanAsync(config, identity, allowInteraction, onInteraction));
         _logger.LogInformation(
             "认证材料物化完成 材料数={Count} 类型={Kinds}",
             materials.Count,
             string.Join(",", materials.Select(m => m.Kind)));
 
-        // 无任何可用材料：
-        // 如果配置中已经有明确的用户名（例如 OpenWrt / 路由器的 root 等），先免弹窗尝试以空密码/无凭据连接；
-        // 只有在连用户名都没有时，或者如果连接失败被拒绝时，再由重试逻辑按需回退弹窗。
+        // 已配置身份方法却没有可用材料时中止，不能推断为允许空密码登录。
+        // 未配置方法且有用户名的连接仍允许路由器免密登录；缺少用户名则询问单次认证。
         if (materials.Count == 0)
         {
+            if (identity is { Methods.Count: > 0 })
+            {
+                if (allowInteraction)
+                    await _interaction().NotifyAsync(config.SessionName, Strings.Get("Status.Auth.ConfiguredMethodsUnavailable"));
+                return null;
+            }
+
             string? effectiveUser = identity?.Username ?? config.Username;
             if (!string.IsNullOrWhiteSpace(effectiveUser))
             {
@@ -79,6 +85,8 @@ public sealed class AuthMaterialCollector
             }
             else
             {
+                if (!allowInteraction) return null;
+                onInteraction?.Invoke();
                 AuthPromptResult? fallback = await PromptAuthAsync(string.Empty, identity);
                 if (fallback == null)
                 {
@@ -98,7 +106,7 @@ public sealed class AuthMaterialCollector
     }
 
     // 跳板链逐跳物化（由外到内）；某跳无材料且用户取消弹窗时抛 JumpChainException 中止整条连接
-    public async Task<IReadOnlyList<SshHop>> CollectJumpHopsAsync(ResolvedSessionConfig target, Func<Guid, SessionNode?> findSession)
+    public async Task<IReadOnlyList<SshHop>> CollectJumpHopsAsync(ResolvedSessionConfig target, Func<Guid, SessionNode?> findSession, bool allowInteraction = true, Action? onInteraction = null)
     {
         if (target.JumpHostSessionId == null)
         {
@@ -118,10 +126,17 @@ public sealed class AuthMaterialCollector
         {
             ResolvedSessionConfig hopConfig = SessionConfigBuilder.Build(jumpNode, _settings.Current);
             Identity? hopIdentity = await ResolveIdentityAsync(hopConfig);
-            List<MaterializedAuthMethod> hopMaterials = await MaterializePlanAsync(hopConfig, hopIdentity);
+            List<MaterializedAuthMethod> hopMaterials = await MaterializePlanAsync(hopConfig, hopIdentity, allowInteraction, onInteraction);
 
             if (hopMaterials.Count == 0)
             {
+                if (hopIdentity is { Methods.Count: > 0 })
+                {
+                    throw new JumpChainException($"{jumpNode.Name}: {Strings.Get("Status.Auth.ConfiguredMethodsUnavailable")}");
+                }
+
+                if (!allowInteraction) throw new JumpChainException($"跳板机认证需要交互: {jumpNode.Name}");
+                onInteraction?.Invoke();
                 AuthPromptResult? prompt = await PromptAuthAsync(hopIdentity?.Username ?? hopConfig.Username, hopIdentity);
                 if (prompt == null)
                 {
@@ -153,6 +168,14 @@ public sealed class AuthMaterialCollector
         string username,
         Identity? identity)
     {
+        // 仅配置密钥的身份不能在失败后自动改用未配置的密码或交互认证。
+        if (identity is { Methods.Count: > 0 }
+            && identity.Methods.Where(method => method.Enabled)
+                .All(method => method is FilePrivateKeyMethod or VaultPrivateKeyMethod or AgentMethod))
+        {
+            return null;
+        }
+
         AuthPromptResult? prompt = await PromptAuthAsync(username, identity);
         if (prompt == null)
         {
@@ -183,7 +206,7 @@ public sealed class AuthMaterialCollector
     }
 
     // 逐步物化认证计划；SingleUsePromptStep 不在此预先打扰用户，留作失败回弹
-    private async Task<List<MaterializedAuthMethod>> MaterializePlanAsync(ResolvedSessionConfig config, Identity? identity)
+    private async Task<List<MaterializedAuthMethod>> MaterializePlanAsync(ResolvedSessionConfig config, Identity? identity, bool allowInteraction, Action? onInteraction)
     {
         IReadOnlyList<AuthStep> steps = AuthPlanBuilder.Plan(identity?.Methods, _settings.Current.PreferSystemAgent, identity?.Username);
         _logger.LogInformation(
@@ -206,7 +229,12 @@ public sealed class AuthMaterialCollector
             GetSessionPassphrase = _vault.GetSessionPassphrase,
             GetVaultSecret = methodId =>
                 secrets != null && secrets.TryGetValue(methodId.ToString(), out SecretPayload? payload) ? payload : null,
-            PromptPassphraseAsync = (method, _) => _vault.PromptPassphraseAsync(method),
+            PromptPassphraseAsync = (method, _) =>
+            {
+                if (!allowInteraction) return Task.FromResult<PassphrasePromptResult?>(null);
+                onInteraction?.Invoke();
+                return _vault.PromptPassphraseAsync(method);
+            },
             SaveVaultSecretAsync = async (methodId, payload) =>
             {
                 if (identity == null)
@@ -221,6 +249,8 @@ public sealed class AuthMaterialCollector
             },
             PromptInteractiveAsync = async (method, username, ct) =>
             {
+                if (!allowInteraction) return null;
+                onInteraction?.Invoke();
                 // Interactive 方法：以交互式为默认项弹完整认证窗，取消则跳过该方法
                 AuthPromptResult? prompt = await PromptAuthAsync(username, identity, AuthPromptMethod.Interactive);
                 return prompt == null
@@ -236,7 +266,7 @@ public sealed class AuthMaterialCollector
                 case MethodStep methodStep:
                     if (identity != null)
                     {
-                        secrets ??= await _vault.LoadIdentitySecretsAsync(identity.Id);
+                        secrets ??= await _vault.LoadIdentitySecretsAsync(identity.Id, allowInteraction);
                     }
 
                     MaterializedAuthMethod? material = await AuthMaterializer.MaterializeAsync(methodStep.Method, config.Username, context);

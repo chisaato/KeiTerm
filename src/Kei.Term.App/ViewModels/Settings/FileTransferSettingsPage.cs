@@ -11,10 +11,45 @@ using CommunityToolkit.Mvvm.Input;
 using Kei.Term.App.ViewModels;
 using Kei.Term.Core.Models;
 using Kei.Term.Core.Storage;
+using Kei.Term.Core.Settings;
+using Kei.Term.App.Helpers;
+
+public record FileSizeDisplayOption(FileSizeDisplayMode Mode, string Label);
 
 public partial class FileTransferSettingsPage : ViewModelBase
 {
     private readonly IExternalEditorRepository? _editorRepo;
+
+    public IReadOnlyList<FileSizeDisplayOption> SizeDisplayOptions { get; } =
+    [
+        new(FileSizeDisplayMode.Iec, Strings.Get("Settings.FileTransfer.SizeIec")),
+        new(FileSizeDisplayMode.Si, Strings.Get("Settings.FileTransfer.SizeSi")),
+        new(FileSizeDisplayMode.Bytes, Strings.Get("Settings.FileTransfer.SizeBytes"))
+    ];
+
+    [ObservableProperty]
+    private FileSizeDisplayOption _selectedSizeDisplay;
+
+    public void SetSizeDisplayMode(FileSizeDisplayMode mode)
+        => SelectedSizeDisplay = SizeDisplayOptions.FirstOrDefault(option => option.Mode == mode) ?? SizeDisplayOptions[0];
+
+    // 会话覆盖的目录跟随默认值，复用设置窗口的同一份草稿。
+    public TerminalSettingsPage Terminal { get; }
+
+    [ObservableProperty]
+    private bool _isFileManagerOnLeft;
+
+    [ObservableProperty]
+    private int _pollingIntervalSeconds = 3;
+
+    [ObservableProperty]
+    private int _writeDebounceMilliseconds = 800;
+
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(DisplayCustomEditorPath))]
+    private string _customEditorPath = string.Empty;
+
+    public string DisplayCustomEditorPath => string.IsNullOrWhiteSpace(CustomEditorPath)
+        ? Strings.Get("Settings.FileTransfer.CustomEditorPathPlaceholder") : CustomEditorPath;
 
     // 文件传输缓存目录与监视模式
     [ObservableProperty]
@@ -35,65 +70,31 @@ public partial class FileTransferSettingsPage : ViewModelBase
     [ObservableProperty]
     private FileAssociationItemViewModel? _selectedAssociation;
 
-    // 交互编辑区：外部编辑器
-    [ObservableProperty]
-    private string _editingEditorName = string.Empty;
+    public Services.IInteractionService Interaction { get; set; } = Services.NullInteractionService.Instance;
 
-    [ObservableProperty]
-    private string _editingEditorOs = PlatformHelper.CurrentOs;
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasError))]
+    private string _errorMessage = string.Empty;
+    public bool HasError => !string.IsNullOrEmpty(ErrorMessage);
+    public bool HasEditors => Editors.Count > 0;
+    public bool HasAssociations => Associations.Count > 0;
 
-    [ObservableProperty]
-    private string _editingEditorPath = string.Empty;
-
-    [ObservableProperty]
-    private string _editingEditorArgs = "\"{path}\"";
-
-    [ObservableProperty]
-    private bool _editingEditorIsDefault;
-
-    // 交互编辑区：文件关联
-    [ObservableProperty]
-    private string _editingAssocPattern = string.Empty;
-
-    [ObservableProperty]
-    private ExternalEditorItemViewModel? _editingAssocSelectedEditor;
-
-    [ObservableProperty]
-    private int _editingAssocPriority;
-
-    public IReadOnlyList<string> SupportedOsList { get; } = ["any", "windows", "linux", "macos", "android"];
-
-    public FileTransferSettingsPage(IExternalEditorRepository? editorRepo = null)
+    public FileTransferSettingsPage(IExternalEditorRepository? editorRepo = null, TerminalSettingsPage? terminal = null)
     {
         _editorRepo = editorRepo;
+        Terminal = terminal ?? new TerminalSettingsPage();
+        _selectedSizeDisplay = SizeDisplayOptions[0];
     }
 
     partial void OnSelectedEditorChanged(ExternalEditorItemViewModel? value)
     {
-        if (value == null) return;
-        EditingEditorName = value.Name;
-        EditingEditorIsDefault = value.IsDefault;
-        EditingEditorArgs = value.Model.ArgumentsTemplate;
-
-        // 如果包含当前 OS 路径，填入
-        var currentOs = PlatformHelper.CurrentOs;
-        var p = value.Model.Paths.FirstOrDefault(x => string.Equals(x.Os, currentOs, StringComparison.OrdinalIgnoreCase))
-             ?? value.Model.Paths.FirstOrDefault(x => string.Equals(x.Os, "any", StringComparison.OrdinalIgnoreCase))
-             ?? value.Model.Paths.FirstOrDefault();
-
-        if (p != null)
-        {
-            EditingEditorOs = p.Os;
-            EditingEditorPath = p.Path;
-        }
+        EditEditorCommand.NotifyCanExecuteChanged();
+        DeleteEditorCommand.NotifyCanExecuteChanged();
     }
 
     partial void OnSelectedAssociationChanged(FileAssociationItemViewModel? value)
     {
-        if (value == null) return;
-        EditingAssocPattern = value.Pattern;
-        EditingAssocPriority = value.Priority;
-        EditingAssocSelectedEditor = Editors.FirstOrDefault(e => e.Id == value.Model.EditorId);
+        EditAssociationCommand.NotifyCanExecuteChanged();
+        DeleteAssociationCommand.NotifyCanExecuteChanged();
     }
 
     public async Task ReloadAsync()
@@ -103,6 +104,8 @@ public partial class FileTransferSettingsPage : ViewModelBase
         var editors = await _editorRepo.GetAllEditorsAsync();
         var rules = await _editorRepo.GetAllAssociationsAsync();
 
+        Guid? editorId = SelectedEditor?.Id;
+        Guid? associationId = SelectedAssociation?.Id;
         Editors.Clear();
         foreach (var e in editors)
         {
@@ -115,6 +118,11 @@ public partial class FileTransferSettingsPage : ViewModelBase
             var editor = Editors.FirstOrDefault(e => e.Id == r.EditorId);
             Associations.Add(new FileAssociationItemViewModel(r, editor?.Name ?? "未知编辑器"));
         }
+        SelectedEditor = Editors.FirstOrDefault(e => e.Id == editorId) ?? Editors.FirstOrDefault();
+        SelectedAssociation = Associations.FirstOrDefault(a => a.Id == associationId) ?? Associations.FirstOrDefault();
+        OnPropertyChanged(nameof(HasEditors));
+        OnPropertyChanged(nameof(HasAssociations));
+        AddAssociationCommand.NotifyCanExecuteChanged();
     }
 
     [RelayCommand]
@@ -130,73 +138,73 @@ public partial class FileTransferSettingsPage : ViewModelBase
         catch { }
     }
 
+    private bool HasSelectedEditor() => SelectedEditor != null;
+    private bool HasSelectedAssociation() => SelectedAssociation != null;
+    private bool CanAddAssociation() => HasEditors;
+
     [RelayCommand]
-    private async Task AddOrUpdateEditorAsync()
+    private Task EditCustomEditorPathAsync() => RunAsync(async () =>
     {
-        if (string.IsNullOrWhiteSpace(EditingEditorName) || string.IsNullOrWhiteSpace(EditingEditorPath) || _editorRepo == null)
-        {
-            return;
-        }
-
-        var editor = SelectedEditor?.Model ?? new ExternalEditor { Name = EditingEditorName };
-        editor.Name = EditingEditorName.Trim();
-        editor.ArgumentsTemplate = string.IsNullOrWhiteSpace(EditingEditorArgs) ? "\"{path}\"" : EditingEditorArgs.Trim();
-        editor.IsDefault = EditingEditorIsDefault;
-
-        // 更新或添加当前 OS 路径
-        var existingPath = editor.Paths.FirstOrDefault(p => string.Equals(p.Os, EditingEditorOs, StringComparison.OrdinalIgnoreCase));
-        if (existingPath != null)
-        {
-            editor.Paths.Remove(existingPath);
-        }
-        editor.Paths.Add(new ExternalEditorPath(Guid.NewGuid(), editor.Id, EditingEditorOs, EditingEditorPath.Trim()));
-
-        await _editorRepo.SaveEditorAsync(editor);
-        await ReloadAsync();
-
-        // 重置编辑区
-        EditingEditorName = string.Empty;
-        EditingEditorPath = string.Empty;
-        SelectedEditor = null;
-    }
+        string? path = await Interaction.PromptTextAsync(
+            Strings.Get("Settings.FileTransfer.CustomEditorPath"),
+            Strings.Get("Settings.FileTransfer.CustomEditorPathTip"), CustomEditorPath);
+        // null 是取消，空字符串则明确恢复系统关联；这里只改草稿，统一应用后才落盘。
+        if (path != null) CustomEditorPath = path.Trim();
+    });
 
     [RelayCommand]
-    private async Task DeleteSelectedEditorAsync()
+    private Task AddEditorAsync() => EditEditorCoreAsync(null);
+
+    [RelayCommand(CanExecute = nameof(HasSelectedEditor))]
+    private Task EditEditorAsync() => EditEditorCoreAsync(SelectedEditor?.Model);
+
+    private Task EditEditorCoreAsync(ExternalEditor? existing) => RunAsync(async () =>
+    {
+        ExternalEditor? result = await Interaction.EditExternalEditorAsync(existing);
+        if (result == null || _editorRepo == null) return;
+        await _editorRepo.SaveEditorAsync(result);
+        await ReloadAsync();
+        SelectedEditor = Editors.FirstOrDefault(e => e.Id == result.Id);
+    });
+
+    [RelayCommand(CanExecute = nameof(HasSelectedEditor))]
+    private Task DeleteEditorAsync() => RunAsync(async () =>
     {
         if (SelectedEditor == null || _editorRepo == null) return;
         await _editorRepo.DeleteEditorAsync(SelectedEditor.Id);
         await ReloadAsync();
-        SelectedEditor = null;
-    }
+    });
 
-    [RelayCommand]
-    private async Task AddOrUpdateAssociationAsync()
+    [RelayCommand(CanExecute = nameof(CanAddAssociation))]
+    private Task AddAssociationAsync() => EditAssociationCoreAsync(null);
+
+    [RelayCommand(CanExecute = nameof(HasSelectedAssociation))]
+    private Task EditAssociationAsync() => EditAssociationCoreAsync(SelectedAssociation?.Model);
+
+    private Task EditAssociationCoreAsync(FileAssociationRule? existing) => RunAsync(async () =>
     {
-        if (string.IsNullOrWhiteSpace(EditingAssocPattern) || EditingAssocSelectedEditor == null || _editorRepo == null)
-        {
-            return;
-        }
-
-        var rule = SelectedAssociation?.Model ?? new FileAssociationRule();
-        rule.Pattern = EditingAssocPattern.Trim();
-        rule.EditorId = EditingAssocSelectedEditor.Id;
-        rule.Priority = EditingAssocPriority;
-
-        await _editorRepo.SaveAssociationAsync(rule);
+        FileAssociationRule? result = await Interaction.EditFileAssociationAsync(existing, Editors.Select(e => e.Model).ToArray());
+        if (result == null || _editorRepo == null) return;
+        await _editorRepo.SaveAssociationAsync(result);
         await ReloadAsync();
+        SelectedAssociation = Associations.FirstOrDefault(a => a.Id == result.Id);
+    });
 
-        EditingAssocPattern = string.Empty;
-        SelectedAssociation = null;
-    }
-
-    [RelayCommand]
-    private async Task DeleteSelectedAssociationAsync()
+    [RelayCommand(CanExecute = nameof(HasSelectedAssociation))]
+    private Task DeleteAssociationAsync() => RunAsync(async () =>
     {
         if (SelectedAssociation == null || _editorRepo == null) return;
         await _editorRepo.DeleteAssociationAsync(SelectedAssociation.Id);
         await ReloadAsync();
-        SelectedAssociation = null;
+    });
+
+    private async Task RunAsync(Func<Task> operation)
+    {
+        ErrorMessage = string.Empty;
+        try { await operation(); }
+        catch (Exception) { ErrorMessage = "操作失败，请检查本地配置数据库后重试。"; }
     }
+
 }
 
 public class ExternalEditorItemViewModel : ViewModelBase
