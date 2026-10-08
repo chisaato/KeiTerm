@@ -34,7 +34,7 @@
                 <Viewbox Width="16" Height="16" Stretch="Uniform" VerticalAlignment="Center">
                     <Grid Width="24" Height="24">
                         <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Warning}"
-                              Fill="{DynamicResource Kei.Status.Connecting}"/>
+                              Stroke="{DynamicResource Kei.Status.Connecting}"/>
                     </Grid>
                 </Viewbox>
                 <TextBlock Grid.Column="1" Text="{loc:KeiString IdentityManager.PlainWarning}"

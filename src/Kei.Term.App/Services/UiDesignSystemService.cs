@@ -3,6 +3,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Avalonia.Styling;
+using Kei.Term.App.DesignSystem;
 
 namespace Kei.Term.App.Services;
 
@@ -16,7 +17,7 @@ public static class UiDesignSystemService
     private static readonly ResourceDictionary ClassicTokens = LoadDictionary("KeiTokens.axaml");
 
     // KeiTerm 专属全局矢量图标字典
-    private static readonly ResourceDictionary ClassicIcons = LoadDictionary("KeiIcons.axaml");
+    private static readonly ResourceDictionary ClassicIcons = new LucideIconResources();
 
     // Kei 紧凑控件外观样式（树形结构引导线、工具栏按钮、标签页、输入框等）
     private static readonly Styles ClassicControlStyles = LoadStyles("KeiControls.axaml");

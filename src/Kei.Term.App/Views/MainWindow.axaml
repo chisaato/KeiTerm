@@ -240,13 +240,25 @@
 
                     <!-- 工具与设置区 -->
                     <Button Classes="iconBtn" ToolTip.Tip="{loc:KeiString Toolbar.IdentityManager}" Command="{Binding OpenIdentityManagerCommand}">
-                        <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Key}"/>
+                        <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Grid Width="24" Height="24">
+                                <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Key}" Width="24" Height="24" Stretch="None"/>
+                            </Grid>
+                        </Viewbox>
                     </Button>
                     <Button Classes="iconBtn" ToolTip.Tip="{loc:KeiString Toolbar.Settings}" Command="{Binding OpenSettingsCommand}">
-                        <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Settings}"/>
+                        <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Grid Width="24" Height="24">
+                                <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Settings}" Width="24" Height="24" Stretch="None"/>
+                            </Grid>
+                        </Viewbox>
                     </Button>
                     <Button Classes="iconBtn" ToolTip.Tip="{Binding CommandPaletteToolTip}" Command="{Binding OpenCommandPaletteCommand}">
-                        <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Search}"/>
+                        <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Grid Width="24" Height="24">
+                                <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Search}" Width="24" Height="24" Stretch="None"/>
+                            </Grid>
+                        </Viewbox>
                     </Button>
                 </StackPanel>
 
@@ -295,28 +307,52 @@
                                 Padding="6,3">
                             <StackPanel Orientation="Horizontal" Spacing="3">
                                 <Button Classes="iconBtn" ToolTip.Tip="{loc:KeiString Toolbar.NewSession}" Command="{Binding CreateSessionCommand}">
-                                    <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.NewSession}"/>
+                                    <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <Grid Width="24" Height="24">
+                                            <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.NewSession}" Width="24" Height="24" Stretch="None"/>
+                                        </Grid>
+                                    </Viewbox>
                                 </Button>
                                 <Button Classes="iconBtn" ToolTip.Tip="{loc:KeiString Toolbar.NewFolder}" Command="{Binding CreateFolderCommand}">
-                                    <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.NewFolder}"/>
+                                    <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <Grid Width="24" Height="24">
+                                            <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.NewFolder}" Width="24" Height="24" Stretch="None"/>
+                                        </Grid>
+                                    </Viewbox>
                                 </Button>
 
                                 <Separator Classes="toolSep"/>
 
                                 <Button Classes="iconBtn" ToolTip.Tip="{loc:KeiString Toolbar.Cut}" Command="{Binding CutNodeCommand}">
-                                    <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Cut}"/>
+                                    <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <Grid Width="24" Height="24">
+                                            <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Cut}" Width="24" Height="24" Stretch="None"/>
+                                        </Grid>
+                                    </Viewbox>
                                 </Button>
                                 <Button Classes="iconBtn" ToolTip.Tip="{loc:KeiString Toolbar.Copy}" Command="{Binding CopyNodeCommand}">
-                                    <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Copy}"/>
+                                    <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <Grid Width="24" Height="24">
+                                            <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Copy}" Width="24" Height="24" Stretch="None"/>
+                                        </Grid>
+                                    </Viewbox>
                                 </Button>
                                 <Button Classes="iconBtn" ToolTip.Tip="{loc:KeiString Toolbar.Paste}" Command="{Binding PasteNodeCommand}">
-                                    <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Paste}"/>
+                                    <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <Grid Width="24" Height="24">
+                                            <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Paste}" Width="24" Height="24" Stretch="None"/>
+                                        </Grid>
+                                    </Viewbox>
                                 </Button>
 
                                 <Separator Classes="toolSep"/>
 
                                 <Button Classes="iconBtn" ToolTip.Tip="{loc:KeiString Toolbar.CollapseAll}" Command="{Binding CollapseAllCommand}">
-                                    <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.CollapseAll}"/>
+                                    <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <Grid Width="24" Height="24">
+                                            <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.CollapseAll}" Width="24" Height="24" Stretch="None"/>
+                                        </Grid>
+                                    </Viewbox>
                                 </Button>
                             </StackPanel>
                         </Border>
