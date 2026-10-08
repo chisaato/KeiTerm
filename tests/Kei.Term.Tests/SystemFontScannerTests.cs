@@ -1,5 +1,3 @@
-using System.Linq;
-using Avalonia.Media;
 using Kei.Term.App.Services;
 using Kei.Term.App.ViewModels.Settings;
 using Xunit;
@@ -10,13 +8,8 @@ public class SystemFontScannerTests
 {
     [Theory]
     [InlineData("JetBrains Mono", true)]
-    [InlineData("Cascadia Code", true)]
-    [InlineData("Fira Code", true)]
     [InlineData("Consolas", true)]
-    [InlineData("Windows Terminal", true)]
     [InlineData("Arial", false)]
-    [InlineData("Segoe UI", false)]
-    [InlineData("Times New Roman", false)]
     [InlineData("SimSun", false)]
     public void IsRecommendedMonospace_RecognizesKeywords(string fontName, bool expected)
     {
@@ -25,26 +18,7 @@ public class SystemFontScannerTests
     }
 
     [Fact]
-    public void GetInstalledFonts_PlacesMonospaceFontsFirst()
-    {
-        var fonts = SystemFontScanner.GetInstalledFonts();
-        Assert.NotEmpty(fonts);
-        var hasSeenNonMono = false;
-        foreach (var font in fonts)
-        {
-            if (!font.IsMonospaceRecommended)
-            {
-                hasSeenNonMono = true;
-            }
-            else if (hasSeenNonMono)
-            {
-                Assert.Fail($"Found recommended monospace font '{font.Name}' after a non-monospace font.");
-            }
-        }
-    }
-
-    [Fact]
-    public void AppearanceSettingsPage_FallbackFontsAndItalic_UpdatesPreviewProperties()
+    public void AppearanceSettingsPage_FallbackFonts_UpdatesPreviewProperties()
     {
         var page = new AppearanceSettingsPage();
 

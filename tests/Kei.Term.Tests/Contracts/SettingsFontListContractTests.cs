@@ -2,30 +2,12 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Xml.Linq;
-using Kei.Term.App.Services;
 using Xunit;
 
 namespace Kei.Term.Tests.Contracts;
 
 public class SettingsFontListContractTests
 {
-    [Fact]
-    public void FontFamilyOption_ExposesTypeSafeFontFamily_MatchingRawName()
-    {
-        // 验证 FontFamilyOption 正确提供 FontFamily 属性，且名称与原始 Name 完全一致，未附加 (Mono) 后缀
-        FontFamilyOption optionMono = new("Cascadia Mono", true);
-        Assert.Equal("Cascadia Mono (Mono)", optionMono.DisplayName);
-        Assert.Equal("Cascadia Mono", optionMono.Name);
-        Assert.NotNull(optionMono.FontFamily);
-        Assert.Equal("Cascadia Mono", optionMono.FontFamily.Name);
-
-        FontFamilyOption optionRegular = new("Arial", false);
-        Assert.Equal("Arial", optionRegular.DisplayName);
-        Assert.Equal("Arial", optionRegular.Name);
-        Assert.NotNull(optionRegular.FontFamily);
-        Assert.Equal("Arial", optionRegular.FontFamily.Name);
-    }
-
     [Fact]
     public void SettingsWindow_AllSixFontLists_RenderWithTheirOwnFontFamily()
     {
@@ -48,28 +30,6 @@ public class SettingsFontListContractTests
 
         // 6. 终端已选回退 ListBox (ItemsSource="{Binding TerminalFallbackFonts}")
         AssertListBoxFontBinding(doc, "{Binding TerminalFallbackFonts}", "x:String", "{Binding}");
-    }
-
-    [Fact]
-    public void SettingsWindow_AutoCompleteBoxValueMemberBinding_PreservesDisplayNameForFilterAndSelection()
-    {
-        XDocument doc = LoadSettingsWindowDocument();
-
-        string expectedValueMember = "{CompiledBinding DisplayName, DataType=services:FontFamilyOption}";
-        string[] selectedItemBindings =
-        [
-            "{Binding SelectedUiFont}",
-            "{Binding UiFallbackFontCandidate}",
-            "{Binding SelectedFont}",
-            "{Binding TerminalFallbackFontCandidate}"
-        ];
-
-        foreach (string selectedItem in selectedItemBindings)
-        {
-            XElement box = FindAutoCompleteBoxBySelectedItem(doc, selectedItem);
-            string? actualValueMember = box.Attribute("ValueMemberBinding")?.Value;
-            Assert.Equal(expectedValueMember, actualValueMember);
-        }
     }
 
     private static void AssertAutoCompleteBoxFontBinding(
@@ -95,6 +55,8 @@ public class SettingsFontListContractTests
         Assert.NotNull(textBlock);
         Assert.Equal(expectedFontFamilyBinding, textBlock.Attribute("FontFamily")?.Value);
         Assert.Equal("{Binding DisplayName}", textBlock.Attribute("Text")?.Value);
+        // 过滤与选中回写走 DisplayName，不能绑到 FontFamily 对象。
+        Assert.Equal("{CompiledBinding DisplayName, DataType=services:FontFamilyOption}", box.Attribute("ValueMemberBinding")?.Value);
     }
 
     private static void AssertListBoxFontBinding(

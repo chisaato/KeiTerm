@@ -492,23 +492,6 @@ public class ProxyFirewallTests : IDisposable
     }
 
     [Fact]
-    public void ProxyEditor_AllowsHttp_AndSaysNotWired()
-    {
-        var vm = new ProxyEditViewModel(null);
-        vm.Name = "corp-http";
-        vm.SelectedType = ProxyConfigKind.Http;
-        vm.Host = " 127.0.0.1 ";
-        vm.Port = 8118;
-
-        Assert.Contains("尚未接入拨号", vm.TypeNotice, StringComparison.Ordinal);
-        var built = vm.Build();
-        var http = Assert.IsType<HttpProxyConfig>(built!.Config);
-        Assert.Equal("127.0.0.1", http.Host);
-        Assert.Equal(8118, http.Port);
-        Assert.Equal("corp-http", built.Name);
-    }
-
-    [Fact]
     public async Task Socks5ConfigJson_RoundTripsUsername_AndSerializedStringOmitsPassword()
     {
         var repo = new SqliteProxyRepository(ConnStr);

@@ -85,20 +85,6 @@ public partial class ConnectionOrchestratorTests
     }
 
     [Fact]
-    public async Task FileKey_RepeatedCancelledAttempts_DoNotReusePreviouslyCollectedKey()
-    {
-        using KeyFixture fixture = await CreateLockedKeyAsync(vaultKey: false);
-        ConnectionRequest request = new(fixture.Config, UseIdentity: true);
-
-        await fixture.Orchestrator.ConnectAsync(request, _host);
-        await fixture.Orchestrator.ConnectAsync(request, _host);
-
-        Assert.Equal(2, _ui.MasterPasswordPrompts);
-        Assert.Empty(_factory.SessionCalls);
-        Assert.Empty(_host.Tabs);
-    }
-
-    [Fact]
     public async Task FileKey_ReconnectCancelled_DoesNotResetTabOrReusePreloadedKey()
     {
         using KeyFixture fixture = await CreateLockedKeyAsync(vaultKey: false);

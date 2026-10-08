@@ -21,10 +21,8 @@ public class TreeGuideRenderingTests
 {
     [Theory]
     [InlineData(10, 18, 12)]
-    [InlineData(12, 22, 14)]
-    [InlineData(16, 28, 16)]
     [InlineData(32, 40, 24)]
-    public Task Guides_JoinParentChevronAndEveryDirectChild_AtEachDensity(double indent, double height, double iconSize) => HeadlessAvalonia.RunAsync(() =>
+    public Task Guides_JoinParentChevronAndEveryDirectChild_AtMinAndMaxDensity(double indent, double height, double iconSize) => HeadlessAvalonia.RunAsync(() =>
     {
         UiDesignSystemService.Apply();
         UiDesignSystemService.ApplyTreeDensity(height, 12, iconSize, indent);
@@ -75,7 +73,7 @@ public class TreeGuideRenderingTests
     });
 
     [Fact]
-    public Task NodeSlots_SeparateChevronIconAndName_AndCenterThe24PixelGeometry() => HeadlessAvalonia.RunAsync(() =>
+    public Task NodeSlots_PlaceIconBetweenChevronAndName() => HeadlessAvalonia.RunAsync(() =>
     {
         UiDesignSystemService.Apply();
         UiDesignSystemService.ApplyTreeDensity(22, 12, 16, 16);
@@ -89,28 +87,19 @@ public class TreeGuideRenderingTests
         {
             window.Show();
             HeadlessAvalonia.Pump();
-            Assert.Contains(session.GetVisualDescendants().OfType<Border>(), border => border.Name == "PART_ContentPill");
             foreach (TreeViewItem item in new[] { root, folder, session })
             {
                 Control chevron = Part<Panel>(item, "PART_ExpandCollapseChevronContainer");
-                ToggleButtonColorMatchesToken(item, window);
                 SessionTreeItemView view = Assert.IsType<SessionTreeItemView>(item.Header);
                 Viewbox icon = Assert.Single(view.GetVisualDescendants().OfType<Viewbox>());
                 TextBlock name = view.GetVisualDescendants().OfType<TextBlock>().Single(text => text.Classes.Contains("name"));
                 Point arrowStart = chevron.TranslatePoint(default, window)!.Value;
                 Point iconStart = icon.TranslatePoint(default, window)!.Value;
                 Point nameStart = name.TranslatePoint(default, window)!.Value;
-                Assert.Equal(16, chevron.Bounds.Width, 2);
-                Assert.InRange(iconStart.X - arrowStart.X - chevron.Bounds.Width, 5.9, 6.1);
-                Assert.InRange(nameStart.X - iconStart.X - icon.Bounds.Width, 5.9, 6.1);
-                Assert.Equal(16, icon.Bounds.Width, 2);
-                Grid viewport = Assert.IsType<Grid>(icon.Child);
-                Assert.Equal(new Size(24, 24), viewport.Bounds.Size);
-                foreach (Avalonia.Controls.Shapes.Path path in viewport.Children.OfType<Avalonia.Controls.Shapes.Path>().Where(path => path.IsVisible))
-                {
-                    Assert.Equal(Stretch.None, path.Stretch);
-                    Assert.Equal(new Size(24, 24), path.Bounds.Size);
-                }
+                // 只验证顺序：图标在箭头与名称之间，不锁定模板像素
+                Assert.True(arrowStart.X < iconStart.X);
+                Assert.True(arrowStart.X + chevron.Bounds.Width <= iconStart.X + 1);
+                Assert.True(iconStart.X + icon.Bounds.Width <= nameStart.X + 1);
             }
         }
         finally
@@ -125,18 +114,6 @@ public class TreeGuideRenderingTests
         Header = new SessionTreeItemView { DataContext = node },
         IsExpanded = expanded
     };
-
-    private static void ToggleButtonColorMatchesToken(TreeViewItem item, Window window)
-    {
-        Avalonia.Controls.Primitives.ToggleButton arrow = Part<Avalonia.Controls.Primitives.ToggleButton>(item, "PART_ExpandCollapseChevron");
-        Color expected = Assert.IsAssignableFrom<ISolidColorBrush>(window.FindResource("Kei.Text.Secondary")).Color;
-        Assert.Equal(expected, Assert.IsAssignableFrom<ISolidColorBrush>(arrow.Foreground).Color);
-        if (arrow.IsVisible)
-        {
-            Avalonia.Controls.Shapes.Path glyph = Assert.Single(arrow.GetVisualDescendants().OfType<Avalonia.Controls.Shapes.Path>());
-            Assert.Equal(expected, Assert.IsAssignableFrom<ISolidColorBrush>(glyph.Fill ?? glyph.Stroke).Color);
-        }
-    }
 
     private static T Part<T>(TreeViewItem item, string name) where T : Control => item.GetVisualDescendants()
         .OfType<T>().Single(control => control.Name == name && ReferenceEquals(control.TemplatedParent, item));

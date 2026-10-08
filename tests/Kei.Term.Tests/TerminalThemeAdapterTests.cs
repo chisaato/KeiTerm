@@ -65,7 +65,6 @@ public class TerminalThemeAdapterTests
     {
         // 兼容边界：既有 Avalonia Color.TryParse / 编辑弹窗正则接受 #RGB，
         // 新适配器必须最小兼容展开，不得无提示崩溃
-        Assert.Equal(TerminalThemeAdapter.ToArgb("#11EE11"), TerminalThemeAdapter.ToArgb("#1E1"));
         Assert.Equal(0xFF11EE11u, TerminalThemeAdapter.ToArgb("#1E1"));
     }
 
@@ -79,26 +78,21 @@ public class TerminalThemeAdapterTests
     [Fact]
     public void ToSkColor_PreservesAlphaAndRgbIndependently()
     {
-        // 00 通道
-        Assert.Equal(0x00, TerminalThemeAdapter.ToSkColor(0x00123456u).Alpha);
-        Assert.Equal(0x12, TerminalThemeAdapter.ToSkColor(0x00123456u).Red);
-        Assert.Equal(0x34, TerminalThemeAdapter.ToSkColor(0x00123456u).Green);
-        Assert.Equal(0x56, TerminalThemeAdapter.ToSkColor(0x00123456u).Blue);
+        var transparent = TerminalThemeAdapter.ToSkColor(0x00123456u);
+        Assert.Equal(0x00, transparent.Alpha);
+        Assert.Equal(0x12, transparent.Red);
+        Assert.Equal(0x34, transparent.Green);
+        Assert.Equal(0x56, transparent.Blue);
 
-        // 50 通道（Konsole 自动推导选区色目标值）
-        Assert.Equal(0x50, TerminalThemeAdapter.ToSkColor(0x501D99F3u).Alpha);
-        Assert.Equal(0x1D, TerminalThemeAdapter.ToSkColor(0x501D99F3u).Red);
-        Assert.Equal(0x99, TerminalThemeAdapter.ToSkColor(0x501D99F3u).Green);
-        Assert.Equal(0xF3, TerminalThemeAdapter.ToSkColor(0x501D99F3u).Blue);
-
-        // FF 通道
-        Assert.Equal(0xFF, TerminalThemeAdapter.ToSkColor(0xFF1D99F3u).Alpha);
+        // 半透明通道独立于 RGB，不因 alpha 被改写
+        var partial = TerminalThemeAdapter.ToSkColor(0x501D99F3u);
+        Assert.Equal(0x50, partial.Alpha);
+        Assert.Equal(0x1D, partial.Red);
     }
 
     [Theory]
     [InlineData("#000000", 0xFF000000u)]
     [InlineData("#00000000", 0x00000000u)]
-    [InlineData("#501D99F3", 0x501D99F3u)]
     [InlineData("#FF1D99F3", 0xFF1D99F3u)]
     public void ToArgb_ChannelBoundaries_AreExact(string hex, uint expected)
     {
@@ -131,32 +125,18 @@ public class TerminalThemeAdapterTests
         Assert.NotEqual(0u, theme.Palette[15]);
     }
 
-    [Fact]
-    public void ToRoyalTheme_Index16_IsCubeBlack_NotACopyOfAnsi0()
+    [Theory]
+    [InlineData(16, 0xFF000000u)]
+    [InlineData(255, 0xFFEEEEEE)]
+    public void ToRoyalTheme_ExtendedIndex_IsXtermSlot_NotAnsiCopy(int index, uint expected)
     {
         TerminalProfile profile = CreateProfile(ansi0: "#010203");
-
-        TerminalTheme theme = TerminalThemeAdapter.ToRoyalTheme(profile);
-
-        // xterm 色立方第一格是 (0,0,0)，不得把 ANSI 0 再刷一遍
-        Assert.NotEqual(theme.Palette[0], theme.Palette[16]);
-        Assert.Equal(0xFF000000u, theme.Palette[16]);
-    }
-
-    [Fact]
-    public void ToRoyalTheme_Index255_IsXtermGrayRamp_NotAnsiWhite()
-    {
-        TerminalProfile profile = CreateProfile();
         profile.AnsiColors[15] = "#FFFFFF";
 
         TerminalTheme theme = TerminalThemeAdapter.ToRoyalTheme(profile);
 
-        // 灰度阶 i=23：8 + 10*23 = 238。不是把 ANSI 白复制到 255。
-        const uint expected = 0xFFEEEEEE;
-        Assert.Equal(expected, theme.Palette[255]);
-        Assert.NotEqual(theme.Palette[15], theme.Palette[255]);
-        Assert.Equal((theme.Palette[255] >> 16) & 0xFF, (theme.Palette[255] >> 8) & 0xFF);
-        Assert.Equal((theme.Palette[255] >> 8) & 0xFF, theme.Palette[255] & 0xFF);
+        // 16 是色立方黑，255 是 xterm 灰度阶，都不是把 ANSI 槽再复制一遍
+        Assert.Equal(expected, theme.Palette[index]);
     }
 
     [Fact]

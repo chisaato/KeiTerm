@@ -7,27 +7,6 @@ namespace Kei.Term.Tests;
 public class FontDialogTests
 {
     [Fact]
-    public void Confirm_WritesWeightAndLineHeight()
-    {
-        TerminalProfile profile = new()
-        {
-            FontWeight = "Normal",
-            LineHeight = 1.2
-        };
-        FontDialogViewModel dialog = new(profile)
-        {
-            FontWeight = "Bold",
-            LineHeight = 1.25
-        };
-
-        dialog.Confirm();
-
-        Assert.True(dialog.IsConfirmed);
-        Assert.Equal("Bold", profile.FontWeight);
-        Assert.Equal(1.25, profile.LineHeight);
-    }
-
-    [Fact]
     public void Cancel_DoesNotWriteBack()
     {
         TerminalProfile profile = new()

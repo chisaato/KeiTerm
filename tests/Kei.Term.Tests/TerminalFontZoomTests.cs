@@ -135,27 +135,20 @@ public class TerminalFontZoomTests
         Assert.Equal(36.0, TerminalFontZoom.Step(36.0, 1));
     }
 
-    // 小数 delta 需累积满一格；不足部分作为余量留到下次
+    // 正负小数 delta 都要累积满一格才步进，不足部分按符号留作余量
     [Fact]
     public void Accumulator_EmitsNotchOnlyWhenFull_AndKeepsRemainder()
     {
-        var accumulator = new WheelNotchAccumulator();
+        var positive = new WheelNotchAccumulator();
+        Assert.Equal(0, positive.Accumulate(0.4));
+        Assert.Equal(0, positive.Accumulate(0.4));
+        Assert.Equal(1, positive.Accumulate(0.4));
+        Assert.Equal(0.2, positive.Remainder, 5);
 
-        Assert.Equal(0, accumulator.Accumulate(0.4));
-        Assert.Equal(0, accumulator.Accumulate(0.4));
-        Assert.Equal(1, accumulator.Accumulate(0.4));
-        Assert.Equal(0.2, accumulator.Remainder, 5);
-    }
-
-    // 负向累积同样按满一格才步进
-    [Fact]
-    public void Accumulator_HandlesNegativeDeltas()
-    {
-        var accumulator = new WheelNotchAccumulator();
-
-        Assert.Equal(0, accumulator.Accumulate(-0.6));
-        Assert.Equal(-1, accumulator.Accumulate(-0.6));
-        Assert.Equal(-0.2, accumulator.Remainder, 5);
+        var negative = new WheelNotchAccumulator();
+        Assert.Equal(0, negative.Accumulate(-0.6));
+        Assert.Equal(-1, negative.Accumulate(-0.6));
+        Assert.Equal(-0.2, negative.Remainder, 5);
     }
 
     // 缩放写回全局字号并刷新所有已开标签的快照，不创建真实 TerminalControl
@@ -263,38 +256,11 @@ public class TerminalFontZoomTests
         }
     }
 
-    // 保存其他草稿时，不能把打开设置时的旧字号写回去
-    [Fact]
-    public async Task WheelZoom_ThenApplyOtherDrafts_PersistsZoom_AndKeepsThoseDrafts()
-    {
-        string tempDir = TempSettingsDir();
-        try
-        {
-            var settings = new InMemorySettingsService();
-            var main = CreateMainViewModel(settings);
-            var settingsVm = new SettingsViewModel(settings, tempDir);
-            AppearanceOf(settingsVm).FontFamily = "Custom Mono";
-            GeneralOf(settingsVm).ConfirmBeforeClose = false;
-
-            main.ApplyGlobalFontZoom(1);
-            Assert.True(await settingsVm.ApplyChangesAsync());
-
-            Assert.Equal(15.0, settings.Current.FontSize);
-            Assert.Equal("Custom Mono", settings.Current.FontFamily);
-            Assert.False(settings.Current.ConfirmBeforeClose);
-        }
-        finally
-        {
-            if (Directory.Exists(tempDir))
-            {
-                Directory.Delete(tempDir, recursive: true);
-            }
-        }
-    }
-
-    // 用户正在改字号：滚轮不冲掉草稿，随后保存以手改为准，其他草稿仍在
-    [Fact]
-    public async Task ManualFontSizeDraft_IsNotOverwrittenByWheelZoom_AndSaveKeepsIt()
+    // 保存其他草稿时：未手改字号则保留滚轮结果；手改字号则以草稿为准，其他草稿仍在
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task WheelZoom_ThenApplyOtherDrafts_PersistsIntendedFontSize(bool manualFontDraft)
     {
         string tempDir = TempSettingsDir();
         try
@@ -303,19 +269,24 @@ public class TerminalFontZoomTests
             var main = CreateMainViewModel(settings);
             var settingsVm = new SettingsViewModel(settings, tempDir);
             var appearance = AppearanceOf(settingsVm);
-            appearance.FontSize = 20.0;
+            if (manualFontDraft)
+            {
+                appearance.FontSize = 20.0;
+            }
+
             appearance.FontFamily = "Custom Mono";
             GeneralOf(settingsVm).ConfirmBeforeClose = false;
 
             main.ApplyGlobalFontZoom(1);
 
-            Assert.Equal(20.0, appearance.FontSize);
+            double expected = manualFontDraft ? 20.0 : 15.0;
+            Assert.Equal(expected, appearance.FontSize);
             Assert.Equal("Custom Mono", appearance.FontFamily);
             Assert.Equal(15.0, settings.Current.FontSize);
 
             Assert.True(await settingsVm.ApplyChangesAsync());
 
-            Assert.Equal(20.0, settings.Current.FontSize);
+            Assert.Equal(expected, settings.Current.FontSize);
             Assert.Equal("Custom Mono", settings.Current.FontFamily);
             Assert.False(settings.Current.ConfirmBeforeClose);
         }

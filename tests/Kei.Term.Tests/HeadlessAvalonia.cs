@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
@@ -31,6 +32,9 @@ public static class HeadlessAvalonia
         () => HeadlessUnitTestSession.StartNew(typeof(HeadlessAvalonia), AvaloniaTestIsolationLevel.PerAssembly),
         LazyThreadSafetyMode.ExecutionAndPublication);
 
+    // 特性构造期用来判断能不能安全派发到 UI 线程。未启动时禁止访问 Dispatcher.UIThread。
+    public static bool IsSessionStarted => Session.IsValueCreated;
+
     // HeadlessUnitTestSession 按约定反射调用此方法构建应用
     public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<Kei.Term.App.App>()
         .UseSkia()
@@ -51,6 +55,40 @@ public static class HeadlessAvalonia
         {
             Dispatcher.UIThread.RunJobs();
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+        }
+    }
+
+    // 后台搜索不会被单次 Pump 等完：Sleep 让工作线程跑完，下一轮 Pump 再消化到期的 DispatcherTimer。
+    // 超时直接断言失败，避免调用方忘了检查返回值而假绿。
+    public static void WaitUntil(Func<bool> condition, int timeoutMs = 2000, string? message = null)
+    {
+        ArgumentNullException.ThrowIfNull(condition);
+        if (timeoutMs < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(timeoutMs));
+        }
+
+        Stopwatch watch = Stopwatch.StartNew();
+        while (true)
+        {
+            Pump();
+            if (condition())
+            {
+                return;
+            }
+
+            if (watch.ElapsedMilliseconds >= timeoutMs)
+            {
+                Pump();
+                if (condition())
+                {
+                    return;
+                }
+
+                Assert.Fail(message ?? $"条件在 {timeoutMs} ms 内未成立");
+            }
+
+            Thread.Sleep(15);
         }
     }
 }

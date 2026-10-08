@@ -19,14 +19,14 @@ public class TerminalReconnectInteractionTests
 {
     private static (Window Window, TerminalTabViewModel Tab) CreateHost()
     {
-        TerminalTabViewModel tab = new("test", "DejaVu Sans Mono", 14);
+        TerminalTabViewModel tab = new("test", InstalledMonospace.Require(), 14);
         tab.BindConfig(new ResolvedSessionConfig(Guid.NewGuid(), "test", "localhost", 22, "user", null,
             "xterm-256color", null, null, new Dictionary<string, string>()));
         Window window = new() { Width = 800, Height = 800, Content = new ScrollViewer { Content = tab.Terminal } };
         return (window, tab);
     }
 
-    [Fact]
+    [MonospaceFact]
     public Task InitialError_BeforeFirstLayout_StaysAtFirstRowAfterResize() => HeadlessAvalonia.RunAsync(async () =>
     {
         var (window, tab) = CreateHost();
@@ -35,6 +35,7 @@ public class TerminalReconnectInteractionTests
             tab.ReportError("No route to host");
             window.Show();
             HeadlessAvalonia.Pump();
+            InstalledMonospace.AssertUsableCellHeight(tab.Terminal, tab.Terminal.FontFamilyName);
             Assert.Contains("No route to host", ReadRow(tab, 0));
             Assert.Contains("Enter", ReadRow(tab, 1));
             Assert.Equal(0, tab.Terminal.Padding.Top);
@@ -47,7 +48,7 @@ public class TerminalReconnectInteractionTests
         finally { window.Close(); await tab.DisposeAsync(); }
     });
 
-    [Theory]
+    [MonospaceTheory]
     [InlineData(ConnectionState.Error)]
     [InlineData(ConnectionState.Disconnected)]
     public Task Enter_OnInactiveTerminal_ReconnectsSameTabOnce(ConnectionState state) => HeadlessAvalonia.RunAsync(async () =>
@@ -65,6 +66,7 @@ public class TerminalReconnectInteractionTests
         {
             window.Show();
             HeadlessAvalonia.Pump();
+            InstalledMonospace.AssertUsableCellHeight(tab.Terminal, tab.Terminal.FontFamilyName);
             tab.State = state;
             tab.Terminal.Focus();
             window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
@@ -76,7 +78,7 @@ public class TerminalReconnectInteractionTests
         finally { window.Close(); await tab.DisposeAsync(); }
     });
 
-    [Fact]
+    [MonospaceFact]
     public Task Enter_OnConnectedTerminal_IsSentToRemoteShell() => HeadlessAvalonia.RunAsync(async () =>
     {
         var (window, tab) = CreateHost();
@@ -87,6 +89,7 @@ public class TerminalReconnectInteractionTests
         {
             window.Show();
             HeadlessAvalonia.Pump();
+            InstalledMonospace.AssertUsableCellHeight(tab.Terminal, tab.Terminal.FontFamilyName);
             tab.AttachSession(session);
             tab.MarkConnected();
             tab.Terminal.Focus();
@@ -98,7 +101,7 @@ public class TerminalReconnectInteractionTests
         finally { window.Close(); await tab.DisposeAsync(); }
     });
 
-    [Fact]
+    [MonospaceFact]
     public Task ErrorAfterRemoteOutput_PreservesSessionHistory() => HeadlessAvalonia.RunAsync(async () =>
     {
         var (window, tab) = CreateHost();
@@ -107,6 +110,7 @@ public class TerminalReconnectInteractionTests
         {
             window.Show();
             HeadlessAvalonia.Pump();
+            InstalledMonospace.AssertUsableCellHeight(tab.Terminal, tab.Terminal.FontFamilyName);
             tab.AttachSession(session);
             tab.MarkConnected();
             session.Emit("KEEP-REMOTE-HISTORY\r\n");

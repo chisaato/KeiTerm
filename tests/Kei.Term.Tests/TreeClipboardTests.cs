@@ -49,13 +49,12 @@ public class TreeClipboardTests
         Assert.False(fixture.Model.PasteNodeCommand.CanExecute(null));
     }
 
-    [Theory]
-    [InlineData("alpha")]
-    [InlineData("source")]
-    public async Task FilteredCopyAndPaste_IncludeHiddenDescendantsAndIndependentForwards(string filter)
+    [Fact]
+    public async Task FilteredCopyAndPaste_IncludeHiddenDescendantsAndIndependentForwards()
     {
         await using Fixture fixture = await Fixture.CreateAsync();
-        fixture.Model.FilterText = filter;
+        // alpha 与 source 都会选中同一源文件夹并隐藏部分后代，只保留 source。
+        fixture.Model.FilterText = "source";
         fixture.Model.SelectedTreeNode = fixture.Model.DebugAllNodesCache.Single(node => node.Id == fixture.SourceFolder.Id);
 
         await fixture.Model.CopyNodeCommand.ExecuteAsync(null);

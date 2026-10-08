@@ -5,7 +5,6 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
 using Avalonia.VisualTree;
 using Kei.Term.App.Helpers;
 using Kei.Term.App.Services;
@@ -36,10 +35,6 @@ public class SettingsUiPreviewTests
             window.UpdateLayout();
             TextBlock preview = window.GetVisualDescendants().OfType<TextBlock>().Single(c =>
                 c.Text == Strings.Get("Settings.Appearance.UiFontPreviewSample"));
-            Expander advanced = window.GetVisualDescendants().OfType<Expander>().Single();
-            Assert.False(advanced.IsExpanded);
-            ToggleButton header = advanced.GetVisualDescendants().OfType<ToggleButton>().Single(button => button.Name == "ExpanderHeader");
-            Assert.InRange(header.Bounds.Height, 28, 32);
             page.SelectedUiFont = new FontFamilyOption("DejaVu Sans", false);
             page.UiFallbackFonts.Clear();
             page.UiFallbackFonts.Add("Arial");

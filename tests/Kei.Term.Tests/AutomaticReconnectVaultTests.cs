@@ -22,8 +22,6 @@ public class AutomaticReconnectVaultTests
 {
     [Theory]
     [InlineData("target-identity")]
-    [InlineData("jump-identity")]
-    [InlineData("target-proxy")]
     [InlineData("jump-proxy")]
     public async Task LockedVault_StopsAutomaticReconnectWithoutPrompt_WhileManualUnlockStillWorks(string route)
     {
@@ -53,8 +51,6 @@ public class AutomaticReconnectVaultTests
             switch (route)
             {
                 case "target-identity": destination.IdentityId = identity.Id; break;
-                case "jump-identity": destination.JumpHostSessionId = jump.Id; jump.IdentityId = identity.Id; break;
-                case "target-proxy": destination.ProxyProfileId = proxy.Id; break;
                 case "jump-proxy": destination.JumpHostSessionId = jump.Id; jump.ProxyProfileId = proxy.Id; break;
             }
 

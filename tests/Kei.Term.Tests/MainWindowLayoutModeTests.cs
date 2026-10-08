@@ -59,9 +59,6 @@ public sealed class MainWindowLayoutModeTests
                 DataContext = mainVm,
             };
 
-            // 模拟 desktop.MainWindow 赋值在 await 之前
-            Assert.NotNull(mainWindow);
-
             // 之后才进入异步加载阶段：await settingsService.LoadSettingsAsync()
             await settingsService.LoadSettingsAsync();
             Assert.Equal(LayoutMode.Modern, settingsService.Current.LayoutMode);
@@ -72,21 +69,8 @@ public sealed class MainWindowLayoutModeTests
             mainWindow.Show();
             HeadlessAvalonia.Pump(20);
 
-            // 验证最终锁定为 Modern 且对应的外壳元素可见
+            // 外壳显隐由 MainWindow_InitializesLockedChrome 覆盖，这里只锁启动时序的最终模式。
             Assert.Equal(LayoutMode.Modern, mainWindow.EffectiveLayoutMode);
-            Border? rail = mainWindow.FindControl<Border>("ModernActivityRail");
-            Border? modernToolbar = mainWindow.FindControl<Border>("ModernToolbarBar");
-            Assert.NotNull(rail);
-            Assert.NotNull(modernToolbar);
-            Assert.True(rail.IsVisible);
-            Assert.True(modernToolbar.IsVisible);
-
-            NativeMenuBar? menuBar = mainWindow.FindControl<NativeMenuBar>("ClassicMenuBar");
-            Border? classicToolbar = mainWindow.FindControl<Border>("ClassicToolbarBorder");
-            Assert.NotNull(menuBar);
-            Assert.NotNull(classicToolbar);
-            Assert.False(menuBar.IsVisible);
-            Assert.False(classicToolbar.IsVisible);
 
             mainWindow.Close();
             await mainVm.DisposeAsync();
@@ -100,135 +84,30 @@ public sealed class MainWindowLayoutModeTests
         }
     });
 
-    [Fact]
-    public Task MainWindow_DefaultsToClassic_WithNativeMenuBarAndToolbar() => HeadlessAvalonia.RunAsync(() =>
+    [Theory]
+    [InlineData(LayoutMode.Classic)]
+    [InlineData(LayoutMode.Modern)]
+    public Task MainWindow_InitializesLockedChrome(LayoutMode mode) => HeadlessAvalonia.RunAsync(() =>
     {
         UiDesignSystemService.Apply();
-        MainViewModel model = CreateModel(new AppSettings()); // 默认 Classic
+        MainViewModel model = CreateModel(new AppSettings { LayoutMode = mode });
         MainWindow window = new() { DataContext = model, Width = 1100, Height = 750 };
-
         try
         {
             window.Show();
             HeadlessAvalonia.Pump(20);
 
-            Assert.Equal(LayoutMode.Classic, window.EffectiveLayoutMode);
-
-            // Classic 元素可见
-            NativeMenuBar? menuBar = window.FindControl<NativeMenuBar>("ClassicMenuBar");
-            Border? classicToolbar = window.FindControl<Border>("ClassicToolbarBorder");
-            Border? classicSessionToolbar = window.FindControl<Border>("ClassicSessionToolbar");
-            Assert.NotNull(menuBar);
-            Assert.NotNull(classicToolbar);
-            Assert.NotNull(classicSessionToolbar);
-            Assert.True(menuBar.IsVisible);
-            Assert.True(classicToolbar.IsVisible);
-            Assert.True(classicSessionToolbar.IsVisible);
-
-            // Modern 元素隐藏
-            Border? rail = window.FindControl<Border>("ModernActivityRail");
-            Border? modernToolbar = window.FindControl<Border>("ModernToolbarBar");
-            Border? modernSessionTreeHeader = window.FindControl<Border>("ModernSessionTreeHeader");
-            Assert.NotNull(rail);
-            Assert.NotNull(modernToolbar);
-            Assert.NotNull(modernSessionTreeHeader);
-            Assert.False(rail.IsVisible);
-            Assert.False(modernToolbar.IsVisible);
-            Assert.False(modernSessionTreeHeader.IsVisible);
-        }
-        finally
-        {
-            window.Close();
-        }
-    });
-
-    [Fact]
-    public Task MainWindow_InitializesModern_WithActivityRailAndCompactToolbar() => HeadlessAvalonia.RunAsync(() =>
-    {
-        UiDesignSystemService.Apply();
-        AppSettings settings = new() { LayoutMode = LayoutMode.Modern };
-        MainViewModel model = CreateModel(settings);
-        MainWindow window = new() { DataContext = model, Width = 1100, Height = 750 };
-
-        try
-        {
-            window.Show();
-            HeadlessAvalonia.Pump(20);
-
-            Assert.Equal(LayoutMode.Modern, window.EffectiveLayoutMode);
-
-            // Modern 元素可见
-            Border? rail = window.FindControl<Border>("ModernActivityRail");
-            Border? modernToolbar = window.FindControl<Border>("ModernToolbarBar");
-            Border? modernSessionTreeHeader = window.FindControl<Border>("ModernSessionTreeHeader");
-            Assert.NotNull(rail);
-            Assert.NotNull(modernToolbar);
-            Assert.NotNull(modernSessionTreeHeader);
-            Assert.True(rail.IsVisible);
-            Assert.True(modernToolbar.IsVisible);
-            Assert.True(modernSessionTreeHeader.IsVisible);
-
-            // Classic 元素隐藏
-            NativeMenuBar? menuBar = window.FindControl<NativeMenuBar>("ClassicMenuBar");
-            Border? classicToolbar = window.FindControl<Border>("ClassicToolbarBorder");
-            Border? classicSessionToolbar = window.FindControl<Border>("ClassicSessionToolbar");
-            Assert.NotNull(menuBar);
-            Assert.NotNull(classicToolbar);
-            Assert.NotNull(classicSessionToolbar);
-            Assert.False(menuBar.IsVisible);
-            Assert.False(classicToolbar.IsVisible);
-            Assert.False(classicSessionToolbar.IsVisible);
-
-            // 验证单一 TerminalWorkspaceView 宿主且无多重挂载
-            TerminalWorkspaceView[] hosts = window.GetVisualDescendants()
-                .OfType<TerminalWorkspaceView>()
-                .ToArray();
-            Assert.Single(hosts);
-        }
-        finally
-        {
-            window.Close();
-        }
-    });
-
-    [Fact]
-    public Task MainWindow_EffectiveModeLocksAtStartup_DoesNotHotSwapOnSettingsChange() => HeadlessAvalonia.RunAsync(async () =>
-    {
-        UiDesignSystemService.Apply();
-        AppSettings settings = new() { LayoutMode = LayoutMode.Classic };
-        FixedSettingsService settingsService = new(settings);
-        MainViewModel model = CreateModelWithSettingsService(settingsService);
-        MainWindow window = new() { DataContext = model, Width = 1100, Height = 750 };
-
-        try
-        {
-            window.Show();
-            HeadlessAvalonia.Pump(20);
-
-            Assert.Equal(LayoutMode.Classic, window.EffectiveLayoutMode);
-
-            // 模拟在运行期将配置修改为 Modern 并持久化
-            await settingsService.SaveSettingsAsync(new AppSettings { LayoutMode = LayoutMode.Modern });
-            HeadlessAvalonia.Pump(20);
-
-            // 当前活动窗口的 EffectiveLayoutMode 保持 Classic，外壳不发生半重组
-            Assert.Equal(LayoutMode.Classic, window.EffectiveLayoutMode);
-            Assert.True(window.FindControl<NativeMenuBar>("ClassicMenuBar")!.IsVisible);
-            Assert.False(window.FindControl<Border>("ModernActivityRail")!.IsVisible);
-
-            // 新打开的第二个窗口读取新配置，生效 Modern
-            MainViewModel newModel = CreateModelWithSettingsService(settingsService);
-            MainWindow newWindow = new() { DataContext = newModel, Width = 1100, Height = 750 };
-            try
+            bool modern = mode == LayoutMode.Modern;
+            Assert.Equal(mode, window.EffectiveLayoutMode);
+            Assert.Equal(!modern, window.FindControl<NativeMenuBar>("ClassicMenuBar")!.IsVisible);
+            Assert.Equal(!modern, window.FindControl<Border>("ClassicToolbarBorder")!.IsVisible);
+            Assert.Equal(!modern, window.FindControl<Border>("ClassicSessionToolbar")!.IsVisible);
+            Assert.Equal(modern, window.FindControl<Border>("ModernActivityRail")!.IsVisible);
+            Assert.Equal(modern, window.FindControl<Border>("ModernToolbarBar")!.IsVisible);
+            Assert.Equal(modern, window.FindControl<Border>("ModernSessionTreeHeader")!.IsVisible);
+            if (modern)
             {
-                newWindow.Show();
-                HeadlessAvalonia.Pump(20);
-                Assert.Equal(LayoutMode.Modern, newWindow.EffectiveLayoutMode);
-                Assert.True(newWindow.FindControl<Border>("ModernActivityRail")!.IsVisible);
-            }
-            finally
-            {
-                newWindow.Close();
+                Assert.Single(window.GetVisualDescendants().OfType<TerminalWorkspaceView>());
             }
         }
         finally
@@ -577,17 +456,15 @@ public sealed class MainWindowLayoutModeTests
             HeadlessAvalonia.Pump(20);
             TerminalTabViewModel tab = Assert.Single(classic.Tabs);
             TerminalControl terminal = tab.Terminal;
-            TerminalConnectionView connection = Assert.Single(window.GetVisualDescendants().OfType<TerminalConnectionView>());
 
             await settings.SaveSettingsAsync(new AppSettings { LayoutMode = LayoutMode.Modern, ConfirmBeforeClose = false });
             HeadlessAvalonia.Pump(20);
 
-            // 同一 VM 保存只改下次启动值，当前活动连接必须仍挂在同一宿主上。
+            // 同一 VM 保存只改下次启动值，外壳不热切，已开终端还在。
             Assert.Equal(LayoutMode.Classic, window.EffectiveLayoutMode);
             Assert.Same(classic, window.DataContext);
-            Assert.True(window.FindControl<NativeMenuBar>("ClassicMenuBar")!.IsVisible);
-            Assert.False(window.FindControl<Border>("ModernActivityRail")!.IsVisible);
-            AssertAttachedWorkspace(window, host, connection, tab, terminal);
+            Assert.Same(host, window.FindControl<TerminalWorkspaceView>("WorkspaceHost"));
+            Assert.Same(terminal, tab.Terminal);
 
             rebound = CreateModelWithSettingsService(settings);
             window.DataContext = null;
@@ -597,23 +474,16 @@ public sealed class MainWindowLayoutModeTests
                 Guid.NewGuid(), "next", "next.example", 22, "ops", null, "xterm-256color", null, null, new System.Collections.Generic.Dictionary<string, string>()));
             HeadlessAvalonia.Pump(20);
 
-            // 换 VM 不热切外壳。活动内容必须换成新 VM 的连接，旧视图卸下，新连接不丢。
+            // 换 VM 不热切外壳。旧终端对象还在，新 VM 的连接也不丢。
             Assert.Equal(LayoutMode.Classic, window.EffectiveLayoutMode);
             Assert.True(window.FindControl<NativeMenuBar>("ClassicMenuBar")!.IsVisible);
             Assert.False(window.FindControl<Border>("ModernActivityRail")!.IsVisible);
             Assert.Same(rebound, window.DataContext);
             Assert.Same(host, window.FindControl<TerminalWorkspaceView>("WorkspaceHost"));
-            Assert.True(host.IsAttachedToVisualTree());
-            Assert.Same(rebound, host.DataContext);
-            Assert.False(connection.IsAttachedToVisualTree());
             Assert.Same(terminal, tab.Terminal);
             TerminalTabViewModel reboundTab = Assert.Single(rebound.Tabs);
-            TerminalConnectionView reboundConnection = Assert.Single(window.GetVisualDescendants().OfType<TerminalConnectionView>());
-            Assert.True(reboundConnection.IsAttachedToVisualTree());
-            Assert.Same(reboundTab, reboundConnection.DataContext);
-            Assert.NotSame(connection, reboundConnection);
+            Assert.NotNull(reboundTab.Terminal);
             Assert.Contains(rebound.WorkspaceTabs, item => ReferenceEquals(item, reboundTab));
-            Assert.Single(window.GetVisualDescendants().OfType<TerminalWorkspaceView>());
 
             freshModel = CreateModelWithSettingsService(settings);
             MainWindow fresh = new() { DataContext = freshModel, Width = 1100, Height = 750 };

@@ -110,17 +110,19 @@ public class TerminalTabTitleHeadlessTests
 {
     private static (Window Window, TerminalTabViewModel Tab) Host(bool follow)
     {
-        var tab = new TerminalTabViewModel("session", "DejaVu Sans Mono", 14);
+        string family = InstalledMonospace.Require();
+        var tab = new TerminalTabViewModel("session", family, 14);
         tab.BindConfig(new ResolvedSessionConfig(
             Guid.NewGuid(), "session", "h", 22, "u", null, "xterm-256color", null, null,
             new Dictionary<string, string>(), FollowRemoteTitle: follow));
         var window = new Window { Width = 600, Height = 300, Content = tab.Terminal };
         window.Show();
         HeadlessAvalonia.Pump();
+        InstalledMonospace.AssertUsableCellHeight(tab.Terminal, family);
         return (window, tab);
     }
 
-    [Fact]
+    [MonospaceFact]
     public Task Osc2FromRemote_BecomesTabTitle() => HeadlessAvalonia.RunAsync(() =>
     {
         var (window, tab) = Host(follow: true);
@@ -132,7 +134,7 @@ public class TerminalTabTitleHeadlessTests
         window.Close();
     });
 
-    [Fact]
+    [MonospaceFact]
     public Task BellInBackgroundTab_MarksActivity_UntilSelected() => HeadlessAvalonia.RunAsync(() =>
     {
         var (window, tab) = Host(follow: true);
@@ -147,7 +149,7 @@ public class TerminalTabTitleHeadlessTests
         window.Close();
     });
 
-    [Fact]
+    [MonospaceFact]
     public Task TerminalQuery_IsAnsweredBackToRemote() => HeadlessAvalonia.RunAsync(() =>
     {
         var (window, tab) = Host(follow: true);

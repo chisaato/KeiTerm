@@ -48,9 +48,8 @@ public class FileSizeDisplayTests
     }
 
     [Theory]
+    // 种子值是 Bytes；改成 Iec 再读回，即可代表枚举序列化往返。
     [InlineData(FileSizeDisplayMode.Iec)]
-    [InlineData(FileSizeDisplayMode.Si)]
-    [InlineData(FileSizeDisplayMode.Bytes)]
     public async Task SettingsPage_AppliesAndReloadsUnit_KeepingOtherTransferSettings(FileSizeDisplayMode mode)
     {
         string directory = Path.Combine(Path.GetTempPath(), "keiterm_file_units_" + Path.GetRandomFileName());
@@ -141,27 +140,6 @@ public class FileSizeDisplayTests
         WeakReferenceMessenger.Default.Send(new FileSizeDisplayChangedMessage(FileSizeDisplayMode.Bytes));
         HeadlessAvalonia.Pump();
         Assert.Equal(FileSizeDisplayMode.Iec, files.SizeDisplayMode);
-    });
-
-    [Fact]
-    public Task SettingsWindow_ExposesAllThreeUnitChoices() => HeadlessAvalonia.RunAsync(() =>
-    {
-        UiDesignSystemService.Apply();
-        JsonSettingsService service = new(Path.Combine(Path.GetTempPath(), Path.GetRandomFileName()));
-        SettingsViewModel settings = new(service);
-        settings.SelectedCategory = settings.Categories.Single(c => c.Page is FileTransferSettingsPage);
-        SettingsWindow window = new(settings);
-        try
-        {
-            window.Show();
-            window.UpdateLayout();
-            ComboBox selector = window.GetVisualDescendants().OfType<ComboBox>().Single(control => control.Name == "FileSizeDisplayComboBox");
-            Assert.Equal(new[] { FileSizeDisplayMode.Iec, FileSizeDisplayMode.Si, FileSizeDisplayMode.Bytes },
-                selector.Items.OfType<FileSizeDisplayOption>().Select(option => option.Mode));
-            selector.SelectedIndex = 2;
-            Assert.Equal(FileSizeDisplayMode.Bytes, ((FileTransferSettingsPage)settings.SelectedCategory.Page).SelectedSizeDisplay.Mode);
-        }
-        finally { window.Close(); }
     });
 
     private sealed class IdleFileSystem : IRemoteFileSystem

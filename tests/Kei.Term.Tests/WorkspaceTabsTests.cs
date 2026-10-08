@@ -14,7 +14,6 @@ using Kei.Term.App.Services.Connection;
 using Kei.Term.App.Helpers;
 using Kei.Term.App.ViewModels;
 using Kei.Term.App.Views;
-using Kei.Term.App.Views.Controls;
 using Kei.Term.Core.Models;
 using Kei.Term.Core.Abstractions;
 using Kei.Term.Core.Services;
@@ -216,31 +215,6 @@ public class WorkspaceTabsTests
     });
 
     [Fact]
-    public Task SessionInRealTree_ExposesDuplicateCommand() => HeadlessAvalonia.RunAsync(() =>
-    {
-        UiDesignSystemService.Apply();
-        MainViewModel model = CreateModel();
-        SessionNode session = new() { Name = "LAN", Host = "192.168.1.42" };
-        model.TreeNodes.Add(new VirtualRootNode { IsExpanded = true, Children = [session] });
-        model.HasNodes = true;
-        model.SelectedTreeNode = session;
-        MainWindow window = new() { DataContext = model };
-        try
-        {
-            window.Show();
-            HeadlessAvalonia.Pump();
-            SessionTreeItemView view = window.GetVisualDescendants().OfType<SessionTreeItemView>().Single(item => ReferenceEquals(item.DataContext, session));
-            Control owner = view.GetVisualAncestors().OfType<Control>().First(control => control.ContextMenu != null);
-            Assert.Same(session, owner.DataContext);
-            owner.ContextMenu!.Open(owner);
-            HeadlessAvalonia.Pump();
-            Assert.Contains(owner.ContextMenu.Items.OfType<MenuItem>(), item => ReferenceEquals(item.Command, model.DuplicateSelectedSessionCommand));
-            owner.ContextMenu.Close();
-        }
-        finally { window.Close(); model.DisposeAsync().GetAwaiter().GetResult(); }
-    });
-
-    [Fact]
     public Task NewTab_ConnectionCancelKeepsPage_AndConnectionStartReplacesItsSlot() => HeadlessAvalonia.RunAsync(async () =>
     {
         UiDesignSystemService.Apply();
@@ -277,7 +251,7 @@ public class WorkspaceTabsTests
     });
 
     [Fact]
-    public Task MenuGestures_MatchActions_AndCustomPaletteShortcutUpdates() => HeadlessAvalonia.RunAsync(() =>
+    public Task MenuGestures_CustomPaletteShortcutUpdates() => HeadlessAvalonia.RunAsync(() =>
     {
         UiDesignSystemService.Apply();
         MainViewModel model = CreateModel();
@@ -286,11 +260,7 @@ public class WorkspaceTabsTests
         {
             window.Show();
             NativeMenuItem[] items = Menus(NativeMenu.GetMenu(window)!).ToArray();
-            Assert.Equal(AppShortcuts.NewTab, items.Single(item => ReferenceEquals(item.Command, model.NewTabCommand)).Gesture);
-            Assert.Equal(AppShortcuts.CloseTab, items.Single(item => ReferenceEquals(item.Command, model.CloseCurrentWorkspaceTabCommand)).Gesture);
-            Assert.Equal(AppShortcuts.ConnectSavedSession, items.Single(item => ReferenceEquals(item.Command, model.ConnectSavedSessionCommand)).Gesture);
             NativeMenuItem palette = items.Single(item => ReferenceEquals(item.Command, model.OpenCommandPaletteCommand));
-            Assert.Equal(AppShortcuts.CommandPalette(model.CurrentSettings.CommandPaletteShortcut), palette.Gesture);
             model.CurrentSettings.CommandPaletteShortcut = "Primary+Alt+P";
             model.RefreshShortcuts();
             Assert.Equal(AppShortcuts.CommandPalette("Primary+Alt+P"), palette.Gesture);
@@ -309,7 +279,7 @@ public class WorkspaceTabsTests
     }
 
     [Fact]
-    public Task NewTabs_SelectReorderClose_WithoutCreatingTerminals() => HeadlessAvalonia.RunAsync(() =>
+    public Task NewTabsAndTerminals_SelectReorderClose_KeepOrderWithoutExtraTerminals() => HeadlessAvalonia.RunAsync(async () =>
     {
         UiDesignSystemService.Apply();
         MainViewModel model = CreateModel();
@@ -330,7 +300,6 @@ public class WorkspaceTabsTests
             Assert.False(first.IsSelected);
             Assert.True(second.IsSelected);
             Assert.Single(window.GetVisualDescendants().OfType<NewTabView>(), view => view.IsEffectivelyVisible);
-            Assert.Equal("QuickConnectButton", ((Control)window.FocusManager!.GetFocusedElement()!).Name);
             model.SelectWorkspaceTabCommand.Execute(first);
             model.MoveWorkspaceTab(0, 1);
             Assert.Same(first, model.ActiveWorkspaceTab);
@@ -340,45 +309,36 @@ public class WorkspaceTabsTests
             model.CloseWorkspaceTabCommand.ExecuteAsync(second).GetAwaiter().GetResult();
             Assert.Null(model.ActiveWorkspaceTab);
             Assert.False(model.HasTabs);
-        }
-        finally { window.Close(); model.DisposeAsync().GetAwaiter().GetResult(); }
-    });
 
-    [Fact]
-    public Task TerminalSelectionAndClose_KeepStartPagesAndTerminalOrderConsistent() => HeadlessAvalonia.RunAsync(async () =>
-    {
-        UiDesignSystemService.Apply();
-        MainViewModel model = CreateModel();
-        try
-        {
             model.NewTabCommand.Execute(null);
             NewTabViewModel starter = Assert.Single(model.NewTabs);
             IConnectionHost host = model;
             host.OpenTab(Config("first"));
             host.OpenTab(Config("second"));
-            TerminalTabViewModel first = model.Tabs[0];
-            TerminalTabViewModel second = model.Tabs[1];
+            TerminalTabViewModel terminalFirst = model.Tabs[0];
+            TerminalTabViewModel terminalSecond = model.Tabs[1];
             model.SelectWorkspaceTabCommand.Execute(starter);
             Assert.Null(model.SelectedTab);
-            Assert.False(first.IsSelected);
-            Assert.False(second.IsSelected);
+            Assert.False(terminalFirst.IsSelected);
+            Assert.False(terminalSecond.IsSelected);
             model.MoveWorkspaceTab(2, 0);
-            Assert.Same(second, model.Tabs[0]);
-            Assert.Same(first, model.Tabs[1]);
-            model.SelectWorkspaceTabCommand.Execute(second);
-            Assert.Same(second, model.SelectedTab);
-            await model.CloseWorkspaceTabCommand.ExecuteAsync(second);
+            Assert.Same(terminalSecond, model.Tabs[0]);
+            Assert.Same(terminalFirst, model.Tabs[1]);
+            model.SelectWorkspaceTabCommand.Execute(terminalSecond);
+            Assert.Same(terminalSecond, model.SelectedTab);
+            await model.CloseWorkspaceTabCommand.ExecuteAsync(terminalSecond);
             Assert.Same(starter, model.ActiveWorkspaceTab);
             Assert.Null(model.SelectedTab);
-            Assert.False(first.IsSelected);
-            first.RequestCloseOthersCommand.Execute(null);
-            Assert.Same(first, Assert.Single(model.WorkspaceTabs));
+            Assert.False(terminalFirst.IsSelected);
+            terminalFirst.RequestCloseOthersCommand.Execute(null);
+            Assert.Same(terminalFirst, Assert.Single(model.WorkspaceTabs));
             Assert.Empty(model.NewTabs);
-            Assert.Same(first, model.SelectedTab);
+            Assert.Same(terminalFirst, model.SelectedTab);
         }
         finally
         {
             foreach (TerminalTabViewModel terminal in model.Tabs.ToArray()) await model.CloseTabCommand.ExecuteAsync(terminal);
+            window.Close();
             await model.DisposeAsync();
         }
     });

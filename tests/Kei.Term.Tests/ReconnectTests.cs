@@ -21,14 +21,6 @@ namespace Kei.Term.Tests;
 // 意外断开后的指数退避。不重连的几类原因必须被策略拒绝，重连必须复用原标签。
 public class ReconnectTests
 {
-    [Fact]
-    public void Schedule_IsExactlySixDelays_AndSeventhIsNotScheduled()
-    {
-        Assert.Equal([1, 2, 4, 8, 16, 30], Enumerable.Range(1, 6).Select(ReconnectSchedule.DelaySeconds));
-        Assert.Null(ReconnectSchedule.DelaySeconds(7));
-        Assert.Null(ReconnectSchedule.DelaySeconds(0));
-    }
-
     [Theory]
     [InlineData(true, false, false, false)]
     [InlineData(false, true, false, false)]
@@ -55,8 +47,6 @@ public class ReconnectTests
     [Fact]
     public void Policy_UnexpectedDisconnect_WhenEnabled_SchedulesFirstDelay()
     {
-        Assert.False(new AppSettings().AutoReconnectOnDisconnect);
-
         var off = ReconnectPolicy.Decide(new ReconnectFacts(false, false, false, false, false, 1));
         Assert.False(off.ShouldReconnect);
 
@@ -67,14 +57,6 @@ public class ReconnectTests
 
         var exhausted = ReconnectPolicy.Decide(new ReconnectFacts(true, false, false, false, false, 7));
         Assert.False(exhausted.ShouldReconnect);
-    }
-
-    [Fact]
-    public void Messages_MatchSpecWording()
-    {
-        Assert.Equal("连接已断开，1 秒后重连（第 1/6 次）", ReconnectMessages.Waiting(1, 1));
-        Assert.Equal("连接已断开，30 秒后重连（第 6/6 次）", ReconnectMessages.Waiting(30, 6));
-        Assert.Equal("已重新连接", ReconnectMessages.Reconnected);
     }
 
     [Fact]

@@ -33,7 +33,7 @@ namespace Kei.Term.Tests;
 
 public class FileManagerWorkspaceTests
 {
-    [Theory]
+    [MonospaceTheory]
     [InlineData(false, false)]
     [InlineData(false, true)]
     [InlineData(true, false)]
@@ -79,7 +79,7 @@ public class FileManagerWorkspaceTests
         finally { menu.Close(); }
     });
 
-    [Fact]
+    [MonospaceFact]
     public Task ToolbarButton_CreatesAndSelectsAFileDocument_WithTheExistingManager() => HeadlessAvalonia.RunAsync(async () =>
     {
         await using Host host = await Host.CreateAsync();
@@ -112,7 +112,7 @@ public class FileManagerWorkspaceTests
         Assert.Equal(0, host.Session.DisposeCount);
     });
 
-    [Fact]
+    [MonospaceFact]
     public Task RepeatedPromotion_SelectsExistingDocument_AndTracksItsTitleAndPath() => HeadlessAvalonia.RunAsync(async () =>
     {
         await using Host host = await Host.CreateAsync();
@@ -133,7 +133,7 @@ public class FileManagerWorkspaceTests
         Assert.Equal(0, host.FileSystem.DisposeCount);
     });
 
-    [Fact]
+    [MonospaceFact]
     public Task FileToolbarClose_ReleasesOnlyItsDocument_AndSidebarCanPromoteAgain() => HeadlessAvalonia.RunAsync(async () =>
     {
         await using Host host = await Host.CreateAsync();
@@ -176,7 +176,7 @@ public class FileManagerWorkspaceTests
         Assert.Same(host.Listed, host.Files.Items.Single());
     });
 
-    [Fact]
+    [MonospaceFact]
     public Task SwitchingBetweenFilesAndTheirTerminal_RefreshesCommandsAndKeepsFileFocus() => HeadlessAvalonia.RunAsync(async () =>
     {
         await using Host host = await Host.CreateAsync();
@@ -228,7 +228,7 @@ public class FileManagerWorkspaceTests
         Assert.Same(VisibleFiles(host).FindControl<TextBox>("FileManagerPathInput"), host.Window.FocusManager.GetFocusedElement());
     });
 
-    [Fact]
+    [MonospaceFact]
     public Task PromotionUsesOwnerGroup_AndClosingOwnerRemovesSplitFileDocument() => HeadlessAvalonia.RunAsync(async () =>
     {
         await using Host host = await Host.CreateAsync();
@@ -264,7 +264,7 @@ public class FileManagerWorkspaceTests
         Assert.Equal(1, host.Session.DisposeCount);
     });
 
-    [Fact]
+    [MonospaceFact]
     public Task DisconnectFromFileDocument_RemovesFilesButPreservesTerminalDocument() => HeadlessAvalonia.RunAsync(async () =>
     {
         await using Host host = await Host.CreateAsync();
@@ -285,7 +285,7 @@ public class FileManagerWorkspaceTests
         Assert.False(host.Terminal.IsDisposed);
     });
 
-    [Fact]
+    [MonospaceFact]
     public Task DockClose_RemovesOnlyFileDocument_AndLaterRequestsDoNotResurrectClosedOwner() => HeadlessAvalonia.RunAsync(async () =>
     {
         await using Host host = await Host.CreateAsync();
@@ -369,6 +369,7 @@ public class FileManagerWorkspaceTests
             Window = new MainWindow { DataContext = model };
             Window.Show();
             HeadlessAvalonia.Pump();
+            InstalledMonospace.AssertUsableCellHeight(terminal.Terminal, terminal.Terminal.FontFamilyName);
         }
 
         public MainViewModel Model { get; }
@@ -387,7 +388,7 @@ public class FileManagerWorkspaceTests
             MainViewModel model = new(new SqliteTreeRepository(database), new SqliteIdentityRepository(database), vault, vault,
                 new FixedSettingsService(new AppSettings { ConfirmBeforeClose = false, SessionManagerPinned = false }), new SshSessionFactory());
             model.ApplySessionManagerSettings();
-            TerminalTabViewModel terminal = new("LAN", "Menlo, DejaVu Sans Mono, monospace", 14);
+            TerminalTabViewModel terminal = new("LAN", InstalledMonospace.Require(), 14);
             RecordingSession session = new();
             RecordingFileSystem fileSystem = new();
             terminal.AttachSession(session);

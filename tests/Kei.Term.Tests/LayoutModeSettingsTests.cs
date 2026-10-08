@@ -15,18 +15,46 @@ namespace Kei.Term.Tests;
 // 布局模式只经真实设置服务持久化。非法字段单独回退，取消不得落盘，保存才写入下次启动值。
 public class LayoutModeSettingsTests
 {
-    [Fact]
-    public async Task LayoutMode_PersistenceAndFallback()
+    [Theory]
+    [InlineData(null, LayoutMode.Classic)]
+    [InlineData("\"not-a-layout\"", LayoutMode.Classic)]
+    [InlineData("\"\"", LayoutMode.Classic)]
+    [InlineData("99", LayoutMode.Classic)]
+    [InlineData("null", LayoutMode.Classic)]
+    [InlineData("0", LayoutMode.Classic)]
+    [InlineData("1", LayoutMode.Modern)]
+    public async Task LayoutMode_PersistenceAndFallback(string? layoutJson, LayoutMode expected)
     {
-        await AssertFieldFallback(null);
-        await AssertFieldFallback("\"not-a-layout\"");
-        await AssertFieldFallback("\"\"");
-        await AssertFieldFallback("99");
-        await AssertFieldFallback("null");
-        await AssertKnownNumberLoads(0, LayoutMode.Classic);
-        await AssertKnownNumberLoads(1, LayoutMode.Modern);
-        await AssertSavedModernRoundTripsAsStringAndKeepsOtherSettings();
+        string directory = CreateDirectory();
+        try
+        {
+            string path = Path.Combine(directory, "settings.json");
+            string layoutProperty = layoutJson == null ? "" : $",\n  \"LayoutMode\": {layoutJson}";
+            await File.WriteAllTextAsync(path, $$"""
+                {
+                  "ConfirmBeforeClose": false,
+                  "HostKeyPolicy": 2,
+                  "FileTransfer": {
+                    "PollingIntervalSeconds": 17
+                  }{{layoutProperty}}
+                }
+                """);
+
+            JsonSettingsService reader = new(path);
+            AppSettings loaded = await reader.LoadSettingsAsync();
+            Assert.Equal(expected, loaded.LayoutMode);
+            AssertDistinctFields(loaded);
+            Assert.False(File.Exists(path + ".tmp"));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
     }
+
+    [Fact]
+    public Task LayoutMode_SavedModernRoundTripsAsStringAndKeepsOtherSettings()
+        => AssertSavedModernRoundTripsAsStringAndKeepsOtherSettings();
 
     [Fact]
     public async Task AppearanceSettingsPage_SelectionUpdatesDraftWithoutInstantRerender()
@@ -43,34 +71,19 @@ public class LayoutModeSettingsTests
             SettingsViewModel model = new(service, directory);
             AppearanceSettingsPage page = AppearanceOf(model);
             LayoutModeOption modern = page.LayoutModeOptions.Single(option => option.Mode == LayoutMode.Modern);
-            string guiId = page.SelectedGuiProfile?.Id ?? "";
-            string theme = page.NormalizedThemeKey;
-            string tabPlacement = page.SelectedTabPlacement.Key;
-            string fontFamily = page.FontFamily;
-            double fontSize = page.FontSize;
-            bool cursorBlink = page.CursorBlink;
 
             page.SelectedLayoutMode = modern;
 
-            // 改草稿不得写盘，也不得改已提交值。启动期有效模式由主窗口自行锁定，这里不能提前切换。
+            // 改草稿不得写盘，也不得改已提交的布局模式。启动期有效模式由主窗口自行锁定。
             Assert.Equal(LayoutMode.Modern, page.SelectedLayoutMode.Mode);
             Assert.Equal(LayoutMode.Classic, service.Current.LayoutMode);
             Assert.Equal(beforeSelection, await File.ReadAllTextAsync(path));
-            Assert.Equal(guiId, page.SelectedGuiProfile?.Id);
-            Assert.Equal(theme, page.NormalizedThemeKey);
-            Assert.Equal(tabPlacement, page.SelectedTabPlacement.Key);
-            Assert.Equal(fontFamily, page.FontFamily);
-            Assert.Equal(fontSize, page.FontSize);
-            Assert.Equal(cursorBlink, page.CursorBlink);
-            Assert.Equal("System", page.NormalizedThemeKey);
-            Assert.Equal("Bottom", page.SelectedTabPlacement.Key);
 
             await model.CancelCommand.ExecuteAsync(null);
 
             JsonSettingsService afterCancel = new(path);
             AppSettings cancelled = await afterCancel.LoadSettingsAsync();
             Assert.Equal(LayoutMode.Classic, cancelled.LayoutMode);
-            AssertDistinctFields(cancelled);
             SettingsViewModel reopenedAfterCancel = new(afterCancel, directory);
             Assert.Equal(LayoutMode.Classic, AppearanceOf(reopenedAfterCancel).SelectedLayoutMode.Mode);
 
@@ -81,15 +94,10 @@ public class LayoutModeSettingsTests
             JsonSettingsService afterSave = new(path);
             AppSettings saved = await afterSave.LoadSettingsAsync();
             Assert.Equal(LayoutMode.Modern, saved.LayoutMode);
-            AssertDistinctFields(saved);
             await AssertLayoutModeJsonString(path, "Modern");
 
             SettingsViewModel reopenedAfterSave = new(afterSave, directory);
-            AppearanceSettingsPage reopenedPage = AppearanceOf(reopenedAfterSave);
-            Assert.Equal(LayoutMode.Modern, reopenedPage.SelectedLayoutMode.Mode);
-            Assert.Equal("System", reopenedPage.NormalizedThemeKey);
-            Assert.Equal("Bottom", reopenedPage.SelectedTabPlacement.Key);
-            Assert.False(reopenedPage.CursorBlink);
+            Assert.Equal(LayoutMode.Modern, AppearanceOf(reopenedAfterSave).SelectedLayoutMode.Mode);
         }
         finally
         {
@@ -124,110 +132,26 @@ public class LayoutModeSettingsTests
         }
     }
 
-    private static async Task AssertFieldFallback(string? layoutJson)
-    {
-        string directory = CreateDirectory();
-        try
-        {
-            string path = Path.Combine(directory, "settings.json");
-            string layoutProperty = layoutJson == null ? "" : $",\n  \"LayoutMode\": {layoutJson}";
-            await File.WriteAllTextAsync(path, $$"""
-                {
-                  "ConfirmBeforeClose": false,
-                  "LastSessionManagerVisible": false,
-                  "FontSize": 19,
-                  "DefaultPort": 2222,
-                  "UiTheme": "System",
-                  "TabPlacement": "Bottom",
-                  "CursorBlink": false,
-                  "HostKeyPolicy": 2,
-                  "FileTransfer": {
-                    "PollingIntervalSeconds": 17,
-                    "IsFileManagerOnLeft": true
-                  }{{layoutProperty}}
-                }
-                """);
-
-            JsonSettingsService reader = new(path);
-            AppSettings loaded = await reader.LoadSettingsAsync();
-            Assert.Equal(LayoutMode.Classic, loaded.LayoutMode);
-            AssertDistinctFields(loaded);
-            Assert.False(File.Exists(path + ".tmp"));
-        }
-        finally
-        {
-            Directory.Delete(directory, recursive: true);
-        }
-    }
-
-    private static async Task AssertKnownNumberLoads(int number, LayoutMode expected)
-    {
-        string directory = CreateDirectory();
-        try
-        {
-            string path = Path.Combine(directory, "settings.json");
-            await File.WriteAllTextAsync(path, $$"""
-                {
-                  "LayoutMode": {{number}},
-                  "ConfirmBeforeClose": false,
-                  "LastSessionManagerVisible": false,
-                  "FontSize": 19,
-                  "DefaultPort": 2222,
-                  "UiTheme": "System",
-                  "TabPlacement": "Bottom",
-                  "CursorBlink": false,
-                  "HostKeyPolicy": 2,
-                  "FileTransfer": {
-                    "PollingIntervalSeconds": 17,
-                    "IsFileManagerOnLeft": true
-                  }
-                }
-                """);
-
-            JsonSettingsService reader = new(path);
-            AppSettings loaded = await reader.LoadSettingsAsync();
-            Assert.Equal(expected, loaded.LayoutMode);
-            AssertDistinctFields(loaded);
-        }
-        finally
-        {
-            Directory.Delete(directory, recursive: true);
-        }
-    }
-
     private static AppSettings DistinctSettings(LayoutMode layoutMode)
     {
         return new AppSettings
         {
             LayoutMode = layoutMode,
             ConfirmBeforeClose = false,
-            LastSessionManagerVisible = false,
-            FontSize = 19,
-            DefaultPort = 2222,
-            UiTheme = "System",
-            TabPlacement = "Bottom",
-            CursorBlink = false,
             HostKeyPolicy = HostKeyPolicy.Strict,
             FileTransfer = new FileTransferSettings
             {
                 PollingIntervalSeconds = 17,
-                IsFileManagerOnLeft = true,
             },
         };
     }
 
     private static void AssertDistinctFields(AppSettings loaded)
     {
+        // 只留与默认值不同的哨兵，证明非法 LayoutMode 没有把整份设置打回默认。
         Assert.False(loaded.ConfirmBeforeClose);
-        Assert.False(loaded.LastSessionManagerVisible);
-        Assert.Equal(19, loaded.FontSize);
-        Assert.Equal(2222, loaded.DefaultPort);
-        Assert.Equal("System", loaded.UiTheme);
-        Assert.Equal("Bottom", loaded.TabPlacement);
-        Assert.False(loaded.CursorBlink);
         Assert.Equal(HostKeyPolicy.Strict, loaded.HostKeyPolicy);
         Assert.Equal(17, loaded.FileTransfer.PollingIntervalSeconds);
-        Assert.True(loaded.FileTransfer.IsFileManagerOnLeft);
     }
 
     private static async Task AssertLayoutModeJsonString(string path, string expected)

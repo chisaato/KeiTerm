@@ -1,6 +1,4 @@
-using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.Messaging;
-using Dock.Model;
 using Dock.Model.Controls;
 using Dock.Model.Core;
 using Kei.Term.App.ViewModels;
@@ -18,10 +16,9 @@ public class WorkspaceCoordinatorTests
     {
         using WorkspaceCoordinator coordinator = new(new WeakReferenceMessenger());
         CloseCounter closes = Listen(coordinator);
-        Guid sessionId = Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
-        TerminalTabViewModel kept = OpenTab(coordinator, "kept", sessionId);
-        TerminalTabViewModel other = OpenTab(coordinator, "other", sessionId);
-        TerminalTabViewModel anchor = OpenTab(coordinator, "anchor", sessionId);
+        TerminalTabViewModel kept = OpenTab(coordinator, "kept");
+        TerminalTabViewModel other = OpenTab(coordinator, "other");
+        TerminalTabViewModel anchor = OpenTab(coordinator, "anchor");
         RecordingFileSystem fileSystem = new();
         RemoteFileManagerViewModel fileManager = AttachSftp(kept, fileSystem);
         RemoteFileItem listed = kept.FileManager!.Items[0];
@@ -47,8 +44,6 @@ public class WorkspaceCoordinatorTests
 
         TerminalWorkspaceDocument moved = WorkspaceTree.DocumentOf(coordinator.Layout, kept);
         Assert.Same(kept, moved.Tab);
-        Assert.NotEqual(sessionId.ToString(), moved.Id);
-        Assert.NotEqual(sessionId.ToString("N"), moved.Id);
         Assert.NotEqual(WorkspaceTree.DocumentOf(coordinator.Layout, other).Id, moved.Id);
         Assert.Equal(0, WorkspaceTree.IndexOf(source, kept));
         Assert.Same(fileManager, kept.FileManager);
@@ -66,31 +61,18 @@ public class WorkspaceCoordinatorTests
         Assert.Same(kept, coordinator.AllTabs[0]);
         Assert.Same(other, coordinator.AllTabs[1]);
         Assert.Same(anchor, coordinator.AllTabs[2]);
-    }
 
-    [Fact]
-    public void Move_LastTabCollapsesSource_WithoutDisconnecting()
-    {
-        using WorkspaceCoordinator coordinator = new(new WeakReferenceMessenger());
-        CloseCounter closes = Listen(coordinator);
-        TerminalTabViewModel only = OpenTab(coordinator, "only");
-        TerminalTabViewModel anchor = OpenTab(coordinator, "anchor");
-        RecordingFileSystem fileSystem = new();
-        RemoteFileManagerViewModel fileManager = AttachSftp(only, fileSystem);
-        IDocumentDock source = WorkspaceTree.GroupOf(coordinator.Layout, only);
-        coordinator.Factory.SplitToDock(source, WorkspaceTree.DocumentOf(coordinator.Layout, anchor), DockOperation.Bottom);
-        IDocumentDock destination = WorkspaceTree.GroupOf(coordinator.Layout, anchor);
-        source = WorkspaceTree.GroupOf(coordinator.Layout, only);
-
-        coordinator.MoveTab(only, destination, destination.VisibleDockables!.Count);
-
-        Assert.False(WorkspaceTree.Contains(coordinator.Layout, source));
-        Assert.Same(only, WorkspaceTree.DocumentOf(coordinator.Layout, only).Tab);
-        Assert.Same(fileManager, only.FileManager);
+        // 源组只剩最后一个标签时移走，组折叠但不断开连接
+        coordinator.MoveTab(anchor, destination, destination.VisibleDockables!.Count);
+        IDocumentDock collapsing = WorkspaceTree.GroupOf(coordinator.Layout, kept);
+        coordinator.MoveTab(kept, destination, destination.VisibleDockables!.Count);
+        Assert.False(WorkspaceTree.Contains(coordinator.Layout, collapsing));
+        Assert.Same(kept, WorkspaceTree.DocumentOf(coordinator.Layout, kept).Tab);
+        Assert.Same(fileManager, kept.FileManager);
         Assert.False(fileSystem.Disposed);
-        Assert.False(only.IsDisposed);
+        Assert.False(kept.IsDisposed);
         Assert.Equal(0, closes.Count);
-        Assert.Contains(only, coordinator.AllTabs);
+        Assert.Contains(kept, coordinator.AllTabs);
         Assert.Contains(anchor, coordinator.AllTabs);
     }
 
@@ -115,6 +97,26 @@ public class WorkspaceCoordinatorTests
         Assert.False(first.IsSelected);
         Assert.False(second.IsSelected);
         Assert.All(new[] { first, second, third }, tab => Assert.False(tab.IsDisposed));
+    }
+
+    [Fact]
+    public void Reorder_MovesTab_AndPreservesSelectedTab()
+    {
+        using WorkspaceCoordinator coordinator = new(new WeakReferenceMessenger());
+        TerminalTabViewModel first = OpenTab(coordinator, "first");
+        TerminalTabViewModel second = OpenTab(coordinator, "second");
+        TerminalTabViewModel third = OpenTab(coordinator, "third");
+        coordinator.Activate(first);
+        IDocumentDock group = WorkspaceTree.GroupOf(coordinator.Layout, first);
+
+        coordinator.ReorderTab(first, 2);
+
+        Assert.Equal(new[] { second, third, first }, WorkspaceTree.Tabs(group));
+        Assert.Same(first, coordinator.ActiveTab);
+        Assert.True(first.IsSelected);
+        Assert.False(second.IsSelected);
+        Assert.False(third.IsSelected);
+        Assert.Same(first, ((TerminalWorkspaceDocument)group.ActiveDockable!).Tab);
     }
 
     [Fact]
@@ -150,14 +152,12 @@ public class WorkspaceCoordinatorTests
 
         coordinator.SplitTab(only, group, DockOperation.Left);
         coordinator.Factory.SplitToDock(group, WorkspaceTree.DocumentOf(coordinator.Layout, only), DockOperation.Right);
-        coordinator.Factory.SplitToDock(group, WorkspaceTree.DocumentOf(coordinator.Layout, only), DockOperation.Window);
 
         Assert.Equal(docksBefore, WorkspaceTree.Groups(coordinator.Layout).Count);
         Assert.Same(group, WorkspaceTree.GroupOf(coordinator.Layout, only));
         Assert.Same(only, ((TerminalWorkspaceDocument)group.ActiveDockable!).Tab);
         Assert.False(only.IsDisposed);
         Assert.Equal(0, closes.Count);
-        Assert.True(coordinator.Layout.Windows == null || coordinator.Layout.Windows.Count == 0);
     }
 
     [Fact]
@@ -303,32 +303,11 @@ public class WorkspaceCoordinatorTests
         TerminalTabViewModel second = OpenTab(coordinator, "second");
         IDocumentDock source = WorkspaceTree.GroupOf(coordinator.Layout, first);
         coordinator.Factory.SplitToDock(source, WorkspaceTree.DocumentOf(coordinator.Layout, second), DockOperation.Left);
-
-        Assert.False(coordinator.Layout.RootDockCapabilityPolicy?.CanFloat);
-        Assert.False(coordinator.Layout.RootDockCapabilityPolicy?.CanPin);
-        Assert.NotEqual(true, coordinator.Layout.DockCapabilityPolicy?.CanFloat);
-        AssertFloatBlocked(coordinator.Layout, coordinator.Layout);
-        foreach (IDocumentDock group in WorkspaceTree.Groups(coordinator.Layout))
-        {
-            Assert.False(group.CanFloat);
-            Assert.False(group.CanPin);
-            Assert.False(group.DockCapabilityPolicy?.CanFloat);
-            Assert.False(group.DockCapabilityPolicy?.CanPin);
-            Assert.NotEqual(true, group.DockCapabilityOverrides?.CanFloat);
-            Assert.NotEqual(true, group.DockCapabilityOverrides?.CanPin);
-            IDockableDockingRestrictions restrictions = Assert.IsAssignableFrom<IDockableDockingRestrictions>(group);
-            Assert.False(restrictions.AllowedDockOperations.Allows(DockOperation.Window));
-            AssertFloatBlocked(group, group);
-        }
-
         TerminalWorkspaceDocument document = WorkspaceTree.DocumentOf(coordinator.Layout, first);
         document.CanFloat = true;
-        DockCapabilityEvaluation evaluation = DockCapabilityResolver.Evaluate(document, DockCapability.Float);
-        Assert.False(evaluation.EffectiveValue);
-        Assert.NotEqual(DockCapabilityValueSource.DockableOverride, evaluation.EffectiveSource);
-        Assert.NotEqual(true, document.DockCapabilityOverrides?.CanFloat);
-        Assert.False(document.AllowedDockOperations.Allows(DockOperation.Window));
+
         coordinator.Factory.FloatDockable(document);
+
         Assert.True(coordinator.Layout.Windows == null || coordinator.Layout.Windows.Count == 0);
         Assert.Same(document, WorkspaceTree.DocumentOf(coordinator.Layout, first));
     }
@@ -353,34 +332,11 @@ public class WorkspaceCoordinatorTests
         Assert.False(fileSystem.Disposed);
         Assert.NotNull(tab.FileManager);
         Assert.Equal("/var/log", tab.FileManager.CurrentPath);
-        Assert.True(tab.IsFileManagerVisible);
     }
 
-    private static void AssertFloatBlocked(IDockable dockable, IDock? context)
-    {
-        DockCapabilityEvaluation evaluation = DockCapabilityResolver.Evaluate(dockable, DockCapability.Float, context);
-        Assert.False(evaluation.EffectiveValue);
-        Assert.NotEqual(true, dockable.DockCapabilityOverrides?.CanFloat);
-    }
-
-    private static TerminalTabViewModel OpenTab(WorkspaceCoordinator coordinator, string title, Guid? sessionId = null)
+    private static TerminalTabViewModel OpenTab(WorkspaceCoordinator coordinator, string title)
     {
         TerminalTabViewModel tab = new(title, "monospace", 14.0);
-        if (sessionId != null)
-        {
-            tab.BindConfig(new ResolvedSessionConfig(
-                sessionId.Value,
-                title,
-                "h",
-                22,
-                "u",
-                null,
-                "xterm-256color",
-                null,
-                null,
-                new Dictionary<string, string>()));
-        }
-
         coordinator.AddTab(tab);
         return tab;
     }

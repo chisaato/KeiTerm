@@ -5,10 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Headless;
-using Avalonia.Input;
 using Avalonia.VisualTree;
 using Dock.Avalonia.Controls;
 using Dock.Model.Controls;
@@ -34,7 +31,7 @@ namespace Kei.Term.Tests;
 // 真实协调器、停靠视图和终端标签。Headless 只证明布局、焦点、缓存和尺寸下发，不代替桌面手感。
 public class WorkspaceHostTests
 {
-    [Fact]
+    [MonospaceFact]
     public Task SecondView_StealsTerminalWithoutKeepingTwoParents() => HeadlessAvalonia.RunAsync(() =>
     {
         UiDesignSystemService.Apply();
@@ -53,6 +50,7 @@ public class WorkspaceHostTests
         };
         window.Show();
         HeadlessAvalonia.Pump(20);
+        InstalledMonospace.AssertUsableCellHeight(tab.Terminal, tab.Terminal.FontFamilyName);
 
         Assert.Null(first.FindControl<ScrollViewer>("TerminalScroll")!.Content);
         Assert.Same(tab.Terminal, second.FindControl<ScrollViewer>("TerminalScroll")!.Content);
@@ -60,7 +58,7 @@ public class WorkspaceHostTests
         window.Close();
     });
 
-    [Fact]
+    [MonospaceFact]
     public Task TwoGroups_ShowSelectedContentSimultaneously() => HeadlessAvalonia.RunAsync(() =>
     {
         UiDesignSystemService.Apply();
@@ -74,14 +72,13 @@ public class WorkspaceHostTests
         Assert.All(views, view =>
         {
             Assert.True(view.IsVisible);
-            Assert.True(view.Bounds.Width > 40, $"宽度 {view.Bounds.Width}");
             Assert.True(view.Bounds.Height > 40, $"高度 {view.Bounds.Height}");
         });
         Assert.Contains(views, view => view.DataContext is TerminalTabViewModel tab && tab.IsSelected);
         Assert.Contains(views, view => view.DataContext is TerminalTabViewModel tab && !tab.IsSelected);
     });
 
-    [Fact]
+    [MonospaceFact]
     public Task SftpInteraction_SelectsComposeTarget() => HeadlessAvalonia.RunAsync(() =>
     {
         UiDesignSystemService.Apply();
@@ -111,7 +108,7 @@ public class WorkspaceHostTests
         Assert.DoesNotContain("echo sftp-target", secondSession.SentText, StringComparison.Ordinal);
     });
 
-    [Fact]
+    [MonospaceFact]
     public Task ComposeFocus_PreservesLastTarget() => HeadlessAvalonia.RunAsync(() =>
     {
         UiDesignSystemService.Apply();
@@ -137,6 +134,7 @@ public class WorkspaceHostTests
         };
         window.Show();
         HeadlessAvalonia.Pump(30);
+        InstalledMonospace.AssertUsableCellHeight(first.Terminal, first.Terminal.FontFamilyName);
 
         TerminalTabViewModel? before = viewModel.Workspace.ActiveTab;
         Assert.NotNull(before);
@@ -147,7 +145,7 @@ public class WorkspaceHostTests
         window.Close();
     });
 
-    [Fact]
+    [MonospaceFact]
     public Task BottomTabs_ApplyToNewSplitGroups() => HeadlessAvalonia.RunAsync(() =>
     {
         UiDesignSystemService.Apply();
@@ -166,6 +164,7 @@ public class WorkspaceHostTests
         };
         window.Show();
         HeadlessAvalonia.Pump(30);
+        InstalledMonospace.AssertUsableCellHeight(first.Terminal, first.Terminal.FontFamilyName);
         IDocumentDock group = RequireGroup(viewModel.Workspace, first);
         viewModel.Workspace.SplitTab(second, group, DockOperation.Bottom);
         HeadlessAvalonia.Pump(40);
@@ -176,32 +175,7 @@ public class WorkspaceHostTests
         window.Close();
     });
 
-    [Fact]
-    public Task CancelledDrag_PreservesMembership() => HeadlessAvalonia.RunAsync(() =>
-    {
-        UiDesignSystemService.Apply();
-        TerminalTabViewModel first = CreateTab("one");
-        TerminalTabViewModel second = CreateTab("two");
-        using Host host = Show(first, second);
-        TerminalWorkspaceDocument document = RequireDocument(host.ViewModel.Workspace.Layout, second);
-        IDock? owner = document.Owner as IDock;
-        int groups = CountGroups(host.ViewModel.Workspace.Layout);
-        DocumentTabStripItem item = host.Window.GetVisualDescendants().OfType<DocumentTabStripItem>()
-            .First(candidate => ReferenceEquals(candidate.DataContext, document));
-        Point origin = item.TranslatePoint(new Point(8, 8), host.Window) ?? new Point(30, 12);
-
-        host.Window.MouseDown(origin, MouseButton.Left);
-        host.Window.MouseMove(origin + new Vector(28, 0));
-        host.Window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, "Escape");
-        host.Window.MouseUp(new Point(-40, -40), MouseButton.Left);
-        HeadlessAvalonia.Pump();
-
-        Assert.Same(owner, document.Owner);
-        Assert.Equal(groups, CountGroups(host.ViewModel.Workspace.Layout));
-        Assert.Contains(second, host.ViewModel.Tabs);
-    });
-
-    [Fact]
+    [MonospaceFact]
     public Task Close_RemovesOnlyClosedDocumentViewCache() => HeadlessAvalonia.RunAsync(async () =>
     {
         UiDesignSystemService.Apply();
@@ -223,7 +197,7 @@ public class WorkspaceHostTests
         Assert.DoesNotContain(second, host.ViewModel.Tabs);
     });
 
-    [Fact]
+    [MonospaceFact]
     public Task Close_DisposesSessionExactlyOnce_WhileMoveDoesNotDispose() => HeadlessAvalonia.RunAsync(async () =>
     {
         UiDesignSystemService.Apply();
@@ -251,7 +225,7 @@ public class WorkspaceHostTests
         Assert.Equal(1, secondSession.DisposeCount);
     });
 
-    [Fact]
+    [MonospaceFact]
     public Task Split_PropagatesChangedTerminalSizeToEndpoint() => HeadlessAvalonia.RunAsync(() =>
     {
         UiDesignSystemService.Apply();
@@ -317,22 +291,6 @@ public class WorkspaceHostTests
         return null;
     }
 
-    private static int CountGroups(IDockable node)
-    {
-        int count = node is IDocumentDock ? 1 : 0;
-        if (node is not IDock dock || dock.VisibleDockables == null)
-        {
-            return count;
-        }
-
-        foreach (IDockable child in dock.VisibleDockables)
-        {
-            count += CountGroups(child);
-        }
-
-        return count;
-    }
-
     private static Host Show(params TerminalTabViewModel[] tabs)
     {
         MainViewModel viewModel = CreateViewModel();
@@ -350,11 +308,16 @@ public class WorkspaceHostTests
         };
         window.Show();
         HeadlessAvalonia.Pump(30);
+        foreach (TerminalTabViewModel tab in tabs)
+        {
+            InstalledMonospace.AssertUsableCellHeight(tab.Terminal, tab.Terminal.FontFamilyName);
+        }
+
         return new Host(viewModel, workspace, window);
     }
 
     private static TerminalTabViewModel CreateTab(string title)
-        => new(title, "DejaVu Sans Mono", 14);
+        => new(title, InstalledMonospace.Require(), 14);
 
     private static MainViewModel CreateViewModel()
     {

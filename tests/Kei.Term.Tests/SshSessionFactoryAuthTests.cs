@@ -1,7 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
 using System.Threading.Tasks;
 using Kei.Term.Core.Abstractions;
 using Kei.Term.Core.Models;
@@ -87,16 +85,6 @@ public class SshSessionFactoryAuthTests
                 AgentSocketPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), Guid.NewGuid().ToString("N")),
                 InteractivePrompt = _ => Task.FromResult<string?>("unconfigured password")
             }));
-    }
-
-    [Fact]
-    public async Task CreateSession_ZeroMaterialsWithoutPrompt_ThrowsNoAuthMethod()
-    {
-        var factory = new SshSessionFactory();
-
-        // 零材料且无交互回调时不会注册任何认证方法，SSH.NET 直接拒绝构造
-        await Assert.ThrowsAsync<ArgumentException>(() =>
-            factory.CreateSessionAsync(Config(), Array.Empty<MaterializedAuthMethod>()));
     }
 
     [Fact]

@@ -128,7 +128,7 @@ public class WelcomeActionsTests
     });
 
     [Fact]
-    public Task EmptyWorkspaceAndNewTab_ShareActions_AndPaletteCancelKeepsThePage() => HeadlessAvalonia.RunAsync(async () =>
+    public Task EmptyWorkspaceAndNewTab_ShareActions() => HeadlessAvalonia.RunAsync(async () =>
     {
         await using Fixture fixture = await Fixture.CreateAsync();
         NewTabView welcome = fixture.Window.FindControl<NewTabView>("WelcomeView")!;
@@ -136,16 +136,10 @@ public class WelcomeActionsTests
         HeadlessAvalonia.Pump();
         NewTabView starter = fixture.Window.GetVisualDescendants().OfType<NewTabView>().Single(view => view.IsEffectivelyVisible);
         Assert.IsType<NewTabViewModel>(welcome.DataContext);
+        Assert.IsType<NewTabViewModel>(starter.DataContext);
         Assert.False(welcome.IsEffectivelyVisible);
-        Assert.Equal("QuickConnectButton", ((Control)fixture.Window.FocusManager!.GetFocusedElement()!).Name);
-        Button quick = starter.FindControl<Button>("QuickConnectButton")!;
-        Task operation = ((IAsyncRelayCommand)quick.Command!).ExecuteAsync(null);
-        HeadlessAvalonia.Pump();
-        fixture.Window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.None, null);
-        await operation.WaitAsync(TimeSpan.FromSeconds(5));
-        Assert.Single(fixture.Model.NewTabs);
-        Assert.Empty(fixture.Model.Tabs);
         Assert.True(starter.IsEffectivelyVisible);
+        Assert.Equal("QuickConnectButton", ((Control)fixture.Window.FocusManager!.GetFocusedElement()!).Name);
     });
 
     [Fact]

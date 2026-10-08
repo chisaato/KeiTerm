@@ -161,10 +161,9 @@ public sealed class SettingsEditorDialogTests : IDisposable
         Assert.Equal(8080, ((Socks5ProxyConfig)draft.Build()!.Config).Port);
     }
 
-    [Fact]
+    [PlatformFact(TestPlatform.MacOS)]
     public void MacApplicationSelection_UsesBundledCodeAndWaitsForDocument()
     {
-        if (!OperatingSystem.IsMacOS()) return;
         string application = Path.Combine(Path.GetTempPath(), $"Editor {Guid.NewGuid():N}.app");
         string cli = Path.Combine(application, "Contents", "Resources", "app", "bin", "code");
         Directory.CreateDirectory(Path.GetDirectoryName(cli)!);

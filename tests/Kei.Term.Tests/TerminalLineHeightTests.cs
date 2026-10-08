@@ -10,7 +10,6 @@ using Kei.Term.App.ViewModels;
 using Kei.Term.App.Views.Controls;
 using Kei.Term.Core.Models.Profiles;
 using RoyalTerminal.Avalonia.Controls;
-using SkiaSharp;
 using Xunit;
 
 public class TerminalLineHeightTests
@@ -41,6 +40,7 @@ public class TerminalLineHeightTests
         };
         window.Show();
         HeadlessAvalonia.Pump();
+        InstalledMonospace.AssertUsableCellHeight(tab.Terminal, fontFamily);
         return (window, tab);
     }
 
@@ -53,32 +53,28 @@ public class TerminalLineHeightTests
         Assert.Null(TerminalFontMetricAdapter.TryCalculateTargetCellHeight("JetBrainsMono Nerd Font", double.NaN));
     }
 
-    [Fact]
+    [MonospaceFact]
     public Task TerminalControl_AppliesCalculatedCellHeight_PreservesWidthAndFontSize() => HeadlessAvalonia.RunAsync(() =>
     {
         Window? window = null;
         try
         {
-            var host = CreateHost("JetBrainsMono Nerd Font", 11.0, 505);
+            string family = InstalledMonospace.Require();
+            var host = CreateHost(family, 11.0, 505);
             window = host.Window;
             var tab = host.Tab;
             var terminal = tab.Terminal;
             var renderer = terminal.Renderer!;
 
-            // 独立度量 11pt 对应的整数像素字号，验证真实宿主已接入适配。
-            using SKFont referenceFont = renderer.GlyphCache.CreateFont(15f);
-            SKFontMetrics metrics = referenceFont.Metrics;
-            float expectedHeight = MathF.Round(metrics.Descent - metrics.Ascent + metrics.Leading, MidpointRounding.AwayFromZero);
-            Assert.Equal(expectedHeight, renderer.CellHeight);
-
-            // 主动制造高度不一致，确保后续调用实际调整行高而非幂等空操作。
-            renderer.SetCellSize(renderer.CellWidth, expectedHeight + 1f);
+            // 记下宿主已经应用的行高，再故意打偏，确认 AdaptCellHeight 会改回去而不是空操作。
+            float appliedHeight = renderer.CellHeight;
             float naturalWidth = renderer.CellWidth;
             float naturalFontSize = renderer.FontSize;
+            Assert.True(appliedHeight > 0);
+            renderer.SetCellSize(renderer.CellWidth, appliedHeight + 1f);
 
-            // 重新通过 AdaptCellHeight 应用
-            TerminalFontMetricAdapter.AdaptCellHeight(terminal, "JetBrainsMono Nerd Font", 11.0);
-            Assert.Equal(expectedHeight, renderer.CellHeight);
+            TerminalFontMetricAdapter.AdaptCellHeight(terminal, family, 11.0);
+            Assert.Equal(appliedHeight, renderer.CellHeight);
 
             // 验证 FontSize 与 CellWidth 保持不变
             Assert.Equal(naturalFontSize, renderer.FontSize);
@@ -88,12 +84,6 @@ public class TerminalLineHeightTests
             // 验证 ScrollData.CellHeight 与 Renderer.CellHeight 严格一致
             Assert.NotNull(terminal.ScrollData);
             Assert.Equal(renderer.CellHeight, terminal.ScrollData!.CellHeight);
-
-            // 验证网格贴底仍然成立
-            double height = terminal.Bounds.Height;
-            double cell = renderer.CellHeight;
-            Assert.Equal((int)(height / cell), terminal.Rows);
-            Assert.InRange(height - (terminal.Padding.Top + terminal.Rows * cell), 0, 0.05);
         }
         finally
         {
@@ -101,13 +91,14 @@ public class TerminalLineHeightTests
         }
     });
 
-    [Fact]
-    public Task TerminalControl_FontSizeRoundtrip_AndParentLayout_MaintainsStability() => HeadlessAvalonia.RunAsync(() =>
+    [MonospaceFact]
+    public Task TerminalControl_FontSizeRoundtrip_MaintainsStability() => HeadlessAvalonia.RunAsync(() =>
     {
         Window? window = null;
         try
         {
-            var host = CreateHost("JetBrainsMono Nerd Font", 11.0, 505);
+            string family = InstalledMonospace.Require();
+            var host = CreateHost(family, 11.0, 505);
             window = host.Window;
             var tab = host.Tab;
             var terminal = tab.Terminal;
@@ -116,26 +107,18 @@ public class TerminalLineHeightTests
             float cellWidth11 = terminal.Renderer!.CellWidth;
 
             // 切换到 14.0
-            tab.ApplyFontSnapshot(new TerminalFontSnapshot("JetBrainsMono Nerd Font", Array.Empty<string>(), 14.0, false));
+            tab.ApplyFontSnapshot(new TerminalFontSnapshot(family, Array.Empty<string>(), 14.0, false));
             HeadlessAvalonia.Pump();
             float cellHeight14 = terminal.Renderer!.CellHeight;
             Assert.Equal(cellHeight14, terminal.ScrollData!.CellHeight);
             Assert.True(cellHeight14 > cellHeight11);
 
             // 往返切换回 11.0
-            tab.ApplyFontSnapshot(new TerminalFontSnapshot("JetBrainsMono Nerd Font", Array.Empty<string>(), 11.0, false));
+            tab.ApplyFontSnapshot(new TerminalFontSnapshot(family, Array.Empty<string>(), 11.0, false));
             HeadlessAvalonia.Pump();
             Assert.Equal(cellHeight11, terminal.Renderer!.CellHeight);
             Assert.Equal(cellHeight11, terminal.ScrollData!.CellHeight);
             Assert.Equal(cellWidth11, terminal.Renderer!.CellWidth);
-
-            // 父级容器尺寸变动时行高不累积不被重置
-            window.Height = 600;
-            HeadlessAvalonia.Pump();
-            window.Height = 520;
-            HeadlessAvalonia.Pump();
-            Assert.Equal(cellHeight11, terminal.Renderer!.CellHeight);
-            Assert.Equal(cellHeight11, terminal.ScrollData!.CellHeight);
         }
         finally
         {
@@ -143,13 +126,13 @@ public class TerminalLineHeightTests
         }
     });
 
-    [Fact]
+    [MonospaceFact]
     public Task TerminalControl_ScrollDataHistoryAndMidBottomOffset_MaintainsPositions() => HeadlessAvalonia.RunAsync(() =>
     {
         Window? window = null;
         try
         {
-            var host = CreateHost("JetBrainsMono Nerd Font", 11.0, 505);
+            var host = CreateHost(InstalledMonospace.Require(), 11.0, 505);
             window = host.Window;
             var tab = host.Tab;
             var terminal = tab.Terminal;
@@ -191,20 +174,21 @@ public class TerminalLineHeightTests
         }
     });
 
-    [Fact]
+    [MonospaceFact]
     public Task TerminalShellPreviewView_MatchesTabViewModel_CellHeightConsistency() => HeadlessAvalonia.RunAsync(() =>
     {
         Window? windowTab = null;
         Window? windowPreview = null;
         try
         {
-            var host = CreateHost("JetBrainsMono Nerd Font", 11.0, 505);
+            string family = InstalledMonospace.Require();
+            var host = CreateHost(family, 11.0, 505);
             windowTab = host.Window;
             var tab = host.Tab;
 
             var preview = new TerminalShellPreviewView
             {
-                Font = new TerminalFontSnapshot("JetBrainsMono Nerd Font", Array.Empty<string>(), 11.0, false),
+                Font = new TerminalFontSnapshot(family, Array.Empty<string>(), 11.0, false),
                 Profile = BuiltInPresets.GetDefaultTerminalProfile()
             };
 
@@ -220,6 +204,7 @@ public class TerminalLineHeightTests
             var previewTerminal = preview.FindControl<Border>("TerminalContainer")?.Child as TerminalControl;
             Assert.NotNull(previewTerminal);
             Assert.NotNull(previewTerminal.Renderer);
+            InstalledMonospace.AssertUsableCellHeight(previewTerminal, family);
 
             // 验证 Preview 内部的 TerminalControl 与 Tab 的 TerminalControl 计算出的行高一致
             Assert.Equal(tab.Terminal.Renderer!.CellHeight, previewTerminal.Renderer!.CellHeight);

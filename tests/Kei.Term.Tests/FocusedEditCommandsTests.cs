@@ -97,7 +97,7 @@ public class FocusedEditCommandsTests
             input.Focus();
             input.SelectAll();
             Assert.True(menuItem.Focus());
-            Assert.True(commands[EditAction.Copy].CanExecute(null), $"焦点={window.FocusManager?.GetFocusedElement()?.GetType().Name}, 选区={input.SelectionStart}:{input.SelectionEnd}, CanCopy={input.CanCopy}");
+            Assert.True(commands[EditAction.Copy].CanExecute(null));
             commands[EditAction.Copy].Execute(null);
             HeadlessAvalonia.Pump();
             Assert.Equal("menu target", window.Clipboard!.TryGetTextAsync().GetAwaiter().GetResult());

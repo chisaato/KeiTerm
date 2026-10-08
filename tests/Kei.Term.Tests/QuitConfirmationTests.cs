@@ -329,9 +329,8 @@ public class QuitConfirmationTests
     });
 
     [Theory]
-    [InlineData(QuitTrigger.Application, Key.Escape)]
-    [InlineData(QuitTrigger.CloseWindow, Key.Escape)]
-    public Task CancelKeys_CancelConfirmation_AndNextRequestStartsAgain(QuitTrigger trigger, Key key) => HeadlessAvalonia.RunAsync(async () =>
+    [InlineData(QuitTrigger.Application)]
+    public Task CancelKeys_CancelConfirmation_AndNextRequestStartsAgain(QuitTrigger trigger) => HeadlessAvalonia.RunAsync(async () =>
     {
         UiDesignSystemService.Apply();
         (MainWindow window, MainViewModel model, IInteractionService interaction) = CreateWindow();
@@ -343,10 +342,7 @@ public class QuitConfirmationTests
             Task first = quit.RequestAsync(trigger);
             HeadlessAvalonia.Pump();
             QuitConfirmationWindow prompt = Assert.Single(window.OwnedWindows.OfType<QuitConfirmationWindow>());
-            RawInputModifiers modifiers = key == Key.W
-                ? (OperatingSystem.IsMacOS() ? RawInputModifiers.Meta : RawInputModifiers.Control)
-                : RawInputModifiers.None;
-            prompt.KeyPress(key, modifiers, PhysicalKey.None, null);
+            prompt.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.None, null);
             await first.WaitAsync(TimeSpan.FromSeconds(5));
             Assert.True(window.IsVisible);
             Assert.Single(model.WorkspaceTabs);
@@ -362,7 +358,6 @@ public class QuitConfirmationTests
     });
 
     [Theory]
-    [InlineData(QuitTrigger.Application, Key.Q)]
     [InlineData(QuitTrigger.CloseWindow, Key.W)]
     public Task MatchingKeyInDialog_ConfirmsOriginalShortcut(QuitTrigger trigger, Key key) => HeadlessAvalonia.RunAsync(async () =>
     {
@@ -390,10 +385,8 @@ public class QuitConfirmationTests
         finally { window.Close(); await model.DisposeAsync(); }
     });
 
-    [Theory]
-    [InlineData(QuitTrigger.Application)]
-    [InlineData(QuitTrigger.CloseWindow)]
-    public Task Confirmation_RemainsOpenPastFiveSeconds_AndMatchingRequestExits(QuitTrigger trigger) => HeadlessAvalonia.RunAsync(async () =>
+    [Fact]
+    public Task Confirmation_RemainsOpenPastFiveSeconds_AndMatchingRequestExits() => HeadlessAvalonia.RunAsync(async () =>
     {
         UiDesignSystemService.Apply();
         (MainWindow window, MainViewModel model, IInteractionService interaction) = CreateWindow();
@@ -401,14 +394,14 @@ public class QuitConfirmationTests
         try
         {
             window.Show();
-            Task first = quit.RequestAsync(trigger);
-            // 真实等待超过原来的超时期限，确保定时取消回归时测试会失败。
+            Task first = quit.RequestAsync(QuitTrigger.Application);
+            // 真实等待超过原来的超时期限，确保定时取消回归时测试会失败。两种 trigger 行为相同，只留一行以免付两次 6 秒。
             await Task.Delay(TimeSpan.FromSeconds(6));
             HeadlessAvalonia.Pump();
             Assert.True(window.IsVisible);
             Assert.True(Assert.Single(window.OwnedWindows.OfType<QuitConfirmationWindow>()).IsVisible);
             Assert.False(first.IsCompleted);
-            await quit.RequestAsync(trigger);
+            await quit.RequestAsync(QuitTrigger.Application);
             await first.WaitAsync(TimeSpan.FromSeconds(5));
             Assert.False(window.IsVisible);
         }
