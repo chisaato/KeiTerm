@@ -8,8 +8,8 @@
 
   <ItemGroup>
     <!-- 仅日志抽象（无第三方落盘依赖），Core 仍无 UI/平台依赖 -->
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
-    <PackageReference Include="System.IO.Hashing" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
+    <PackageReference Include="System.IO.Hashing" Version="10.0.12" />
   </ItemGroup>
 
 </Project>
