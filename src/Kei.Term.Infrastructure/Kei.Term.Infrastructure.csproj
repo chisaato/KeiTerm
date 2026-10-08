@@ -16,4 +16,6 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <Import Project="Vault/MacOS/MacOSQuickUnlock.targets" />
+
 </Project>

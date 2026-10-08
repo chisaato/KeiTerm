@@ -30,6 +30,9 @@ public partial class SettingsWindow : Window
         // 每次打开都从当前设置重读，丢弃上次未保存的改动
         vm.Reload();
 
+        // 本机验证能力可能在系统设置中变化，每次打开窗口重新探测。
+        Opened += async (_, _) => await vm.RefreshQuickUnlockAsync();
+
         // 统一成功出口（Save/Cancel成功后触发）
         Action? onRequestClose = null;
         onRequestClose = () =>

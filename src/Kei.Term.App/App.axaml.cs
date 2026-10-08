@@ -15,6 +15,7 @@ using Kei.Term.App.ViewModels;
 using Kei.Term.App.Views;
 using Kei.Term.Infrastructure.Settings;
 using Kei.Term.Core.Security;
+using Kei.Term.Core.Vault;
 using Kei.Term.Infrastructure.Storage;
 using Kei.Term.Infrastructure.Storage.Schema;
 using Kei.Term.Infrastructure.Vault;
@@ -116,7 +117,9 @@ public partial class App : Application
             var identityRepo = new SqliteIdentityRepository(db);
             var editorRepo = new SqliteExternalEditorRepository(db);
             var knownHostRepo = new SqliteKnownHostRepository(db);
-            var vault = new InternalVaultManager(db, _loggerFactory.CreateLogger<InternalVaultManager>());
+            IDeviceQuickUnlockStore quickUnlockStore = CreateQuickUnlockStore();
+            var vault = new InternalVaultManager(db, _loggerFactory.CreateLogger<InternalVaultManager>(), quickUnlockStore);
+            VaultQuickUnlockService quickUnlock = new(vault, quickUnlockStore, _loggerFactory.CreateLogger<VaultQuickUnlockService>());
             var settingsPath = Path.Combine(appDataDir, "settings.json");
             var settingsService = new JsonSettingsService(settingsPath);
             _systemContextMenus = new Services.ContextMenus.SystemContextMenuService(
@@ -154,6 +157,7 @@ public partial class App : Application
                 proxyRepo: proxyRepo,
                 portForwards: portForwards,
                 proxySecrets: vault);
+            mainVm.VaultSession.ConfigureQuickUnlock(quickUnlock);
             var identityMgrVm = new IdentityManagerViewModel(
                 identityRepo,
                 vault,
@@ -169,6 +173,7 @@ public partial class App : Application
                 () => mainVm.SnapshotSessionNodes(),
                 () => mainVm.SnapshotSessionTree(),
                 proxySecrets: vault);
+            settingsVm.ConfigureQuickUnlock(quickUnlock);
 
             var mainWindow = new MainWindow(deferStartupLayout: true)
             {
@@ -193,7 +198,7 @@ public partial class App : Application
             // 异步初始化延后到窗口赋值之后：续体经 Dispatcher 回 UI 线程，安全
             var schemaVersion = await SchemaMigrator.MigrateAsync(db);
             logger.LogInformation("数据库 Schema 版本={Version}", schemaVersion);
-            // 明文模式恒解锁；加密模式等待首次用到材料时懒解锁（OS Keyring 为二期）
+            // 加密模式保留懒解锁；启动时不主动弹出系统认证窗口。
             await vault.TryAutoUnlockAsync();
             await settingsService.LoadSettingsAsync();
             mainWindow.FinalizeStartupLayout();

@@ -749,6 +749,28 @@
                                                                Value="{Binding LockTimeoutMinutes}" Minimum="0" Maximum="120" FormatString="0"
                                                                ToolTip.Tip="{loc:KeiString Settings.Ssh.LockTimeoutTip}"/>
                                             </Grid>
+                                            <ContentControl Content="{Binding QuickUnlock}">
+                                                <ContentControl.ContentTemplate>
+                                                    <DataTemplate x:DataType="settings:VaultQuickUnlockSettingsViewModel">
+                                                        <StackPanel Spacing="8" Margin="0,4,0,0">
+                                                            <TextBlock Text="{loc:KeiString VaultQuickUnlock.Title}"
+                                                                       Foreground="{DynamicResource Kei.Text.Primary}" FontWeight="SemiBold"/>
+                                                            <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap" FontSize="12"
+                                                                       Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                                <Button x:Name="EnableQuickUnlockButton" Content="{Binding EnableButtonText}"
+                                                                        Command="{Binding EnableCommand}" IsVisible="{Binding ShowEnable}"/>
+                                                                <Button x:Name="DisableQuickUnlockButton" Content="{loc:KeiString VaultQuickUnlock.Disable}"
+                                                                        Command="{Binding DisableCommand}" IsVisible="{Binding IsEnabled}"/>
+                                                            </StackPanel>
+                                                            <TextBlock Text="{loc:KeiString VaultQuickUnlock.LocalOnlyHint}" TextWrapping="Wrap" FontSize="12"
+                                                                       Foreground="{DynamicResource Kei.Text.Muted}"/>
+                                                            <TextBlock Text="{Binding ErrorMessage}" IsVisible="{Binding HasError}" TextWrapping="Wrap" FontSize="12"
+                                                                       Foreground="{DynamicResource Kei.Status.Error}"/>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </ContentControl.ContentTemplate>
+                                            </ContentControl>
                                         </StackPanel>
                                     </Border>
                                 </StackPanel>

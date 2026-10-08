@@ -103,7 +103,8 @@ internal sealed class SettingsWindowInteractionService(Window owner, SettingsVie
 
     public Task<string?> PromptKeyboardInteractiveAsync(string prompt) => Task.FromResult<string?>(null);
 
-    public Task<string?> PromptMasterPasswordAsync(string? error) => Task.FromResult<string?>(null);
+    public Task<string?> PromptMasterPasswordAsync(string? error)
+        => MasterPasswordWindow.CreatePasswordConfirmationDialog(error).ShowDialog<string?>(DialogOwner);
 
     public Task<PassphrasePromptResult?> PromptPassphraseAsync(FilePrivateKeyMethod method)
         => Task.FromResult<PassphrasePromptResult?>(null);

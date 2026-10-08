@@ -1,0 +1,28 @@
+<Project>
+  <PropertyGroup>
+    <_KeiMacQuickUnlockSource>$(MSBuildThisFileDirectory)native/kei_quick_unlock.m</_KeiMacQuickUnlockSource>
+    <_KeiMacQuickUnlockDirectory>$(MSBuildProjectDirectory)/obj/$(Configuration)/$(TargetFramework)/$(RuntimeIdentifier)/kei-macos-quick-unlock</_KeiMacQuickUnlockDirectory>
+    <_KeiMacQuickUnlockLibrary>$(_KeiMacQuickUnlockDirectory)/libkei_quick_unlock.dylib</_KeiMacQuickUnlockLibrary>
+    <_KeiBuildMacQuickUnlock Condition="$([MSBuild]::IsOSPlatform('OSX')) and ('$(RuntimeIdentifier)' == '' or $([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('osx-')))">true</_KeiBuildMacQuickUnlock>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(_KeiBuildMacQuickUnlock)' == 'true'">
+    <Content Include="$(_KeiMacQuickUnlockLibrary)" Link="libkei_quick_unlock.dylib"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"
+             ExcludeFromSingleFile="true" />
+  </ItemGroup>
+
+  <!-- universal dylib 可同时用于 arm64/x64，也避免默认 dotnet run 缺少本机库。 -->
+  <Target Name="BuildKeiMacQuickUnlockNative" BeforeTargets="PrepareForBuild"
+          Condition="'$(_KeiBuildMacQuickUnlock)' == 'true'"
+          Inputs="$(_KeiMacQuickUnlockSource);$(MSBuildThisFileFullPath)"
+          Outputs="$(_KeiMacQuickUnlockLibrary)">
+    <MakeDir Directories="$(_KeiMacQuickUnlockDirectory)" />
+    <Exec Command="xcrun clang -arch arm64 -arch x86_64 -mmacosx-version-min=11.0 -fobjc-arc -fblocks -dynamiclib -O2 -Wall -Wextra -Werror -framework Foundation -framework LocalAuthentication -framework Security -install_name @rpath/libkei_quick_unlock.dylib &quot;$(_KeiMacQuickUnlockSource)&quot; -o &quot;$(_KeiMacQuickUnlockLibrary)&quot;" />
+  </Target>
+
+  <Target Name="RequireMacSdkForKeiQuickUnlock" BeforeTargets="PrepareForBuild"
+          Condition="!$([MSBuild]::IsOSPlatform('OSX')) and $([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('osx-'))">
+    <Error Text="macOS 本机快速解锁原生库需要 macOS SDK；请在安装 Xcode Command Line Tools 的 Mac 上发布 osx 目标。" />
+  </Target>
+</Project>

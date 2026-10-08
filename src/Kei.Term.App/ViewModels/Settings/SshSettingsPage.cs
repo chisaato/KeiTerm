@@ -18,6 +18,10 @@ public partial class SshSettingsPage : ViewModelBase
 
     public GeneralSettingsPage General { get; }
 
+    // 本机解锁独立于设置草稿；启用与停用直接写入系统凭据存储。
+    [ObservableProperty]
+    private VaultQuickUnlockSettingsViewModel? _quickUnlock;
+
     // 新会话默认 SSH 端口
     [ObservableProperty]
     private int _defaultPort = 22;

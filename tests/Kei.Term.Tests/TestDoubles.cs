@@ -25,6 +25,9 @@ internal sealed class ScriptedInteraction : IInteractionService
         => Task.FromResult(AssociationResults.Count > 0 ? AssociationResults.Dequeue() : null);
 
     public Queue<string?> MasterPasswords { get; } = new();
+    public Queue<VaultUnlockResponse> VaultResponses { get; } = new();
+    public List<VaultUnlockPrompt> VaultPrompts { get; } = [];
+    public Func<VaultUnlockPrompt, Task<VaultUnlockResponse>>? VaultPromptHandler { get; set; }
     public Queue<PassphrasePromptResult?> Passphrases { get; } = new();
     public Queue<AuthPromptResult?> AuthResults { get; } = new();
     public Queue<string?> KeyboardInteractiveAnswers { get; } = new();
@@ -41,6 +44,15 @@ internal sealed class ScriptedInteraction : IInteractionService
     {
         MasterPasswordPrompts++;
         return Task.FromResult(MasterPasswords.Count > 0 ? MasterPasswords.Dequeue() : null);
+    }
+
+    public async Task<VaultUnlockResponse> PromptVaultUnlockAsync(VaultUnlockPrompt prompt)
+    {
+        VaultPrompts.Add(prompt);
+        if (VaultPromptHandler != null) return await VaultPromptHandler(prompt);
+        if (VaultResponses.Count > 0) return VaultResponses.Dequeue();
+        string? password = await PromptMasterPasswordAsync(prompt.Error);
+        return password == null ? new(VaultUnlockKind.Cancelled) : new(VaultUnlockKind.Password, password);
     }
 
     public Task<PassphrasePromptResult?> PromptPassphraseAsync(FilePrivateKeyMethod method)

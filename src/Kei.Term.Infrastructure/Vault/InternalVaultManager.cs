@@ -16,7 +16,7 @@ using Kei.Term.Infrastructure.Storage.Schema;
 // （Microsoft.NETCore.App.Ref 10.0.2 的 System.Security.Cryptography）未提供任何
 // Argon2/Kryptos 类型，故一期以 PBKDF2-Rfc2898DeriveBytes(HMAC-SHA512, 600k 迭代,
 // salt 16B, 派生 32B) 替代，差异记入实现报告；盐与密钥长度与规格一致，未来可无损切换 KDF。
-public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IProxySecretStore
+public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IProxySecretStore, IQuickUnlockVault
 {
     // vault_metadata 键
     private const string KeyPlainMode = "plain_mode";
@@ -51,23 +51,33 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
     private string _kdfId = Pbkdf2Sha512Id;
     private byte[]? _mek;
     private bool _cleanupPending;
+    private readonly object _keyStateLock = new();
+    private long _lockVersion;
+    private readonly IDeviceQuickUnlockStore? _quickUnlockStore;
 
-    public InternalVaultManager(string connectionString, ILogger<InternalVaultManager>? logger = null)
-        : this(new SqliteConnectionFactory(connectionString), logger)
+    public InternalVaultManager(string connectionString, ILogger<InternalVaultManager>? logger = null, IDeviceQuickUnlockStore? quickUnlockStore = null)
+        : this(new SqliteConnectionFactory(connectionString), logger, quickUnlockStore)
     {
     }
 
-    public InternalVaultManager(SqliteConnectionFactory factory, ILogger<InternalVaultManager>? logger = null)
+    public InternalVaultManager(SqliteConnectionFactory factory, ILogger<InternalVaultManager>? logger = null, IDeviceQuickUnlockStore? quickUnlockStore = null)
     {
         _factory = factory;
         _logger = logger ?? NullLogger<InternalVaultManager>.Instance;
+        _quickUnlockStore = quickUnlockStore;
     }
 
     // 无主密码 = 明文模式；默认（未初始化）按明文处理
     public bool IsPlainMode => !_hasMasterPassword;
 
     // 明文模式恒解锁；加密模式需 MEK 存在
-    public bool IsUnlocked => !_hasMasterPassword || _mek != null;
+    public bool IsUnlocked
+    {
+        get
+        {
+            lock (_keyStateLock) return !_hasMasterPassword || _mek != null;
+        }
+    }
 
     private Task<SqliteConnection> CreateConnectionAsync(CancellationToken ct) => _factory.OpenAsync(ct);
 
@@ -130,6 +140,7 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
 
         await EnsureInitializedAsync(ct);
         EnsureUnlocked();
+        string? previousQuickUnlockId = CurrentQuickUnlockKeyId();
 
         using SqliteConnection conn = await CreateConnectionAsync(ct);
         await CompletePendingCleanupAsync(conn, ct);
@@ -172,12 +183,17 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
 
             // 提交已完成，先使内存与磁盘一致。即使后续清理失败，新密码仍能解锁和重试。
             committed = true;
-            if (_mek != null) CryptographicOperations.ZeroMemory(_mek);
-            _kdfSalt = salt;
-            _kdfId = Pbkdf2Sha512Id;
-            _mek = mek;
-            _hasMasterPassword = true;
+            lock (_keyStateLock)
+            {
+                if (_mek != null) CryptographicOperations.ZeroMemory(_mek);
+                _kdfSalt = salt;
+                _kdfId = Pbkdf2Sha512Id;
+                _mek = mek;
+                _hasMasterPassword = true;
+                _lockVersion++;
+            }
             _cleanupPending = true;
+            await RemovePreviousQuickUnlockAsync(previousQuickUnlockId);
             await CompletePendingCleanupAsync(conn, ct);
             _logger.LogInformation("设置主密码完成 重加密材料={Count} 项", reEncrypted);
         }
@@ -195,7 +211,7 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
             using SqliteConnection conn = await CreateConnectionAsync(ct);
             await CompletePendingCleanupAsync(conn, ct);
         }, ct);
-        // 明文模式恒可用；加密模式一期无 OS Keyring，返回 false 走懒解锁（Keyring 二期）
+        // 明文模式恒可用；加密模式走懒解锁，不在启动时自动发起系统认证。
         return !_hasMasterPassword;
     }
 
@@ -204,12 +220,14 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
 
     private async Task UnlockCoreAsync(string masterPassword, CancellationToken ct)
     {
+        long lockVersion;
+        lock (_keyStateLock) lockVersion = _lockVersion;
         await EnsureInitializedAsync(ct);
 
         if (!_hasMasterPassword)
         {
             // 明文模式无锁定语义
-            _mek = null;
+            lock (_keyStateLock) _mek = null;
             return;
         }
 
@@ -226,14 +244,28 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
             throw new InvalidOperationException("Vault 元数据缺失 verifier");
         }
 
-        var candidate = DeriveKey(_kdfId, masterPassword, _kdfSalt);
+        byte[] candidate = DeriveKey(_kdfId, masterPassword, _kdfSalt);
+        bool installed = false;
         try
         {
-            var plain = DecryptWithMek(candidate, Convert.FromBase64String(verifierB64));
-            if (!CryptographicOperations.FixedTimeEquals(plain, Encoding.UTF8.GetBytes(VerifierPlaintext)))
+            byte[] plain = DecryptWithMek(candidate, Convert.FromBase64String(verifierB64));
+            try
             {
-                _logger.LogWarning("Vault 解锁失败：主密码错误");
-                throw new UnauthorizedAccessException("主密码错误");
+                if (!CryptographicOperations.FixedTimeEquals(plain, Encoding.UTF8.GetBytes(VerifierPlaintext)))
+                {
+                    _logger.LogWarning("Vault 解锁失败：主密码错误");
+                    throw new UnauthorizedAccessException("主密码错误");
+                }
+            }
+            finally { CryptographicOperations.ZeroMemory(plain); }
+
+            ct.ThrowIfCancellationRequested();
+            lock (_keyStateLock)
+            {
+                if (lockVersion != _lockVersion) throw new OperationCanceledException("保管库已重新锁定。");
+                if (_mek != null) CryptographicOperations.ZeroMemory(_mek);
+                _mek = candidate;
+                installed = true;
             }
         }
         catch (CryptographicException)
@@ -242,22 +274,25 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
             _logger.LogWarning("Vault 解锁失败：主密码错误");
             throw new UnauthorizedAccessException("主密码错误");
         }
+        finally
+        {
+            if (!installed) CryptographicOperations.ZeroMemory(candidate);
+        }
 
-        _mek = candidate;
         using SqliteConnection conn = await CreateConnectionAsync(ct);
         await CompletePendingCleanupAsync(conn, ct);
         _logger.LogInformation("Vault 解锁成功");
-        // rememberOnThisDevice 为二期 OS Keyring 预留，一期忽略
+        // 保留旧参数的兼容性；本机快速解锁须通过独立的主密码确认流程启用。
     }
 
     public void Lock()
     {
-        if (_mek != null)
+        lock (_keyStateLock)
         {
-            CryptographicOperations.ZeroMemory(_mek);
+            _lockVersion++;
+            if (_mek != null) CryptographicOperations.ZeroMemory(_mek);
+            _mek = null;
         }
-
-        _mek = null;
     }
 
     public async Task<Dictionary<string, SecretPayload>> GetSecretsAsync(Guid identityId, CancellationToken ct = default)

@@ -1234,6 +1234,9 @@
   <data name="IdentityManager.LockVault" xml:space="preserve">
     <value>锁定保管库</value>
   </data>
+  <data name="IdentityManager.UnlockVault" xml:space="preserve">
+    <value>解锁保管库</value>
+  </data>
   <data name="IdentityManager.UserLabel" xml:space="preserve">
     <value>用户:</value>
   </data>
@@ -1392,13 +1395,31 @@
     <value>解锁保管库</value>
   </data>
   <data name="MasterPassword.Header" xml:space="preserve">
-    <value>请输入主密码</value>
+    <value>解锁保管库</value>
   </data>
-  <data name="MasterPassword.Placeholder" xml:space="preserve">
+  <data name="MasterPassword.Description" xml:space="preserve">
+    <value>验证身份后，继续使用已保存的连接凭据。</value>
+  </data>
+  <data name="MasterPassword.PasswordLabel" xml:space="preserve">
     <value>主密码</value>
   </data>
+  <data name="MasterPassword.Placeholder" xml:space="preserve">
+    <value>输入主密码</value>
+  </data>
   <data name="MasterPassword.Hint" xml:space="preserve">
-    <value>密钥材料受主密码保护，解锁后本次运行内有效。</value>
+    <value>锁定保管库后，需要再次验证。</value>
+  </data>
+  <data name="MasterPassword.Or" xml:space="preserve">
+    <value>或</value>
+  </data>
+  <data name="MasterPassword.ConfirmationTitle" xml:space="preserve">
+    <value>确认主密码</value>
+  </data>
+  <data name="MasterPassword.ConfirmationDescription" xml:space="preserve">
+    <value>启用本机快速解锁前，请验证主密码。</value>
+  </data>
+  <data name="MasterPassword.ConfirmationAction" xml:space="preserve">
+    <value>确认</value>
   </data>
   <data name="MasterPassword.Unlock" xml:space="preserve">
     <value>解锁</value>
@@ -2058,5 +2079,65 @@ Latin: AaBb CcDd GgYy gypq
   </data>
   <data name="Settings.FileTransfer.AssociationsSection" xml:space="preserve">
     <value>文件类型关联</value>
+  </data>
+  <data name="MasterPassword.QuickUnlock" xml:space="preserve">
+    <value>使用 {0} 解锁</value>
+  </data>
+  <data name="VaultQuickUnlock.Title" xml:space="preserve">
+    <value>本机快速解锁</value>
+  </data>
+  <data name="VaultQuickUnlock.DisplayName" xml:space="preserve">
+    <value>系统验证</value>
+  </data>
+  <data name="VaultQuickUnlock.Enable" xml:space="preserve">
+    <value>启用 {0}</value>
+  </data>
+  <data name="VaultQuickUnlock.Disable" xml:space="preserve">
+    <value>停用本机快速解锁</value>
+  </data>
+  <data name="VaultQuickUnlock.Checking" xml:space="preserve">
+    <value>正在检查本机验证状态…</value>
+  </data>
+  <data name="VaultQuickUnlock.Enabled" xml:space="preserve">
+    <value>已启用 {0}，可用于解锁保险库。</value>
+  </data>
+  <data name="VaultQuickUnlock.Disabled" xml:space="preserve">
+    <value>尚未启用 {0}，保险库仍使用主密码解锁。</value>
+  </data>
+  <data name="VaultQuickUnlock.Unsupported" xml:space="preserve">
+    <value>此平台不支持本机快速解锁，请使用主密码。</value>
+  </data>
+  <data name="VaultQuickUnlock.NeedsMasterPassword" xml:space="preserve">
+    <value>请先为保险库设置主密码，再启用本机快速解锁。</value>
+  </data>
+  <data name="VaultQuickUnlock.StatusUnavailable" xml:space="preserve">
+    <value>{0} 当前不可用。请检查系统验证设置，或使用主密码解锁。</value>
+  </data>
+  <data name="VaultQuickUnlock.LocalOnlyHint" xml:space="preserve">
+    <value>仅用于这台设备；启用与停用立即生效，不受设置窗口的应用或取消影响。主密码始终可用。</value>
+  </data>
+  <data name="VaultQuickUnlock.CheckFailed" xml:space="preserve">
+    <value>无法检查本机验证状态，请重新打开设置重试。主密码解锁仍然可用。</value>
+  </data>
+  <data name="VaultQuickUnlock.EnableFailed" xml:space="preserve">
+    <value>无法启用本机快速解锁，请确认主密码及系统验证设置后重试。</value>
+  </data>
+  <data name="VaultQuickUnlock.DisableFailed" xml:space="preserve">
+    <value>无法停用本机快速解锁，请重试。</value>
+  </data>
+  <data name="VaultQuickUnlock.EnablePrompt" xml:space="preserve">
+    <value>请输入主密码，以授权在这台设备上使用系统验证解锁保险库。</value>
+  </data>
+  <data name="VaultQuickUnlock.AuthenticateReason" xml:space="preserve">
+    <value>验证身份以解锁 KeiTerm 保险库</value>
+  </data>
+  <data name="VaultQuickUnlock.Failed" xml:space="preserve">
+    <value>本机验证失败，请使用主密码解锁。</value>
+  </data>
+  <data name="VaultQuickUnlock.Cancelled" xml:space="preserve">
+    <value>已取消本机验证。你仍可输入主密码解锁。</value>
+  </data>
+  <data name="VaultQuickUnlock.Unavailable" xml:space="preserve">
+    <value>本机验证当前不可用，请使用主密码解锁。</value>
   </data>
 </root>
