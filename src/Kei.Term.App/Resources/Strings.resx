@@ -1817,6 +1817,12 @@ Latin: AaBb CcDd GgYy gypq
   <data name="Menu.File.CloseTab" xml:space="preserve">
     <value>关闭标签页</value>
   </data>
+  <data name="Menu.File.CloseDocument" xml:space="preserve">
+    <value>关闭当前文档</value>
+  </data>
+  <data name="Terminal.CloseDocument" xml:space="preserve">
+    <value>关闭终端文档</value>
+  </data>
   <data name="Menu.File.ConnectSavedSession" xml:space="preserve">
     <value>连接已保存会话</value>
   </data>
@@ -1970,6 +1976,33 @@ Latin: AaBb CcDd GgYy gypq
   <data name="FileManager.OpenInTab" xml:space="preserve">
     <value>在新标签页中打开</value>
   </data>
+  <data name="FileManager.ShowShell" xml:space="preserve">
+    <value>显示终端</value>
+  </data>
+  <data name="FileActivity.Transfers" xml:space="preserve">
+    <value>传输队列</value>
+  </data>
+  <data name="FileActivity.TrackedFiles" xml:space="preserve">
+    <value>监视文件</value>
+  </data>
+  <data name="FileActivity.NoTransfers" xml:space="preserve">
+    <value>暂无传输任务</value>
+  </data>
+  <data name="FileActivity.NoTrackedFiles" xml:space="preserve">
+    <value>暂无监视文件</value>
+  </data>
+  <data name="FileActivity.Collapse" xml:space="preserve">
+    <value>收起文件活动面板</value>
+  </data>
+  <data name="FileActivity.Toggle" xml:space="preserve">
+    <value>展开/收起文件活动面板</value>
+  </data>
+  <data name="FileActivity.ExpandPanel" xml:space="preserve">
+    <value>展开面板</value>
+  </data>
+  <data name="FileActivity.CollapsePanel" xml:space="preserve">
+    <value>收起面板</value>
+  </data>
   <data name="FileManager.CloseSidebar" xml:space="preserve">
     <value>关闭侧栏</value>
   </data>
@@ -2058,5 +2091,89 @@ Latin: AaBb CcDd GgYy gypq
   </data>
   <data name="Settings.FileTransfer.AssociationsSection" xml:space="preserve">
     <value>文件类型关联</value>
+  </data>
+  <data name="TerminalThemeJsonImport.Open" xml:space="preserve">
+    <value>导入通用 JSON...</value>
+  </data>
+  <data name="TerminalThemeJsonImport.Edit" xml:space="preserve">
+    <value>JSON...</value>
+  </data>
+  <data name="TerminalThemeJsonImport.Title" xml:space="preserve">
+    <value>配色 JSON</value>
+  </data>
+  <data name="TerminalThemeJsonImport.Name" xml:space="preserve">
+    <value>配色名称</value>
+  </data>
+  <data name="TerminalThemeJsonImport.NamePlaceholder" xml:space="preserve">
+    <value>留空使用 JSON 中的 name</value>
+  </data>
+  <data name="TerminalThemeJsonImport.Prompt.Copy" xml:space="preserve">
+    <value>复制 LLM 辅助提示词</value>
+  </data>
+  <data name="TerminalThemeJsonImport.Prompt.Tooltip" xml:space="preserve">
+    <value>将提示词与已有配色文件交给 AI，再将生成的 JSON 粘贴到此处。</value>
+  </data>
+  <data name="TerminalThemeJsonImport.Prompt.Copied" xml:space="preserve">
+    <value>已复制提示词</value>
+  </data>
+  <data name="TerminalThemeJsonImport.Prompt.CopyFailed" xml:space="preserve">
+    <value>复制失败，请重试</value>
+  </data>
+  <data name="TerminalThemeJsonImport.JsonLabel" xml:space="preserve">
+    <value>配色 JSON</value>
+  </data>
+  <data name="TerminalThemeJsonImport.JsonPlaceholder" xml:space="preserve">
+    <value>在此粘贴 JSON...</value>
+  </data>
+  <data name="TerminalThemeJsonImport.Example" xml:space="preserve">
+    <value>载入示例</value>
+  </data>
+  <data name="TerminalThemeJsonImport.Format" xml:space="preserve">
+    <value>格式化</value>
+  </data>
+  <data name="TerminalThemeJsonImport.Validate" xml:space="preserve">
+    <value>校验</value>
+  </data>
+  <data name="TerminalThemeJsonImport.Validation.Valid" xml:space="preserve">
+    <value>校验通过：{0}</value>
+  </data>
+  <data name="TerminalThemeJsonImport.Validation.Invalid" xml:space="preserve">
+    <value>校验失败：{0} 处问题</value>
+  </data>
+  <data name="TerminalThemeJsonImport.Validation.Location" xml:space="preserve">
+    <value>第 {0} 行，第 {1} 字节</value>
+  </data>
+  <data name="TerminalThemeJsonImport.Error.EmptyInput" xml:space="preserve">
+    <value>请先输入 JSON。</value>
+  </data>
+  <data name="TerminalThemeJsonImport.Error.InputTooLarge" xml:space="preserve">
+    <value>JSON 不能超过 256 KiB，请仅保留配色信息。</value>
+  </data>
+  <data name="TerminalThemeJsonImport.Error.InvalidJson" xml:space="preserve">
+    <value>JSON 语法无效，请检查引号、逗号和括号。</value>
+  </data>
+  <data name="TerminalThemeJsonImport.Error.ExpectedObject" xml:space="preserve">
+    <value>此处必须是 JSON 对象。</value>
+  </data>
+  <data name="TerminalThemeJsonImport.Error.DuplicateProperty" xml:space="preserve">
+    <value>字段重复，请仅保留一个同名字段。</value>
+  </data>
+  <data name="TerminalThemeJsonImport.Error.UnknownProperty" xml:space="preserve">
+    <value>不支持此字段，请参考示例检查名称。</value>
+  </data>
+  <data name="TerminalThemeJsonImport.Error.MissingProperty" xml:space="preserve">
+    <value>缺少必填字段。</value>
+  </data>
+  <data name="TerminalThemeJsonImport.Error.UnsupportedSchemaVersion" xml:space="preserve">
+    <value>schemaVersion 必须为数字 1。</value>
+  </data>
+  <data name="TerminalThemeJsonImport.Error.InvalidName" xml:space="preserve">
+    <value>名称须为 1–120 个字符，且不能包含控制字符；顶部留空时使用 JSON 中的 name。</value>
+  </data>
+  <data name="TerminalThemeJsonImport.Error.InvalidColor" xml:space="preserve">
+    <value>色值须为 #RRGGBB 或 #AARRGGBB。</value>
+  </data>
+  <data name="TerminalThemeJsonImport.Error.InvalidAnsiColors" xml:space="preserve">
+    <value>ansi 须包含 16 个色值，按普通 8 色、明亮 8 色排列。</value>
   </data>
 </root>

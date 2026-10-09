@@ -198,6 +198,8 @@ public class TerminalFileManagerLifecycleTests
         public event EventHandler<LocalFileChangedEventArgs>? FileChanged { add { } remove { } }
         public event EventHandler<string>? FileUntracked { add { } remove { } }
         public string GetLocalCachePath(Guid sessionId, string remotePath) => remotePath;
+        public bool IsTracking(string localFilePath) => false;
+        public Task CheckForChangesAsync(string localFilePath, CancellationToken ct = default) => Task.CompletedTask;
         public Task RegisterTrackedFileAsync(Guid sessionId, string remotePath, string localFilePath, CancellationToken ct = default) => Task.CompletedTask;
         public Task UnregisterTrackedFileAsync(string localFilePath, CancellationToken ct = default) => Task.CompletedTask;
         public ValueTask DisposeAsync() { DisposeCount++; return ValueTask.CompletedTask; }

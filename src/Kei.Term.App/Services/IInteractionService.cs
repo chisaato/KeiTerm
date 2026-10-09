@@ -42,6 +42,12 @@ public interface IInteractionService
 
     Task<TerminalProfile?> EditTerminalProfileAsync(TerminalProfile? source, TerminalFontSnapshot font);
 
+    Task<TerminalProfile?> ImportTerminalThemeJsonAsync(TerminalFontSnapshot font)
+        => Task.FromResult<TerminalProfile?>(null);
+
+    Task<TerminalProfile?> EditTerminalThemeJsonAsync(TerminalProfile? source)
+        => Task.FromResult<TerminalProfile?>(null);
+
     Task<ExternalEditor?> EditExternalEditorAsync(ExternalEditor? existing)
         => Task.FromResult<ExternalEditor?>(null);
 
@@ -109,6 +115,9 @@ public sealed class NullInteractionService : IInteractionService
     public Task<FolderNode?> EditFolderAsync(FolderNode? existing, Guid? parentId) => Task.FromResult<FolderNode?>(null);
 
     public Task<TerminalProfile?> EditTerminalProfileAsync(TerminalProfile? source, TerminalFontSnapshot font)
+        => Task.FromResult<TerminalProfile?>(null);
+
+    public Task<TerminalProfile?> ImportTerminalThemeJsonAsync(TerminalFontSnapshot font)
         => Task.FromResult<TerminalProfile?>(null);
 
     public Task<string?> PickSecureCrtFolderAsync() => Task.FromResult<string?>(null);

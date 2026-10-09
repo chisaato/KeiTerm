@@ -137,6 +137,25 @@ public partial class SettingsViewModel
         }
     }
 
+    [RelayCommand]
+    private async Task ImportTerminalThemeJsonAsync()
+    {
+        if (IsBusy) return;
+        try
+        {
+            TerminalProfile? confirmed = await _interaction.ImportTerminalThemeJsonAsync(_appearance.DraftFontSnapshot);
+            if (confirmed == null || IsBusy) return;
+
+            // 与其他配色编辑器共用父设置事务：取消回滚、应用时落盘，字体草稿不受影响。
+            _profileManager.AddOrUpdateCustomTerminalProfile(confirmed.DeepCopy());
+            RefreshTerminalProfiles(confirmed.Id);
+        }
+        catch (Exception ex)
+        {
+            await NotifyAsync(Strings.Get("TerminalProfileEdit.Title"), ex.Message);
+        }
+    }
+
     private void RefreshTerminalProfiles(string selectedId)
     {
         _appearance.TerminalProfiles.Clear();

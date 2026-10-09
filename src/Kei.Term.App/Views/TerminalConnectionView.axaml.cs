@@ -103,8 +103,12 @@ public partial class TerminalConnectionView : UserControl
     private void OnFileManagerPropertyChanged(object? sender, PropertyChangedEventArgs args)
     {
         if (sender is TerminalTabViewModel tab
-            && args.PropertyName is nameof(TerminalTabViewModel.IsFileManagerVisible) or nameof(TerminalTabViewModel.IsFileManagerOnLeft))
+            && args.PropertyName is nameof(TerminalTabViewModel.IsFileManagerVisible) or nameof(TerminalTabViewModel.IsFileManagerOnLeft)
+                or nameof(TerminalTabViewModel.IsShellVisible))
+        {
             UpdateFileManagerLayout(tab);
+            QueueActiveDocumentFocus(tab);
+        }
     }
 
     private void UpdateFileManagerLayout(TerminalTabViewModel tab)
@@ -121,10 +125,10 @@ public partial class TerminalConnectionView : UserControl
         ApplyFileManagerColumns(visible || SftpHost.IsVisible);
         if (visible) SftpHost.IsVisible = true;
         SftpHost.IsHitTestVisible = visible;
-        FileManagerSplitter.IsVisible = visible || SftpHost.IsVisible;
-        FileManagerSplitter.IsHitTestVisible = visible;
+        FileManagerSplitter.IsVisible = tab.IsShellVisible && (visible || SftpHost.IsVisible);
+        FileManagerSplitter.IsHitTestVisible = tab.IsShellVisible && visible;
 
-        if (!visible && TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement() is Visual focus
+        if (!visible && tab.IsShellVisible && TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement() is Visual focus
             && (ReferenceEquals(focus, SftpHost) || focus.GetVisualAncestors().Contains(SftpHost)))
             tab.Terminal.Focus();
 
@@ -147,8 +151,9 @@ public partial class TerminalConnectionView : UserControl
 
     private void ApplyFileManagerColumns(bool presented)
     {
-        GridLength fileWidth = new(presented ? _lastFileManagerWidth : 0);
-        GridLength terminalWidth = new(1, GridUnitType.Star);
+        bool shellVisible = ResolveTab()?.IsShellVisible != false;
+        GridLength fileWidth = !shellVisible && presented ? new(1, GridUnitType.Star) : new(presented ? _lastFileManagerWidth : 0);
+        GridLength terminalWidth = shellVisible ? new(1, GridUnitType.Star) : new(0);
         ConnectionLayout.ColumnDefinitions[0].Width = _fileManagerPresentedOnLeft ? fileWidth : terminalWidth;
         ConnectionLayout.ColumnDefinitions[2].Width = _fileManagerPresentedOnLeft ? terminalWidth : fileWidth;
     }
@@ -249,12 +254,12 @@ public partial class TerminalConnectionView : UserControl
             return;
         }
 
-        ActivateFromContext();
+        ActivateFromContext(e.Source as Visual);
     }
 
-    private void OnGotFocus(object? sender, FocusChangedEventArgs e) => ActivateFromContext();
+    private void OnGotFocus(object? sender, FocusChangedEventArgs e) => ActivateFromContext(e.Source as Visual);
 
-    private void ActivateFromContext()
+    private void ActivateFromContext(Visual? source)
     {
         TerminalTabViewModel? tab = ResolveTab();
         if (tab == null)
@@ -262,10 +267,38 @@ public partial class TerminalConnectionView : UserControl
             return;
         }
 
+        // 记录内部文档；点击标题栏或文件列表也有效，不依赖编辑控件是否获得焦点。
+        if (source != null)
+        {
+            Visual[] ancestors = source.GetVisualAncestors().Prepend(source).ToArray();
+            if (tab.IsFileManagerVisible && ancestors.Contains(SftpHost)) tab.ActiveDocument = ConnectionDocumentKind.FileManager;
+            else if (tab.IsShellVisible && ancestors.Contains(ShellHost)) tab.ActiveDocument = ConnectionDocumentKind.Shell;
+        }
+
         this.FindAncestorOfType<TerminalWorkspaceView>()?.ActivateConnection(tab);
         if (this.FindAncestorOfType<MainWindow>()?.DataContext is MainViewModel mainVm)
         {
             mainVm.SelectTabCommand.Execute(tab);
         }
+    }
+
+    public void FocusActiveDocument()
+    {
+        if (ResolveTab() is not { } tab) return;
+        if (tab.ActiveDocument == ConnectionDocumentKind.FileManager && tab.IsFileManagerVisible)
+            SftpHost.GetVisualDescendants().OfType<RemoteFileManagerView>().FirstOrDefault()?
+                .FindControl<TextBox>("FileManagerPathInput")?.Focus();
+        else if (tab.IsShellVisible) tab.Terminal.Focus();
+    }
+
+    private void QueueActiveDocumentFocus(TerminalTabViewModel tab)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            bool active = this.FindAncestorOfType<MainWindow>()?.DataContext is MainViewModel model
+                ? ReferenceEquals(model.ActiveWorkspaceTab, tab) : tab.IsSelected;
+            if (ReferenceEquals(_fileManagerTab, tab) && active && TopLevel.GetTopLevel(this) != null)
+                FocusActiveDocument();
+        }, DispatcherPriority.Background);
     }
 }

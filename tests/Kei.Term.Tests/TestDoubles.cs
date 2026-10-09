@@ -81,6 +81,11 @@ internal sealed class ScriptedInteraction : IInteractionService
     public Task<TerminalProfile?> EditTerminalProfileAsync(TerminalProfile? source, TerminalFontSnapshot font)
         => Task.FromResult<TerminalProfile?>(null);
 
+    public Queue<TerminalProfile?> TerminalThemeJsonResults { get; } = new();
+
+    public Task<TerminalProfile?> ImportTerminalThemeJsonAsync(TerminalFontSnapshot font)
+        => Task.FromResult(TerminalThemeJsonResults.Count > 0 ? TerminalThemeJsonResults.Dequeue() : null);
+
     public Task<string?> PickSecureCrtFolderAsync() => Task.FromResult<string?>(null);
 
     public Task<string?> PickKonsoleSchemeFileAsync() => Task.FromResult<string?>(null);

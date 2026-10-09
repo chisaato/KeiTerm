@@ -9,7 +9,19 @@ public partial class MainViewModel
     // 通用文档释放通知只用于在移除 Dock 文档前清理其视图缓存。
     public event Action<ViewModelBase>? WorkspaceItemReleasing;
 
-    public bool IsTerminalWorkspaceActive => ActiveWorkspaceTab is TerminalTabViewModel;
+    public bool IsTerminalWorkspaceActive => ActiveWorkspaceTab is TerminalTabViewModel { IsShellVisible: true };
+
+    private void OnFileManagerShellRequested(object recipient, FileManagerShellRequestedMessage message) => _uiDispatch(() =>
+    {
+        if (_disposed != 0) return;
+        TerminalTabViewModel? owner = Tabs.FirstOrDefault(tab => ReferenceEquals(tab.FileManager, message.FileManager));
+        if (owner == null || owner.IsDisposed) return;
+        // 恢复原连接的文档和终端缓冲；独立文件标签请求时回到它所属的终端标签。
+        owner.ActiveDocument = ConnectionDocumentKind.Shell;
+        owner.IsShellVisible = true;
+        Workspace.Activate(owner);
+        owner.Terminal.Focus();
+    });
 
     private void OnFileManagerTabRequested(object recipient, FileManagerTabRequestedMessage message) => _uiDispatch(() =>
     {
