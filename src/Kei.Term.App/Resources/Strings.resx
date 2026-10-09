@@ -1817,6 +1817,12 @@ Latin: AaBb CcDd GgYy gypq
   <data name="Menu.File.CloseTab" xml:space="preserve">
     <value>关闭标签页</value>
   </data>
+  <data name="Menu.File.CloseDocument" xml:space="preserve">
+    <value>关闭当前文档</value>
+  </data>
+  <data name="Terminal.CloseDocument" xml:space="preserve">
+    <value>关闭终端文档</value>
+  </data>
   <data name="Menu.File.ConnectSavedSession" xml:space="preserve">
     <value>连接已保存会话</value>
   </data>
@@ -1969,6 +1975,33 @@ Latin: AaBb CcDd GgYy gypq
   </data>
   <data name="FileManager.OpenInTab" xml:space="preserve">
     <value>在新标签页中打开</value>
+  </data>
+  <data name="FileManager.ShowShell" xml:space="preserve">
+    <value>显示终端</value>
+  </data>
+  <data name="FileActivity.Transfers" xml:space="preserve">
+    <value>传输队列</value>
+  </data>
+  <data name="FileActivity.TrackedFiles" xml:space="preserve">
+    <value>监视文件</value>
+  </data>
+  <data name="FileActivity.NoTransfers" xml:space="preserve">
+    <value>暂无传输任务</value>
+  </data>
+  <data name="FileActivity.NoTrackedFiles" xml:space="preserve">
+    <value>暂无监视文件</value>
+  </data>
+  <data name="FileActivity.Collapse" xml:space="preserve">
+    <value>收起文件活动面板</value>
+  </data>
+  <data name="FileActivity.Toggle" xml:space="preserve">
+    <value>展开/收起文件活动面板</value>
+  </data>
+  <data name="FileActivity.ExpandPanel" xml:space="preserve">
+    <value>展开面板</value>
+  </data>
+  <data name="FileActivity.CollapsePanel" xml:space="preserve">
+    <value>收起面板</value>
   </data>
   <data name="FileManager.CloseSidebar" xml:space="preserve">
     <value>关闭侧栏</value>

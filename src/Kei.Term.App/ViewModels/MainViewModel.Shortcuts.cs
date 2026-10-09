@@ -37,7 +37,7 @@ public partial class MainViewModel
             items.Add(new(Strings.Get("Menu.Tools.Settings"), Strings.Get("CommandPalette.SettingsDescription"), "", PaletteAction.Settings));
             items.Add(new(Strings.Get(IsSessionManagerPinned ? "CommandPalette.UnpinSessionManager" : "CommandPalette.PinSessionManager"), "", "", PaletteAction.ToggleSessionManager));
             if (ActiveWorkspaceTab != null)
-                items.Add(new(Strings.Get("Menu.File.CloseTab"), "", AppShortcuts.Label(AppShortcuts.CloseTab), PaletteAction.CloseTab));
+                items.Add(new(Strings.Get("Menu.File.CloseDocument"), "", AppShortcuts.Label(AppShortcuts.CloseTab), PaletteAction.CloseTab));
             // 启动页和空工作区没有终端，不能显示只会改变隐藏状态的终端操作。
             if (SelectedTab is { IsDisposed: false } terminal)
             {

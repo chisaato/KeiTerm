@@ -75,6 +75,7 @@ public partial class MainViewModel
         ViewModelBase? tab = ActiveWorkspaceTab ?? WorkspaceTabs.LastOrDefault();
         if (tab != null)
         {
+            if (tab is TerminalTabViewModel terminal && terminal.CloseActiveDocument()) return;
             // 本次只关闭标签；最后一页关闭后由空工作区显示欢迎页。
             await CloseWorkspaceTabCommand.ExecuteAsync(tab);
             return;
@@ -82,6 +83,20 @@ public partial class MainViewModel
 
         await Interaction.CloseWindowAsync();
     }
+
+    private void OnConnectionDocumentsChanged(object recipient, ConnectionDocumentsChangedMessage message) => _uiDispatch(() =>
+    {
+        if (_disposed != 0 || !Tabs.Contains(message.Tab)) return;
+        if (ReferenceEquals(ActiveWorkspaceTab, message.Tab))
+        {
+            OnPropertyChanged(nameof(IsTerminalWorkspaceActive));
+            OpenTerminalFindCommand.NotifyCanExecuteChanged();
+            ToggleComposeBarCommand.NotifyCanExecuteChanged();
+            SendComposeCommand.NotifyCanExecuteChanged();
+        }
+        if (message.CloseEmptyTab && !message.Tab.HasOpenDocuments)
+            _ = CloseTabCommand.ExecuteAsync(message.Tab);
+    });
 
     private void OnWorkspaceItemsChanged(object? sender, NotifyCollectionChangedEventArgs args)
         => HasTabs = WorkspaceTabs.Count > 0;

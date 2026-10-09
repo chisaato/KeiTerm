@@ -1,10 +1,10 @@
 namespace Kei.Term.App.Services;
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -16,12 +16,17 @@ using Kei.Term.Core.Settings;
 using Kei.Term.Core.Storage;
 
 // 外部默认编辑器唤醒器与回写同步调度器
-public class FileEditorLauncher
+public class FileEditorLauncher : IAsyncDisposable
 {
     private readonly ILocalFileTracker _tracker;
     private readonly ISettingsService? _settingsService;
     private readonly IExternalEditorRepository? _editorRepo;
     private readonly ILogger _logger;
+    private readonly Lock _waitLock = new();
+    private readonly Dictionary<string, CancellationTokenSource> _waits = new(StringComparer.Ordinal);
+    private readonly HashSet<Task> _waitTasks = [];
+    private bool _disposed;
+    private Task? _disposeTask;
 
     public FileEditorLauncher(
         ILocalFileTracker tracker,
@@ -33,6 +38,7 @@ public class FileEditorLauncher
         _settingsService = settingsService;
         _editorRepo = editorRepo;
         _logger = logger ?? NullLogger.Instance;
+        _tracker.FileUntracked += OnFileUntracked;
     }
 
     public async Task OpenAndTrackAsync(
@@ -41,121 +47,166 @@ public class FileEditorLauncher
         IRemoteFileSystem fileSystem,
         ExternalEditor? overrideEditor = null,
         string? directExecutablePath = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        bool useSystemDefault = false)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         string localPath = _tracker.GetLocalCachePath(sessionId, remoteFile.FullPath);
-
-        // 如果本地文件不存在或需要刷新，先下载到本地
-        _logger.LogInformation("Downloading remote file for local editing: {RemotePath} -> {LocalPath}", remoteFile.FullPath, localPath);
-        await using (var remoteStream = await fileSystem.OpenReadAsync(remoteFile.FullPath, ct))
-        await using (var localStream = new FileStream(localPath, FileMode.Create, FileAccess.Write, FileShare.None))
-        {
-            await remoteStream.CopyToAsync(localStream, ct);
-        }
-
-        // 校验是否为二进制文件
-        if (IsBinaryFile(localPath))
-        {
-            try { File.Delete(localPath); } catch { }
-            throw new InvalidOperationException($"文件 \"{remoteFile.Name}\" 检测为二进制文件，已阻止外部文本编辑器打开。");
-        }
-
-        // 注册到文件监视引擎
-        await _tracker.RegisterTrackedFileAsync(sessionId, remoteFile.FullPath, localPath, ct);
-
-        // 决策使用哪种方式打开：
-        Process? process = null;
-        // 1. 指定了临时运行的可执行文件路径
-        if (!string.IsNullOrWhiteSpace(directExecutablePath))
-        {
-            _logger.LogInformation("Launching with directExecutablePath: {ExecutablePath}", directExecutablePath);
-            process = LaunchEditor(localPath, directExecutablePath, "\"{path}\"");
-            LogLaunchedProcess(process, localPath);
-            return;
-        }
-
-        // 2. 指定了特定的逻辑 ExternalEditor
-        if (overrideEditor != null)
-        {
-            _logger.LogInformation("Launching with overrideEditor: {EditorName}", overrideEditor.Name);
-            process = LaunchWithEditor(localPath, overrideEditor);
-            LogLaunchedProcess(process, localPath);
-            return;
-        }
-
-        // 3. 检查文件后缀规则匹配
-        if (_editorRepo != null)
-        {
-            var rules = await _editorRepo.GetAllAssociationsAsync(ct);
-            var matchedEditorId = FileAssociationResolver.ResolveEditorId(remoteFile.Name, rules);
-            if (matchedEditorId.HasValue)
-            {
-                var matchedEditor = await _editorRepo.GetEditorByIdAsync(matchedEditorId.Value, ct);
-                if (matchedEditor != null)
-                {
-                    _logger.LogInformation("Launching with matched rule editor: {EditorName}", matchedEditor.Name);
-                    process = LaunchWithEditor(localPath, matchedEditor);
-                    LogLaunchedProcess(process, localPath);
-                    return;
-                }
-            }
-
-            // 4. 检查是否有标记为默认的逻辑 ExternalEditor
-            var allEditors = await _editorRepo.GetAllEditorsAsync(ct);
-            var defaultEditor = allEditors.FirstOrDefault(e => e.IsDefault);
-            if (defaultEditor != null)
-            {
-                _logger.LogInformation("Launching with default editor: {EditorName}", defaultEditor.Name);
-                process = LaunchWithEditor(localPath, defaultEditor);
-                LogLaunchedProcess(process, localPath);
-                return;
-            }
-        }
-
-        // 5. 兜底回退：用户配置的 CustomEditorPath 或系统默认程序
-        string? customEditor = _settingsService?.Current.FileTransfer.CustomEditorPath;
-        _logger.LogInformation("Launching with fallback customEditor: {CustomEditor}", customEditor);
-        process = LaunchEditor(localPath, customEditor);
-        LogLaunchedProcess(process, localPath);
-    }
-
-    private void LogLaunchedProcess(Process? process, string localPath)
-    {
-        if (process == null)
-        {
-            _logger.LogInformation("Editor process returned null (e.g. launched via Shell/xdg-open)");
-            return;
-        }
-
+        bool alreadyTracked = _tracker.IsTracking(localPath);
+        ProcessStartInfo startInfo = useSystemDefault ? CreateDefaultEditorStartInfo(localPath)
+            : await ResolveStartInfoAsync(localPath, remoteFile.Name, overrideEditor, directExecutablePath, ct);
+        CancelEditorWait(localPath);
         try
         {
-            _logger.LogInformation("Editor process started: Id={ProcessId}, Name={ProcessName}, HasExited={HasExited}, File={LocalPath}",
-                process.Id, process.ProcessName, process.HasExited, localPath);
+            // 再次打开正在编辑的文件时保留本地修改，不能从远端覆盖缓存。
+            if (!alreadyTracked)
+            {
+                _logger.LogInformation("Downloading remote file for local editing: Session={SessionId}, {RemotePath} -> {LocalPath}", sessionId, remoteFile.FullPath, localPath);
+                await using (Stream remoteStream = await fileSystem.OpenReadAsync(remoteFile.FullPath, ct))
+                await using (FileStream localStream = new(localPath, FileMode.Create, FileAccess.Write, FileShare.None))
+                {
+                    await remoteStream.CopyToAsync(localStream, ct);
+                }
+                if (IsBinaryFile(localPath))
+                {
+                    File.Delete(localPath);
+                    throw new InvalidOperationException($"文件 \"{remoteFile.Name}\" 检测为二进制文件，已阻止外部文本编辑器打开。");
+                }
+                await _tracker.RegisterTrackedFileAsync(sessionId, remoteFile.FullPath, localPath, ct);
+            }
+            else _logger.LogInformation("Reopening tracked local cache: {LocalPath}", localPath);
 
-            // open / xdg-open 和单实例编辑器的启动进程可提前退出。
-            // 文件监视由用户显式停止或会话释放结束，不能用进程退出推断编辑完成。
+            StartAndObserveEditor(startInfo, localPath);
         }
+        catch
+        {
+            if (!alreadyTracked && _tracker.IsTracking(localPath))
+                await _tracker.UnregisterTrackedFileAsync(localPath, CancellationToken.None);
+            throw;
+        }
+    }
+
+    private async Task<ProcessStartInfo> ResolveStartInfoAsync(string localPath, string fileName,
+        ExternalEditor? overrideEditor, string? directExecutablePath, CancellationToken ct)
+    {
+        if (!string.IsNullOrWhiteSpace(directExecutablePath))
+            return CreateEditorStartInfo(localPath, directExecutablePath);
+        ExternalEditor? editor = overrideEditor;
+        if (editor == null && _editorRepo != null)
+        {
+            var rules = await _editorRepo.GetAllAssociationsAsync(ct);
+            Guid? editorId = FileAssociationResolver.ResolveEditorId(fileName, rules);
+            if (editorId.HasValue) editor = await _editorRepo.GetEditorByIdAsync(editorId.Value, ct);
+            editor ??= (await _editorRepo.GetAllEditorsAsync(ct)).FirstOrDefault(e => e.IsDefault);
+        }
+        if (editor != null)
+        {
+            string? executable = editor.GetEffectivePath(PlatformHelper.CurrentOs);
+            if (string.IsNullOrWhiteSpace(executable))
+                throw new InvalidOperationException($"编辑器 \"{editor.Name}\" 未在操作系统 [{PlatformHelper.CurrentOs}] 上配置有效路径或通用命令。");
+            return CreateEditorStartInfo(localPath, executable, editor.ArgumentsTemplate);
+        }
+        string? customEditor = _settingsService?.Current.FileTransfer.CustomEditorPath;
+        return string.IsNullOrWhiteSpace(customEditor)
+            ? CreateDefaultEditorStartInfo(localPath) : CreateEditorStartInfo(localPath, customEditor);
+    }
+
+    private void StartAndObserveEditor(ProcessStartInfo startInfo, string localPath)
+    {
+        bool waitsForClose = WaitsForEditorClose(startInfo);
+        _logger.LogInformation("Launching editor: Executable={Executable}, WaitForClose={WaitForClose}, File={LocalPath}",
+            startInfo.FileName, waitsForClose, localPath);
+        Process? process = Process.Start(startInfo);
+        if (process == null)
+        {
+            _logger.LogInformation("Editor launch returned no process; monitoring requires manual stop: {LocalPath}", localPath);
+            return;
+        }
+        _logger.LogInformation("Editor process started: ProcessId={ProcessId}, WaitForClose={WaitForClose}, File={LocalPath}",
+            process.Id, waitsForClose, localPath);
+        if (!waitsForClose)
+        {
+            _logger.LogInformation("Editor launcher has no reliable close signal; monitoring requires manual stop: {LocalPath}", localPath);
+            process.Dispose();
+            return;
+        }
+        lock (_waitLock)
+        {
+            if (_disposed) { process.Dispose(); return; }
+            if (_waits.Remove(localPath, out CancellationTokenSource? previous)) previous.Cancel();
+            CancellationTokenSource cancellation = new();
+            _waits[localPath] = cancellation;
+            Task task = Task.Run(() => ObserveEditorExitAsync(process, localPath, cancellation));
+            _waitTasks.Add(task);
+            _ = RemoveWaitTaskAsync(task);
+        }
+    }
+
+    private async Task ObserveEditorExitAsync(Process process, string localPath, CancellationTokenSource cancellation)
+    {
+        try
+        {
+            _logger.LogInformation("Waiting for editor close: ProcessId={ProcessId}, File={LocalPath}", process.Id, localPath);
+            await process.WaitForExitAsync(cancellation.Token).ConfigureAwait(false);
+            _logger.LogInformation("Editor wait returned: ExitCode={ExitCode}, File={LocalPath}", process.ExitCode, localPath);
+            if (process.ExitCode != 0)
+            {
+                _logger.LogWarning("Editor wait failed; keeping monitoring and cache: {LocalPath}", localPath);
+                return;
+            }
+            await _tracker.CheckForChangesAsync(localPath, cancellation.Token).ConfigureAwait(false);
+            cancellation.Token.ThrowIfCancellationRequested();
+            // 检查事件已排队回写，保留缓存供最后一次提交及失败恢复使用。
+            await _tracker.UnregisterTrackedFileAsync(localPath, cancellation.Token).ConfigureAwait(false);
+            _logger.LogInformation("Editor closed; monitoring stopped, cache preserved: {LocalPath}", localPath);
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
         catch (Exception ex)
         {
-            _logger.LogInformation("Editor process started, but cannot query info: {Message}", ex.Message);
+            _logger.LogWarning(ex, "Editor close check failed; preserving cache: {LocalPath}", localPath);
         }
         finally
         {
-            // 仅释放本地进程句柄，不终止外部编辑器。
+            lock (_waitLock)
+            {
+                if (_waits.TryGetValue(localPath, out CancellationTokenSource? current) && ReferenceEquals(current, cancellation))
+                    _waits.Remove(localPath);
+            }
             process.Dispose();
+            cancellation.Dispose();
         }
     }
 
-    private Process? LaunchWithEditor(string localPath, ExternalEditor editor)
+    private async Task RemoveWaitTaskAsync(Task task)
     {
-        string currentOs = PlatformHelper.CurrentOs;
-        string? execPath = editor.GetEffectivePath(currentOs);
-        if (string.IsNullOrWhiteSpace(execPath))
-        {
-            throw new InvalidOperationException($"编辑器 \"{editor.Name}\" 未在操作系统 [{currentOs}] 上配置有效路径或通用命令。");
-        }
+        await task.ConfigureAwait(false);
+        lock (_waitLock) _waitTasks.Remove(task);
+    }
 
-        return LaunchEditor(localPath, execPath, editor.ArgumentsTemplate);
+    private void OnFileUntracked(object? sender, string localPath)
+        => CancelEditorWait(localPath);
+
+    private void CancelEditorWait(string localPath)
+    {
+        lock (_waitLock)
+        {
+            if (_waits.TryGetValue(localPath, out CancellationTokenSource? cancellation)) cancellation.Cancel();
+        }
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        Task[] pending;
+        lock (_waitLock)
+        {
+            if (_disposeTask != null) return new ValueTask(_disposeTask);
+            _disposed = true;
+            _tracker.FileUntracked -= OnFileUntracked;
+            foreach (CancellationTokenSource cancellation in _waits.Values) cancellation.Cancel();
+            pending = _waitTasks.ToArray();
+            _disposeTask = Task.WhenAll(pending);
+            return new ValueTask(_disposeTask);
+        }
     }
 
     // 探测文件前 8KB 是否包含零字节或高比例控制字符，以此判定是否为二进制文件
@@ -212,7 +263,9 @@ public class FileEditorLauncher
         if (OperatingSystem.IsMacOS() && customEditor.EndsWith(".app", StringComparison.OrdinalIgnoreCase))
         {
             // VS Code 的 CLI 能等待当前文件关闭，避免启动应用后立即停止回写监视。
-            string bundledCode = Path.Combine(customEditor, "Contents", "Resources", "app", "bin", "code");
+            string bundledBin = Path.Combine(customEditor, "Contents", "Resources", "app", "bin");
+            string bundledCode = Path.Combine(bundledBin, "code");
+            if (!File.Exists(bundledCode)) bundledCode = Path.Combine(bundledBin, "code-insiders");
             if (File.Exists(bundledCode)) customEditor = bundledCode;
             else
             {
@@ -232,14 +285,14 @@ public class FileEditorLauncher
         }
 
         string args = template;
-        if (string.Equals(customEditor, "code", StringComparison.OrdinalIgnoreCase)
-            || customEditor.EndsWith("/code", StringComparison.OrdinalIgnoreCase)
-            || customEditor.EndsWith("\\code.exe", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(customEditor, "subl", StringComparison.OrdinalIgnoreCase)
-            || customEditor.EndsWith("/subl", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(customEditor, "kate", StringComparison.OrdinalIgnoreCase))
+        if (IsWaitCapableEditor(customEditor))
         {
             if (!args.Split(' ', StringSplitOptions.RemoveEmptyEntries).Any(a => a is "-w" or "--wait")) args = "--wait " + args;
+        }
+        if (OperatingSystem.IsWindows() && TryCreateWindowsCodeCli(customEditor, out ProcessStartInfo? codeCli))
+        {
+            codeCli.Arguments += " " + args.Replace("{path}", filePath);
+            return codeCli;
         }
         return new ProcessStartInfo(customEditor)
         {
@@ -248,23 +301,60 @@ public class FileEditorLauncher
         };
     }
 
-    public static Process? LaunchDefaultEditor(string filePath)
+    private static bool TryCreateWindowsCodeCli(string command, out ProcessStartInfo info)
     {
-        try
+        info = null!;
+        string name = Path.GetFileName(command).ToLowerInvariant();
+        if (name is not ("code" or "code.cmd" or "code.exe" or "code-insiders" or "code-insiders.cmd" or "code - insiders.exe")) return false;
+        string? resolved = File.Exists(command) ? Path.GetFullPath(command) : null;
+        if (resolved == null && Path.GetDirectoryName(command) is "" or null)
         {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            foreach (string directory in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator))
             {
-                return Process.Start(new ProcessStartInfo(filePath) { UseShellExecute = true });
-            }
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-            {
-                return Process.Start("xdg-open", $"\"{filePath}\"");
-            }
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            {
-                return Process.Start("open", $"\"{filePath}\"");
+                string candidate = Path.Combine(directory.Trim('"'), name.EndsWith(".cmd") || name.EndsWith(".exe") ? name : name + ".cmd");
+                if (File.Exists(candidate)) { resolved = candidate; break; }
             }
         }
+        if (resolved == null) return false;
+        string? root = Path.GetDirectoryName(resolved);
+        if (resolved.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase)) root = Path.GetDirectoryName(root);
+        if (root == null) return false;
+        string executable = resolved.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? resolved
+            : Path.Combine(root, name.Contains("insiders", StringComparison.Ordinal) ? "Code - Insiders.exe" : "Code.exe");
+        string script = Path.Combine(root, "resources", "app", "out", "cli.js");
+        if (!File.Exists(executable) || !File.Exists(script)) return false;
+
+        // 与官方 code.cmd 等价，直接运行 CLI 保留 --wait 的进程生命周期。
+        info = new(executable) { Arguments = $"\"{script}\"", UseShellExecute = false };
+        info.Environment["ELECTRON_RUN_AS_NODE"] = "1";
+        info.Environment.Remove("VSCODE_DEV");
+        return true;
+    }
+
+    private static bool IsWaitCapableEditor(string executable)
+    {
+        string name = executable.Replace('\\', '/').Split('/').Last().ToLowerInvariant();
+        return name is "code" or "code.exe" or "code.cmd" or "code-insiders" or "code-insiders.exe" or "code-insiders.cmd" or "code - insiders.exe"
+            or "subl" or "subl.exe" or "kate" or "kate.exe";
+    }
+
+    private static bool WaitsForEditorClose(ProcessStartInfo startInfo)
+        => (IsWaitCapableEditor(startInfo.FileName)
+            && startInfo.Arguments.Split(' ', StringSplitOptions.RemoveEmptyEntries).Any(a => a is "-w" or "--wait"))
+            || (startInfo.FileName == "/usr/bin/open" && (startInfo.ArgumentList.Contains("-W") || startInfo.Arguments.StartsWith("-W ", StringComparison.Ordinal)));
+
+    public static ProcessStartInfo CreateDefaultEditorStartInfo(string filePath)
+    {
+        if (OperatingSystem.IsWindows()) return new(filePath) { UseShellExecute = true };
+        ProcessStartInfo info = new(OperatingSystem.IsMacOS() ? "/usr/bin/open" : "xdg-open") { UseShellExecute = false };
+        if (OperatingSystem.IsMacOS()) info.ArgumentList.Add("-W");
+        info.ArgumentList.Add(filePath);
+        return info;
+    }
+
+    public static Process? LaunchDefaultEditor(string filePath)
+    {
+        try { return Process.Start(CreateDefaultEditorStartInfo(filePath)); }
         catch (Exception ex)
         {
             // 降级使用普通 ProcessStartInfo
@@ -282,7 +372,5 @@ public class FileEditorLauncher
                 throw new InvalidOperationException($"无法调用系统默认程序打开文件: {filePath}，原因: {ex.Message}", ex);
             }
         }
-
-        return null;
     }
 }

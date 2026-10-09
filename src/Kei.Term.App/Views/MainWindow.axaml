@@ -145,7 +145,7 @@
                 <NativeMenuItem.Menu>
                     <NativeMenu>
                         <NativeMenuItem Header="{loc:KeiString Menu.File.NewTab}" Command="{Binding NewTabCommand}"/>
-                        <NativeMenuItem Header="{loc:KeiString Menu.File.CloseTab}" Command="{Binding CloseCurrentWorkspaceTabCommand}"/>
+                        <NativeMenuItem Header="{loc:KeiString Menu.File.CloseDocument}" Command="{Binding CloseCurrentWorkspaceTabCommand}"/>
                         <NativeMenuItem Header="{loc:KeiString Menu.File.ConnectSavedSession}" Command="{Binding ConnectSavedSessionCommand}"/>
                         <NativeMenuItem Header="{loc:KeiString Menu.File.QuickConnect}" Command="{Binding QuickConnectCommand}"/>
                         <NativeMenuItemSeparator/>

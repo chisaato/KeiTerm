@@ -20,6 +20,7 @@ public partial class MainWindow
     {
         _editCommands = new FocusedEditCommands(this, SessionTree, GetTreeEditCommand);
         AddHandler(KeyDownEvent, OnTreeEditKeyDown, RoutingStrategies.Tunnel);
+        AddHandler(KeyDownEvent, OnDocumentCloseKeyDown, RoutingStrategies.Tunnel);
         Closed += OnEditCommandsClosed;
         ApplyEditMenus();
     }
@@ -124,11 +125,21 @@ public partial class MainWindow
         _editCommands?.Refresh();
     }
 
+    private void OnDocumentCloseKeyDown(object? sender, KeyEventArgs args)
+    {
+        if (!AppShortcuts.CloseTab.Matches(args) || DataContext is not MainViewModel model) return;
+        // 在终端处理 Ctrl+W 前拦截，保证此手势关闭文档，不作为输入发送给远端。
+        args.Handled = true;
+        if (model.CloseCurrentWorkspaceTabCommand.CanExecute(null))
+            model.CloseCurrentWorkspaceTabCommand.Execute(null);
+    }
+
     private void OnEditCommandsClosed(object? sender, EventArgs args)
     {
         foreach (NativeMenu menu in _editMenus) menu.NeedsUpdate -= OnEditMenuNeedsUpdate;
         _editMenus.Clear();
         RemoveHandler(KeyDownEvent, OnTreeEditKeyDown);
+        RemoveHandler(KeyDownEvent, OnDocumentCloseKeyDown);
         _editCommands?.Dispose();
         Closed -= OnEditCommandsClosed;
     }

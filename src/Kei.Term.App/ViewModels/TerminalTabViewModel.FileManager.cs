@@ -55,7 +55,7 @@ public partial class TerminalTabViewModel
             manager = new(session.SessionId, fileSystem, fileTracker, settingsService, editorRepo, logger ?? _logger);
             manager.CloseRequested += () =>
             {
-                IsFileManagerVisible = false;
+                CloseFileManagerDocument();
                 Dispatcher.UIThread.Post(() => TrySyncTerminalSize(), DispatcherPriority.Render);
             };
             manager.ToggleDockPositionRequested += ToggleDockPosition;

@@ -36,14 +36,8 @@ public partial class RemoteFileManagerViewModel
             TransferStatusMessage = $"正在打开: {item.Name}...";
             try
             {
-                await _editorLauncher.OpenAndTrackAsync(_sessionId, item, _fileSystem);
-                string localPath = _fileTracker.GetLocalCachePath(_sessionId, item.FullPath);
-                _trackedFileLocalMap[item.Name] = localPath;
-                if (!ActiveTrackedFiles.Contains(item.Name))
-                {
-                    ActiveTrackedFiles.Add(item.Name);
-                }
-                UpdateTrackedStatusMessage();
+                await _editorLauncher.OpenAndTrackAsync(_sessionId, item, _fileSystem, ct: _lifetimeCts.Token);
+                ShowTrackedFile(item);
             }
             catch (Exception ex)
             {
@@ -62,14 +56,8 @@ public partial class RemoteFileManagerViewModel
         TransferStatusMessage = $"正在用 {editor.Name} 打开: {item.Name}...";
         try
         {
-            await _editorLauncher.OpenAndTrackAsync(_sessionId, item, _fileSystem, overrideEditor: editor);
-            string localPath = _fileTracker.GetLocalCachePath(_sessionId, item.FullPath);
-            _trackedFileLocalMap[item.Name] = localPath;
-            if (!ActiveTrackedFiles.Contains(item.Name))
-            {
-                ActiveTrackedFiles.Add(item.Name);
-            }
-            UpdateTrackedStatusMessage();
+            await _editorLauncher.OpenAndTrackAsync(_sessionId, item, _fileSystem, overrideEditor: editor, ct: _lifetimeCts.Token);
+            ShowTrackedFile(item);
         }
         catch (Exception ex)
         {
@@ -86,27 +74,8 @@ public partial class RemoteFileManagerViewModel
         TransferStatusMessage = $"正在用系统默认程序打开: {item.Name}...";
         try
         {
-            // 通过直接传空编辑器触发 LaunchDefaultEditor
-            string localPath = _fileTracker.GetLocalCachePath(_sessionId, item.FullPath);
-            if (!File.Exists(localPath))
-            {
-                await using var remoteStream = await _fileSystem.OpenReadAsync(item.FullPath);
-                await using var localStream = new FileStream(localPath, FileMode.Create, FileAccess.Write, FileShare.None);
-                await remoteStream.CopyToAsync(localStream);
-            }
-            if (FileEditorLauncher.IsBinaryFile(localPath))
-            {
-                throw new InvalidOperationException($"文件 \"{item.Name}\" 检测为二进制文件，已阻止外部文本编辑器打开。");
-            }
-            await _fileTracker.RegisterTrackedFileAsync(_sessionId, item.FullPath, localPath);
-            _trackedFileLocalMap[item.Name] = localPath;
-            FileEditorLauncher.LaunchDefaultEditor(localPath);
-
-            if (!ActiveTrackedFiles.Contains(item.Name))
-            {
-                ActiveTrackedFiles.Add(item.Name);
-            }
-            UpdateTrackedStatusMessage();
+            await _editorLauncher.OpenAndTrackAsync(_sessionId, item, _fileSystem, ct: _lifetimeCts.Token, useSystemDefault: true);
+            ShowTrackedFile(item);
         }
         catch (Exception ex)
         {
@@ -133,14 +102,8 @@ public partial class RemoteFileManagerViewModel
         TransferStatusMessage = $"正在用 {Path.GetFileName(execPath)} 打开: {item.Name}...";
         try
         {
-            await _editorLauncher.OpenAndTrackAsync(_sessionId, item, _fileSystem, directExecutablePath: execPath);
-            string localPath = _fileTracker.GetLocalCachePath(_sessionId, item.FullPath);
-            _trackedFileLocalMap[item.Name] = localPath;
-            if (!ActiveTrackedFiles.Contains(item.Name))
-            {
-                ActiveTrackedFiles.Add(item.Name);
-            }
-            UpdateTrackedStatusMessage();
+            await _editorLauncher.OpenAndTrackAsync(_sessionId, item, _fileSystem, directExecutablePath: execPath, ct: _lifetimeCts.Token);
+            ShowTrackedFile(item);
         }
         catch (Exception ex)
         {
@@ -149,56 +112,59 @@ public partial class RemoteFileManagerViewModel
         }
     }
 
+    private void ShowTrackedFile(RemoteFileItem item)
+    {
+        string localPath = _fileTracker.GetLocalCachePath(_sessionId, item.FullPath);
+        // 等待进程可能很快退出，不能重新加入已经停止的监视项。
+        if (!_fileTracker.IsTracking(localPath)) return;
+        _trackedFileLocalMap[item.FullPath] = localPath;
+        if (!ActiveTrackedFiles.Contains(item.FullPath)) ActiveTrackedFiles.Add(item.FullPath);
+        ShowFileActivities(1);
+        UpdateTrackedStatusMessage();
+    }
+
     private void UpdateTrackedStatusMessage()
     {
         if (ActiveTrackedFiles.Count == 0)
         {
             TransferStatusMessage = "就绪";
         }
-        else if (ActiveTrackedFiles.Count == 1)
-        {
-            TransferStatusMessage = $"后台监视: {ActiveTrackedFiles[0]}";
-        }
         else
         {
-            TransferStatusMessage = $"后台监视中 ({ActiveTrackedFiles.Count} 个文件: {string.Join(", ", ActiveTrackedFiles.Take(2))}...)";
+            TransferStatusMessage = $"后台监视中 ({ActiveTrackedFiles.Count} 个文件)";
         }
     }
 
     [RelayCommand]
-    public async Task StopTrackingFileAsync(string fileName)
+    public async Task StopTrackingFileAsync(string remotePath)
     {
-        _logger.LogInformation("用户主动请求停止监视文件: {FileName}", fileName);
-        ActiveTrackedFiles.Remove(fileName);
-        UpdateTrackedStatusMessage();
-
-        // 尝试从映射表或本地缓存中注销 tracker 并删除本地缓存文件
+        _logger.LogInformation("用户主动请求停止监视文件: {RemotePath}", remotePath);
+        if (!_trackedFileLocalMap.TryGetValue(remotePath, out string? localPath)) return;
         try
         {
-            if (!_trackedFileLocalMap.TryGetValue(fileName, out var localPath))
+            try { await _fileTracker.CheckForChangesAsync(localPath, _lifetimeCts.Token); }
+            catch (IOException ex)
             {
-                string remotePath = CurrentPath.TrimEnd('/') + "/" + fileName;
-                localPath = _fileTracker.GetLocalCachePath(_sessionId, remotePath);
+                // 显式停止必须仍然可用；读不到最后一次保存时保留缓存供恢复。
+                _logger.LogWarning(ex, "手动停止前无法检查最后一次保存，保留缓存: {LocalPath}", localPath);
             }
-
-            _trackedFileLocalMap.Remove(fileName);
-            await _fileTracker.UnregisterTrackedFileAsync(localPath);
-            _logger.LogInformation("已从 LocalFileTracker 注销文件: {LocalPath}", localPath);
-
-            if (File.Exists(localPath))
-            {
-                File.Delete(localPath);
-                _logger.LogInformation("已清理本地缓存文件: {LocalPath}", localPath);
-            }
+            await _fileTracker.UnregisterTrackedFileAsync(localPath, _lifetimeCts.Token);
+            _trackedFileLocalMap.Remove(remotePath);
+            ActiveTrackedFiles.Remove(remotePath);
+            UpdateTrackedStatusMessage();
+            // 保留缓存：编辑器可能仍开着，或最后一次回写仍在排队。
+            _logger.LogInformation("监视已停止，保留本地缓存: {LocalPath}", localPath);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "注销监视文件失败: {FileName}", fileName);
+            _logger.LogWarning(ex, "注销监视文件失败，保留监视与缓存: {RemotePath}", remotePath);
+            TransferStatusMessage = $"停止监视失败: {ex.Message}";
         }
     }
 
     private void OnTrackedFileChanged(object? sender, LocalFileChangedEventArgs e)
     {
+        _logger.LogInformation("Queued file writeback: Remote={RemotePath}, DetectedAt={DetectedAt}", e.RemotePath, e.DetectedAt);
         Dispatcher.UIThread.Post(() => StartOperation(() => WriteTrackedFileAsync(e)));
     }
 
@@ -212,13 +178,16 @@ public partial class RemoteFileManagerViewModel
             // 保存事件可能密集到达；串行提交避免两个覆盖写入互相截断。
             await _writeBackGate.WaitAsync(ct);
             entered = true;
+            TrackedActivityRevision++;
             TransferStatusMessage = $"检测到修改，正在回写: {fileName}...";
+            _logger.LogInformation("File writeback started: Remote={RemotePath}, Local={LocalPath}", e.RemotePath, e.LocalFilePath);
             await using (FileStream localStream = new(e.LocalFilePath, FileMode.Open, FileAccess.Read, FileShare.Read))
             await using (Stream remoteStream = await _fileSystem.OpenWriteAsync(e.RemotePath, ct))
             {
                 await localStream.CopyToAsync(remoteStream, ct);
                 await _fileSystem.CommitWriteAsync(remoteStream, ct);
             }
+            _logger.LogInformation("File writeback committed: Remote={RemotePath}", e.RemotePath);
 
             TransferStatusMessage = $"回写成功: {fileName} ({DateTime.Now:HH:mm:ss})";
             await RefreshDirectoryAsync(ct);

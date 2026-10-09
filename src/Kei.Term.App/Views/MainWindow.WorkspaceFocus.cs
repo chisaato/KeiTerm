@@ -19,7 +19,8 @@ public partial class MainWindow
             switch (active)
             {
                 case TerminalTabViewModel terminal:
-                    terminal.Terminal.Focus();
+                    foreach (TerminalConnectionView view in this.GetVisualDescendants().OfType<TerminalConnectionView>())
+                        if (ReferenceEquals(view.DataContext, terminal)) view.FocusActiveDocument();
                     break;
                 case FileManagerTabViewModel files:
                     foreach (FileManagerWorkspaceView view in this.GetVisualDescendants().OfType<FileManagerWorkspaceView>())
