@@ -13,3 +13,8 @@
 !.slim/worktrees/
 !.slim/worktrees/**
 # END oh-my-opencode-slim worktrees
+
+# BEGIN oh-my-opencode-slim deepwork
+!.slim/deepwork/
+!.slim/deepwork/**
+# END oh-my-opencode-slim deepwork

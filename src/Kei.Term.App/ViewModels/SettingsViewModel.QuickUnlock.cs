@@ -9,7 +9,7 @@ public partial class SettingsViewModel
     private IInteractionService _quickUnlockInteraction = NullInteractionService.Instance;
 
     public void ConfigureQuickUnlock(VaultQuickUnlockService service)
-        => _ssh.QuickUnlock = new VaultQuickUnlockSettingsViewModel(service, () => _quickUnlockInteraction);
+        => _security.QuickUnlock = new VaultQuickUnlockSettingsViewModel(service, () => _quickUnlockInteraction);
 
-    public Task RefreshQuickUnlockAsync() => _ssh.QuickUnlock?.RefreshAsync() ?? Task.CompletedTask;
+    public Task RefreshQuickUnlockAsync() => _security.QuickUnlock?.RefreshAsync() ?? Task.CompletedTask;
 }

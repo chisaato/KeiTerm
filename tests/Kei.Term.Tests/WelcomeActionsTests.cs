@@ -211,7 +211,7 @@ public class WelcomeActionsTests
             await SchemaMigrator.MigrateAsync(database);
             SqliteTreeRepository tree = new(database);
             SqliteIdentityRepository identities = new(database);
-            InternalVaultManager vault = new(database);
+            InternalVaultManager vault = VaultTestDb.CreateVault(database);
             FixedSettingsService settings = new(new AppSettings { PreferSystemAgent = false, ConfirmBeforeClose = false });
             MainViewModel model = new(tree, identities, vault, vault, settings, new OfflineSshFactory());
             MainWindow window = new() { DataContext = model };

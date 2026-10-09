@@ -172,7 +172,8 @@ public partial class App : Application
                 proxyRepo,
                 () => mainVm.SnapshotSessionNodes(),
                 () => mainVm.SnapshotSessionTree(),
-                proxySecrets: vault);
+                proxySecrets: vault,
+                vault: vault);
             settingsVm.ConfigureQuickUnlock(quickUnlock);
 
             var mainWindow = new MainWindow(deferStartupLayout: true)

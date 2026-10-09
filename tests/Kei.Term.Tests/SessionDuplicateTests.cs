@@ -125,7 +125,7 @@ public class SessionDuplicateTests
             await tree.SaveNodeAsync(session);
             SqlitePortForwardRepository forwards = new(database);
             await forwards.SaveAsync(new PortForward { SessionId = session.Id, ListenPort = 15432, DestinationHost = "192.168.1.42", DestinationPort = 5432 });
-            InternalVaultManager vault = new(database);
+            InternalVaultManager vault = VaultTestDb.CreateVault(database);
             MainViewModel model = new(tree, identities, vault, vault, new FixedSettingsService(), new SshSessionFactory(),
                 uiDispatch: action => action(), portForwards: failForwardCopy ? new FailingForwards(forwards) : forwards);
             return new Fixture { Directory = directory, Tree = tree, Forwards = forwards, Source = session, Model = model };

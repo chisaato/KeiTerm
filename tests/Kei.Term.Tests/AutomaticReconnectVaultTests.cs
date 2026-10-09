@@ -38,7 +38,7 @@ public class AutomaticReconnectVaultTests
             SqliteProxyRepository proxies = new(database);
             ProxyProfile proxy = new() { Name = "socks", Config = new Socks5ProxyConfig("localhost", 1080, "proxy-user") };
             await proxies.SaveAsync(proxy);
-            InternalVaultManager vault = new(database);
+            InternalVaultManager vault = VaultTestDb.CreateVault(database);
             await vault.SetMasterPasswordAsync("master-password");
             await vault.SaveSecretsAsync(identity.Id, new Dictionary<string, SecretPayload>
             {

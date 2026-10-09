@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Threading;
 using Kei.Term.Core.Vault;
 using Kei.Term.Infrastructure.Vault;
+using Kei.Term.Infrastructure.Vault.Linux;
 using Kei.Term.Infrastructure.Vault.MacOS;
 using Kei.Term.Infrastructure.Vault.Windows;
 
@@ -15,6 +16,7 @@ public partial class App
     {
         if (System.OperatingSystem.IsMacOS()) return new MacOsDeviceQuickUnlockStore();
         if (System.OperatingSystem.IsWindows()) return new WindowsDeviceQuickUnlockStore(QuickUnlockWindowHandleAsync);
+        if (System.OperatingSystem.IsLinux()) return new LinuxSecretServiceQuickUnlockStore();
         return new UnavailableQuickUnlockStore();
     }
 

@@ -18,10 +18,6 @@ public partial class SshSettingsPage : ViewModelBase
 
     public GeneralSettingsPage General { get; }
 
-    // 本机解锁独立于设置草稿；启用与停用直接写入系统凭据存储。
-    [ObservableProperty]
-    private VaultQuickUnlockSettingsViewModel? _quickUnlock;
-
     // 新会话默认 SSH 端口
     [ObservableProperty]
     private int _defaultPort = 22;
@@ -45,10 +41,6 @@ public partial class SshSettingsPage : ViewModelBase
     // 优先尝试系统 ssh-agent
     [ObservableProperty]
     private bool _preferSystemAgent = true;
-
-    // Vault 自动锁定超时（分钟），0 = 不自动锁定
-    [ObservableProperty]
-    private int _lockTimeoutMinutes;
 
     // 建立 SSH 连接的最长等待时间（秒）
     [ObservableProperty]

@@ -190,7 +190,7 @@ public partial class ConnectionOrchestratorTests
         var identity = new Identity { Id = identityId, Name = "Key only", Username = "ops", Methods = [method] };
         var identities = new SqliteIdentityRepository(connectionString);
         await identities.SaveAsync(identity);
-        var vault = new InternalVaultManager(connectionString);
+        var vault = VaultTestDb.CreateVault(connectionString);
         await vault.SetMasterPasswordAsync("correct");
         if (vaultKey)
         {

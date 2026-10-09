@@ -8,9 +8,24 @@ namespace Kei.Term.App.Views;
 // 保管库首次初始化选择框：设置主密码（推荐）或不加密存储（明文警示）
 public partial class VaultSetupWindow : Window
 {
-    public VaultSetupWindow()
+    public VaultSetupWindow() : this(passwordOnly: false)
+    {
+    }
+
+    // passwordOnly 用于更改已有主密码：只收集并确认新密码，不再提供明文选项。
+    public VaultSetupWindow(bool passwordOnly)
     {
         InitializeComponent();
+        if (passwordOnly)
+        {
+            Title = Strings.Get("Settings.Security.ChangeMasterPassword");
+            HeaderText.Text = Strings.Get("Settings.Security.ChangeHeader");
+            DescText.Text = Strings.Get("Settings.Security.ChangeDesc");
+            MasterRadio.IsVisible = false;
+            MasterDesc.IsVisible = false;
+            PlainRadio.IsVisible = false;
+            PlainDesc.IsVisible = false;
+        }
 
         KeyDown += (sender, e) =>
         {

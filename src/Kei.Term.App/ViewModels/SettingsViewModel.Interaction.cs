@@ -7,6 +7,7 @@ public partial class SettingsViewModel
     public void SetInteraction(IInteractionService interaction)
     {
         _quickUnlockInteraction = interaction;
+        _security.Interaction = () => interaction;
         _fileTransfer.Interaction = interaction;
         if (ProxyPage != null) ProxyPage.Interaction = interaction;
     }

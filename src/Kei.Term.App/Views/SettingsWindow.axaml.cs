@@ -27,6 +27,17 @@ public partial class SettingsWindow : Window
     {
         DataContext = vm;
         vm.SetInteraction(new SettingsWindowInteractionService(this, vm));
+        vm.Security.VaultSetupDialogAsync = passwordOnly =>
+        {
+            try
+            {
+                return new VaultSetupWindow(passwordOnly).ShowDialog<VaultSetupResult?>(this);
+            }
+            catch (Exception)
+            {
+                return Task.FromResult<VaultSetupResult?>(null);
+            }
+        };
         // 每次打开都从当前设置重读，丢弃上次未保存的改动
         vm.Reload();
 

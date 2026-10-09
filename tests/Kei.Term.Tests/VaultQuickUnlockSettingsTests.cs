@@ -34,7 +34,7 @@ public sealed class VaultQuickUnlockSettingsTests : IDisposable
     {
         await VaultTestDb.CreateAsync(Connection, Guid.NewGuid());
         using MemoryDeviceStore store = new();
-        InternalVaultManager vault = new(Connection, quickUnlockStore: store);
+        InternalVaultManager vault = VaultTestDb.CreateVault(Connection, store);
         VaultQuickUnlockService service = new(vault, store);
         ScriptedInteraction interaction = new();
         VaultQuickUnlockSettingsViewModel page = new(service, () => interaction);
@@ -90,7 +90,7 @@ public sealed class VaultQuickUnlockSettingsTests : IDisposable
         UiDesignSystemService.Apply();
         await VaultTestDb.CreateAsync(Connection, Guid.NewGuid());
         using MemoryDeviceStore store = new();
-        InternalVaultManager vault = new(Connection, quickUnlockStore: store);
+        InternalVaultManager vault = VaultTestDb.CreateVault(Connection, store);
         await vault.SetMasterPasswordAsync("master-password");
         vault.Lock();
         VaultQuickUnlockService service = new(vault, store);
@@ -101,10 +101,10 @@ public sealed class VaultQuickUnlockSettingsTests : IDisposable
         try
         {
             window.Show();
-            SettingsCategoryItem category = model.Categories.Single(item => item.Page is SshSettingsPage);
+            SettingsCategoryItem category = model.Categories.Single(item => item.Page is SecuritySettingsPage);
             model.SelectedCategory = category;
-            SshSettingsPage ssh = (SshSettingsPage)category.Page;
-            VaultQuickUnlockSettingsViewModel page = Assert.IsType<VaultQuickUnlockSettingsViewModel>(ssh.QuickUnlock);
+            SecuritySettingsPage security = (SecuritySettingsPage)category.Page;
+            VaultQuickUnlockSettingsViewModel page = Assert.IsType<VaultQuickUnlockSettingsViewModel>(security.QuickUnlock);
             await model.RefreshQuickUnlockAsync();
             // Opened 也会异步探测能力，等待它完成后检查实际按钮启用状态。
             for (int attempt = 0; attempt < 100 && page.IsBusy; attempt++) await Task.Delay(10);
@@ -150,7 +150,7 @@ public sealed class VaultQuickUnlockSettingsTests : IDisposable
             SettingsViewModel reopened = new(settings, _directory);
             reopened.ConfigureQuickUnlock(service);
             await reopened.RefreshQuickUnlockAsync();
-            VaultQuickUnlockSettingsViewModel reopenedPage = reopened.Categories.Select(item => item.Page).OfType<SshSettingsPage>().Single().QuickUnlock!;
+            VaultQuickUnlockSettingsViewModel reopenedPage = reopened.Categories.Select(item => item.Page).OfType<SecuritySettingsPage>().Single().QuickUnlock!;
             Assert.True(reopenedPage.IsEnabled);
             vault.Lock();
             Assert.Equal(DeviceUnlockOutcome.Success, await service.TryUnlockAsync());

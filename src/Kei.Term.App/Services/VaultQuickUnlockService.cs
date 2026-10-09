@@ -44,6 +44,7 @@ public sealed class VaultQuickUnlockService(IVaultManager vault, IDeviceQuickUnl
         ArgumentNullException.ThrowIfNull(interaction);
         await _operationGate.WaitAsync(ct);
         string? pendingKeyId = null;
+        byte[]? pendingKey = null;
         try
         {
             QuickUnlockStatus status = await GetStatusAsync(ct);
@@ -56,13 +57,15 @@ public sealed class VaultQuickUnlockService(IVaultManager vault, IDeviceQuickUnl
             ct.ThrowIfCancellationRequested();
             using VaultQuickUnlockMaterial material = await _quickVault!.PrepareQuickUnlockAsync(password, ct);
             pendingKeyId = material.KeyId;
+            // 保留一份副本供回滚使用；using 释放后 material.Key 会被清零
+            pendingKey = (byte[])material.Key.Clone();
             await deviceStore.StoreKeyAsync(material.KeyId, material.Key, ct);
             ct.ThrowIfCancellationRequested();
             VaultQuickUnlockState? current = await _quickVault.GetQuickUnlockStateAsync(ct);
             if (current?.KeyId != material.KeyId)
             {
                 // 系统写入期间主密码若轮换，撤回这次旧密钥的设备登记。
-                await RollbackEnrollmentAsync(material.KeyId);
+                await RollbackEnrollmentAsync(material.KeyId, pendingKey);
                 pendingKeyId = null;
                 return false;
             }
@@ -73,10 +76,14 @@ public sealed class VaultQuickUnlockService(IVaultManager vault, IDeviceQuickUnl
         catch
         {
             // 原生写入不能总是取消，即使 Store 抛出取消，也必须撤回可能已写入的新项。
-            if (pendingKeyId != null) await RollbackEnrollmentAsync(pendingKeyId);
+            if (pendingKeyId != null) await RollbackEnrollmentAsync(pendingKeyId, pendingKey!);
             throw;
         }
-        finally { _operationGate.Release(); }
+        finally
+        {
+            if (pendingKey != null) CryptographicOperations.ZeroMemory(pendingKey);
+            _operationGate.Release();
+        }
     }
 
     public async Task DisableAsync(CancellationToken ct = default)
@@ -130,9 +137,11 @@ public sealed class VaultQuickUnlockService(IVaultManager vault, IDeviceQuickUnl
     private void LogPlatformFailure(Exception ex)
         => _logger.LogWarning("本机快速解锁不可用，错误类型={ErrorType}", ex.GetType().Name);
 
-    private async Task RollbackEnrollmentAsync(string keyId)
+    private async Task RollbackEnrollmentAsync(string keyId, ReadOnlyMemory<byte> key)
     {
-        try { await deviceStore.DeleteKeyAsync(keyId, CancellationToken.None); }
+        // 交回 Vault 处理删除；删除失败时由 Vault 决定轮换或标记，不能只吞掉删除错误。
+        if (_quickVault == null) return;
+        try { await _quickVault.DiscardDeviceKeyCopyAsync(keyId, key, CancellationToken.None); }
         catch (Exception ex) { LogPlatformFailure(ex); }
     }
 }

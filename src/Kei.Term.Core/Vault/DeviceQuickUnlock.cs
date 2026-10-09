@@ -43,4 +43,8 @@ public interface IQuickUnlockVault
     // 即使保险库已解锁，启用新设备也必须再次校验主密码。
     Task<VaultQuickUnlockMaterial> PrepareQuickUnlockAsync(string masterPassword, CancellationToken ct = default);
     Task<bool> UnlockWithDeviceKeyAsync(VaultQuickUnlockState state, ReadOnlyMemory<byte> key, CancellationToken ct = default);
+
+    // 回滚一次可能已写入的设备登记。删除失败且字节仍是当前 Vault Key 时必须使其失效，
+    // 不能只吞掉删除错误后当作已撤销。
+    Task DiscardDeviceKeyCopyAsync(string keyId, ReadOnlyMemory<byte> key, CancellationToken ct = default);
 }

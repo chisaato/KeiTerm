@@ -8,6 +8,7 @@
     <PackageReference Include="Dapper" Version="2.1.89" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.12" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
+    <PackageReference Include="NSec.Cryptography" Version="26.4.0" />
   </ItemGroup>
 
   <PropertyGroup>

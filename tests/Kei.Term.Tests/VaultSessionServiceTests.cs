@@ -33,7 +33,7 @@ public class VaultSessionServiceTests : IDisposable
     private async Task<(InternalVaultManager Vault, VaultSessionService Session)> CreateLockedAsync()
     {
         await VaultTestDb.CreateAsync(ConnStr, _identityId);
-        var vault = new InternalVaultManager(ConnStr);
+        var vault = VaultTestDb.CreateVault(ConnStr);
         await vault.SetMasterPasswordAsync("correct");
         vault.Lock();
         return (vault, new VaultSessionService(vault, vault, _settings, () => _ui));

@@ -739,6 +739,25 @@
                                             </Grid>
                                         </StackPanel>
                                     </Border>
+                                </StackPanel>
+                            </DataTemplate>
+
+                            <!-- 安全页：主密码、自动锁定、本机解锁 -->
+                            <DataTemplate DataType="settings:SecuritySettingsPage"
+                                          x:DataType="settings:SecuritySettingsPage">
+                                <StackPanel MaxWidth="760" HorizontalAlignment="Stretch" Spacing="12">
+                                    <TextBlock Text="{loc:KeiString Settings.Categories.SecurityPageDescription}" FontSize="12" TextWrapping="Wrap"
+                                               Foreground="{DynamicResource Kei.Text.Secondary}" Margin="0,0,0,6"/>
+                                    <Border Classes="settingsSection first" IsVisible="{Binding HasVault}">
+                                        <StackPanel Spacing="8">
+                                            <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.Security.MasterPasswordSection}"/>
+                                            <TextBlock Text="{Binding MasterPasswordStatus}" TextWrapping="Wrap" FontSize="12"
+                                                       Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                            <Button x:Name="SetMasterPasswordButton" HorizontalAlignment="Left" MinWidth="140"
+                                                    Content="{Binding PasswordButtonText}"
+                                                    Command="{Binding SetMasterPasswordCommand}"/>
+                                        </StackPanel>
+                                    </Border>
                                     <Border Classes="settingsSection">
                                         <StackPanel Spacing="8">
                                             <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.Ssh.VaultSection}"/>

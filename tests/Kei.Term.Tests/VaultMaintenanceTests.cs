@@ -26,7 +26,7 @@ public class VaultMaintenanceTests
 
         await fixture.Vault.SetMasterPasswordAsync("second-password");
         fixture.Vault.Lock();
-        InternalVaultManager restarted = new(fixture.Database);
+        InternalVaultManager restarted = VaultTestDb.CreateVault(fixture.Database);
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => restarted.UnlockAsync("first-password", false));
         await restarted.UnlockAsync("second-password", false);
         await fixture.AssertSecretsAsync(restarted);
@@ -42,7 +42,7 @@ public class VaultMaintenanceTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Vault.SetMasterPasswordAsync("second-password"));
 
-        InternalVaultManager restarted = new(fixture.Database);
+        InternalVaultManager restarted = VaultTestDb.CreateVault(fixture.Database);
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => restarted.UnlockAsync("second-password", false));
         await restarted.UnlockAsync("first-password", false);
         await fixture.AssertSecretsAsync(restarted);
@@ -96,7 +96,7 @@ public class VaultMaintenanceTests
         }
 
         fixture.Vault.Lock();
-        InternalVaultManager restarted = new(fixture.Database);
+        InternalVaultManager restarted = VaultTestDb.CreateVault(fixture.Database);
         Assert.False(await restarted.TryAutoUnlockAsync());
         Assert.False(fixture.FilesContain(Fixture.Password));
         Assert.False(fixture.FilesContain(Fixture.PrivateKey));
@@ -138,23 +138,36 @@ public class VaultMaintenanceTests
     }
 
     [Fact]
-    public async Task FailedIdentityRewrap_RollsBackPasswordAndOtherSecrets()
+    public async Task PasswordChange_LeavesSecretCiphertextUntouched_EvenWithCorruptedRow()
     {
         await using Fixture fixture = await Fixture.CreateAsync();
         await fixture.Vault.SetMasterPasswordAsync("first-password");
         await fixture.SaveSecretsAsync();
+
+        byte[] before = await ReadProxyBlobAsync(fixture);
         using (SqliteConnection connection = await fixture.Database.OpenAsync())
         {
             await connection.ExecuteAsync("UPDATE identity_secrets SET secrets_blob = zeroblob(48);");
         }
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Vault.SetMasterPasswordAsync("second-password"));
+        // 已是 Vault Key 的库换密码只换盐并重新包装同一个 Vault Key，不读也不重写条目密文
+        await fixture.Vault.SetMasterPasswordAsync("second-password");
+        Assert.Equal(before, await ReadProxyBlobAsync(fixture));
 
         fixture.Vault.Lock();
-        InternalVaultManager restarted = new(fixture.Database);
-        await restarted.UnlockAsync("first-password", false);
+        InternalVaultManager restarted = VaultTestDb.CreateVault(fixture.Database);
+        await restarted.UnlockAsync("second-password", false);
         Assert.Equal(Fixture.ProxyPassword, await restarted.GetPasswordAsync(fixture.ProxyId));
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => restarted.UnlockAsync("second-password", false));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => restarted.UnlockAsync("first-password", false));
+    }
+
+    private static async Task<byte[]> ReadProxyBlobAsync(Fixture fixture)
+    {
+        using SqliteConnection connection = await fixture.Database.OpenAsync();
+        byte[]? blob = await connection.ExecuteScalarAsync<byte[]>(
+            "SELECT secrets_blob FROM proxy_secrets WHERE proxy_id = @id;",
+            new { id = fixture.ProxyId.ToString() });
+        return blob!;
     }
 
     private sealed class Fixture : IAsyncDisposable
@@ -181,7 +194,7 @@ public class VaultMaintenanceTests
             await new SqliteProxyRepository(database).SaveAsync(proxy);
             return new Fixture
             {
-                Directory = directory, Database = database, Vault = new InternalVaultManager(database),
+                Directory = directory, Database = database, Vault = VaultTestDb.CreateVault(database),
                 IdentityId = identity.Id, ProxyId = proxy.Id
             };
         }

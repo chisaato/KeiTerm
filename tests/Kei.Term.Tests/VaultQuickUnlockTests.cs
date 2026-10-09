@@ -19,7 +19,7 @@ public sealed class VaultQuickUnlockTests : IDisposable
     private async Task<InternalVaultManager> CreateAsync(bool enroll = true)
     {
         await VaultTestDb.CreateAsync(Connection, _identity);
-        InternalVaultManager vault = new(Connection, quickUnlockStore: _store);
+        InternalVaultManager vault = VaultTestDb.CreateVault(Connection, _store);
         await vault.SetMasterPasswordAsync(MasterPassword);
         await vault.SaveSecretsAsync(_identity, new() { ["method"] = new SecretPayload { PrivateKeyContent = "private-key", Passphrase = "passphrase" } });
         if (enroll) Assert.True(await new VaultQuickUnlockService(vault, _store).EnableAsync(PasswordInteraction()));
@@ -38,7 +38,7 @@ public sealed class VaultQuickUnlockTests : IDisposable
     public async Task ReopenedVault_UnlocksRealEncryptedSecrets_AndErasesReturnedKey()
     {
         await CreateAsync();
-        InternalVaultManager reopened = new(Connection, quickUnlockStore: _store);
+        InternalVaultManager reopened = VaultTestDb.CreateVault(Connection, _store);
         Assert.False(await reopened.TryAutoUnlockAsync());
         VaultQuickUnlockService service = new(reopened, _store);
 
@@ -49,7 +49,7 @@ public sealed class VaultQuickUnlockTests : IDisposable
         Assert.NotNull(_store.LastReturnedKey);
         Assert.All(_store.LastReturnedKey, value => Assert.Equal(0, value));
         var raw = await VaultTestDb.ReadRawAsync(Connection, _identity);
-        Assert.Equal("AES-256-GCM", raw.algorithm);
+        Assert.Equal("XCHACHA20-POLY1305", raw.algorithm);
         Assert.DoesNotContain("private-key", System.Text.Encoding.UTF8.GetString(raw.blob));
     }
 
@@ -85,7 +85,7 @@ public sealed class VaultQuickUnlockTests : IDisposable
         {
             string otherConnection = $"Data Source={otherPath}";
             await VaultTestDb.CreateAsync(otherConnection, Guid.NewGuid());
-            InternalVaultManager other = new(otherConnection);
+            InternalVaultManager other = VaultTestDb.CreateVault(otherConnection);
             await other.SetMasterPasswordAsync(MasterPassword);
             using VaultQuickUnlockMaterial material = await other.PrepareQuickUnlockAsync(MasterPassword);
             copiedKey = material.Key.ToArray();
@@ -111,16 +111,196 @@ public sealed class VaultQuickUnlockTests : IDisposable
             await vault.UnlockAsync(MasterPassword, false);
             await vault.SetMasterPasswordAsync("new-master");
             VaultQuickUnlockState after = (await vault.GetQuickUnlockStateAsync())!;
+            // 换盐只换查找名；同一 Vault Key 保留，旧登记按旧 key id 删除
             Assert.NotEqual(before.KeyId, after.KeyId);
             Assert.Equal(0, _store.Count);
             vault.Lock();
-            after = (await vault.GetQuickUnlockStateAsync())!;
-            Assert.False(await vault.UnlockWithDeviceKeyAsync(after, oldKey));
             Assert.Equal(DeviceUnlockOutcome.NotEnrolled, await new VaultQuickUnlockService(vault, _store).TryUnlockAsync());
             await vault.UnlockAsync("new-master", false);
             Assert.Equal("passphrase", (await vault.GetSecretsAsync(_identity))["method"].Passphrase);
         }
         finally { CryptographicOperations.ZeroMemory(oldKey); }
+    }
+
+    [Fact]
+    public async Task PasswordRotation_WithFailingDelete_RotatesVaultKeySoLeftoverBytesAreDead()
+    {
+        InternalVaultManager vault = await CreateAsync();
+        VaultQuickUnlockState before = (await vault.GetQuickUnlockStateAsync())!;
+        byte[] leftover = _store.CopyKey(before.KeyId);
+        try
+        {
+            await vault.UnlockAsync(MasterPassword, false);
+            _store.ThrowOnDelete = true;
+            await vault.SetMasterPasswordAsync("new-master");
+
+            // 删除失败，遗留项仍在 store
+            Assert.Equal(1, _store.Count);
+
+            vault.Lock();
+            VaultQuickUnlockState after = (await vault.GetQuickUnlockStateAsync())!;
+            // 只换盐不轮换时这个旧字节仍等于当前 Vault Key，会返回 true；轮换后才为 false
+            Assert.False(await vault.UnlockWithDeviceKeyAsync(after, leftover));
+            Assert.False(vault.IsUnlocked);
+
+            await vault.UnlockAsync("new-master", false);
+            Assert.Equal("passphrase", (await vault.GetSecretsAsync(_identity))["method"].Passphrase);
+        }
+        finally { CryptographicOperations.ZeroMemory(leftover); }
+    }
+
+    [Fact]
+    public async Task PasswordRotation_WithFailingDelete_MarksPendingInsideRotationTransaction()
+    {
+        InternalVaultManager vault = await CreateAsync();
+        VaultQuickUnlockState before = (await vault.GetQuickUnlockStateAsync())!;
+        byte[] leftover = _store.CopyKey(before.KeyId);
+        string? flagWhenDeleteFirstRan = null;
+        try
+        {
+            await vault.UnlockAsync(MasterPassword, false);
+            _store.ThrowOnDelete = true;
+            bool firstDelete = true;
+            _store.BeforeDelete = async () =>
+            {
+                if (firstDelete)
+                {
+                    firstDelete = false;
+                    flagWhenDeleteFirstRan = await VaultTestDb.ReadMetaAsync(Connection, "vault_key_rotation_pending");
+                }
+            };
+            await vault.SetMasterPasswordAsync("new-master");
+
+            // 删除发生前，换盐事务必须已经把轮换标记写成 "1"
+            Assert.Equal("1", flagWhenDeleteFirstRan);
+            Assert.Equal(1, _store.Count);
+
+            vault.Lock();
+            VaultQuickUnlockState after = (await vault.GetQuickUnlockStateAsync())!;
+            // store 里留下的旧密钥解不开轮换后的 verifier
+            Assert.False(await vault.UnlockWithDeviceKeyAsync(after, leftover));
+            Assert.Equal("0", await VaultTestDb.ReadMetaAsync(Connection, "vault_key_rotation_pending"));
+
+            await vault.UnlockAsync("new-master", false);
+            Assert.Equal("passphrase", (await vault.GetSecretsAsync(_identity))["method"].Passphrase);
+        }
+        finally { CryptographicOperations.ZeroMemory(leftover); }
+    }
+
+    [Fact]
+    public async Task PasswordRotation_WithSuccessfulDelete_ClearsPendingAndKeepsCiphertext()
+    {
+        InternalVaultManager vault = await CreateAsync();
+        byte[] blobBefore = (await VaultTestDb.ReadSecretRowAsync(Connection, _identity)).blob;
+        await vault.UnlockAsync(MasterPassword, false);
+        await vault.SetMasterPasswordAsync("new-master");
+
+        // 删除成功：标记清回 "0"，条目密文字节不变
+        Assert.Equal(0, _store.Count);
+        Assert.Equal("0", await VaultTestDb.ReadMetaAsync(Connection, "vault_key_rotation_pending"));
+        Assert.Equal(blobBefore, (await VaultTestDb.ReadSecretRowAsync(Connection, _identity)).blob);
+
+        await vault.UnlockAsync("new-master", false);
+        Assert.Equal("passphrase", (await vault.GetSecretsAsync(_identity))["method"].Passphrase);
+    }
+
+    [Fact]
+    public async Task DiscardDeviceKeyCopy_WhenDeleteFails_InvalidatesLeftoverKeyBytes()
+    {
+        InternalVaultManager vault = await CreateAsync(enroll: false);
+        await vault.UnlockAsync(MasterPassword, false);
+        using VaultQuickUnlockMaterial material = await vault.PrepareQuickUnlockAsync(MasterPassword);
+        byte[] handedOut = (byte[])material.Key.Clone();
+        try
+        {
+            _store.ThrowOnDelete = true;
+            await vault.DiscardDeviceKeyCopyAsync("keiterm-v1-deadbeef", handedOut);
+
+            vault.Lock();
+            VaultQuickUnlockState state = (await vault.GetQuickUnlockStateAsync())!;
+            // 交出的字节仍是轮换前的 Vault Key，必须解不开当前 verifier
+            Assert.False(await vault.UnlockWithDeviceKeyAsync(state, handedOut));
+            Assert.False(vault.IsUnlocked);
+
+            await vault.UnlockAsync(MasterPassword, false);
+            Assert.Equal("passphrase", (await vault.GetSecretsAsync(_identity))["method"].Passphrase);
+        }
+        finally { CryptographicOperations.ZeroMemory(handedOut); }
+    }
+
+    [Fact]
+    public async Task DiscardDeviceKeyCopy_WhenKeyIsStale_LeavesCurrentVaultUnlockable()
+    {
+        InternalVaultManager vault = await CreateAsync(enroll: false);
+        await vault.UnlockAsync(MasterPassword, false);
+        _store.ThrowOnDelete = true;
+        // 与当前 Vault Key 不同的字节：安全，不触发轮换
+        await vault.DiscardDeviceKeyCopyAsync("keiterm-v1-deadbeef", new byte[32]);
+        Assert.True(vault.IsUnlocked);
+        Assert.Equal("passphrase", (await vault.GetSecretsAsync(_identity))["method"].Passphrase);
+    }
+
+    [Fact]
+    public async Task DiscardDeviceKeyCopy_WhileLockedWithCurrentKey_MarksPendingThenPasswordUnlockInvalidates()
+    {
+        InternalVaultManager vault = await CreateAsync();
+        VaultQuickUnlockState state = (await vault.GetQuickUnlockStateAsync())!;
+        byte[] current = _store.CopyKey(state.KeyId);
+        try
+        {
+            Assert.False(vault.IsUnlocked);
+            _store.ThrowOnDelete = true;
+            await vault.DiscardDeviceKeyCopyAsync(state.KeyId, current);
+
+            // 已锁定时用磁盘 verifier 核对出这是当前密钥，先落盘轮换标记
+            Assert.Equal("1", await VaultTestDb.ReadMetaAsync(Connection, "vault_key_rotation_pending"));
+            Assert.False(vault.IsUnlocked);
+
+            // 口令解锁先轮换再投入使用，这 32 字节随即失效
+            await vault.UnlockAsync(MasterPassword, false);
+            Assert.Equal("0", await VaultTestDb.ReadMetaAsync(Connection, "vault_key_rotation_pending"));
+            vault.Lock();
+            VaultQuickUnlockState after = (await vault.GetQuickUnlockStateAsync())!;
+            Assert.False(await vault.UnlockWithDeviceKeyAsync(after, current));
+            await vault.UnlockAsync(MasterPassword, false);
+            Assert.Equal("passphrase", (await vault.GetSecretsAsync(_identity))["method"].Passphrase);
+        }
+        finally { CryptographicOperations.ZeroMemory(current); }
+    }
+
+    [Fact]
+    public async Task DiscardDeviceKeyCopy_WithoutWrappingKey_MarksRotationAndBlocksDeviceUnlockUntilPasswordUnlock()
+    {
+        InternalVaultManager vault = await CreateAsync();
+        VaultQuickUnlockService service = new(vault, _store);
+        // 设备解锁不保留包装密钥
+        Assert.Equal(DeviceUnlockOutcome.Success, await service.TryUnlockAsync());
+        VaultQuickUnlockState state = (await vault.GetQuickUnlockStateAsync())!;
+        byte[] current = _store.CopyKey(state.KeyId);
+        try
+        {
+            _store.ThrowOnDelete = true;
+            await vault.DiscardDeviceKeyCopyAsync(state.KeyId, current);
+
+            // 没有包装密钥：记标记并锁定，不能立刻轮换
+            Assert.False(vault.IsUnlocked);
+            Assert.Equal("1", await VaultTestDb.ReadMetaAsync(Connection, "vault_key_rotation_pending"));
+
+            // 轮换完成前，设备项不得把仍有效的旧字节装回去
+            Assert.Equal(DeviceUnlockOutcome.Failed, await service.TryUnlockAsync());
+            Assert.False(vault.IsUnlocked);
+
+            // 口令解锁先完成轮换再投入使用，标记清除
+            await vault.UnlockAsync(MasterPassword, false);
+            Assert.Equal("0", await VaultTestDb.ReadMetaAsync(Connection, "vault_key_rotation_pending"));
+            Assert.Equal("passphrase", (await vault.GetSecretsAsync(_identity))["method"].Passphrase);
+
+            // 轮换后旧字节已解不开当前库
+            vault.Lock();
+            VaultQuickUnlockState after = (await vault.GetQuickUnlockStateAsync())!;
+            Assert.False(await vault.UnlockWithDeviceKeyAsync(after, current));
+        }
+        finally { CryptographicOperations.ZeroMemory(current); }
     }
 
     [Fact]
@@ -274,6 +454,8 @@ public sealed class VaultQuickUnlockTests : IDisposable
         public byte[]? LastReturnedKey { get; private set; }
         public Action? AfterStore { get; set; }
         public Func<Task>? BeforeUnlock { get; set; }
+        public Func<Task>? BeforeDelete { get; set; }
+        public bool ThrowOnDelete { get; set; }
         public DeviceUnlockOutcome Outcome { get; set; } = DeviceUnlockOutcome.Success;
         public byte[] CopyKey(string keyId) => _keys[keyId].ToArray();
         public Task<bool> IsAvailableAsync(CancellationToken ct = default) => Task.FromResult(true);
@@ -293,10 +475,12 @@ public sealed class VaultQuickUnlockTests : IDisposable
             if (CorruptReturnedKey) LastReturnedKey[0] ^= 0x80;
             return new(DeviceUnlockOutcome.Success, LastReturnedKey);
         }
-        public Task DeleteKeyAsync(string keyId, CancellationToken ct = default)
+        public async Task DeleteKeyAsync(string keyId, CancellationToken ct = default)
         {
+            // 允许在删除抛错前先探测磁盘状态，验证标记已在换盐事务里写好
+            if (BeforeDelete != null) await BeforeDelete();
+            if (ThrowOnDelete) throw new InvalidOperationException("模拟钥匙环删除失败");
             if (_keys.Remove(keyId, out byte[]? key)) CryptographicOperations.ZeroMemory(key);
-            return Task.CompletedTask;
         }
         public void Dispose()
         {
@@ -319,6 +503,7 @@ public sealed class VaultQuickUnlockTests : IDisposable
         public Task UnlockAsync(string password, bool rememberOnThisDevice, CancellationToken ct = default) => inner.UnlockAsync(password, rememberOnThisDevice, ct);
         public Task<VaultQuickUnlockState?> GetQuickUnlockStateAsync(CancellationToken ct = default) => inner.GetQuickUnlockStateAsync(ct);
         public Task<VaultQuickUnlockMaterial> PrepareQuickUnlockAsync(string password, CancellationToken ct = default) => inner.PrepareQuickUnlockAsync(password, ct);
+        public Task DiscardDeviceKeyCopyAsync(string keyId, ReadOnlyMemory<byte> key, CancellationToken ct = default) => inner.DiscardDeviceKeyCopyAsync(keyId, key, ct);
         public async Task<bool> UnlockWithDeviceKeyAsync(VaultQuickUnlockState state, ReadOnlyMemory<byte> key, CancellationToken ct = default)
         {
             CommitStarted.SetResult();

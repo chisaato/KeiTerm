@@ -17,6 +17,7 @@ public static class SchemaMigrations
         new(4, "proxies", ApplyProxiesAsync),
         new(5, "port_forwards", ApplyPortForwardsAsync),
         new(6, "proxy_secrets", ApplyProxySecretsAsync),
+        new(7, "sync_columns", ApplySyncColumnsAsync),
     ];
 
     // v1 基线：必须幂等，兼容三类库——全新库、user_version=0 的现行库、更早的 credentials 旧库
@@ -328,6 +329,27 @@ public static class SchemaMigrations
             CREATE UNIQUE INDEX IF NOT EXISTS idx_port_forwards_listen
                 ON port_forwards(session_id, bind_address, listen_port, mode);
         ", ct);
+
+    // v7 同步预留列：为可同步实体补 revision / deleted_at，供后续增量同步使用。
+    // 只加列不改旧迁移；仓储当前仍是物理删除。秘密表、trust 表、vault 元数据不加。
+    private static async Task ApplySyncColumnsAsync(SqliteConnection conn, SqliteTransaction tx, CancellationToken ct)
+    {
+        string[] syncableTables =
+        [
+            "tree_nodes",
+            "identities",
+            "proxies",
+            "port_forwards",
+            "external_editors",
+            "file_associations",
+        ];
+
+        foreach (string table in syncableTables)
+        {
+            await AddColumnIfMissingAsync(conn, tx, table, "revision", "INTEGER NOT NULL DEFAULT 0", ct);
+            await AddColumnIfMissingAsync(conn, tx, table, "deleted_at", "TEXT", ct);
+        }
+    }
 
     private sealed class JumpBackfillRow
     {

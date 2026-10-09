@@ -422,10 +422,46 @@
     <value>SSH</value>
   </data>
   <data name="Settings.Categories.SshDesc" xml:space="preserve">
-    <value>连接、认证与安全</value>
+    <value>连接与认证</value>
   </data>
   <data name="Settings.Categories.SshPageDescription" xml:space="preserve">
-    <value>默认连接参数、身份、保活与恢复、Agent、主机密钥和保险库锁定</value>
+    <value>默认连接参数、身份、保活与恢复、Agent 和主机密钥</value>
+  </data>
+  <data name="Settings.Categories.Security" xml:space="preserve">
+    <value>安全</value>
+  </data>
+  <data name="Settings.Categories.SecurityDesc" xml:space="preserve">
+    <value>主密码与本机解锁</value>
+  </data>
+  <data name="Settings.Categories.SecurityPageDescription" xml:space="preserve">
+    <value>保管库主密码、自动锁定，以及只保存在这台电脑上的解锁</value>
+  </data>
+  <data name="Settings.Security.MasterPasswordSection" xml:space="preserve">
+    <value>主密码</value>
+  </data>
+  <data name="Settings.Security.NoMasterPassword" xml:space="preserve">
+    <value>尚未设置主密码。私钥和代理口令以明文保存在本机数据库中。</value>
+  </data>
+  <data name="Settings.Security.HasMasterPassword" xml:space="preserve">
+    <value>已设置主密码。忘记后无法恢复已加密的内容。</value>
+  </data>
+  <data name="Settings.Security.SetMasterPassword" xml:space="preserve">
+    <value>设置主密码</value>
+  </data>
+  <data name="Settings.Security.ChangeMasterPassword" xml:space="preserve">
+    <value>更改主密码</value>
+  </data>
+  <data name="Settings.Security.ChangeHeader" xml:space="preserve">
+    <value>更改主密码</value>
+  </data>
+  <data name="Settings.Security.ChangeDesc" xml:space="preserve">
+    <value>输入新的主密码。之后用这组口令打开保管库。</value>
+  </data>
+  <data name="Settings.Security.Locked" xml:space="preserve">
+    <value>保管库已锁定。请先解锁，再更改主密码。</value>
+  </data>
+  <data name="Settings.Security.SetFailed" xml:space="preserve">
+    <value>未能设置主密码</value>
   </data>
 
   <!-- Settings: General -->

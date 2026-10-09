@@ -1,87 +1,88 @@
 namespace Kei.Term.Infrastructure.Vault;
 
 using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using NSec.Cryptography;
 using Kei.Term.Core.Vault;
 using Kei.Term.Infrastructure.Storage;
 using Kei.Term.Infrastructure.Storage.Schema;
 
-// 内置 Vault：主密码可选。明文模式下字节直通；加密模式用 AES-256-GCM。
+// 内置 Vault：主密码可选。明文模式下字节直通。
 //
-// KDF 说明：规格要求 Argon2id（m=64MB, t=3, p=4），但已查证 .NET 10 内置加密库
-// （Microsoft.NETCore.App.Ref 10.0.2 的 System.Security.Cryptography）未提供任何
-// Argon2/Kryptos 类型，故一期以 PBKDF2-Rfc2898DeriveBytes(HMAC-SHA512, 600k 迭代,
-// salt 16B, 派生 32B) 替代，差异记入实现报告；盐与密钥长度与规格一致，未来可无损切换 KDF。
+// 数据密钥是随机 32 字节 Vault Key；主密码经 Argon2id 得到包装密钥，只用于
+// XChaCha20-Poly1305 包装 Vault Key，不直接加密业务行。条目用 Vault Key 加密，
+// AAD 绑定该行主键。旧 PBKDF2 库仍能打开，成功后在同一次解锁里迁移到 Vault Key。
 public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IProxySecretStore, IQuickUnlockVault
 {
     // vault_metadata 键
     private const string KeyPlainMode = "plain_mode";
     private const string KeyKdfSalt = "kdf_salt";
     private const string KeyVerifier = "verifier";
-    // KDF 标识与参数：缺省（早期库未写入）即视为 Pbkdf2Sha512Id，为未来切换 Argon2id 留出版本位
     private const string KeyKdf = "kdf";
     private const string KeyCleanupPending = "plaintext_cleanup_pending";
-    private const string Pbkdf2Sha512Id = "pbkdf2-sha512:600000";
-
-    private const int Pbkdf2Iterations = 600_000;
-    private const int MekLength = 32;
-    private const int SaltLength = 16;
-    private const int NonceLength = 12;
-    private const int TagLength = 16;
-
-    private const string PlainAlgorithm = "PLAIN";
-    private const string EncryptedAlgorithm = "AES-256-GCM";
-
-    // 解锁校验用已知明文：用候选 MEK 解密后比对
-    private const string VerifierPlaintext = "keiterm-vault-verifier-v1";
+    private const string KeyVaultId = "vault_id";
+    private const string KeyWrappedVaultKey = "wrapped_vault_key";
+    private const string KeyRotationPending = "vault_key_rotation_pending";
 
     private readonly SqliteConnectionFactory _factory;
     private readonly ILogger<InternalVaultManager> _logger;
     private readonly SemaphoreSlim _initLock = new(1, 1);
     // 密钥轮换与秘密写入互斥，避免旧密钥密文在轮换提交后重新落库。
     private readonly SemaphoreSlim _secretWriteLock = new(1, 1);
+    private readonly IDeviceQuickUnlockStore? _quickUnlockStore;
+    // 新建或迁移时使用的 Argon2id 参数；测试注入更小值以避免跑 64 MiB
+    private readonly Argon2Parameters _argon2Parameters;
 
     private bool _initialized;
     private bool _hasMasterPassword;
     private byte[]? _kdfSalt;
-    private string _kdfId = Pbkdf2Sha512Id;
-    private byte[]? _mek;
+    private string _kdfId = VaultCryptography.Pbkdf2Sha512Id;
+    // 数据密钥：新库为随机 Vault Key，尚未迁移的旧库暂为 PBKDF2 MEK
+    private byte[]? _vaultKey;
+    // 口令派生的包装密钥；仅口令解锁/设密后保留，与 Vault Key 一起在 Lock 时清零
+    private byte[]? _wrappingKey;
+    private byte[]? _vaultId;
+    private bool _rotationPending;
     private bool _cleanupPending;
     private readonly object _keyStateLock = new();
     private long _lockVersion;
-    private readonly IDeviceQuickUnlockStore? _quickUnlockStore;
 
     public InternalVaultManager(string connectionString, ILogger<InternalVaultManager>? logger = null, IDeviceQuickUnlockStore? quickUnlockStore = null)
-        : this(new SqliteConnectionFactory(connectionString), logger, quickUnlockStore)
+        : this(new SqliteConnectionFactory(connectionString), logger, quickUnlockStore, VaultCryptography.ProductionArgon2Parameters)
     {
     }
 
     public InternalVaultManager(SqliteConnectionFactory factory, ILogger<InternalVaultManager>? logger = null, IDeviceQuickUnlockStore? quickUnlockStore = null)
+        : this(factory, logger, quickUnlockStore, VaultCryptography.ProductionArgon2Parameters)
+    {
+    }
+
+    internal InternalVaultManager(SqliteConnectionFactory factory, ILogger<InternalVaultManager>? logger, IDeviceQuickUnlockStore? quickUnlockStore, Argon2Parameters argon2Parameters)
     {
         _factory = factory;
         _logger = logger ?? NullLogger<InternalVaultManager>.Instance;
         _quickUnlockStore = quickUnlockStore;
+        _argon2Parameters = argon2Parameters;
     }
 
     // 无主密码 = 明文模式；默认（未初始化）按明文处理
     public bool IsPlainMode => !_hasMasterPassword;
 
-    // 明文模式恒解锁；加密模式需 MEK 存在
+    // 明文模式恒解锁；加密模式需数据密钥存在
     public bool IsUnlocked
     {
         get
         {
-            lock (_keyStateLock) return !_hasMasterPassword || _mek != null;
+            lock (_keyStateLock) return !_hasMasterPassword || _vaultKey != null;
         }
     }
 
     private Task<SqliteConnection> CreateConnectionAsync(CancellationToken ct) => _factory.OpenAsync(ct);
 
-    // 惰性初始化：确保元数据表存在并加载 plain_mode/kdf_salt；不自动解锁
+    // 惰性初始化：确保元数据表存在并加载元数据；不自动解锁
     private async Task EnsureInitializedAsync(CancellationToken ct)
     {
         if (_initialized)
@@ -117,6 +118,12 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
                 _kdfId = kdfId;
             }
 
+            if (meta.TryGetValue(KeyVaultId, out var vaultIdB64))
+            {
+                _vaultId = Convert.FromBase64String(vaultIdB64);
+            }
+
+            _rotationPending = meta.GetValueOrDefault(KeyRotationPending) == "1";
             _cleanupPending = meta.GetValueOrDefault(KeyCleanupPending) == "1";
 
             _initialized = true;
@@ -152,10 +159,34 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
             await secureDelete.ExecuteNonQueryAsync(ct);
         }
 
-        var salt = RandomNumberGenerator.GetBytes(SaltLength);
-        // 新设/更换主密码一律采用当前默认 KDF
-        var mek = DeriveKey(Pbkdf2Sha512Id, masterPassword, salt);
-        var verifier = EncryptWithMek(mek, Encoding.UTF8.GetBytes(VerifierPlaintext));
+        byte[]? oldKey;
+        byte[]? vaultId;
+        lock (_keyStateLock)
+        {
+            oldKey = _vaultKey;
+            vaultId = _vaultId;
+        }
+
+        // 已是 Vault Key 的库换密码只换盐、重新包装同一个 Vault Key，不改条目密文
+        bool reuseVaultKey = _hasMasterPassword && oldKey != null && vaultId != null;
+        // 只有确实可能存在旧设备副本时才在换盐事务里写下轮换标记
+        bool mayHaveDeviceCopy = reuseVaultKey && previousQuickUnlockId != null && _quickUnlockStore != null;
+        byte[] vaultKey;
+        if (reuseVaultKey)
+        {
+            vaultKey = oldKey!.ToArray();
+        }
+        else
+        {
+            vaultId = RandomNumberGenerator.GetBytes(VaultCryptography.VaultIdLength);
+            vaultKey = RandomNumberGenerator.GetBytes(VaultCryptography.KeyLength);
+        }
+
+        byte[] salt = RandomNumberGenerator.GetBytes(VaultCryptography.SaltLength);
+        string kdfId = VaultCryptography.FormatArgon2Id(_argon2Parameters);
+        byte[] wrappingKey = VaultCryptography.DeriveArgon2Id(masterPassword, salt, _argon2Parameters);
+        byte[] wrappedVaultKey = VaultCryptography.Seal(wrappingKey, VaultCryptography.BuildWrapAad(vaultId!), vaultKey);
+        byte[] verifier = VaultCryptography.SealVerifier(vaultKey, vaultId!);
 
         int reEncrypted = 0;
         bool committed = false;
@@ -164,20 +195,23 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
             using (SqliteTransaction tx = conn.BeginTransaction())
             {
                 await UpsertMetadataAsync(conn, tx, KeyPlainMode, "0", ct);
+                await UpsertMetadataAsync(conn, tx, KeyKdf, kdfId, ct);
                 await UpsertMetadataAsync(conn, tx, KeyKdfSalt, Convert.ToBase64String(salt), ct);
+                await UpsertMetadataAsync(conn, tx, KeyVaultId, Convert.ToBase64String(vaultId!), ct);
+                await UpsertMetadataAsync(conn, tx, KeyWrappedVaultKey, Convert.ToBase64String(wrappedVaultKey), ct);
                 await UpsertMetadataAsync(conn, tx, KeyVerifier, Convert.ToBase64String(verifier), ct);
-                await UpsertMetadataAsync(conn, tx, KeyKdf, Pbkdf2Sha512Id, ct);
                 // 清理状态与新密钥元数据一起提交。进程中断后仍会在下次启动重试。
                 await UpsertMetadataAsync(conn, tx, KeyCleanupPending, "1", ct);
+                // 换盐只换查找名，旧设备副本的密钥字节仍可能解开当前库：
+                // 在同一事务写下轮换标记，删除成功后再清回 "0"，删除失败或中断则下次口令解锁先轮换
+                await UpsertMetadataAsync(conn, tx, KeyRotationPending, mayHaveDeviceCopy ? "1" : "0", ct);
 
-                // 先重包全部旧密文，再升级明文，避免把新密文当作旧密文处理。
-                if (_mek != null)
+                // 首次设置或从旧库升级：把全部旧密文换成带 AAD 的新算法
+                if (!reuseVaultKey)
                 {
-                    reEncrypted = await RewrapEncryptedSecretsAsync(conn, tx, _mek, mek, "identity_secrets", "identity_id", ct);
-                    reEncrypted += await RewrapEncryptedSecretsAsync(conn, tx, _mek, mek, "proxy_secrets", "proxy_id", ct);
+                    reEncrypted = await ReEncryptAllSecretsAsync(conn, tx, oldKey, vaultKey, ct);
                 }
 
-                reEncrypted += await ReEncryptPlainSecretsAsync(conn, tx, mek, ct);
                 tx.Commit();
             }
 
@@ -185,21 +219,24 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
             committed = true;
             lock (_keyStateLock)
             {
-                if (_mek != null) CryptographicOperations.ZeroMemory(_mek);
-                _kdfSalt = salt;
-                _kdfId = Pbkdf2Sha512Id;
-                _mek = mek;
+                ReplaceKeysLocked(vaultKey, wrappingKey, vaultId, salt, kdfId);
                 _hasMasterPassword = true;
+                _rotationPending = mayHaveDeviceCopy;
                 _lockVersion++;
             }
             _cleanupPending = true;
-            await RemovePreviousQuickUnlockAsync(previousQuickUnlockId);
+            // 换盐只换了查找名，旧登记里的密钥字节仍可能解开当前库：删除失败必须轮换
+            await RemovePreviousQuickUnlockOrRotateAsync(previousQuickUnlockId, ct);
             await CompletePendingCleanupAsync(conn, ct);
             _logger.LogInformation("设置主密码完成 重加密材料={Count} 项", reEncrypted);
         }
         finally
         {
-            if (!committed) CryptographicOperations.ZeroMemory(mek);
+            if (!committed)
+            {
+                CryptographicOperations.ZeroMemory(vaultKey);
+                CryptographicOperations.ZeroMemory(wrappingKey);
+            }
         }
     }
 
@@ -227,7 +264,13 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
         if (!_hasMasterPassword)
         {
             // 明文模式无锁定语义
-            lock (_keyStateLock) _mek = null;
+            lock (_keyStateLock)
+            {
+                if (_vaultKey != null) CryptographicOperations.ZeroMemory(_vaultKey);
+                if (_wrappingKey != null) CryptographicOperations.ZeroMemory(_wrappingKey);
+                _vaultKey = null;
+                _wrappingKey = null;
+            }
             return;
         }
 
@@ -244,45 +287,150 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
             throw new InvalidOperationException("Vault 元数据缺失 verifier");
         }
 
-        byte[] candidate = DeriveKey(_kdfId, masterPassword, _kdfSalt);
+        var wrappedB64 = await LoadValueAsync(KeyWrappedVaultKey, ct);
+        byte[] verifier = Convert.FromBase64String(verifierB64);
+
+        // 未知或非法 KDF 标识抛 NotSupportedException，不能报成密码错误
+        byte[] wrappingKey = VaultCryptography.DeriveWrappingKey(_kdfId, masterPassword, _kdfSalt);
+
+        if (wrappedB64 == null)
+        {
+            // 旧库：口令派生值就是数据密钥，verifier 用 AES-256-GCM 保护
+            if (!VaultCryptography.TryLegacyVerifierMatches(wrappingKey, verifier))
+            {
+                CryptographicOperations.ZeroMemory(wrappingKey);
+                _logger.LogWarning("Vault 解锁失败：主密码错误");
+                throw new UnauthorizedAccessException("主密码错误");
+            }
+
+            // 在同一次解锁里迁移到 Vault Key + Argon2id；迁移失败不留下半新元数据
+            await MigrateLegacyVaultAsync(wrappingKey, masterPassword, lockVersion, ct);
+            _logger.LogInformation("Vault 由旧 PBKDF2 库迁移到 Vault Key");
+            return;
+        }
+
+        byte[] vaultId = _vaultId ?? throw new InvalidOperationException("Vault 元数据缺失 vault_id");
+        byte[] vaultKey;
+        try
+        {
+            vaultKey = VaultCryptography.Open(wrappingKey, VaultCryptography.BuildWrapAad(vaultId), Convert.FromBase64String(wrappedB64));
+        }
+        catch (CryptographicException)
+        {
+            CryptographicOperations.ZeroMemory(wrappingKey);
+            _logger.LogWarning("Vault 解锁失败：主密码错误");
+            throw new UnauthorizedAccessException("主密码错误");
+        }
+
+        if (!VaultCryptography.VerifierMatches(vaultKey, vaultId, verifier))
+        {
+            CryptographicOperations.ZeroMemory(wrappingKey);
+            CryptographicOperations.ZeroMemory(vaultKey);
+            _logger.LogWarning("Vault 解锁失败：主密码错误");
+            throw new UnauthorizedAccessException("主密码错误");
+        }
+
         bool installed = false;
         try
         {
-            byte[] plain = DecryptWithMek(candidate, Convert.FromBase64String(verifierB64));
-            try
-            {
-                if (!CryptographicOperations.FixedTimeEquals(plain, Encoding.UTF8.GetBytes(VerifierPlaintext)))
-                {
-                    _logger.LogWarning("Vault 解锁失败：主密码错误");
-                    throw new UnauthorizedAccessException("主密码错误");
-                }
-            }
-            finally { CryptographicOperations.ZeroMemory(plain); }
-
             ct.ThrowIfCancellationRequested();
             lock (_keyStateLock)
             {
                 if (lockVersion != _lockVersion) throw new OperationCanceledException("保管库已重新锁定。");
-                if (_mek != null) CryptographicOperations.ZeroMemory(_mek);
-                _mek = candidate;
+                ReplaceKeysLocked(vaultKey, wrappingKey);
                 installed = true;
             }
         }
-        catch (CryptographicException)
-        {
-            // GCM 校验失败即密码错误
-            _logger.LogWarning("Vault 解锁失败：主密码错误");
-            throw new UnauthorizedAccessException("主密码错误");
-        }
         finally
         {
-            if (!installed) CryptographicOperations.ZeroMemory(candidate);
+            if (!installed)
+            {
+                CryptographicOperations.ZeroMemory(vaultKey);
+                CryptographicOperations.ZeroMemory(wrappingKey);
+            }
+        }
+
+        // 上次回滚因缺少包装密钥只记了标记：现在有口令派生的包装密钥，先轮换再投入使用
+        if (_rotationPending)
+        {
+            await RotateVaultKeyLockedAsync(ct);
         }
 
         using SqliteConnection conn = await CreateConnectionAsync(ct);
         await CompletePendingCleanupAsync(conn, ct);
         _logger.LogInformation("Vault 解锁成功");
-        // 保留旧参数的兼容性；本机快速解锁须通过独立的主密码确认流程启用。
+    }
+
+    // 旧库迁移：新盐 + Argon2id 包装随机 Vault Key，并把全部旧密文换成带 AAD 的新算法。
+    // 调用方持有 _secretWriteLock 且已完成旧 verifier 校验（mek 即旧数据密钥）。
+    private async Task MigrateLegacyVaultAsync(byte[] mek, string masterPassword, long lockVersion, CancellationToken ct)
+    {
+        string? previousQuickUnlockId = CurrentQuickUnlockKeyId();
+
+        byte[] salt = RandomNumberGenerator.GetBytes(VaultCryptography.SaltLength);
+        byte[] vaultId = RandomNumberGenerator.GetBytes(VaultCryptography.VaultIdLength);
+        byte[] vaultKey = RandomNumberGenerator.GetBytes(VaultCryptography.KeyLength);
+        string kdfId = VaultCryptography.FormatArgon2Id(_argon2Parameters);
+        byte[] wrappingKey = VaultCryptography.DeriveArgon2Id(masterPassword, salt, _argon2Parameters);
+        byte[] wrappedVaultKey = VaultCryptography.Seal(wrappingKey, VaultCryptography.BuildWrapAad(vaultId), vaultKey);
+        byte[] verifier = VaultCryptography.SealVerifier(vaultKey, vaultId);
+
+        bool installed = false;
+        bool committed = false;
+        try
+        {
+            using (SqliteConnection conn = await CreateConnectionAsync(ct))
+            using (SqliteTransaction tx = conn.BeginTransaction())
+            {
+                await ReEncryptAllSecretsAsync(conn, tx, mek, vaultKey, ct);
+                await UpsertMetadataAsync(conn, tx, KeyPlainMode, "0", ct);
+                await UpsertMetadataAsync(conn, tx, KeyKdf, kdfId, ct);
+                await UpsertMetadataAsync(conn, tx, KeyKdfSalt, Convert.ToBase64String(salt), ct);
+                await UpsertMetadataAsync(conn, tx, KeyVaultId, Convert.ToBase64String(vaultId), ct);
+                await UpsertMetadataAsync(conn, tx, KeyWrappedVaultKey, Convert.ToBase64String(wrappedVaultKey), ct);
+                await UpsertMetadataAsync(conn, tx, KeyVerifier, Convert.ToBase64String(verifier), ct);
+                await UpsertMetadataAsync(conn, tx, KeyCleanupPending, "1", ct);
+                await UpsertMetadataAsync(conn, tx, KeyRotationPending, "0", ct);
+                tx.Commit();
+                committed = true;
+            }
+
+            lock (_keyStateLock)
+            {
+                if (lockVersion != _lockVersion) throw new OperationCanceledException("保管库已重新锁定。");
+                ReplaceKeysLocked(vaultKey, wrappingKey, vaultId, salt, kdfId);
+                _hasMasterPassword = true;
+                _rotationPending = false;
+                _lockVersion++;
+                installed = true;
+            }
+        }
+        finally
+        {
+            // 迁移失败必须清掉候选密钥，磁盘上不能留下半新元数据（事务已回滚）
+            if (!installed)
+            {
+                if (committed)
+                {
+                    // 事务已提交但被并发锁定抢先：Lock() 清掉原先留在内存里的旧 MEK；
+                    // 下次解锁按磁盘新格式重载
+                    _logger.LogWarning("Vault 迁移已提交但未安装到内存，锁定并清掉旧数据密钥");
+                    Lock();
+                }
+                CryptographicOperations.ZeroMemory(vaultKey);
+                CryptographicOperations.ZeroMemory(wrappingKey);
+            }
+            CryptographicOperations.ZeroMemory(mek);
+        }
+
+        _cleanupPending = true;
+        // 迁移已生成新 Vault Key，留给旧设备的字节必然打不开新 verifier，无需为迁移强制轮换
+        if (previousQuickUnlockId != null && _quickUnlockStore != null)
+        {
+            await TryDeleteQuickUnlockAsync(previousQuickUnlockId, CancellationToken.None);
+        }
+        using SqliteConnection cleanupConn = await CreateConnectionAsync(ct);
+        await CompletePendingCleanupAsync(cleanupConn, ct);
     }
 
     public void Lock()
@@ -290,8 +438,10 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
         lock (_keyStateLock)
         {
             _lockVersion++;
-            if (_mek != null) CryptographicOperations.ZeroMemory(_mek);
-            _mek = null;
+            if (_vaultKey != null) CryptographicOperations.ZeroMemory(_vaultKey);
+            if (_wrappingKey != null) CryptographicOperations.ZeroMemory(_wrappingKey);
+            _vaultKey = null;
+            _wrappingKey = null;
         }
     }
 
@@ -313,17 +463,7 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
         var blob = (byte[])reader["secrets_blob"];
         var algorithm = reader.GetString(1);
 
-        byte[] json;
-        if (algorithm == PlainAlgorithm)
-        {
-            json = blob;
-        }
-        else
-        {
-            EnsureUnlocked();
-            json = DecryptWithMek(_mek!, blob);
-        }
-
+        byte[] json = DecryptItem(identityId, blob, algorithm);
         return JsonSerializer.Deserialize<Dictionary<string, SecretPayload>>(json) ?? new();
     }
 
@@ -335,27 +475,7 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
         await EnsureInitializedAsync(ct);
 
         var json = JsonSerializer.SerializeToUtf8Bytes(secrets);
-
-        byte[] blob;
-        string algorithm;
-        byte[]? nonce = null;
-        byte[]? tag = null;
-
-        if (_hasMasterPassword)
-        {
-            EnsureUnlocked();
-            blob = EncryptWithMek(_mek!, json);
-            algorithm = EncryptedAlgorithm;
-            // 同步拆分出 nonce/tag 列，兼容规格表结构
-            nonce = blob.AsSpan(0, NonceLength).ToArray();
-            tag = blob.AsSpan(NonceLength, TagLength).ToArray();
-        }
-        else
-        {
-            // 明文模式：原始 JSON 字节落库（UI 已警示不加密）
-            blob = json;
-            algorithm = PlainAlgorithm;
-        }
+        var (blob, algorithm, nonce, tag) = EncryptItem(identityId, json);
 
         using var conn = await CreateConnectionAsync(ct);
         await CompletePendingCleanupAsync(conn, ct);
@@ -394,7 +514,9 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
 
         var blob = (byte[])reader["secrets_blob"];
         var algorithm = reader.GetString(1);
-        return ReadPassword(blob, algorithm);
+        byte[] json = DecryptItem(proxyId, blob, algorithm);
+        ProxySecretPayload? payload = JsonSerializer.Deserialize<ProxySecretPayload>(json);
+        return string.IsNullOrEmpty(payload?.Password) ? null : payload.Password;
     }
 
     public Task SetPasswordAsync(Guid proxyId, string? password, CancellationToken ct = default)
@@ -415,24 +537,7 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
         }
 
         var json = JsonSerializer.SerializeToUtf8Bytes(new ProxySecretPayload { Password = password });
-        byte[] blob;
-        string algorithm;
-        byte[]? nonce = null;
-        byte[]? tag = null;
-
-        if (_hasMasterPassword)
-        {
-            EnsureUnlocked();
-            blob = EncryptWithMek(_mek!, json);
-            algorithm = EncryptedAlgorithm;
-            nonce = blob.AsSpan(0, NonceLength).ToArray();
-            tag = blob.AsSpan(NonceLength, TagLength).ToArray();
-        }
-        else
-        {
-            blob = json;
-            algorithm = PlainAlgorithm;
-        }
+        var (blob, algorithm, nonce, tag) = EncryptItem(proxyId, json);
 
         using var conn = await CreateConnectionAsync(ct);
         await CompletePendingCleanupAsync(conn, ct);
@@ -479,116 +584,112 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
 
     private void EnsureUnlocked()
     {
-        if (_hasMasterPassword && _mek == null)
+        if (_hasMasterPassword && _vaultKey == null)
         {
             throw new InvalidOperationException("Vault 已锁定，请先解锁");
         }
     }
 
-    private string? ReadPassword(byte[] blob, string algorithm)
+    // 明文直通；加密块按算法分别解；新算法 AAD 绑定行主键
+    private byte[] DecryptItem(Guid itemId, byte[] blob, string algorithm)
     {
-        byte[] json;
-        if (algorithm == PlainAlgorithm)
+        if (algorithm == VaultCryptography.PlainAlgorithm)
         {
-            json = blob;
-        }
-        else
-        {
-            EnsureUnlocked();
-            json = DecryptWithMek(_mek!, blob);
+            return blob;
         }
 
-        ProxySecretPayload? payload = JsonSerializer.Deserialize<ProxySecretPayload>(json);
-        return string.IsNullOrEmpty(payload?.Password) ? null : payload.Password;
+        EnsureUnlocked();
+        if (algorithm == VaultCryptography.SealedAlgorithm)
+        {
+            return VaultCryptography.Open(_vaultKey!, VaultCryptography.BuildItemAad(itemId), blob);
+        }
+
+        if (algorithm == VaultCryptography.LegacyAlgorithm)
+        {
+            return VaultCryptography.LegacyOpen(_vaultKey!, blob);
+        }
+
+        throw new NotSupportedException($"不支持的 Vault 条目算法: {algorithm}");
     }
 
-    // 明文升级为加密：逐行把 PLAIN 材料块用新 MEK 重新加密；返回重加密行数
-    private static async Task<int> ReEncryptPlainSecretsAsync(SqliteConnection conn, SqliteTransaction tx, byte[] mek, CancellationToken ct)
+    private (byte[] Blob, string Algorithm, byte[]? Nonce, byte[]? Tag) EncryptItem(Guid itemId, byte[] plaintext)
     {
-        int count = await ReEncryptPlainTableAsync(conn, tx, mek, "identity_secrets", "identity_id", ct);
-        count += await ReEncryptPlainTableAsync(conn, tx, mek, "proxy_secrets", "proxy_id", ct);
+        if (!_hasMasterPassword)
+        {
+            // 明文模式：原始 JSON 字节落库（UI 已警示不加密）
+            return (plaintext, VaultCryptography.PlainAlgorithm, null, null);
+        }
+
+        EnsureUnlocked();
+        if (_vaultId != null)
+        {
+            byte[] sealedBlock = VaultCryptography.Seal(_vaultKey!, VaultCryptography.BuildItemAad(itemId), plaintext);
+            return (sealedBlock, VaultCryptography.SealedAlgorithm, VaultCryptography.SplitNonce(sealedBlock), VaultCryptography.SplitTag(sealedBlock));
+        }
+
+        // 尚未迁移的旧库仍写 AES-256-GCM
+        byte[] legacyBlock = VaultCryptography.LegacySeal(_vaultKey!, plaintext);
+        return (legacyBlock, VaultCryptography.LegacyAlgorithm,
+            legacyBlock.AsSpan(0, VaultCryptography.LegacyNonceLength).ToArray(),
+            legacyBlock.AsSpan(VaultCryptography.LegacyNonceLength, VaultCryptography.LegacyTagLength).ToArray());
+    }
+
+    // 把两种秘密表的全部行从 oldKey 换成 newKey；旧算法行与 PLAIN 行一并升级为带 AAD 的新算法
+    private static async Task<int> ReEncryptAllSecretsAsync(SqliteConnection conn, SqliteTransaction tx, byte[]? oldKey, byte[] newKey, CancellationToken ct)
+    {
+        int count = await ReEncryptTableAsync(conn, tx, oldKey, newKey, "identity_secrets", "identity_id", ct);
+        count += await ReEncryptTableAsync(conn, tx, oldKey, newKey, "proxy_secrets", "proxy_id", ct);
         return count;
     }
 
     // 表名与主键列是内部常量，不接受外部输入
-    private static async Task<int> ReEncryptPlainTableAsync(
+    private static async Task<int> ReEncryptTableAsync(
         SqliteConnection conn,
         SqliteTransaction tx,
-        byte[] mek,
+        byte[]? oldKey,
+        byte[] newKey,
         string table,
         string idColumn,
         CancellationToken ct)
     {
-        var pending = new List<(string id, byte[] plaintext)>();
+        var pending = new List<(string id, string algorithm, byte[] blob)>();
         using (var select = conn.CreateCommand())
         {
             select.Transaction = tx;
-            select.CommandText = $"SELECT {idColumn}, secrets_blob FROM {table} WHERE encryption_algorithm = $alg;";
-            select.Parameters.AddWithValue("$alg", PlainAlgorithm);
+            select.CommandText = $"SELECT {idColumn}, encryption_algorithm, secrets_blob FROM {table};";
             using var reader = await select.ExecuteReaderAsync(ct);
             while (await reader.ReadAsync(ct))
             {
-                pending.Add((reader.GetString(0), (byte[])reader["secrets_blob"]));
+                pending.Add((reader.GetString(0), reader.GetString(1), (byte[])reader["secrets_blob"]));
             }
         }
 
-        foreach (var (id, plaintext) in pending)
+        foreach (var (id, algorithm, blob) in pending)
         {
-            var blob = EncryptWithMek(mek, plaintext);
-            using var update = conn.CreateCommand();
-            update.Transaction = tx;
-            update.CommandText = $@"
-                UPDATE {table}
-                SET secrets_blob = $blob, encryption_algorithm = $alg, nonce = $nonce, tag = $tag
-                WHERE {idColumn} = $id;
-            ";
-            update.Parameters.AddWithValue("$id", id);
-            update.Parameters.Add("$blob", SqliteType.Blob).Value = blob;
-            update.Parameters.AddWithValue("$alg", EncryptedAlgorithm);
-            update.Parameters.AddWithValue("$nonce", blob.AsSpan(0, NonceLength).ToArray());
-            update.Parameters.AddWithValue("$tag", blob.AsSpan(NonceLength, TagLength).ToArray());
-            await update.ExecuteNonQueryAsync(ct);
-        }
-
-        return pending.Count;
-    }
-
-    // 两种秘密表都必须用旧 MEK 解开、新 MEK 重包；表名和主键仅接受内部常量。
-    private static async Task<int> RewrapEncryptedSecretsAsync(
-        SqliteConnection conn,
-        SqliteTransaction tx,
-        byte[] oldMek,
-        byte[] newMek,
-        string table,
-        string idColumn,
-        CancellationToken ct)
-    {
-        var pending = new List<(string id, byte[] plaintext)>();
-        using (var select = conn.CreateCommand())
-        {
-            select.Transaction = tx;
-            select.CommandText = $"SELECT {idColumn}, secrets_blob FROM {table} WHERE encryption_algorithm = $alg;";
-            select.Parameters.AddWithValue("$alg", EncryptedAlgorithm);
-            using var reader = await select.ExecuteReaderAsync(ct);
-            while (await reader.ReadAsync(ct))
+            Guid itemId = Guid.Parse(id);
+            byte[] aad = VaultCryptography.BuildItemAad(itemId);
+            byte[] plaintext = algorithm switch
             {
-                pending.Add((reader.GetString(0), (byte[])reader["secrets_blob"]));
-            }
-        }
+                VaultCryptography.PlainAlgorithm => blob,
+                VaultCryptography.LegacyAlgorithm => oldKey != null
+                    ? VaultCryptography.LegacyOpen(oldKey, blob)
+                    : throw new InvalidOperationException("保管库材料迁移缺少旧密钥"),
+                VaultCryptography.SealedAlgorithm => oldKey != null
+                    ? VaultCryptography.Open(oldKey, aad, blob)
+                    : throw new InvalidOperationException("保管库材料迁移缺少旧密钥"),
+                _ => throw new NotSupportedException($"不支持的 Vault 条目算法: {algorithm}"),
+            };
 
-        foreach (var (id, blob) in pending)
-        {
-            byte[] plaintext;
+            byte[] wrapped;
             try
             {
-                plaintext = DecryptWithMek(oldMek, blob);
+                wrapped = VaultCryptography.Seal(newKey, aad, plaintext);
             }
-            catch (CryptographicException)
+            finally
             {
-                throw new InvalidOperationException("保管库材料重包失败");
+                CryptographicOperations.ZeroMemory(plaintext);
             }
 
-            var wrapped = EncryptWithMek(newMek, plaintext);
             using var update = conn.CreateCommand();
             update.Transaction = tx;
             update.CommandText = $@"
@@ -598,66 +699,124 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
             ";
             update.Parameters.AddWithValue("$id", id);
             update.Parameters.Add("$blob", SqliteType.Blob).Value = wrapped;
-            update.Parameters.AddWithValue("$alg", EncryptedAlgorithm);
-            update.Parameters.AddWithValue("$nonce", wrapped.AsSpan(0, NonceLength).ToArray());
-            update.Parameters.AddWithValue("$tag", wrapped.AsSpan(NonceLength, TagLength).ToArray());
+            update.Parameters.AddWithValue("$alg", VaultCryptography.SealedAlgorithm);
+            update.Parameters.AddWithValue("$nonce", VaultCryptography.SplitNonce(wrapped));
+            update.Parameters.AddWithValue("$tag", VaultCryptography.SplitTag(wrapped));
             await update.ExecuteNonQueryAsync(ct);
         }
 
         return pending.Count;
     }
 
+    // 生成新 Vault Key，重加密全部条目并重写 verifier；调用方必须持有 _secretWriteLock 且处于解锁态
+    private async Task RotateVaultKeyLockedAsync(CancellationToken ct)
+    {
+        byte[]? oldKey;
+        byte[]? wrappingKey;
+        byte[]? vaultId;
+        lock (_keyStateLock)
+        {
+            if (_vaultKey == null || _wrappingKey == null || _vaultId == null) return;
+            oldKey = _vaultKey;
+            wrappingKey = _wrappingKey;
+            vaultId = _vaultId;
+        }
+
+        byte[] newVaultKey = RandomNumberGenerator.GetBytes(VaultCryptography.KeyLength);
+        byte[] wrappedVaultKey = VaultCryptography.Seal(wrappingKey, VaultCryptography.BuildWrapAad(vaultId), newVaultKey);
+        byte[] verifier = VaultCryptography.SealVerifier(newVaultKey, vaultId);
+
+        bool installed = false;
+        try
+        {
+            using SqliteConnection conn = await CreateConnectionAsync(ct);
+            using (SqliteTransaction tx = conn.BeginTransaction())
+            {
+                await ReEncryptAllSecretsAsync(conn, tx, oldKey, newVaultKey, ct);
+                await UpsertMetadataAsync(conn, tx, KeyWrappedVaultKey, Convert.ToBase64String(wrappedVaultKey), ct);
+                await UpsertMetadataAsync(conn, tx, KeyVerifier, Convert.ToBase64String(verifier), ct);
+                await UpsertMetadataAsync(conn, tx, KeyRotationPending, "0", ct);
+                tx.Commit();
+            }
+
+            lock (_keyStateLock)
+            {
+                // 轮换提交期间若被并发 Lock，内存不安装，下次解锁按磁盘新格式重载
+                if (ReferenceEquals(_vaultKey, oldKey))
+                {
+                    CryptographicOperations.ZeroMemory(oldKey);
+                    _vaultKey = newVaultKey;
+                    _rotationPending = false;
+                    _lockVersion++;
+                    installed = true;
+                }
+            }
+
+            _logger.LogInformation("Vault Key 已轮换");
+        }
+        finally
+        {
+            if (!installed) CryptographicOperations.ZeroMemory(newVaultKey);
+        }
+    }
+
+    // 删除旧快速解锁项；删除失败说明换盐只换了查找名，必须轮换 Vault Key 使遗留副本真正失效
+    private async Task RemovePreviousQuickUnlockOrRotateAsync(string? keyId, CancellationToken ct)
+    {
+        if (keyId == null || _quickUnlockStore == null) return;
+        if (await TryDeleteQuickUnlockAsync(keyId, ct))
+        {
+            // 删除成功，旧副本已不存在：另起一次写入把换盐时下的轮换标记清回 "0"
+            await ClearRotationPendingAsync(ct);
+            return;
+        }
+
+        _logger.LogWarning("删除旧快速解锁登记失败，轮换 Vault Key 以使遗留副本失效");
+        // 轮换成功会在其事务里把标记写成 "0"；若因内存里已无密钥而直接返回，标记保持 "1"
+        await RotateVaultKeyLockedAsync(ct);
+        // 轮换后再删一次；即使再失败，旧字节已解不开当前库
+        await TryDeleteQuickUnlockAsync(keyId, ct);
+    }
+
+    // 单独一次写入把轮换标记清回 "0"；调用方持有 _secretWriteLock
+    private async Task ClearRotationPendingAsync(CancellationToken ct)
+    {
+        using SqliteConnection conn = await CreateConnectionAsync(ct);
+        using SqliteTransaction tx = conn.BeginTransaction();
+        await UpsertMetadataAsync(conn, tx, KeyRotationPending, "0", ct);
+        tx.Commit();
+        lock (_keyStateLock) { _rotationPending = false; }
+    }
+
+    private async Task<bool> TryDeleteQuickUnlockAsync(string keyId, CancellationToken ct)
+    {
+        try
+        {
+            await _quickUnlockStore!.DeleteKeyAsync(keyId, CancellationToken.None);
+            return true;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning("无法删除本机快速解锁项，错误类型={ErrorType}", ex.GetType().Name);
+            return false;
+        }
+    }
+
+    // 调用方持有 _keyStateLock；负责清零被替换的旧密钥
+    private void ReplaceKeysLocked(byte[] vaultKey, byte[]? wrappingKey, byte[]? vaultId = null, byte[]? salt = null, string? kdfId = null)
+    {
+        if (_vaultKey != null) CryptographicOperations.ZeroMemory(_vaultKey);
+        if (_wrappingKey != null) CryptographicOperations.ZeroMemory(_wrappingKey);
+        _vaultKey = vaultKey;
+        _wrappingKey = wrappingKey;
+        if (vaultId != null) _vaultId = vaultId;
+        if (salt != null) _kdfSalt = salt;
+        if (kdfId != null) _kdfId = kdfId;
+    }
+
     private sealed class ProxySecretPayload
     {
         public string? Password { get; set; }
-    }
-
-    private static byte[] DeriveKey(string kdfId, string password, byte[] salt)
-    {
-        // 未知 KDF 标识说明库由更新版本写入：拒绝猜测，避免用错误算法反复"密码错误"
-        if (!string.Equals(kdfId, Pbkdf2Sha512Id, StringComparison.Ordinal))
-        {
-            throw new NotSupportedException($"不支持的 Vault KDF: {kdfId}");
-        }
-
-        // PBKDF2-HMAC-SHA512：替代 Argon2id（.NET 10 无内置 Argon2）
-        return Rfc2898DeriveBytes.Pbkdf2(password, salt, Pbkdf2Iterations, HashAlgorithmName.SHA512, MekLength);
-    }
-
-    // blob = [nonce 12B][tag 16B][ciphertext]
-    private static byte[] EncryptWithMek(byte[] mek, byte[] plaintext)
-    {
-        var nonce = RandomNumberGenerator.GetBytes(NonceLength);
-        var tag = new byte[TagLength];
-        var cipher = new byte[plaintext.Length];
-
-        using (var aes = new AesGcm(mek, TagLength))
-        {
-            aes.Encrypt(nonce, plaintext, cipher, tag);
-        }
-
-        var blob = new byte[NonceLength + TagLength + cipher.Length];
-        nonce.CopyTo(blob, 0);
-        tag.CopyTo(blob, NonceLength);
-        cipher.CopyTo(blob, NonceLength + TagLength);
-        return blob;
-    }
-
-    private static byte[] DecryptWithMek(byte[] mek, byte[] blob)
-    {
-        if (blob.Length < NonceLength + TagLength)
-        {
-            throw new CryptographicException("Vault blob 长度非法");
-        }
-
-        var nonce = blob.AsSpan(0, NonceLength);
-        var tag = blob.AsSpan(NonceLength, TagLength);
-        var cipher = blob.AsSpan(NonceLength + TagLength);
-        var plain = new byte[cipher.Length];
-
-        using var aes = new AesGcm(mek, TagLength);
-        aes.Decrypt(nonce, cipher, tag, plain);
-        return plain;
     }
 
     private static async Task<Dictionary<string, string>> LoadMetadataAsync(SqliteConnection conn, CancellationToken ct)

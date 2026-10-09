@@ -384,7 +384,7 @@ public class FileManagerWorkspaceTests
         {
             UiDesignSystemService.Apply();
             SqliteConnectionFactory database = new("Data Source=:memory:");
-            InternalVaultManager vault = new(database);
+            InternalVaultManager vault = VaultTestDb.CreateVault(database);
             MainViewModel model = new(new SqliteTreeRepository(database), new SqliteIdentityRepository(database), vault, vault,
                 new FixedSettingsService(new AppSettings { ConfirmBeforeClose = false, SessionManagerPinned = false }), new SshSessionFactory());
             model.ApplySessionManagerSettings();
