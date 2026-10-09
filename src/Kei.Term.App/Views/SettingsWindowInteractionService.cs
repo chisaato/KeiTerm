@@ -116,7 +116,13 @@ internal sealed class SettingsWindowInteractionService(Window owner, SettingsVie
     public Task<FolderNode?> EditFolderAsync(FolderNode? existing, Guid? parentId) => Task.FromResult<FolderNode?>(null);
 
     public Task<TerminalProfile?> EditTerminalProfileAsync(TerminalProfile? source, TerminalFontSnapshot font)
-        => Task.FromResult<TerminalProfile?>(null);
+        => TerminalProfileEditorDialogs.EditAsync(owner, this, source, font);
+
+    public Task<TerminalProfile?> ImportTerminalThemeJsonAsync(TerminalFontSnapshot font)
+        => TerminalProfileEditorDialogs.EditAsync(owner, this, null, font, importJson: true);
+
+    public Task<TerminalProfile?> EditTerminalThemeJsonAsync(TerminalProfile? source)
+        => TerminalProfileEditorDialogs.EditJsonAsync(owner, source);
 
     public Task<string?> PickSecureCrtFolderAsync() => Task.FromResult<string?>(null);
 

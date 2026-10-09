@@ -54,11 +54,12 @@
                             <TextBox Text="{Binding Name}"
                                      Height="28"
                                      VerticalContentAlignment="Center"/>
-                            <Button Content="{loc:KeiString FontDialog.Open}"
-                                    Click="OnOpenFontDialogClick"
-                                    HorizontalAlignment="Left"
-                                    Height="28"
-                                    Padding="10,0"/>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Button Content="{loc:KeiString FontDialog.Open}"
+                                        Click="OnOpenFontDialogClick" Height="28" Padding="10,0"/>
+                                <Button x:Name="EditJsonButton" Content="{loc:KeiString TerminalThemeJsonImport.Edit}"
+                                        Click="OnEditJsonClick" Height="28" Padding="10,0"/>
+                            </StackPanel>
                         </StackPanel>
 
                         <Separator Background="{DynamicResource Kei.Border}" Height="1"/>
@@ -204,12 +205,12 @@
 
         <!-- 底部确定与取消操作栏 -->
         <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
-            <Button Content="{loc:KeiString Common.Cancel}"
+            <Button x:Name="CancelButton" Content="{loc:KeiString Common.Cancel}"
                     Click="OnCancelClick"
                     Width="80"
                     Height="28"
                     HorizontalContentAlignment="Center"/>
-            <Button Content="{loc:KeiString Common.Confirm}"
+            <Button x:Name="ConfirmButton" Content="{loc:KeiString Common.Confirm}"
                     Click="OnConfirmClick"
                     IsEnabled="{Binding IsCurrentColorValid}"
                     Classes="accent"

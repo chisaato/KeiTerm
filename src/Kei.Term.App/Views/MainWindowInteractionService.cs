@@ -149,12 +149,16 @@ public sealed class MainWindowInteractionService : IInteractionService
         });
 
     public Task<TerminalProfile?> EditTerminalProfileAsync(TerminalProfile? source, TerminalFontSnapshot font)
-        => Safe.RunAsync<TerminalProfile?>(_log, "打开配色编辑窗口", async () =>
-        {
-            var editVm = new TerminalProfileEditViewModel(source, font);
-            bool confirmed = await new TerminalProfileEditWindow(editVm).ShowDialog<bool>(_owner);
-            return confirmed && editVm.IsConfirmed ? editVm.ResultProfile : null;
-        });
+        => Safe.RunAsync<TerminalProfile?>(_log, "打开配色编辑窗口",
+            () => TerminalProfileEditorDialogs.EditAsync(_owner, this, source, font));
+
+    public Task<TerminalProfile?> ImportTerminalThemeJsonAsync(TerminalFontSnapshot font)
+        => Safe.RunAsync<TerminalProfile?>(_log, "打开通用 JSON 配色导入窗口",
+            () => TerminalProfileEditorDialogs.EditAsync(_owner, this, null, font, importJson: true));
+
+    public Task<TerminalProfile?> EditTerminalThemeJsonAsync(TerminalProfile? source)
+        => Safe.RunAsync<TerminalProfile?>(_log, "打开配色 JSON 编辑窗口",
+            () => TerminalProfileEditorDialogs.EditJsonAsync(_owner, source));
 
     // === 选择器 ===
 
