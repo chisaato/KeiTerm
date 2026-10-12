@@ -68,6 +68,9 @@
         <Style Selector="Button.fileActivityToggle.open">
             <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}"/>
         </Style>
+        <Style Selector="Button.directoryTreeToggle.open Path.kei-icon">
+            <Setter Property="Stroke" Value="{DynamicResource Kei.Accent}"/>
+        </Style>
     </UserControl.Styles>
 
     <Grid x:Name="FileManagerLayout" RowDefinitions="Auto,Auto,*,Auto,Auto,Auto" DragDrop.AllowDrop="True">
@@ -85,6 +88,15 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+                    <Button x:Name="FileManagerTreeToggleButton" Classes="iconBtn directoryTreeToggle" Classes.open="{Binding IsDirectoryTreeVisible}"
+                            Width="28" Height="28" Command="{Binding ToggleDirectoryTreeCommand}"
+                            ToolTip.Tip="{loc:KeiString FileManager.Tree.Toggle}" AutomationProperties.Name="{loc:KeiString FileManager.Tree.Toggle}">
+                        <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Grid Width="24" Height="24">
+                                <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Sidebar}" Width="24" Height="24" Stretch="None"/>
+                            </Grid>
+                        </Viewbox>
+                    </Button>
                     <Button x:Name="FileManagerShowShellButton" Classes="iconBtn" Width="28" Height="28"
                             ToolTip.Tip="{loc:KeiString FileManager.ShowShell}" AutomationProperties.Name="{loc:KeiString FileManager.ShowShell}"
                             Command="{Binding ShowShellCommand}">
@@ -150,13 +162,14 @@
         </Border>
 
         <!-- 中部文件显示区：SecureCRT 左右双栏结构（左侧目录树 + 分割条 + 右侧文件列表） -->
-        <Grid Grid.Row="2" ColumnDefinitions="160,Auto,*">
+        <Grid x:Name="DirectoryContentGrid" Grid.Row="2" ColumnDefinitions="160,Auto,*">
             <!-- 左栏：远程目录树（仅目录，层级展开，点击切换当前目录） -->
             <TreeView x:Name="DirectoryTreeView"
                       Grid.Column="0"
                       ItemsSource="{Binding DirectoryTreeRoots}"
                       SelectedItem="{Binding SelectedDirectoryNode, Mode=TwoWay}"
                       DoubleTapped="OnDirectoryTreeDoubleTapped"
+                      IsVisible="{Binding IsDirectoryTreeVisible}"
                       Background="Transparent">
                 <TreeView.DataTemplates>
                     <TreeDataTemplate DataType="vm:RemoteDirectoryNodeViewModel" ItemsSource="{Binding Children}">
@@ -174,7 +187,8 @@
             </TreeView>
 
             <!-- 垂直分割条 -->
-            <GridSplitter Grid.Column="1" Width="3" Background="{DynamicResource Kei.Border}" ResizeDirection="Columns"/>
+            <GridSplitter x:Name="DirectoryTreeSplitter" Grid.Column="1" Width="3" Background="{DynamicResource Kei.Border}"
+                          IsVisible="{Binding IsDirectoryTreeVisible}" ResizeDirection="Columns"/>
 
             <!-- 右栏：当前目录下文件列表（含 .. 回上级、文件图标、大小、权限等） -->
             <ListBox x:Name="FileListBox"

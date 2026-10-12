@@ -118,5 +118,7 @@ public record ResolvedSessionConfig(
     // 已按「会话覆盖 → 全局设置」解析后的连接超时（秒）
     int ConnectTimeoutSeconds = 60,
     // 会话出口是已保存代理时的档案 id；与 JumpHostSessionId 互斥
-    Guid? ProxyProfileId = null
+    Guid? ProxyProfileId = null,
+    // 保留继承语义，已经打开的连接也会采用当前全局上传设置。
+    TerminalUploadProtocol? TerminalUploadProtocolOverride = null
 );

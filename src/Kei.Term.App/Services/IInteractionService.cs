@@ -81,6 +81,9 @@ public interface IInteractionService
     Task<QuitConfirmationResult> ShowQuitConfirmationAsync(QuitTrigger trigger, CancellationToken cancellationToken) => Task.FromResult(default(QuitConfirmationResult));
 
     // === 反馈 ===
+    Task<TerminalFileDropChoice?> PromptTerminalFileDropAsync(IReadOnlyList<string> paths, TerminalUploadProtocol protocol, string directory, CancellationToken ct = default)
+        => Task.FromResult<TerminalFileDropChoice?>(null);
+
     Task<bool> ConfirmDeleteAsync(string name);
 
     Task NotifyAsync(string title, string message);

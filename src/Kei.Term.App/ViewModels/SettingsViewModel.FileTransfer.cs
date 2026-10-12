@@ -11,6 +11,7 @@ public partial class SettingsViewModel
     private void LoadFileTransferSettings(AppSettings settings)
     {
         FileTransferSettings transfer = settings.FileTransfer;
+        _fileTransfer.SetTerminalDropPreferences(transfer.TerminalUploadProtocol, transfer.TerminalDropAction);
         _fileTransfer.SetSizeDisplayMode(transfer.SizeDisplayMode);
         _fileTransfer.CacheDirectory = transfer.CacheDirectory;
         _fileTransfer.SelectedWatcherMode = transfer.WatcherMode.ToString();
@@ -23,6 +24,8 @@ public partial class SettingsViewModel
     private void ApplyFileTransferSettings(AppSettings settings)
     {
         FileTransferSettings transfer = settings.FileTransfer;
+        transfer.TerminalUploadProtocol = _fileTransfer.SelectedTerminalUploadProtocol.Protocol;
+        transfer.TerminalDropAction = _fileTransfer.SelectedTerminalDropAction.Action;
         transfer.SizeDisplayMode = _fileTransfer.SelectedSizeDisplay.Mode;
         transfer.CacheDirectory = _fileTransfer.CacheDirectory.Trim();
         transfer.WatcherMode = Enum.TryParse(_fileTransfer.SelectedWatcherMode, out FileWatcherMode mode)

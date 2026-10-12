@@ -90,6 +90,19 @@ public class JsonSettingsService : ISettingsService, INotifySettingsCommitted
         }
     }
 
+    // 拖放选择只补丁当前配置，避免用弹窗打开时的快照回滚其它设置。
+    public async Task CommitTerminalDropActionAsync(Kei.Term.Core.Models.TerminalFileDropAction? action, CancellationToken ct = default)
+    {
+        await _saveLock.WaitAsync(ct);
+        try
+        {
+            _current.FileTransfer.TerminalDropAction = action;
+            await WriteCurrentAsync(ct);
+        }
+        finally { _saveLock.Release(); }
+        SettingsCommitted?.Invoke(this, EventArgs.Empty);
+    }
+
     private int PublishFontSize(double fontSize)
     {
         Volatile.Write(ref _latestFontBits, BitConverter.DoubleToInt64Bits(fontSize));

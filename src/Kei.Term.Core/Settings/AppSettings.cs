@@ -130,6 +130,11 @@ public class AppSettings
 
 public class FileTransferSettings
 {
+    // null 表示每次拖入终端时询问。仅「全局不再询问」持久化到此处。
+    public TerminalFileDropAction? TerminalDropAction { get; set; }
+
+    public TerminalUploadProtocol TerminalUploadProtocol { get; set; } = TerminalUploadProtocol.Scp;
+
     // 文件列表大小的显示单位；不影响远程文件大小或传输字节计数。
     public FileSizeDisplayMode SizeDisplayMode { get; set; } = FileSizeDisplayMode.Iec;
 
@@ -157,6 +162,12 @@ public interface ISettingsService
     AppSettings Current { get; }
     Task<AppSettings> LoadSettingsAsync(CancellationToken ct = default);
     Task SaveSettingsAsync(AppSettings settings, CancellationToken ct = default);
+
+    Task CommitTerminalDropActionAsync(TerminalFileDropAction? action, CancellationToken ct = default)
+    {
+        Current.FileTransfer.TerminalDropAction = action;
+        return SaveSettingsAsync(Current, ct);
+    }
 
     // 只提交字号。默认实现改内存后整对象保存。
     // 生产实现应在保存锁内补丁当前对象，避免用调用时的完整快照回滚其他字段。

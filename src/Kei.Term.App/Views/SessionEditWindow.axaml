@@ -113,7 +113,7 @@
 
                         <!-- 3. 文件传输 (FileTransfer) -->
                         <StackPanel Spacing="14" IsVisible="{Binding SelectedCategory.Page, Converter={x:Static ObjectConverters.Equal}, ConverterParameter='FileTransfer'}">
-                            <TextBlock Text="文件传输 (SFTP / SCP)" FontWeight="Bold" Foreground="{DynamicResource Kei.Text.Primary}" FontSize="13"/>
+                            <TextBlock Text="{loc:KeiString SessionEdit.FileManagerProtocolSection}" FontWeight="Bold" Foreground="{DynamicResource Kei.Text.Primary}" FontSize="13"/>
 
                             <Grid ColumnDefinitions="120, *" ColumnSpacing="12" RowDefinitions="Auto, Auto" RowSpacing="10">
                                 <TextBlock Grid.Row="0" Grid.Column="0" Text="传输协议:" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
@@ -122,6 +122,12 @@
                                 <TextBlock Grid.Row="1" Grid.Column="0" Text="SFTP 模式:" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
                                 <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding AvailableSftpModes}" SelectedItem="{Binding SelectedSftpMode}" HorizontalAlignment="Stretch"/>
                             </Grid>
+                            <TextBlock Text="{loc:KeiString Terminal.Drop.SettingsSection}" FontWeight="Bold" Foreground="{DynamicResource Kei.Text.Primary}" FontSize="13"/>
+                            <Grid ColumnDefinitions="120,*" ColumnSpacing="12">
+                                <TextBlock Text="{loc:KeiString Terminal.Drop.Protocol}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                <ComboBox x:Name="SessionTerminalUploadProtocolComboBox" Grid.Column="1" ItemsSource="{Binding TerminalUploadOptions}" SelectedItem="{Binding SelectedTerminalUpload}" HorizontalAlignment="Stretch"/>
+                            </Grid>
+                            <TextBlock Text="{loc:KeiString Terminal.Drop.SessionHint}" TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}"/>
                         </StackPanel>
 
                         <!-- 4. 会话行为 (Behavior) -->

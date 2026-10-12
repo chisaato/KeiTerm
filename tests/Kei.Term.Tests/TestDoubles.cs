@@ -17,6 +17,14 @@ namespace Kei.Term.Tests;
 // 按脚本回答的交互服务：每类提示一个队列，队列耗尽即按"取消"处理；同时记录调用次数与参数
 internal sealed class ScriptedInteraction : IInteractionService
 {
+    public Queue<TerminalFileDropChoice?> TerminalDropChoices { get; } = new();
+    public int TerminalDropPrompts { get; private set; }
+    public TaskCompletionSource<TerminalFileDropChoice?>? PendingTerminalDrop { get; set; }
+    public Task<TerminalFileDropChoice?> PromptTerminalFileDropAsync(IReadOnlyList<string> paths, TerminalUploadProtocol protocol, string directory, CancellationToken ct = default)
+    {
+        TerminalDropPrompts++;
+        return PendingTerminalDrop?.Task ?? Task.FromResult(TerminalDropChoices.Count > 0 ? TerminalDropChoices.Dequeue() : null);
+    }
     public Queue<ExternalEditor?> EditorResults { get; } = new();
     public Queue<FileAssociationRule?> AssociationResults { get; } = new();
     public Task<ExternalEditor?> EditExternalEditorAsync(ExternalEditor? existing)

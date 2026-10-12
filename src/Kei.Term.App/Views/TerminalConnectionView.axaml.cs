@@ -27,6 +27,7 @@ public partial class TerminalConnectionView : UserControl
     public TerminalConnectionView()
     {
         InitializeComponent();
+        InitializeTerminalFileDrop();
         _fileManagerTransition = new SidebarTransition(SftpSurface);
         AddHandler(PointerPressedEvent, OnPointerPressed, RoutingStrategies.Tunnel | RoutingStrategies.Bubble, handledEventsToo: true);
         AddHandler(GotFocusEvent, OnGotFocus, RoutingStrategies.Bubble, handledEventsToo: true);

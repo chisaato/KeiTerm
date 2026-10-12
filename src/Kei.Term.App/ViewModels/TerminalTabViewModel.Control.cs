@@ -66,6 +66,7 @@ public partial class TerminalTabViewModel
                 terminal.Loaded += OnTerminalLoaded;
                 terminal.SizeChanged += OnTerminalSizeChanged;
                 terminal.TerminalResized += OnTerminalGridResized;
+                terminal.ShellIntegrationEventReceived += OnTerminalShellIntegrationEvent;
                 _terminal = terminal;
             }
 
