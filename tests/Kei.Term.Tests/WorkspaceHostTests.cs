@@ -440,6 +440,7 @@ public class WorkspaceHostTests
         public bool IsPlainMode => true;
 
         public Task SetMasterPasswordAsync(string masterPassword, CancellationToken ct = default) => Task.CompletedTask;
+        public Task RemoveMasterPasswordAsync(CancellationToken ct = default) => Task.CompletedTask;
 
         public Task<bool> TryAutoUnlockAsync(CancellationToken ct = default) => Task.FromResult(true);
 

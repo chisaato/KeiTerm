@@ -80,6 +80,7 @@ public class TerminalFontZoomTests
         public bool IsUnlocked => true;
         public bool IsPlainMode => true;
         public Task SetMasterPasswordAsync(string masterPassword, CancellationToken ct = default) => Task.CompletedTask;
+        public Task RemoveMasterPasswordAsync(CancellationToken ct = default) => Task.CompletedTask;
         public Task<bool> TryAutoUnlockAsync(CancellationToken ct = default) => Task.FromResult(true);
         public Task UnlockAsync(string masterPassword, bool rememberOnThisDevice, CancellationToken ct = default) => Task.CompletedTask;
         public void Lock() { }

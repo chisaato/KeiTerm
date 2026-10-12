@@ -753,9 +753,15 @@
                                             <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.Security.MasterPasswordSection}"/>
                                             <TextBlock Text="{Binding MasterPasswordStatus}" TextWrapping="Wrap" FontSize="12"
                                                        Foreground="{DynamicResource Kei.Text.Secondary}"/>
-                                            <Button x:Name="SetMasterPasswordButton" HorizontalAlignment="Left" MinWidth="140"
-                                                    Content="{Binding PasswordButtonText}"
-                                                    Command="{Binding SetMasterPasswordCommand}"/>
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <Button x:Name="SetMasterPasswordButton" MinWidth="140"
+                                                        Content="{Binding PasswordButtonText}"
+                                                        Command="{Binding SetMasterPasswordCommand}"/>
+                                                <Button x:Name="RemoveMasterPasswordButton" MinWidth="140"
+                                                        Content="{loc:KeiString Settings.Security.RemoveMasterPassword}"
+                                                        Command="{Binding RemoveMasterPasswordCommand}"
+                                                        IsVisible="{Binding CanRemoveMasterPassword}"/>
+                                            </StackPanel>
                                         </StackPanel>
                                     </Border>
                                     <Border Classes="settingsSection">

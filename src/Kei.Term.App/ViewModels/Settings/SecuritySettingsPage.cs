@@ -25,6 +25,10 @@ public partial class SecuritySettingsPage : ViewModelBase
     [ObservableProperty]
     private string _passwordButtonText = string.Empty;
 
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RemoveMasterPasswordCommand))]
+    private bool _canRemoveMasterPassword;
+
     public bool HasVault => _vault != null;
 
     public Func<IInteractionService>? Interaction { get; set; }
@@ -44,6 +48,7 @@ public partial class SecuritySettingsPage : ViewModelBase
         {
             MasterPasswordStatus = string.Empty;
             PasswordButtonText = string.Empty;
+            CanRemoveMasterPassword = false;
             return;
         }
 
@@ -54,6 +59,7 @@ public partial class SecuritySettingsPage : ViewModelBase
         PasswordButtonText = Strings.Get(plain
             ? "Settings.Security.SetMasterPassword"
             : "Settings.Security.ChangeMasterPassword");
+        CanRemoveMasterPassword = !plain;
     }
 
     [RelayCommand]
@@ -103,6 +109,36 @@ public partial class SecuritySettingsPage : ViewModelBase
             {
                 await QuickUnlock.RefreshAsync();
             }
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanRemoveMasterPassword))]
+    private async Task RemoveMasterPasswordAsync()
+    {
+        if (_vault == null || Interaction == null || _vault.IsPlainMode) return;
+        if (!_vault.IsUnlocked)
+        {
+            await Interaction().NotifyAsync(
+                Strings.Get("Settings.Security.MasterPasswordSection"),
+                Strings.Get("Settings.Security.Locked"));
+            return;
+        }
+
+        bool confirmed = await Interaction().ConfirmDeleteAsync(Strings.Get("Settings.Security.RemoveConfirm"));
+        if (!confirmed) return;
+
+        try
+        {
+            await _vault.RemoveMasterPasswordAsync();
+        }
+        catch (Exception ex)
+        {
+            await Interaction().NotifyAsync(Strings.Get("Settings.Security.RemoveFailed"), ex.Message);
+        }
+        finally
+        {
+            RefreshVaultState();
+            if (QuickUnlock != null) await QuickUnlock.RefreshAsync();
         }
     }
 }

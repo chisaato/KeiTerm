@@ -169,6 +169,8 @@ internal sealed class NativeSecretServiceBackend : ISecretServiceBackend
     private const string ApplicationValue = "KeiTerm";
     private const string KeyIdAttribute = "key-id";
     private const string KeyLabel = "KeiTerm 保管库密钥";
+    // libsecret 把密码的内容类型规定为 text/plain；secret_value_get_text 也只认这个字面量。
+    private const string SecretContentType = "text/plain";
 
     // 64 位 SecretSchema：name(8) + flags(4)+pad(4) + attributes[32]×16 + reserved(4)+pad(4) + 7×指针。
     private const int SchemaSize = 592;
@@ -189,6 +191,7 @@ internal sealed class NativeSecretServiceBackend : ISecretServiceBackend
     private readonly ErrorFree _errorFree;
     private readonly ValueNew _valueNew;
     private readonly ValueGet _valueGet;
+    private readonly ValueGetContentType _valueGetContentType;
     private readonly ValueUnref _valueUnref;
 
     private readonly IntPtr _strHash;
@@ -212,6 +215,7 @@ internal sealed class NativeSecretServiceBackend : ISecretServiceBackend
         _errorFree = Bind<ErrorFree>(glib, "g_error_free");
         _valueNew = Bind<ValueNew>(secret, "secret_value_new");
         _valueGet = Bind<ValueGet>(secret, "secret_value_get");
+        _valueGetContentType = Bind<ValueGetContentType>(secret, "secret_value_get_content_type");
         _valueUnref = Bind<ValueUnref>(secret, "secret_value_unref");
 
         _strHash = NativeLibrary.GetExport(glib, "g_str_hash");
@@ -293,7 +297,7 @@ internal sealed class NativeSecretServiceBackend : ISecretServiceBackend
         {
             // secret_value_new 会复制内容；这里临时持有 UTF-8 副本，用完清零后释放。
             secretPointer = Marshal.StringToCoTaskMemUTF8(secret);
-            value = _valueNew(secretPointer, bytes.Length, IntPtr.Zero);
+            value = CreateSecretValue(secretPointer, bytes.Length);
             if (value == IntPtr.Zero) throw new InvalidOperationException("无法创建钥匙环条目值。");
 
             service = GetService();
@@ -316,6 +320,59 @@ internal sealed class NativeSecretServiceBackend : ISecretServiceBackend
             if (value != IntPtr.Zero) _valueUnref(value);
             if (table != IntPtr.Zero) _hashTableDestroy(table);
             if (service != IntPtr.Zero) _objectUnref(service);
+        }
+    }
+
+    // secret_value_new 在 content_type 为空时直接断言失败并返回 NULL。
+    // 返回前内部会 g_strdup，因此调用方的 MIME 指针只需在这次调用期间有效。
+    private IntPtr CreateSecretValue(IntPtr secret, nint length)
+    {
+        IntPtr contentType = Marshal.StringToCoTaskMemUTF8(SecretContentType);
+        try
+        {
+            return _valueNew(secret, length, contentType);
+        }
+        finally
+        {
+            Marshal.FreeCoTaskMem(contentType);
+        }
+    }
+
+    // 只创建、读取并释放 SecretValue。不调用 secret_service_*，因此不会连接钥匙环。
+    internal bool TryRoundTripSecretValue(ReadOnlySpan<byte> secret, out byte[]? bytes, out string? contentType)
+    {
+        bytes = null;
+        contentType = null;
+        if (secret.IsEmpty) return false;
+
+        byte[] copy = secret.ToArray();
+        IntPtr secretPointer = Marshal.AllocHGlobal(copy.Length);
+        try
+        {
+            Marshal.Copy(copy, 0, secretPointer, copy.Length);
+            IntPtr value = CreateSecretValue(secretPointer, copy.Length);
+            if (value == IntPtr.Zero) return false;
+            try
+            {
+                IntPtr data = _valueGet(value, out nuint length);
+                if (data == IntPtr.Zero) return false;
+                byte[] roundTrip = new byte[checked((int)length)];
+                Marshal.Copy(data, roundTrip, 0, roundTrip.Length);
+                IntPtr type = _valueGetContentType(value);
+                bytes = roundTrip;
+                contentType = type == IntPtr.Zero ? null : Marshal.PtrToStringUTF8(type);
+                return true;
+            }
+            finally
+            {
+                _valueUnref(value);
+            }
+        }
+        finally
+        {
+            Marshal.Copy(new byte[copy.Length], 0, secretPointer, copy.Length);
+            Marshal.FreeHGlobal(secretPointer);
+            CryptographicOperations.ZeroMemory(copy);
         }
     }
 
@@ -459,11 +516,14 @@ internal sealed class NativeSecretServiceBackend : ISecretServiceBackend
     private delegate IntPtr ServiceSearchSync(IntPtr service, IntPtr schema, IntPtr attributes,
         uint flags, IntPtr cancellable, ref IntPtr error);
 
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate bool ServiceClearSync(IntPtr service, IntPtr schema, IntPtr attributes,
         IntPtr cancellable, ref IntPtr error);
 
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate void ListFreeFull(IntPtr list, IntPtr itemFree);
 
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate void ErrorFree(IntPtr error);
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
@@ -471,6 +531,9 @@ internal sealed class NativeSecretServiceBackend : ISecretServiceBackend
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate IntPtr ValueGet(IntPtr value, out nuint length);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate IntPtr ValueGetContentType(IntPtr value);
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate void ValueUnref(IntPtr value);

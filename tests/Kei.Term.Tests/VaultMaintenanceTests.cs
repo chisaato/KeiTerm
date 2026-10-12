@@ -161,6 +161,53 @@ public class VaultMaintenanceTests
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => restarted.UnlockAsync("first-password", false));
     }
 
+    [Fact]
+    public async Task RemoveMasterPassword_WritesPlaintext_AndRestartNoLongerNeedsPassword()
+    {
+        await using Fixture fixture = await Fixture.CreateAsync();
+        await fixture.Vault.SetMasterPasswordAsync("first-password");
+        await fixture.SaveSecretsAsync();
+
+        await fixture.Vault.RemoveMasterPasswordAsync();
+
+        Assert.True(fixture.Vault.IsPlainMode);
+        Assert.True(fixture.Vault.IsUnlocked);
+        await fixture.AssertSecretsAsync(fixture.Vault);
+        Assert.True(fixture.FilesContain(Fixture.Password));
+        Assert.True(fixture.FilesContain(Fixture.PrivateKey));
+        Assert.True(fixture.FilesContain(Fixture.ProxyPassword));
+
+        InternalVaultManager restarted = VaultTestDb.CreateVault(fixture.Database);
+        Assert.True(restarted.IsPlainMode);
+        Assert.True(await restarted.TryAutoUnlockAsync());
+        await fixture.AssertSecretsAsync(restarted);
+        using SqliteConnection connection = await fixture.Database.OpenAsync();
+        int sealedRows = await connection.ExecuteScalarAsync<int>(
+            "SELECT COUNT(*) FROM identity_secrets WHERE encryption_algorithm <> 'PLAIN';");
+        sealedRows += await connection.ExecuteScalarAsync<int>(
+            "SELECT COUNT(*) FROM proxy_secrets WHERE encryption_algorithm <> 'PLAIN';");
+        Assert.Equal(0, sealedRows);
+        Assert.Null(await connection.ExecuteScalarAsync<string>(
+            "SELECT value FROM vault_metadata WHERE key = 'wrapped_vault_key';"));
+    }
+
+    [Fact]
+    public async Task RemoveMasterPassword_WhileLocked_KeepsCiphertextAndPassword()
+    {
+        await using Fixture fixture = await Fixture.CreateAsync();
+        await fixture.Vault.SetMasterPasswordAsync("first-password");
+        await fixture.SaveSecretsAsync();
+        fixture.Vault.Lock();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Vault.RemoveMasterPasswordAsync());
+
+        // IsPlainMode 在 EnsureInitializedAsync 之前按约定缺省为明文，必须先走一次初始化再断言。
+        InternalVaultManager restarted = VaultTestDb.CreateVault(fixture.Database);
+        Assert.False(await restarted.TryAutoUnlockAsync());
+        Assert.False(restarted.IsPlainMode);
+        await restarted.UnlockAsync("first-password", false);
+        await fixture.AssertSecretsAsync(restarted);
+    }
+
     private static async Task<byte[]> ReadProxyBlobAsync(Fixture fixture)
     {
         using SqliteConnection connection = await fixture.Database.OpenAsync();

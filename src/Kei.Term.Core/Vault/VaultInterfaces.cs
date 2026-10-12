@@ -18,6 +18,9 @@ public interface IVaultManager
     // 设置/更新主密码：派生 MEK 并写入 salt/verifier，随后 Vault 处于已解锁态
     Task SetMasterPasswordAsync(string masterPassword, CancellationToken ct = default);
 
+    // 去掉主密码：解密全部材料后以明文落库，并删除本机解锁登记。
+    Task RemoveMasterPasswordAsync(CancellationToken ct = default);
+
     Task<bool> TryAutoUnlockAsync(CancellationToken ct = default);
 
     Task UnlockAsync(string masterPassword, bool rememberOnThisDevice, CancellationToken ct = default);

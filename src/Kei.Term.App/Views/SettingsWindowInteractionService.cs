@@ -10,8 +10,12 @@ using Kei.Term.Core.Models.Profiles;
 using Kei.Term.Core.Security;
 using Kei.Term.Core.Services;
 using Kei.Term.Core.Vault;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Layout;
+using Avalonia.Media;
 using Avalonia.Platform.Storage;
+using Kei.Term.App.Helpers;
 using Kei.Term.App.Services;
 
 namespace Kei.Term.App.Views;
@@ -131,7 +135,49 @@ internal sealed class SettingsWindowInteractionService(Window owner, SettingsVie
 
     public Task OpenQuickConnectAsync() => Task.CompletedTask;
 
-    public Task<bool> ConfirmDeleteAsync(string name) => Task.FromResult(true);
+    public Task<bool> ConfirmDeleteAsync(string name)
+    {
+        var message = new TextBlock
+        {
+            Text = name,
+            TextWrapping = TextWrapping.Wrap,
+            MaxWidth = 420,
+            FontSize = 13,
+        };
+        message.Bind(TextBlock.ForegroundProperty, message.GetResourceObservable("Kei.Text.Primary"));
+        var cancel = new Button { Content = Strings.Get("Common.Cancel"), MinWidth = 76, IsCancel = true };
+        var confirm = new Button { Content = Strings.Get("Common.Confirm"), MinWidth = 76, IsDefault = true, Margin = new Thickness(8, 0, 0, 0) };
+        confirm.Classes.Add("accent");
+        var dialog = new Window
+        {
+            Title = Strings.Get("Settings.Security.RemoveMasterPassword"),
+            Width = 460,
+            SizeToContent = SizeToContent.Height,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            CanResize = false,
+            ShowInTaskbar = false,
+            Content = new StackPanel
+            {
+                Margin = new Thickness(20, 18, 20, 16),
+                Spacing = 14,
+                Children =
+                {
+                    message,
+                    new StackPanel
+                    {
+                        Orientation = Orientation.Horizontal,
+                        HorizontalAlignment = HorizontalAlignment.Right,
+                        Children = { cancel, confirm },
+                    },
+                },
+            },
+        };
+        dialog.Bind(Window.BackgroundProperty, dialog.GetResourceObservable("Kei.Bg.Window"));
+        dialog.Bind(Window.FontFamilyProperty, dialog.GetResourceObservable("Kei.Font.UI"));
+        cancel.Click += (_, _) => dialog.Close(false);
+        confirm.Click += (_, _) => dialog.Close(true);
+        return dialog.ShowDialog<bool>(DialogOwner);
+    }
 
     public Task NotifyAsync(string title, string message) => Task.CompletedTask;
 

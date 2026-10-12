@@ -138,6 +138,9 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
     public Task SetMasterPasswordAsync(string masterPassword, CancellationToken ct = default)
         => WithSecretWriteLockAsync(() => SetMasterPasswordCoreAsync(masterPassword, ct), ct);
 
+    public Task RemoveMasterPasswordAsync(CancellationToken ct = default)
+        => WithSecretWriteLockAsync(() => RemoveMasterPasswordCoreAsync(ct), ct);
+
     private async Task SetMasterPasswordCoreAsync(string masterPassword, CancellationToken ct)
     {
         if (string.IsNullOrEmpty(masterPassword))
@@ -632,6 +635,139 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
         return (legacyBlock, VaultCryptography.LegacyAlgorithm,
             legacyBlock.AsSpan(0, VaultCryptography.LegacyNonceLength).ToArray(),
             legacyBlock.AsSpan(VaultCryptography.LegacyNonceLength, VaultCryptography.LegacyTagLength).ToArray());
+    }
+
+    // 去掉主密码：同一事务里把全部密文解成 PLAIN，再删除包装密钥和本机解锁用的盐。
+    private async Task RemoveMasterPasswordCoreAsync(CancellationToken ct)
+    {
+        await EnsureInitializedAsync(ct);
+        if (!_hasMasterPassword) return;
+
+        // 先复制密钥再做数据库往返。Lock 只清原数组，复制件仍能完成这次解密。
+        byte[] vaultKey;
+        long lockVersion;
+        string? quickUnlockId;
+        lock (_keyStateLock)
+        {
+            EnsureUnlocked();
+            vaultKey = _vaultKey!.ToArray();
+            lockVersion = _lockVersion;
+            quickUnlockId = CurrentQuickUnlockKeyId();
+        }
+
+        using SqliteConnection conn = await CreateConnectionAsync(ct);
+        await CompletePendingCleanupAsync(conn, ct);
+        using (SqliteCommand secureDelete = conn.CreateCommand())
+        {
+            secureDelete.CommandText = "PRAGMA secure_delete = ON;";
+            await secureDelete.ExecuteNonQueryAsync(ct);
+        }
+
+        bool committed = false;
+        try
+        {
+            using (SqliteTransaction tx = conn.BeginTransaction())
+            {
+                await WritePlaintextAsync(conn, tx, vaultKey, "identity_secrets", "identity_id", ct);
+                await WritePlaintextAsync(conn, tx, vaultKey, "proxy_secrets", "proxy_id", ct);
+                await UpsertMetadataAsync(conn, tx, KeyPlainMode, "1", ct);
+                await UpsertMetadataAsync(conn, tx, KeyCleanupPending, "1", ct);
+                await UpsertMetadataAsync(conn, tx, KeyRotationPending, "0", ct);
+                await DeleteMetadataAsync(conn, tx, KeyKdf, ct);
+                await DeleteMetadataAsync(conn, tx, KeyKdfSalt, ct);
+                await DeleteMetadataAsync(conn, tx, KeyVerifier, ct);
+                await DeleteMetadataAsync(conn, tx, KeyVaultId, ct);
+                await DeleteMetadataAsync(conn, tx, KeyWrappedVaultKey, ct);
+                tx.Commit();
+            }
+
+            committed = true;
+            lock (_keyStateLock)
+            {
+                if (lockVersion != _lockVersion) Lock();
+                if (_vaultKey != null) CryptographicOperations.ZeroMemory(_vaultKey);
+                if (_wrappingKey != null) CryptographicOperations.ZeroMemory(_wrappingKey);
+                _vaultKey = null;
+                _wrappingKey = null;
+                _kdfSalt = null;
+                _vaultId = null;
+                _hasMasterPassword = false;
+                _rotationPending = false;
+                _lockVersion++;
+            }
+            _cleanupPending = true;
+            if (quickUnlockId != null && _quickUnlockStore != null)
+            {
+                await TryDeleteQuickUnlockAsync(quickUnlockId, ct);
+            }
+
+            await CompletePendingCleanupAsync(conn, ct);
+            _logger.LogInformation("已去掉主密码，保管库回到明文");
+        }
+        catch (Exception ex) when (committed && ex is SqliteException or IOException or InvalidOperationException or OperationCanceledException)
+        {
+            throw new InvalidOperationException("主密码已去掉，但历史密文清理尚未完成；请结束其他数据库操作后重试或重启应用。", ex);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(vaultKey);
+        }
+    }
+
+    // 表名与主键列是内部常量。解密后的明文只在这条事务里出现，提交后由清理流程处理旧页。
+    private static async Task WritePlaintextAsync(
+        SqliteConnection conn, SqliteTransaction tx, byte[] vaultKey, string table, string idColumn, CancellationToken ct)
+    {
+        var pending = new List<(string id, string algorithm, byte[] blob)>();
+        using (SqliteCommand select = conn.CreateCommand())
+        {
+            select.Transaction = tx;
+            select.CommandText = $"SELECT {idColumn}, encryption_algorithm, secrets_blob FROM {table};";
+            using SqliteDataReader reader = await select.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+            {
+                pending.Add((reader.GetString(0), reader.GetString(1), (byte[])reader["secrets_blob"]));
+            }
+        }
+
+        foreach ((string id, string algorithm, byte[] blob) in pending)
+        {
+            Guid itemId = Guid.Parse(id);
+            byte[] plaintext = algorithm switch
+            {
+                VaultCryptography.PlainAlgorithm => blob,
+                VaultCryptography.LegacyAlgorithm => VaultCryptography.LegacyOpen(vaultKey, blob),
+                VaultCryptography.SealedAlgorithm => VaultCryptography.Open(vaultKey, VaultCryptography.BuildItemAad(itemId), blob),
+                _ => throw new NotSupportedException($"不支持的 Vault 条目算法: {algorithm}"),
+            };
+            try
+            {
+                using SqliteCommand update = conn.CreateCommand();
+                update.Transaction = tx;
+                update.CommandText = $@"
+                    UPDATE {table}
+                    SET secrets_blob = $blob, encryption_algorithm = $alg, nonce = NULL, tag = NULL
+                    WHERE {idColumn} = $id;
+                ";
+                update.Parameters.AddWithValue("$id", id);
+                update.Parameters.Add("$blob", SqliteType.Blob).Value = plaintext;
+                update.Parameters.AddWithValue("$alg", VaultCryptography.PlainAlgorithm);
+                await update.ExecuteNonQueryAsync(ct);
+            }
+            finally
+            {
+                if (!ReferenceEquals(plaintext, blob)) CryptographicOperations.ZeroMemory(plaintext);
+            }
+        }
+    }
+
+    private static async Task DeleteMetadataAsync(SqliteConnection conn, SqliteTransaction tx, string key, CancellationToken ct)
+    {
+        using SqliteCommand cmd = conn.CreateCommand();
+        cmd.Transaction = tx;
+        cmd.CommandText = "DELETE FROM vault_metadata WHERE key = $key;";
+        cmd.Parameters.AddWithValue("$key", key);
+        await cmd.ExecuteNonQueryAsync(ct);
     }
 
     // 把两种秘密表的全部行从 oldKey 换成 newKey；旧算法行与 PLAIN 行一并升级为带 AAD 的新算法

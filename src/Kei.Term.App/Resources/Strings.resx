@@ -463,6 +463,15 @@
   <data name="Settings.Security.SetFailed" xml:space="preserve">
     <value>未能设置主密码</value>
   </data>
+  <data name="Settings.Security.RemoveMasterPassword" xml:space="preserve">
+    <value>去掉主密码</value>
+  </data>
+  <data name="Settings.Security.RemoveConfirm" xml:space="preserve">
+    <value>主密码？私钥和代理口令会以明文保存在本机数据库中，任何能读取该文件的人都能看到。</value>
+  </data>
+  <data name="Settings.Security.RemoveFailed" xml:space="preserve">
+    <value>未能去掉主密码</value>
+  </data>
 
   <!-- Settings: General -->
   <data name="Settings.General.WindowBehavior" xml:space="preserve">

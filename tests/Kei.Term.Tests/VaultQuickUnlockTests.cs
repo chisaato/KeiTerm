@@ -499,6 +499,7 @@ public sealed class VaultQuickUnlockTests : IDisposable
         public void Lock() => inner.Lock();
         public void InvalidateQuickUnlockAttempts() => inner.InvalidateQuickUnlockAttempts();
         public Task SetMasterPasswordAsync(string password, CancellationToken ct = default) => inner.SetMasterPasswordAsync(password, ct);
+        public Task RemoveMasterPasswordAsync(CancellationToken ct = default) => inner.RemoveMasterPasswordAsync(ct);
         public Task<bool> TryAutoUnlockAsync(CancellationToken ct = default) => inner.TryAutoUnlockAsync(ct);
         public Task UnlockAsync(string password, bool rememberOnThisDevice, CancellationToken ct = default) => inner.UnlockAsync(password, rememberOnThisDevice, ct);
         public Task<VaultQuickUnlockState?> GetQuickUnlockStateAsync(CancellationToken ct = default) => inner.GetQuickUnlockStateAsync(ct);
