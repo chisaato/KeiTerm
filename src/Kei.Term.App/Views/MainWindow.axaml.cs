@@ -159,7 +159,7 @@ public partial class MainWindow : Window
         // 身份管理器编辑器由管理器窗口自身以模态方式打开（保证 owner 正确）
         identityMgrVm.ConfirmDeleteAsync = _ => Task.FromResult(true);
         // 手动锁定 Vault 时一并清空 SessionOnly 口令缓存
-        identityMgrVm.LockVaultAction = vm.VaultSession.Lock;
+        identityMgrVm.ConfigureVaultSession(vm.VaultSession);
         // 编辑器回显 Vault 私钥信息 / 「应用」时写入 Vault 材料
         identityMgrVm.VaultKeyInfoLoader = vm.VaultSession.GetVaultKeyInfoAsync;
         identityMgrVm.PersistVaultKeysAsync = vm.VaultSession.PersistVaultKeyImportsAsync;

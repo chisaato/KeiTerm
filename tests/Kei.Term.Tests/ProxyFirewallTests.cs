@@ -545,7 +545,7 @@ public class ProxyFirewallTests : IDisposable
         };
         await repo.SaveAsync(proxy);
 
-        var vault = new InternalVaultManager(ConnStr);
+        var vault = VaultTestDb.CreateVault(ConnStr);
         IProxySecretStore store = vault;
         await store.SetPasswordAsync(proxy.Id, "s3cret-proxy");
 
@@ -575,31 +575,40 @@ public class ProxyFirewallTests : IDisposable
         var proxy = new ProxyProfile { Name = "socks", Config = new Socks5ProxyConfig("10.8.0.1", 1080) };
         await repo.SaveAsync(proxy);
 
-        var vault = new InternalVaultManager(ConnStr);
+        var vault = VaultTestDb.CreateVault(ConnStr);
         IProxySecretStore store = vault;
         await store.SetPasswordAsync(proxy.Id, "s3cret-proxy");
         await vault.SetMasterPasswordAsync("master-one");
 
-        using (var conn = new SqliteConnection(ConnStr))
+        (string algorithm, byte[] firstBlob) = await ReadProxySecretAsync();
+        Assert.Equal("XCHACHA20-POLY1305", algorithm);
+        Assert.DoesNotContain("s3cret-proxy", Encoding.UTF8.GetString(firstBlob));
+
+        vault.Lock();
+        await vault.UnlockAsync("master-one", false);
+        Assert.Equal("s3cret-proxy", await store.GetPasswordAsync(proxy.Id));
+
+        // 换主密码只换盐并重新包装同一个 Vault Key，条目密文字节不变
+        await vault.SetMasterPasswordAsync("master-two");
+        (_, byte[] secondBlob) = await ReadProxySecretAsync();
+        Assert.Equal(firstBlob, secondBlob);
+
+        vault.Lock();
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => vault.UnlockAsync("master-one", false));
+        await vault.UnlockAsync("master-two", false);
+        Assert.Equal("s3cret-proxy", await store.GetPasswordAsync(proxy.Id));
+
+        async Task<(string Algorithm, byte[] Blob)> ReadProxySecretAsync()
         {
+            using var conn = new SqliteConnection(ConnStr);
             await conn.OpenAsync();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT secrets_blob, encryption_algorithm FROM proxy_secrets WHERE proxy_id = $id;";
             cmd.Parameters.AddWithValue("$id", proxy.Id.ToString());
             using var reader = await cmd.ExecuteReaderAsync();
             Assert.True(await reader.ReadAsync());
-            Assert.Equal("AES-256-GCM", reader.GetString(1));
-            Assert.DoesNotContain("s3cret-proxy", Encoding.UTF8.GetString((byte[])reader["secrets_blob"]));
+            return (reader.GetString(1), (byte[])reader["secrets_blob"]);
         }
-
-        vault.Lock();
-        await vault.UnlockAsync("master-one", false);
-        Assert.Equal("s3cret-proxy", await store.GetPasswordAsync(proxy.Id));
-
-        await vault.SetMasterPasswordAsync("master-two");
-        vault.Lock();
-        await vault.UnlockAsync("master-two", false);
-        Assert.Equal("s3cret-proxy", await store.GetPasswordAsync(proxy.Id));
     }
 
     [Fact]

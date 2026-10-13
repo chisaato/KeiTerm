@@ -45,53 +45,68 @@
 
         <!-- 顶部操作栏 -->
         <Border Grid.Row="1" Margin="0,0,0,8">
-            <StackPanel Orientation="Horizontal" Spacing="8">
-                <Button x:Name="AddIdentityButton" Command="{Binding AddIdentityCommand}" AutomationProperties.Name="{loc:KeiString IdentityManager.NewIdentity}">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <Viewbox Width="16" Height="16" Stretch="Uniform" VerticalAlignment="Center">
-                            <Grid Width="24" Height="24">
-                                <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Add}"/>
-                            </Grid>
-                        </Viewbox>
-                        <TextBlock Text="{loc:KeiString IdentityManager.NewIdentity}" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Button>
-                <Button x:Name="EditIdentityButton" Command="{Binding EditIdentityCommand}"
-                        AutomationProperties.Name="{loc:KeiString IdentityManager.EditIdentity}"
-                        IsEnabled="{Binding SelectedIdentity, Converter={x:Static ObjectConverters.IsNotNull}}">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <Viewbox Width="16" Height="16" Stretch="Uniform" VerticalAlignment="Center">
-                            <Grid Width="24" Height="24">
-                                <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Edit}"/>
-                            </Grid>
-                        </Viewbox>
-                        <TextBlock Text="{loc:KeiString IdentityManager.EditIdentity}" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Button>
-                <Button x:Name="DeleteIdentityButton" Classes="danger" Command="{Binding DeleteIdentityCommand}"
-                        AutomationProperties.Name="{loc:KeiString IdentityManager.DeleteIdentity}"
-                        IsEnabled="{Binding SelectedIdentity, Converter={x:Static ObjectConverters.IsNotNull}}">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <Viewbox Width="16" Height="16" Stretch="Uniform" VerticalAlignment="Center">
-                            <Grid Width="24" Height="24">
-                                <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Delete}"/>
-                            </Grid>
-                        </Viewbox>
-                        <TextBlock Text="{loc:KeiString IdentityManager.DeleteIdentity}" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Button>
-                <Button x:Name="LockVaultButton" Command="{Binding LockVaultCommand}" IsVisible="{Binding CanLockVault}"
-                        AutomationProperties.Name="{loc:KeiString IdentityManager.LockVault}">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <Viewbox Width="16" Height="16" Stretch="Uniform" VerticalAlignment="Center">
-                            <Grid Width="24" Height="24">
-                                <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Lock}"/>
-                            </Grid>
-                        </Viewbox>
-                        <TextBlock Text="{loc:KeiString IdentityManager.LockVault}" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Button>
-            </StackPanel>
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button x:Name="AddIdentityButton" Command="{Binding AddIdentityCommand}" AutomationProperties.Name="{loc:KeiString IdentityManager.NewIdentity}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Viewbox Width="16" Height="16" Stretch="Uniform" VerticalAlignment="Center">
+                                <Grid Width="24" Height="24">
+                                    <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Add}"/>
+                                </Grid>
+                            </Viewbox>
+                            <TextBlock Text="{loc:KeiString IdentityManager.NewIdentity}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="EditIdentityButton" Command="{Binding EditIdentityCommand}"
+                            AutomationProperties.Name="{loc:KeiString IdentityManager.EditIdentity}"
+                            IsEnabled="{Binding SelectedIdentity, Converter={x:Static ObjectConverters.IsNotNull}}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Viewbox Width="16" Height="16" Stretch="Uniform" VerticalAlignment="Center">
+                                <Grid Width="24" Height="24">
+                                    <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Edit}"/>
+                                </Grid>
+                            </Viewbox>
+                            <TextBlock Text="{loc:KeiString IdentityManager.EditIdentity}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="DeleteIdentityButton" Classes="danger" Command="{Binding DeleteIdentityCommand}"
+                            AutomationProperties.Name="{loc:KeiString IdentityManager.DeleteIdentity}"
+                            IsEnabled="{Binding SelectedIdentity, Converter={x:Static ObjectConverters.IsNotNull}}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Viewbox Width="16" Height="16" Stretch="Uniform" VerticalAlignment="Center">
+                                <Grid Width="24" Height="24">
+                                    <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Delete}"/>
+                                </Grid>
+                            </Viewbox>
+                            <TextBlock Text="{loc:KeiString IdentityManager.DeleteIdentity}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                    <Button x:Name="UnlockVaultButton" Command="{Binding UnlockVaultCommand}" IsVisible="{Binding CanUnlockVault}"
+                            AutomationProperties.Name="{loc:KeiString IdentityManager.UnlockVault}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Viewbox Width="16" Height="16" Stretch="Uniform" VerticalAlignment="Center">
+                                <Grid Width="24" Height="24">
+                                    <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Lock}"/>
+                                </Grid>
+                            </Viewbox>
+                            <TextBlock Text="{loc:KeiString IdentityManager.UnlockVault}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="LockVaultButton" Command="{Binding LockVaultCommand}" IsVisible="{Binding CanLockVault}"
+                            AutomationProperties.Name="{loc:KeiString IdentityManager.LockVault}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Viewbox Width="16" Height="16" Stretch="Uniform" VerticalAlignment="Center">
+                                <Grid Width="24" Height="24">
+                                    <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Lock}"/>
+                                </Grid>
+                            </Viewbox>
+                            <TextBlock Text="{loc:KeiString IdentityManager.LockVault}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
         </Border>
 
         <!-- 身份列表 -->

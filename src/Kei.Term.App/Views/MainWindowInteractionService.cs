@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Window = Avalonia.Controls.Window;
 using Avalonia.Platform.Storage;
 using Kei.Term.App.Helpers;
 using Kei.Term.App.Logging;
@@ -30,6 +32,17 @@ public sealed class MainWindowInteractionService : IInteractionService
     private readonly KnownHostsManagerViewModel? _knownHosts;
     private readonly ILogger _log;
     private IReadOnlyList<PortForward> _pendingForwards = [];
+
+    // 管理器已经模态打开时，解锁窗口必须挂在当前可交互的子窗口上。
+    private Window DialogOwner
+    {
+        get
+        {
+            Window current = _owner;
+            while (current.OwnedWindows.LastOrDefault(w => w.IsVisible) is { } child) current = child;
+            return current;
+        }
+    }
 
     public MainWindowInteractionService(
         MainWindow owner,
@@ -60,6 +73,11 @@ public sealed class MainWindowInteractionService : IInteractionService
     public Task<string?> PromptMasterPasswordAsync(string? error)
         => Safe.RunAsync<string?>(_log, "打开主密码窗口",
             () => new MasterPasswordWindow(error).ShowDialog<string?>(_owner));
+
+    public async Task<VaultUnlockResponse> PromptVaultUnlockAsync(VaultUnlockPrompt prompt)
+        => await Safe.RunAsync<VaultUnlockResponse?>(_log, "打开保险库解锁窗口",
+            () => MasterPasswordWindow.CreateVaultUnlockDialog(prompt).ShowDialog<VaultUnlockResponse?>(DialogOwner))
+            ?? new(VaultUnlockKind.Cancelled);
 
     public Task<PassphrasePromptResult?> PromptPassphraseAsync(FilePrivateKeyMethod method)
         => Safe.RunAsync<PassphrasePromptResult?>(_log, "打开口令窗口",

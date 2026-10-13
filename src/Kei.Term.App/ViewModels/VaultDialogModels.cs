@@ -13,3 +13,19 @@ public enum VaultSetupChoice
 
 // Vault 初始化对话框结果：choice=SetMasterPassword 时 MasterPassword 有效
 public sealed record VaultSetupResult(VaultSetupChoice Choice, string? MasterPassword);
+
+// 快捷验证只是一种解锁选择；对话框不持有或调用本机密钥后端。
+public sealed record VaultUnlockPrompt(
+    string? Error = null,
+    bool CanQuickUnlock = false,
+    string? QuickUnlockDisplayName = null,
+    string? Notice = null);
+
+public enum VaultUnlockKind
+{
+    Cancelled,
+    Password,
+    QuickUnlock
+}
+
+public sealed record VaultUnlockResponse(VaultUnlockKind Kind, string? Password = null);

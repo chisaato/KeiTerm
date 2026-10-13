@@ -75,11 +75,19 @@ public class PortForwardTests : IDisposable
         Assert.Equal("local-socks", proxy.Name);
         Assert.Equal(configJson, proxy.ConfigJson);
 
-        var proxyColumns = (await check.QueryAsync<string>("SELECT name FROM pragma_table_info('proxies');")).ToHashSet();
-        Assert.Equal(
-            ["id", "name", "sort_order", "config_json", "created_at", "updated_at"],
-            proxyColumns);
-        Assert.DoesNotContain("port_forwards", proxyColumns);
+        // v7 给 proxies 补了 revision/deleted_at；v4 原有的 6 列必须原样保留，且不得混入其它列
+        var proxyColumns = (await check.QueryAsync<string>("SELECT name FROM pragma_table_info('proxies');")).ToList();
+        Assert.Equal(8, proxyColumns.Count);
+        foreach (string column in new[] { "id", "name", "sort_order", "config_json", "created_at", "updated_at", "revision", "deleted_at" })
+        {
+            Assert.Contains(column, proxyColumns);
+        }
+
+        var sync = await check.QuerySingleAsync<(long Revision, string? DeletedAt)>(
+            "SELECT revision, deleted_at FROM proxies WHERE id = @id;",
+            new { id = proxyId.ToString() });
+        Assert.Equal(0L, sync.Revision);
+        Assert.Null(sync.DeletedAt);
     }
 
     [Fact]

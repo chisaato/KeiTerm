@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using CommunityToolkit.Mvvm.Messaging;
 using Kei.Term.App.Helpers;
+using Kei.Term.App.Models;
 using Kei.Term.App.ViewModels;
 using Kei.Term.Core.Services;
 using Kei.Term.Core.Settings;
@@ -21,6 +23,9 @@ public sealed class VaultSessionService
     private readonly ISettingsService _settings;
     private readonly Func<IInteractionService> _interaction;
     private readonly ILogger _logger;
+    private VaultQuickUnlockService? _quickUnlock;
+    private readonly object _unlockCoordinationLock = new();
+    private Task<bool>? _pendingUnlock;
 
     // SessionOnly 口令缓存：键 = 方法 Id；锁定时清空
     private readonly Dictionary<Guid, string> _sessionPassphrases = new();
@@ -47,12 +52,15 @@ public sealed class VaultSessionService
 
     public void MarkAccessed(DateTime? nowUtc = null) => LastAccessUtc = nowUtc ?? DateTime.UtcNow;
 
+    public void ConfigureQuickUnlock(VaultQuickUnlockService service) => _quickUnlock = service;
+
     // 锁定 Vault 并清空 SessionOnly 口令缓存（手动锁定与超时锁定共用）
     public void Lock()
     {
         _vault.Lock();
         _sessionPassphrases.Clear();
         MarkAccessed();
+        WeakReferenceMessenger.Default.Send(new VaultLockStateChangedMessage(_vault));
         _logger.LogInformation("Vault 已锁定（内存 MEK 与 SessionOnly 口令缓存已清空）");
     }
 
@@ -99,29 +107,82 @@ public sealed class VaultSessionService
     }
 
     // 主密码懒解锁：循环重试直到成功 / 取消
-    public async Task<bool> EnsureUnlockedAsync()
+    public Task<bool> EnsureUnlockedAsync()
+    {
+        lock (_unlockCoordinationLock)
+        {
+            if (_vault.IsPlainMode || _vault.IsUnlocked) return Task.FromResult(true);
+            // 多个连接共享一次用户交互；取消结果也会同时返回各调用方。
+            if (_pendingUnlock is { IsCompleted: false }) return _pendingUnlock;
+            _pendingUnlock = EnsureUnlockedCoreAsync();
+            return _pendingUnlock;
+        }
+    }
+
+    private async Task<bool> EnsureUnlockedCoreAsync()
     {
         if (_vault.IsPlainMode || _vault.IsUnlocked)
         {
             return true;
         }
 
-        string error = Strings.Get("Status.Vault.UnlockPrompt");
+        // 初次打开是正常输入提示，只有失败后才给窗口传递错误。
+        string? error = null;
+        string? notice = null;
         _logger.LogInformation("保管库已锁定，弹出主密码框等待解锁");
         while (true)
         {
-            string? password = await _interaction().PromptMasterPasswordAsync(error);
-            if (password == null)
+            QuickUnlockStatus? status = null;
+            if (_quickUnlock != null)
+            {
+                try { status = await _quickUnlock.GetStatusAsync(); }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning("无法获取快速解锁状态，错误类型={ErrorType}", ex.GetType().Name);
+                }
+            }
+            VaultUnlockResponse response = await _interaction().PromptVaultUnlockAsync(new VaultUnlockPrompt(
+                error,
+                status is { IsAvailable: true, IsEnabled: true },
+                status?.DisplayName,
+                notice));
+            if (response.Kind == VaultUnlockKind.Cancelled)
             {
                 _logger.LogInformation("主密码框取消，保管库保持锁定");
                 return false;
             }
 
+            if (response.Kind == VaultUnlockKind.QuickUnlock)
+            {
+                DeviceUnlockOutcome outcome = _quickUnlock == null
+                    ? DeviceUnlockOutcome.Unavailable : await _quickUnlock.TryUnlockAsync();
+                if (outcome == DeviceUnlockOutcome.Success)
+                {
+                    MarkAccessed();
+                    _unlockFailures = 0;
+                    WeakReferenceMessenger.Default.Send(new VaultLockStateChangedMessage(_vault));
+                    return true;
+                }
+                string message = Strings.Get(outcome switch
+                {
+                    DeviceUnlockOutcome.Cancelled => "VaultQuickUnlock.Cancelled",
+                    DeviceUnlockOutcome.Unavailable or DeviceUnlockOutcome.NotEnrolled => "VaultQuickUnlock.Unavailable",
+                    _ => "VaultQuickUnlock.Failed"
+                });
+                // 主动取消或系统能力不可用是普通说明，不当作密码错误标红。
+                bool isNotice = outcome is DeviceUnlockOutcome.Cancelled or DeviceUnlockOutcome.Unavailable or DeviceUnlockOutcome.NotEnrolled;
+                error = isNotice ? null : message;
+                notice = isNotice ? message : null;
+                // 返回密码窗口供用户显式重试或输入主密码，不自动重复系统弹窗。
+                continue;
+            }
+
             try
             {
-                await _vault.UnlockAsync(password, false);
+                await _vault.UnlockAsync(response.Password ?? string.Empty, false);
                 MarkAccessed();
                 _unlockFailures = 0;
+                WeakReferenceMessenger.Default.Send(new VaultLockStateChangedMessage(_vault));
                 return true;
             }
             catch (UnauthorizedAccessException)
@@ -129,11 +190,14 @@ public sealed class VaultSessionService
                 _unlockFailures++;
                 _logger.LogWarning("Vault 解锁失败：主密码错误 连续失败={Failures} 次", _unlockFailures);
                 error = Strings.Get("Status.Vault.PasswordIncorrect");
+                notice = null;
             }
+            catch (OperationCanceledException) { return false; }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Vault 解锁异常");
                 error = ex.Message;
+                notice = null;
             }
         }
     }

@@ -495,3 +495,7 @@ $RECYCLE.BIN/
 .slim/worktrees/
 .slim/worktrees.json
 # END oh-my-opencode-slim worktrees
+
+# BEGIN oh-my-opencode-slim deepwork
+.slim/deepwork/
+# END oh-my-opencode-slim deepwork

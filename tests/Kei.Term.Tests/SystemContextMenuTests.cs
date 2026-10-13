@@ -206,7 +206,7 @@ public class SystemContextMenuTests
         try
         {
             SqliteConnectionFactory database = new($"Data Source={Path.Combine(directory, "test.db")}");
-            InternalVaultManager vault = new(database);
+            InternalVaultManager vault = VaultTestDb.CreateVault(database);
             MainViewModel viewModel = new(new SqliteTreeRepository(database), new SqliteIdentityRepository(database),
                 vault, vault, new JsonSettingsService(Path.Combine(directory, "settings.json")), new SshSessionFactory());
             SessionNode session = new() { Name = "测试会话", Host = "test.example" };

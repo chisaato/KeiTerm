@@ -86,8 +86,10 @@ public enum PassphrasePersistence   // 文件私钥口令三态
   blob 格式 `[salt 16B][nonce 12B][tag 16B][ciphertext]`。
 - **解锁策略**：懒解锁——首次用到 Vault 材料时弹主密码框；纯 Agent/文件私钥用户永不被打扰。
 - **锁定超时**：实现，设置可配，**默认关闭**。锁定 = 清内存 MEK 与口令缓存。
-- **OS Keyring 定位**：**只存主密码**用于静默解锁（Windows DPAPI / macOS Keychain /
-  Linux Secret Service），不存业务密钥材料。属二期。
+- **本机快速解锁**：macOS Touch ID / Windows Hello 显式验证后，读取系统保护的 MEK 副本，
+  不保存主密码，不在启动或自动重连时静默解锁。启用需再次输入主密码，始终保留密码入口。
+  登记仅在本机生效，不随配置导出；更换主密码会撤销旧登记。Linux 尚未实现。
+  详见 [14-vault-quick-unlock.md](./14-vault-quick-unlock.md)。
 
 ## 5. 连接编排（决策树）
 
@@ -180,7 +182,7 @@ stateDiagram-v2
     未加密模式 --> 已解锁 : 恒等（无锁定语义）
     锁定 --> 已解锁 : 懒解锁（首次用到时输入主密码）
     已解锁 --> 锁定 : 手动锁定 / 超时锁定（默认关闭）
-    锁定 --> 锁定 : 二期：OS Keyring 静默解锁（只存主密码）
+    锁定 --> 已解锁 : 本机快速解锁（系统验证 + MEK 校验）
 ```
 
 ## 7. SQLite 建模
@@ -293,7 +295,7 @@ erDiagram
 | 阶段 | 内容 |
 |---|---|
 | **一期** | identities/identity_secrets/vault_metadata 三表（方法多态 JSON）+ 旧表迁移；Vault（可选主密码、懒解锁、超时默认关）；文件私钥口令三态；Agent 方法（全量身份）；Interactive；失败回弹重试编排（后台线程 + KI 真交互）；身份管理器与绑定接线；tree_nodes.protocol 列；单元测试 |
-| **二期** | OS Keyring 存主密码静默解锁；自动锁定超时接线；Agent 指纹绑定 UI |
+| **二期** | Linux 本机快速解锁；Agent 指纹绑定 UI |
 | **三期** | 1Password / Bitwarden / OpenBao 适配器；SSH 证书；VNC / S3 协议落地 |
 
 ## 11. 测试要点（Core 层纯逻辑）

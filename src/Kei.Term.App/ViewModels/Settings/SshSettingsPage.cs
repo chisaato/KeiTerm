@@ -42,10 +42,6 @@ public partial class SshSettingsPage : ViewModelBase
     [ObservableProperty]
     private bool _preferSystemAgent = true;
 
-    // Vault 自动锁定超时（分钟），0 = 不自动锁定
-    [ObservableProperty]
-    private int _lockTimeoutMinutes;
-
     // 建立 SSH 连接的最长等待时间（秒）
     [ObservableProperty]
     private int _connectTimeoutSeconds = 60;

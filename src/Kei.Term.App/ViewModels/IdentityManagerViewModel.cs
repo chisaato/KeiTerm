@@ -3,10 +3,13 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using Kei.Term.App.Helpers;
 using Kei.Term.App.Logging;
+using Kei.Term.App.Models;
 using Kei.Term.App.Services;
 using Kei.Term.Core.Storage;
 using Kei.Term.Core.Vault;
@@ -22,6 +25,7 @@ public partial class IdentityManagerViewModel : ViewModelBase
     private readonly IVaultManager _vault;
     private readonly IVaultSecretStore _secretStore;
     private readonly ILogger<IdentityManagerViewModel> _logger;
+    private VaultSessionService? _vaultSession;
 
     // 供编辑器/窗口层复用同一 logger
     public ILogger Logger => _logger;
@@ -36,7 +40,12 @@ public partial class IdentityManagerViewModel : ViewModelBase
 
     // 有主密码且当前已解锁时才允许手动锁定
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(LockVaultCommand))]
     private bool _canLockVault;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(UnlockVaultCommand))]
+    private bool _canUnlockVault;
 
     // 明文模式：界面给出不加密警示
     public bool IsPlainMode => _vault.IsPlainMode;
@@ -46,9 +55,6 @@ public partial class IdentityManagerViewModel : ViewModelBase
 
     // 删除确认（未注入时默认确认）
     public Func<string, Task<bool>>? ConfirmDeleteAsync { get; set; }
-
-    // 锁定 Vault 的实际动作（由 MainViewModel 提供，一并清空 SessionOnly 口令缓存）
-    public Action? LockVaultAction { get; set; }
 
     // 读取指定 Vault 私钥方法已存材料信息（字节数 + 指纹），编辑器回显用
     public Func<Guid, Guid, Task<VaultKeyInfo?>>? VaultKeyInfoLoader { get; set; }
@@ -69,6 +75,20 @@ public partial class IdentityManagerViewModel : ViewModelBase
         _vault = vault;
         _secretStore = secretStore;
         _logger = logger ?? NullLogger<IdentityManagerViewModel>.Instance;
+        WeakReferenceMessenger.Default.Register<IdentityManagerViewModel, VaultLockStateChangedMessage>(this,
+            static (recipient, message) =>
+            {
+                if (!ReferenceEquals(recipient._vault, message.Vault)) return;
+                // 自动锁定和连接懒解锁也会改变状态，统一回到 UI 线程更新按钮。
+                if (Dispatcher.UIThread.CheckAccess()) recipient.RefreshVaultState();
+                else Dispatcher.UIThread.Post(recipient.RefreshVaultState);
+            });
+    }
+
+    public void ConfigureVaultSession(VaultSessionService session)
+    {
+        _vaultSession = session;
+        RefreshVaultState();
     }
 
     public async Task LoadAsync()
@@ -91,6 +111,7 @@ public partial class IdentityManagerViewModel : ViewModelBase
         }
 
         var result = await Safe.RunAsync(_logger, "新建身份", () => OpenEditDialogAsync(null));
+        RefreshVaultState();
         if (result == null)
         {
             _logger.LogInformation("新建身份取消");
@@ -119,6 +140,8 @@ public partial class IdentityManagerViewModel : ViewModelBase
         }
 
         var result = await Safe.RunAsync(_logger, "编辑身份", () => OpenEditDialogAsync(SelectedIdentity));
+        // 编辑器可能已解锁私钥预览，即使最终取消也要刷新锁定入口。
+        RefreshVaultState();
         if (result == null)
         {
             _logger.LogInformation("编辑身份取消或无变更 IdentityId={IdentityId}", SelectedIdentity.Id);
@@ -154,13 +177,27 @@ public partial class IdentityManagerViewModel : ViewModelBase
         await LoadAsync();
     });
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanLockVault))]
     private void LockVault()
     {
         _logger.LogInformation("身份管理器触发手动锁定保管库");
-        LockVaultAction?.Invoke();
+        if (_vaultSession != null) _vaultSession.Lock();
+        else _vault.Lock();
         RefreshVaultState();
     }
+
+    [RelayCommand(CanExecute = nameof(CanUnlockVault))]
+    private Task UnlockVaultAsync() => Safe.RunAsync(_logger, "解锁保管库", async () =>
+    {
+        try
+        {
+            if (_vaultSession != null) await _vaultSession.EnsureUnlockedAsync();
+        }
+        finally
+        {
+            RefreshVaultState();
+        }
+    });
 
     // 编辑器「应用」时调用：身份落库
     public Task SaveIdentityAsync(Identity identity)
@@ -206,5 +243,6 @@ public partial class IdentityManagerViewModel : ViewModelBase
     private void RefreshVaultState()
     {
         CanLockVault = !_vault.IsPlainMode && _vault.IsUnlocked;
+        CanUnlockVault = !_vault.IsPlainMode && !_vault.IsUnlocked && _vaultSession != null;
     }
 }
