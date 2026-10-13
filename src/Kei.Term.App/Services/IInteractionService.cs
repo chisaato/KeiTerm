@@ -102,6 +102,10 @@ public interface IInteractionService
     // === 反馈 ===
     Task<bool> ConfirmDeleteAsync(string name);
 
+    // 通用确认框：标题与消息由调用方给定；取消 = false。与 ConfirmDeleteAsync 相反，
+    // 无界面实现恒 false（宁可不删，也不要静默放行）。
+    Task<bool> ConfirmAsync(string title, string message);
+
     Task NotifyAsync(string title, string message);
 
     // 单行文本输入（重命名等）；取消 = null
@@ -153,6 +157,9 @@ public sealed class NullInteractionService : IInteractionService
     public Task<VaultSecretDraft?> PromptNewSecretAsync(bool privateKey) => Task.FromResult<VaultSecretDraft?>(null);
 
     public Task<bool> ConfirmDeleteAsync(string name) => Task.FromResult(true);
+
+    // 无界面场景下无法向用户确认，按「拒绝」处理
+    public Task<bool> ConfirmAsync(string title, string message) => Task.FromResult(false);
 
     public Task NotifyAsync(string title, string message) => Task.CompletedTask;
 

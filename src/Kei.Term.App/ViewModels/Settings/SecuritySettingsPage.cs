@@ -33,12 +33,21 @@ public partial class SecuritySettingsPage : ViewModelBase
 
     public Func<IInteractionService>? Interaction { get; set; }
 
+    // 数据清单子页：库存为 null 时整个属性为 null（界面据此隐藏该节）
+    public DataInventorySettingsViewModel? DataInventory { get; }
+
     // true 表示已有主密码，对话框只收集新密码，不再提供明文选项。
     public Func<bool, Task<VaultSetupResult?>>? VaultSetupDialogAsync { get; set; }
 
-    public SecuritySettingsPage(IVaultManager? vault = null)
+    public SecuritySettingsPage(IVaultManager? vault = null, IDataInventory? dataInventory = null)
     {
         _vault = vault;
+        if (dataInventory != null)
+        {
+            // interaction 在调用时才读取：SetInteraction 在构造之后才注入
+            DataInventory = new DataInventorySettingsViewModel(dataInventory, () => Interaction?.Invoke());
+        }
+
         RefreshVaultState();
     }
 

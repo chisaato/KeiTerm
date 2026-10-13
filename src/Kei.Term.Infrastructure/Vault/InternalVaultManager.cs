@@ -15,7 +15,7 @@ using Kei.Term.Infrastructure.Storage.Schema;
 // 数据密钥是随机 32 字节 Vault Key；主密码经 Argon2id 得到包装密钥，只用于
 // XChaCha20-Poly1305 包装 Vault Key，不直接加密业务行。条目用 Vault Key 加密，
 // AAD 绑定该行主键。旧 PBKDF2 库仍能打开，成功后在同一次解锁里迁移到 Vault Key。
-public partial class InternalVaultManager : IVaultManager, IProxySecretStore, IQuickUnlockVault, IVaultSecretLibrary
+public partial class InternalVaultManager : IVaultManager, IProxySecretStore, IQuickUnlockVault, IVaultSecretLibrary, IDataInventory
 {
     // vault_metadata 键
     private const string KeyPlainMode = "plain_mode";

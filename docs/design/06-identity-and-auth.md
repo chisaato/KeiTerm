@@ -214,7 +214,7 @@ CREATE TABLE identities (
 
 -- 旧身份级整包密钥材料 blob：内部为 { methodId: SecretPayload } 映射，整体 AES-256-GCM。
 -- v8 起被 vault_secrets 材料库取代：首次解锁时运行时拆分为独立条目（条目 Id = 旧 methodId，相同私钥合并），
--- 未迁移期间读取回退本表（只读）；校验通过后本表保留、由 v9 清理。会话绑定身份后，身份删除仍级联清本表行。
+-- 未迁移期间读取回退本表（只读）。已迁入材料库的行由设置里的数据清单在用户确认后删除，不自动 DROP TABLE。身份删除仍级联清本表行。
 CREATE TABLE identity_secrets (
     identity_id TEXT PRIMARY KEY NOT NULL REFERENCES identities(id) ON DELETE CASCADE,
     secrets_blob BLOB NOT NULL,
@@ -283,7 +283,7 @@ erDiagram
         TEXT methods_json "多态JSON方法序列($kind)；Vault方法内含 SecretId 引用材料"
     }
     IDENTITY_SECRETS {
-        TEXT identity_id PK,FK "旧整包材料blob（v8 起废弃，v9 清理）"
+        TEXT identity_id PK,FK "旧整包材料blob（v8 起废弃；已迁移行由数据清单确认后删除）"
         BLOB secrets_blob "AES-256-GCM 或明文(警示)"
         TEXT encryption_algorithm
         BLOB nonce
@@ -308,12 +308,12 @@ erDiagram
 
     TREE_NODES ||--o{ TREE_NODES : "parent_id"
     TREE_NODES ||--o| SESSION_DETAILS : "node_id"
-    IDENTITIES ||--o| IDENTITY_SECRETS : "identity_id(旧，待 v9)"
+    IDENTITIES ||--o| IDENTITY_SECRETS : "identity_id(旧，确认后清理)"
     IDENTITIES ||--o{ SESSION_DETAILS : "identity_id(可空)"
 ```
 
 - 所有连接表保持 `PRAGMA foreign_keys = ON`。
-- `identity_secrets` 为 v8 前的旧整包材料表，v8 起只读回退、待 v9 清理。
+- `identity_secrets` 为 v8 前的旧整包材料表，v8 起只读回退。已迁入材料库的行由数据清单在用户确认后删除，不自动 DROP TABLE。
 - `vault_secrets` 与身份方法之间没有声明式外键：`SecretId` 存于 `methods_json`，引用统计在 Core 中按需扫描
   （`SecretReferences.Find`），删除被引用材料时由上层服务先校验。
 - 迁移（旧库）：`credentials` 行元数据重建为 `identities`（name/description/username 迁入，

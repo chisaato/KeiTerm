@@ -140,6 +140,20 @@ internal sealed class ScriptedInteraction : IInteractionService
 
     public Task<bool> ConfirmDeleteAsync(string name) => Task.FromResult(true);
 
+    // 通用确认框脚本：默认拒绝；测试可设 ConfirmResult 并断言最后一次的标题与消息
+    public bool ConfirmResult { get; set; }
+    public int ConfirmCalls { get; private set; }
+    public string? LastConfirmTitle { get; private set; }
+    public string? LastConfirmMessage { get; private set; }
+
+    public Task<bool> ConfirmAsync(string title, string message)
+    {
+        ConfirmCalls++;
+        LastConfirmTitle = title;
+        LastConfirmMessage = message;
+        return Task.FromResult(ConfirmResult);
+    }
+
     public Queue<string?> TextAnswers { get; } = new();
 
     public Task OpenBatchEditAsync(Kei.Term.App.ViewModels.BatchEdit.BatchSessionEditViewModel viewModel) => Task.CompletedTask;

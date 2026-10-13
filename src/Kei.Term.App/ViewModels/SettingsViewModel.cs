@@ -77,7 +77,8 @@ public partial class SettingsViewModel : ViewModelBase
         Func<IReadOnlyList<SessionNode>>? sessionSnapshot = null,
         Func<IReadOnlyList<TreeNodeBase>>? sessionTree = null,
         IProxySecretStore? proxySecrets = null,
-        IVaultManager? vault = null)
+        IVaultManager? vault = null,
+        IDataInventory? dataInventory = null)
     {
         ProxySecrets = proxySecrets;
         _settingsService = settingsService;
@@ -86,7 +87,7 @@ public partial class SettingsViewModel : ViewModelBase
         _appearance = new AppearanceSettingsPage();
         _terminal = new TerminalSettingsPage();
         _ssh = new SshSettingsPage(identityRepo, _general);
-        _security = new SecuritySettingsPage(vault);
+        _security = new SecuritySettingsPage(vault, dataInventory);
         _fileTransfer = new FileTransferSettingsPage(editorRepo, _terminal);
         if (proxyRepo != null)
         {
@@ -532,6 +533,15 @@ public partial class SettingsViewModel : ViewModelBase
 
         IsConfirmed = false;
         RequestClose?.Invoke();
+    }
+
+    // 切到「安全」页时为数据清单加载一次；切到其他分类不触发
+    partial void OnSelectedCategoryChanged(SettingsCategoryItem value)
+    {
+        if (ReferenceEquals(value.Page, _security) && _security.DataInventory != null)
+        {
+            _ = _security.DataInventory.LoadAsync();
+        }
     }
 
 }

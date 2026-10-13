@@ -2318,4 +2318,67 @@ Latin: AaBb CcDd GgYy gypq
   <data name="Toolbar.VaultSecretLibrary" xml:space="preserve">
     <value>材料库</value>
   </data>
+  <data name="Settings.Data.Section" xml:space="preserve">
+    <value>数据清单</value>
+  </data>
+  <data name="Settings.Data.Sessions.Title" xml:space="preserve">
+    <value>会话</value>
+  </data>
+  <data name="Settings.Data.Sessions.Description" xml:space="preserve">
+    <value>会话树里的连接，以及各自的连接参数和端口转发。表：tree_nodes、session_details、port_forwards。</value>
+  </data>
+  <data name="Settings.Data.Identities.Title" xml:space="preserve">
+    <value>身份</value>
+  </data>
+  <data name="Settings.Data.Identities.Description" xml:space="preserve">
+    <value>登录用的用户名和认证方法，不含密码或私钥。表：identities。</value>
+  </data>
+  <data name="Settings.Data.Secrets.Title" xml:space="preserve">
+    <value>材料库</value>
+  </data>
+  <data name="Settings.Data.Secrets.Description" xml:space="preserve">
+    <value>正在使用的密码、私钥和口令。无引用的条目在材料库窗口删除。表：vault_secrets。</value>
+  </data>
+  <data name="Settings.Data.Legacy.Title" xml:space="preserve">
+    <value>旧身份密文</value>
+  </data>
+  <data name="Settings.Data.Legacy.NotStarted" xml:space="preserve">
+    <value>材料库启用前按身份打包的旧密文。表：identity_secrets。先解锁一次，让迁移跑完。</value>
+  </data>
+  <data name="Settings.Data.Legacy.Partial" xml:space="preserve">
+    <value>材料库启用前按身份打包的旧密文。表：identity_secrets。可以删除已迁走的 {0} 行。还留下 {1} 行尚未迁走或解密失败，下次解锁会重试。</value>
+  </data>
+  <data name="Settings.Data.Legacy.Complete" xml:space="preserve">
+    <value>材料库启用前按身份打包的旧密文。表：identity_secrets。这些行已是材料库中的旧副本。</value>
+  </data>
+  <data name="Settings.Data.Legacy.Purge" xml:space="preserve">
+    <value>清理旧副本</value>
+  </data>
+  <data name="Settings.Data.Legacy.ConfirmTitle" xml:space="preserve">
+    <value>清理旧身份密文</value>
+  </data>
+  <data name="Settings.Data.Legacy.ConfirmMessage" xml:space="preserve">
+    <value>将删除 {0} 行已迁入材料库的旧副本。材料库里正在使用的密钥不会删除。</value>
+  </data>
+  <data name="Settings.Data.Proxies.Title" xml:space="preserve">
+    <value>代理</value>
+  </data>
+  <data name="Settings.Data.Proxies.Description" xml:space="preserve">
+    <value>代理配置，以及 {0} 条代理口令。表：proxies、proxy_secrets。</value>
+  </data>
+  <data name="Settings.Data.KnownHosts.Title" xml:space="preserve">
+    <value>已知主机</value>
+  </data>
+  <data name="Settings.Data.KnownHosts.Description" xml:space="preserve">
+    <value>主机密钥的信任记录。在已知主机窗口管理。表：known_hosts。</value>
+  </data>
+  <data name="Settings.Data.Editors.Title" xml:space="preserve">
+    <value>编辑器与关联</value>
+  </data>
+  <data name="Settings.Data.Editors.Description" xml:space="preserve">
+    <value>外部编辑器，以及 {0} 条可执行路径、{1} 条文件关联。表：external_editors、external_editor_paths、file_associations。</value>
+  </data>
+  <data name="Settings.Data.Count" xml:space="preserve">
+    <value>{0}</value>
+  </data>
 </root>

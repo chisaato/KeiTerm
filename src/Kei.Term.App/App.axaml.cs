@@ -172,7 +172,8 @@ public partial class App : Application
                 () => mainVm.SnapshotSessionNodes(),
                 () => mainVm.SnapshotSessionTree(),
                 proxySecrets: vault,
-                vault: vault);
+                vault: vault,
+                dataInventory: vault);
             settingsVm.ConfigureQuickUnlock(quickUnlock);
 
             var mainWindow = new MainWindow(deferStartupLayout: true)

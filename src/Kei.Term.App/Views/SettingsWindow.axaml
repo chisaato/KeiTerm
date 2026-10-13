@@ -798,6 +798,38 @@
                                             </ContentControl>
                                         </StackPanel>
                                     </Border>
+                                    <Border Classes="settingsSection" IsVisible="{Binding DataInventory, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                        <StackPanel Spacing="8">
+                                            <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.Data.Section}"/>
+                                            <ItemsControl x:Name="DataInventoryList"
+                                                          ItemsSource="{Binding DataInventory.Items}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="settings:DataInventoryRowViewModel">
+                                                        <Grid ColumnDefinitions="140,*,Auto,Auto" ColumnSpacing="12" Margin="0,4">
+                                                            <TextBlock Grid.Column="0" Text="{Binding Title}"
+                                                                       Foreground="{DynamicResource Kei.Text.Primary}"
+                                                                       FontWeight="SemiBold" FontSize="13"
+                                                                       VerticalAlignment="Center"/>
+                                                            <TextBlock Grid.Column="1" Text="{Binding Description}"
+                                                                       Foreground="{DynamicResource Kei.Text.Secondary}"
+                                                                       FontSize="12" TextWrapping="Wrap"
+                                                                       VerticalAlignment="Center"/>
+                                                            <TextBlock Grid.Column="2" Text="{Binding CountText}"
+                                                                       Foreground="{DynamicResource Kei.Text.Secondary}"
+                                                                       FontSize="12"
+                                                                       VerticalAlignment="Center"/>
+                                                            <Button x:Name="PurgeLegacySecretsButton"
+                                                                    Grid.Column="3"
+                                                                    Content="{loc:KeiString Settings.Data.Legacy.Purge}"
+                                                                    Command="{Binding $parent[ItemsControl].((settings:SecuritySettingsPage)DataContext).DataInventory.PurgeLegacyCommand}"
+                                                                    IsVisible="{Binding ShowPurge}"
+                                                                    VerticalAlignment="Center"/>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </Border>
                                 </StackPanel>
                             </DataTemplate>
 

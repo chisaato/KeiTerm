@@ -299,8 +299,12 @@ public sealed class MainWindowInteractionService : IInteractionService
 
     // === 反馈 ===
 
-    // 独立确认框尚未实现：保持现有行为直接放行
+    // 独立确认框：删除类操作沿用旧行为直接放行
     public Task<bool> ConfirmDeleteAsync(string name) => Task.FromResult(true);
+
+    // 通用确认框：用主窗口当 owner 弹出共用对话框
+    public Task<bool> ConfirmAsync(string title, string message)
+        => ConfirmDialog.ShowAsync(DialogOwner, title, message);
 
     public Task OpenBatchEditAsync(BatchSessionEditViewModel viewModel) => Safe.RunAsync(_log, "打开批量修改会话", async () =>
     {
