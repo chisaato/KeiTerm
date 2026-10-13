@@ -1348,7 +1348,37 @@
     <value>Vault 密码</value>
   </data>
   <data name="IdentityEdit.Method.VaultPasswordHint" xml:space="preserve">
-    <value>密码加密保存于保管库，连接时自动取用。</value>
+    <value>密码保存于保管库，连接时自动取用；设置主密码后加密存储。</value>
+  </data>
+  <data name="IdentityEdit.Password.Label" xml:space="preserve">
+    <value>SSH 密码:</value>
+  </data>
+  <data name="IdentityEdit.Password.Placeholder" xml:space="preserve">
+    <value>输入 SSH 登录密码</value>
+  </data>
+  <data name="IdentityEdit.Password.KeepPlaceholder" xml:space="preserve">
+    <value>留空保留原密码，输入新密码以替换</value>
+  </data>
+  <data name="IdentityEdit.Password.Remove" xml:space="preserve">
+    <value>清除</value>
+  </data>
+  <data name="IdentityEdit.Password.NotSaved" xml:space="preserve">
+    <value>尚未保存密码</value>
+  </data>
+  <data name="IdentityEdit.Password.Saved" xml:space="preserve">
+    <value>已保存密码；留空保留原密码</value>
+  </data>
+  <data name="IdentityEdit.Password.Unknown" xml:space="preserve">
+    <value>保管库已锁定；留空保留原密码</value>
+  </data>
+  <data name="IdentityEdit.Password.PendingSave" xml:space="preserve">
+    <value>新密码将在「应用」或「确定」时保存</value>
+  </data>
+  <data name="IdentityEdit.Password.PendingRemove" xml:space="preserve">
+    <value>原密码将在「应用」或「确定」时清除</value>
+  </data>
+  <data name="IdentityEdit.Error.PasswordRequired" xml:space="preserve">
+    <value>请为 Vault 密码方法输入 SSH 登录密码。</value>
   </data>
   <data name="IdentityEdit.Method.VaultKey" xml:space="preserve">
     <value>Vault 私钥</value>
@@ -1390,7 +1420,7 @@
     <value>保存未接线，无法应用。</value>
   </data>
   <data name="IdentityEdit.Error.VaultLocked" xml:space="preserve">
-    <value>保管库未解锁，私钥材料未保存。</value>
+    <value>保管库未解锁，凭据材料未保存。</value>
   </data>
   <data name="IdentityEdit.Error.SaveFailedFormat" xml:space="preserve">
     <value>保存失败：{0}</value>

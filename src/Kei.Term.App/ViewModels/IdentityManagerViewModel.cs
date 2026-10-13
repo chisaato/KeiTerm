@@ -26,6 +26,7 @@ public partial class IdentityManagerViewModel : ViewModelBase
     private readonly IVaultSecretStore _secretStore;
     private readonly ILogger<IdentityManagerViewModel> _logger;
     private VaultSessionService? _vaultSession;
+    public VaultSessionService? VaultSession => _vaultSession;
 
     // 供编辑器/窗口层复用同一 logger
     public ILogger Logger => _logger;

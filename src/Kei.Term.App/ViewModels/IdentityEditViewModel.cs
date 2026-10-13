@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Kei.Term.App.Helpers;
+using Kei.Term.App.Services;
 using Kei.Term.Core.Services;
 using Kei.Term.Core.Vault;
 using Microsoft.Extensions.Logging;
@@ -39,6 +40,9 @@ public partial class IdentityEditViewModel : ViewModelBase
     [ObservableProperty]
     private string? _errorMessage;
 
+    [ObservableProperty]
+    private bool _isSaving;
+
     public Guid IdentityId { get; }
 
     // 是否已是已存在身份：「应用」成功后新身份也转为 true，标题同步
@@ -58,6 +62,9 @@ public partial class IdentityEditViewModel : ViewModelBase
     private Identity? _model;
 
     private readonly ILogger _logger;
+    private readonly HashSet<Guid> _persistedPasswordMethodIds;
+
+    public VaultSessionService? VaultSession { get; set; }
 
     public event Action? RequestClose;
 
@@ -114,6 +121,7 @@ public partial class IdentityEditViewModel : ViewModelBase
     {
         _logger = logger ?? NullLogger.Instance;
         _model = existing;
+        _persistedPasswordMethodIds = existing?.Methods.OfType<VaultPasswordMethod>().Select(m => m.Id).ToHashSet() ?? [];
         IsExisting = existing != null;
 
         if (existing != null)
@@ -128,6 +136,11 @@ public partial class IdentityEditViewModel : ViewModelBase
             foreach (var method in existing.Methods.OrderBy(m => m.SortOrder))
             {
                 AddRow(CloneMethod(method));
+            }
+
+            foreach (IdentityMethodRowViewModel row in Methods.Where(r => r.IsVaultPassword))
+            {
+                row.HasSavedPassword = null;
             }
         }
         else
@@ -167,6 +180,7 @@ public partial class IdentityEditViewModel : ViewModelBase
         }
 
         Methods.Remove(row);
+        row.ClearStagedSecrets();
         SelectedMethod = Methods.FirstOrDefault();
     }
 
@@ -224,12 +238,22 @@ public partial class IdentityEditViewModel : ViewModelBase
     private void Cancel()
     {
         IsConfirmed = false;
+        ClearStagedSecrets();
         _logger.LogInformation("身份编辑器取消 身份Id={IdentityId} 已应用过={WasApplied}", IdentityId, WasApplied);
         RequestClose?.Invoke();
     }
 
-    // 完整保存：校验 → 身份落库 → Vault 材料写入 → 固化行内回显并清暂存标记
+    // 保存期间冻结编辑，避免解锁或数据库写入等待中修改输入后被误清空。
     private async Task<bool> ApplyCoreAsync()
+    {
+        if (IsSaving) return false;
+        IsSaving = true;
+        try { return await SaveCoreAsync(); }
+        finally { IsSaving = false; }
+    }
+
+    // 完整保存：校验 → 身份落库 → Vault 材料写入 → 固化行内回显并清暂存标记
+    private async Task<bool> SaveCoreAsync()
     {
         if (Methods.Count == 0)
         {
@@ -252,8 +276,32 @@ public partial class IdentityEditViewModel : ViewModelBase
             return false;
         }
 
+        if (Methods.Any(row => row.IsVaultPassword && !_persistedPasswordMethodIds.Contains(row.Model.Id)
+            && string.IsNullOrEmpty(row.Password) && !row.IsPasswordRemovalRequested))
+        {
+            ErrorMessage = Strings.Get("IdentityEdit.Error.PasswordRequired");
+            return false;
+        }
+
         try
         {
+            IReadOnlyDictionary<Guid, string?> passwordChanges = CollectVaultPasswordChanges();
+            if (passwordChanges.Count > 0)
+            {
+                if (VaultSession == null)
+                {
+                    ErrorMessage = Strings.Get("IdentityEdit.Error.SaveNotWired");
+                    return false;
+                }
+
+                // 先解锁再保存身份；取消不会创建只有认证方法、没有密码材料的身份。
+                if (!await VaultSession.EnsureUnlockedAsync())
+                {
+                    ErrorMessage = Strings.Get("IdentityEdit.Error.VaultLocked");
+                    return false;
+                }
+            }
+
             // 新身份首次应用转已存在；复用 _model 保留 CreatedAt
             var model = ApplyToModel(_model);
             await SaveIdentityAsync(model);
@@ -274,6 +322,15 @@ public partial class IdentityEditViewModel : ViewModelBase
                     return false;
                 }
             }
+
+            if (passwordChanges.Count > 0 && !await VaultSession!.PersistVaultPasswordsAsync(model.Id, passwordChanges))
+            {
+                ErrorMessage = Strings.Get("IdentityEdit.Error.VaultLocked");
+                return false;
+            }
+
+            _persistedPasswordMethodIds.Clear();
+            _persistedPasswordMethodIds.UnionWith(Methods.Where(row => row.IsVaultPassword).Select(row => row.Model.Id));
 
             foreach (var row in Methods)
             {
@@ -342,6 +399,37 @@ public partial class IdentityEditViewModel : ViewModelBase
             row.VaultKeyInfoLoader = VaultKeyInfoLoader;
             await row.InitializeVaultKeyStatusAsync(IdentityId);
         }
+    }
+
+    public async Task InitializeVaultPasswordStatusAsync()
+    {
+        if (!IsExisting || VaultSession == null || !Methods.Any(row => row.IsVaultPassword)) return;
+
+        HashSet<Guid>? saved = await VaultSession.GetSavedPasswordMethodIdsAsync(IdentityId);
+        foreach (IdentityMethodRowViewModel row in Methods.Where(row => row.IsVaultPassword))
+        {
+            row.HasSavedPassword = saved?.Contains(row.Model.Id);
+        }
+    }
+
+    private IReadOnlyDictionary<Guid, string?> CollectVaultPasswordChanges()
+    {
+        Dictionary<Guid, string?> changes = [];
+        foreach (IdentityMethodRowViewModel row in Methods.Where(row => row.IsVaultPassword))
+        {
+            if (!string.IsNullOrEmpty(row.Password)) changes[row.Model.Id] = row.Password;
+            else if (row.IsPasswordRemovalRequested) changes[row.Model.Id] = null;
+        }
+
+        // 删除整个密码方法时同步删除材料，避免删除后仍残留在身份的秘密包内。
+        HashSet<Guid> current = Methods.Where(row => row.IsVaultPassword).Select(row => row.Model.Id).ToHashSet();
+        foreach (Guid methodId in _persistedPasswordMethodIds.Except(current)) changes[methodId] = null;
+        return changes;
+    }
+
+    public void ClearStagedSecrets()
+    {
+        foreach (IdentityMethodRowViewModel row in Methods) row.ClearStagedSecrets();
     }
 
     // 收集本编辑器暂存的 Vault 私钥变更（导入/移除），供身份落库后写入

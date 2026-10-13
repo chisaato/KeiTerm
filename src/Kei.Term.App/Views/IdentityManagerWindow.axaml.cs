@@ -37,9 +37,11 @@ public partial class IdentityManagerWindow : Window
             editVm.VaultKeyInfoLoader = vm.VaultKeyInfoLoader;
             editVm.SaveIdentityAsync = vm.SaveIdentityAsync;
             editVm.PersistVaultKeysAsync = vm.PersistVaultKeysAsync;
+            editVm.VaultSession = vm.VaultSession;
 
             // 编辑已有身份时回显已存 Vault 私钥材料（字节数 + 指纹）
             await editVm.InitializeVaultKeyStatusAsync();
+            await editVm.InitializeVaultPasswordStatusAsync();
 
             var win = new IdentityEditWindow(editVm);
             await win.ShowDialog(this);

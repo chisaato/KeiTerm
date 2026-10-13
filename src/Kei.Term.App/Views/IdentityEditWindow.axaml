@@ -38,7 +38,7 @@
         </Style>
     </Window.Styles>
 
-    <Grid RowDefinitions="Auto, *, Auto" RowSpacing="10" Margin="16">
+    <Grid RowDefinitions="Auto, *, Auto" RowSpacing="10" Margin="16" IsEnabled="{Binding !IsSaving}">
         <!-- 头部：身份基本信息卡片（紧凑高密度布局） -->
         <Border Grid.Row="0"
                 Background="{DynamicResource Kei.Bg.Card}"
@@ -180,6 +180,29 @@
                                                     </Viewbox>
                                                 </Button>
                                             </StackPanel>
+                                        </Grid>
+
+                                        <!-- 密码只显示本次输入，留空保留已有材料；清除需显式操作。 -->
+                                        <Grid IsVisible="{Binding IsVaultPassword}"
+                                              ColumnDefinitions="80, *, Auto" ColumnSpacing="8"
+                                              RowDefinitions="Auto, Auto">
+                                            <TextBlock Grid.Row="0" Grid.Column="0"
+                                                       Text="{loc:KeiString IdentityEdit.Password.Label}"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource Kei.Text.Secondary}"
+                                                       FontSize="13"/>
+                                            <TextBox Grid.Row="0" Grid.Column="1" Classes="vaultPassword"
+                                                     Text="{Binding Password, Mode=TwoWay}"
+                                                     PasswordChar="•" RevealPassword="False"
+                                                     PlaceholderText="{Binding PasswordPlaceholder}"
+                                                     AutomationProperties.Name="{loc:KeiString IdentityEdit.Password.Label}"/>
+                                            <Button Grid.Row="0" Grid.Column="2" Classes="danger"
+                                                    Content="{loc:KeiString IdentityEdit.Password.Remove}"
+                                                    Command="{Binding RemoveVaultPasswordCommand}" MinWidth="64"/>
+                                            <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2"
+                                                       Text="{Binding VaultPasswordStatus}"
+                                                       FontSize="12" Margin="0,6,0,0" TextWrapping="Wrap"
+                                                       Foreground="{DynamicResource Kei.Text.Secondary}"/>
                                         </Grid>
 
                                         <!-- 文件私钥行内字段 -->

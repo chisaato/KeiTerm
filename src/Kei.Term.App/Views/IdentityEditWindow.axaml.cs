@@ -21,7 +21,13 @@ public partial class IdentityEditWindow : Window
         vm.FilePicker = PickFileAsync;
 
         vm.RequestClose += Close;
-        Closed += (_, _) => vm.RequestClose -= Close;
+        // 在飞保存完成前保持窗口，确保关窗回传的是已经落库的结果。
+        Closing += (_, e) => e.Cancel = vm.IsSaving;
+        Closed += (_, _) =>
+        {
+            vm.RequestClose -= Close;
+            vm.ClearStagedSecrets();
+        };
 
         KeyDown += (sender, e) =>
         {
