@@ -40,7 +40,9 @@ public class ConnectionStateBrushConverter : IValueConverter
             return brush;
         }
 
-        return Brushes.Gray;
+        if (Application.Current?.Resources.TryGetResource("Kei.Text.Muted", null, out var muted) == true && muted is IBrush)
+            return muted;
+        return AvaloniaProperty.UnsetValue;
     }
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)

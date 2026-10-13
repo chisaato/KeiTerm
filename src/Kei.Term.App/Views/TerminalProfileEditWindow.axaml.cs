@@ -2,20 +2,54 @@ using System;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Kei.Term.App.Services;
 using Kei.Term.App.ViewModels;
+using Kei.Term.Core.Models.Profiles;
 
 namespace Kei.Term.App.Views;
 
 public partial class TerminalProfileEditWindow : Window
 {
+    private readonly IInteractionService _interaction = NullInteractionService.Instance;
+    private bool _editingJson;
+
     public TerminalProfileEditWindow()
     {
         InitializeComponent();
     }
 
-    public TerminalProfileEditWindow(TerminalProfileEditViewModel viewModel) : this()
+    public TerminalProfileEditWindow(
+        TerminalProfileEditViewModel viewModel, IInteractionService interaction,
+        bool importJson = false) : this()
     {
         DataContext = viewModel;
+        _interaction = interaction;
+        if (importJson) Opened += OnImportJsonOpened;
+    }
+
+    private async void OnImportJsonOpened(object? sender, EventArgs e)
+    {
+        Opened -= OnImportJsonOpened;
+        await EditJsonAsync(importJson: true);
+    }
+
+    private async void OnEditJsonClick(object? sender, RoutedEventArgs e)
+        => await EditJsonAsync(importJson: false);
+
+    private async Task EditJsonAsync(bool importJson)
+    {
+        if (_editingJson || DataContext is not TerminalProfileEditViewModel draft) return;
+        _editingJson = true;
+        try
+        {
+            TerminalProfile? edited = await _interaction.EditTerminalThemeJsonAsync(
+                importJson ? null : draft.PreviewProfile.DeepCopy());
+            if (edited != null && IsVisible) draft.ApplyJsonProfile(edited);
+        }
+        finally
+        {
+            _editingJson = false;
+        }
     }
 
     private async void OnOpenColorChooserClick(object? sender, RoutedEventArgs e)
@@ -61,7 +95,7 @@ public partial class TerminalProfileEditWindow : Window
         if (DataContext is TerminalProfileEditViewModel vm)
         {
             vm.Confirm();
-            Close(true);
+            if (vm.IsConfirmed) Close(true);
         }
     }
 

@@ -62,10 +62,6 @@ public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposabl
     [ObservableProperty]
     private RemoteDirectoryNodeViewModel? _selectedDirectoryNode;
 
-    // 是否展开底部传输任务抽屉
-    [ObservableProperty]
-    private bool _isTransferDrawerOpen;
-
     // 活跃的传输任务列表
     public ObservableCollection<FileTransferTaskItemViewModel> TransferTasks { get; } = [];
 
@@ -89,7 +85,7 @@ public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposabl
     // 目录树根节点列表（通常为根目录 "/" 节点）
     public ObservableCollection<RemoteDirectoryNodeViewModel> DirectoryTreeRoots { get; } = [];
 
-    private readonly Dictionary<string, string> _trackedFileLocalMap = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string> _trackedFileLocalMap = new(StringComparer.Ordinal);
 
     public ObservableCollection<RemoteFileItem> Items { get; } = [];
     public ObservableCollection<string> ActiveTrackedFiles { get; } = [];
@@ -111,6 +107,7 @@ public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposabl
         _fileTracker = fileTracker;
         _settingsService = settingsService;
         InitializeSizeDisplay();
+        InitializeFileActivities();
         _editorRepo = editorRepo;
         _logger = logger ?? NullLogger.Instance;
         RemoteDirectoryNodeViewModel.SetLogger(_logger);
@@ -126,7 +123,7 @@ public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposabl
     {
         _ = Dispatcher.UIThread.InvokeAsync(() =>
         {
-            if (_disposed) return;
+            if (_disposed || _fileTracker.IsTracking(localFilePath)) return;
             var match = _trackedFileLocalMap.FirstOrDefault(kvp => string.Equals(kvp.Value, localFilePath, StringComparison.OrdinalIgnoreCase));
             if (!string.IsNullOrEmpty(match.Key))
             {
@@ -261,12 +258,6 @@ public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposabl
     }
 
     [RelayCommand]
-    public void ToggleTransferDrawer()
-    {
-        IsTransferDrawerOpen = !IsTransferDrawerOpen;
-    }
-
-    [RelayCommand]
     public void ClearCompletedTransferTasks()
     {
         var toRemove = TransferTasks
@@ -276,10 +267,7 @@ public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposabl
         {
             TransferTasks.Remove(task);
         }
-        if (TransferTasks.Count == 0)
-        {
-            IsTransferDrawerOpen = false;
-        }
+        if (TransferTasks.Count == 0 && ActiveTrackedFiles.Count > 0) SelectedActivityTab = 1;
     }
 
     [RelayCommand]

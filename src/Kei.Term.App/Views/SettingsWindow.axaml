@@ -584,6 +584,8 @@
                                                         </WrapPanel.Styles>
                                                         <Button Content="从 Konsole 导入 (*.colorscheme)..."
                                                                 Command="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).ImportKonsoleSchemeCommand}"/>
+                                                        <Button x:Name="ImportTerminalThemeJsonButton" Content="{loc:KeiString TerminalThemeJsonImport.Open}"
+                                                                Command="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).ImportTerminalThemeJsonCommand}"/>
                                                         <Button Content="从 iTerm2 导入 (预留)"
                                                                 IsEnabled="False"/>
                                                     </WrapPanel>

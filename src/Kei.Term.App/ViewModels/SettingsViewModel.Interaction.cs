@@ -4,8 +4,12 @@ namespace Kei.Term.App.ViewModels;
 
 public partial class SettingsViewModel
 {
+    private IInteractionService _interaction = NullInteractionService.Instance;
+
     public void SetInteraction(IInteractionService interaction)
     {
+        System.ArgumentNullException.ThrowIfNull(interaction);
+        _interaction = interaction;
         _quickUnlockInteraction = interaction;
         _security.Interaction = () => interaction;
         _fileTransfer.Interaction = interaction;

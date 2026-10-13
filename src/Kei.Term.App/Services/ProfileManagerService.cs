@@ -424,6 +424,8 @@ public class ProfileManagerService
         // 自适应计算 Accent 前景色（对比度感知：亮底配深字，暗底配白字）
         var accentFg = CalculateContrastForeground(profile.AccentColor);
         UpdateBrush(app, "Kei.Accent.Foreground", accentFg);
+        foreach (var token in GuiThemeTokens.FromProfile(profile))
+            UpdateBrush(app, token.Key, token.Value.ToString());
 
         // 自适应更新侧边栏树形引导竖线与微妙边框
         // 树引导线根据面板背景（profile.PanelBackground）与边框色（profile.BorderBrush）自适应调整，确保清晰可见
@@ -487,6 +489,10 @@ public class ProfileManagerService
     {
         if (Color.TryParse(hexColor, out var color))
         {
+            // Dock 的别名笔刷绑定 Color Token，其他控件绑定 Brush Token；两者同时更新。
+            string colorKey = "Kei.Color." + key["Kei.".Length..];
+            if (app.Resources.TryGetResource(colorKey, null, out object? existing) && existing is Color)
+                app.Resources[colorKey] = color;
             app.Resources[key] = new SolidColorBrush(color);
         }
     }

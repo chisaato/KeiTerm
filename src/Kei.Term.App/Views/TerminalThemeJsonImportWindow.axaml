@@ -1,0 +1,117 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Kei.Term.App.ViewModels"
+        xmlns:loc="using:Kei.Term.App.Helpers"
+        xmlns:documents="using:Avalonia.Controls.Documents"
+        x:Class="Kei.Term.App.Views.TerminalThemeJsonImportWindow"
+        x:DataType="vm:TerminalThemeJsonImportViewModel"
+        Title="{loc:KeiString TerminalThemeJsonImport.Title}"
+        Width="820" Height="640" MinWidth="640" MinHeight="480"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Kei.Bg.Window}"
+        FontFamily="{DynamicResource Kei.Font.UI}" FontSize="13">
+    <Window.Styles>
+        <!-- Fluent 的聚焦/悬停状态会给模板文字赋默认浅色主题前景，局部恢复 Kei 深色令牌。 -->
+        <Style Selector="TextBox:focus /template/ TextPresenter#PART_TextPresenter">
+            <Setter Property="documents:TextElement.Foreground" Value="{DynamicResource Kei.Text.Primary}"/>
+        </Style>
+        <Style Selector="Button:not(.accent):pointerover /template/ ContentPresenter, Button:not(.accent):pressed /template/ ContentPresenter">
+            <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}"/>
+        </Style>
+        <Style Selector="Button#ImportButton:disabled /template/ ContentPresenter">
+            <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Muted}"/>
+            <Setter Property="Background" Value="{DynamicResource Kei.Bg.PanelAlt}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Kei.Border.Subtle}"/>
+        </Style>
+        <Style Selector="Button">
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="MinHeight" Value="28"/>
+            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="Auto,*,Auto,Auto" RowSpacing="10" Margin="16">
+        <!-- 名称留空时使用 JSON 内的名称；提示词包含显式名称。 -->
+        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+            <TextBlock Text="{loc:KeiString TerminalThemeJsonImport.Name}"
+                       VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+            <TextBox x:Name="ThemeNameTextBox" Grid.Column="1"
+                     Text="{Binding Name}" PlaceholderText="{loc:KeiString TerminalThemeJsonImport.NamePlaceholder}"
+                     Foreground="{DynamicResource Kei.Text.Primary}"
+                     PlaceholderForeground="{DynamicResource Kei.Text.Muted}"
+                     CaretBrush="{DynamicResource Kei.Text.Primary}"
+                     Height="28" VerticalContentAlignment="Center"/>
+            <Button x:Name="CopyPromptButton" Grid.Column="2"
+                    Content="{loc:KeiString TerminalThemeJsonImport.Prompt.Copy}"
+                    ToolTip.Tip="{loc:KeiString TerminalThemeJsonImport.Prompt.Tooltip}"
+                    Click="OnCopyPromptClick"/>
+        </Grid>
+
+        <StackPanel Grid.Row="3" Spacing="4" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0,0,180,0">
+            <TextBlock x:Name="ClipboardFeedbackText" Text="{Binding ClipboardFeedback}"
+                       IsVisible="{Binding ClipboardSucceeded}" TextWrapping="Wrap" FontSize="12"
+                       Foreground="{DynamicResource Kei.Session.Foreground}"/>
+            <TextBlock x:Name="ClipboardFailureText" Text="{Binding ClipboardFeedback}"
+                       IsVisible="{Binding ClipboardFailed}" TextWrapping="Wrap" FontSize="12"
+                       Foreground="{DynamicResource Kei.Status.Error}"/>
+        </StackPanel>
+
+        <Grid Grid.Row="1" RowDefinitions="Auto,*" RowSpacing="8">
+            <Grid x:Name="JsonToolbar" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="6">
+                <TextBlock Text="{loc:KeiString TerminalThemeJsonImport.JsonLabel}"
+                           VerticalAlignment="Center" FontWeight="SemiBold"
+                           Foreground="{DynamicResource Kei.Text.Primary}"/>
+                <Button x:Name="LoadExampleButton" Grid.Column="1" Content="{loc:KeiString TerminalThemeJsonImport.Example}"
+                        Command="{Binding LoadExampleCommand}"/>
+                <Button x:Name="FormatButton" Grid.Column="2" Content="{loc:KeiString TerminalThemeJsonImport.Format}"
+                        Command="{Binding FormatCommand}"/>
+                <Button x:Name="ValidateButton" Grid.Column="3" Content="{loc:KeiString TerminalThemeJsonImport.Validate}"
+                        Command="{Binding ValidateCommand}"/>
+            </Grid>
+            <TextBox x:Name="JsonEditor" Grid.Row="1" Text="{Binding JsonText}"
+                     PlaceholderText="{loc:KeiString TerminalThemeJsonImport.JsonPlaceholder}"
+                     Foreground="{DynamicResource Kei.Text.Primary}"
+                     PlaceholderForeground="{DynamicResource Kei.Text.Muted}"
+                     CaretBrush="{DynamicResource Kei.Text.Primary}"
+                     AcceptsReturn="True" AcceptsTab="True" TextWrapping="NoWrap"
+                     FontFamily="{DynamicResource Kei.Font.Mono}" FontSize="13"
+                     VerticalContentAlignment="Top" Padding="10"
+                     ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                     ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+        </Grid>
+
+        <Border Grid.Row="2" IsVisible="{Binding HasValidation}" Background="{DynamicResource Kei.Bg.Card}"
+                BorderBrush="{DynamicResource Kei.Border.Subtle}" BorderThickness="1"
+                CornerRadius="{DynamicResource Kei.Radius.Card}" Padding="10">
+            <StackPanel Spacing="6">
+                <TextBlock x:Name="ValidationSummaryText" Text="{Binding ValidationSummary}"
+                           TextWrapping="Wrap" Foreground="{DynamicResource Kei.Text.Primary}"/>
+                <ScrollViewer MaxHeight="100" IsVisible="{Binding HasErrors}" VerticalScrollBarVisibility="Auto">
+                    <ItemsControl x:Name="ValidationIssues" ItemsSource="{Binding Issues}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:TerminalThemeJsonIssueViewModel">
+                                <Grid ColumnDefinitions="180,*" ColumnSpacing="10" Margin="0,2">
+                                    <TextBlock Text="{Binding Path}" FontFamily="{DynamicResource Kei.Font.Mono}" FontSize="12"
+                                               TextWrapping="Wrap" Foreground="{DynamicResource Kei.Status.Error}"/>
+                                    <StackPanel Grid.Column="1" Spacing="2">
+                                        <TextBlock Text="{Binding Message}" FontSize="12" TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource Kei.Status.Error}"/>
+                                        <TextBlock Text="{Binding Location}" IsVisible="{Binding HasLocation}" FontSize="12"
+                                                   Foreground="{DynamicResource Kei.Text.Muted}"/>
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </StackPanel>
+        </Border>
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <Button x:Name="CancelButton" Content="{loc:KeiString Common.Cancel}" MinWidth="76" Click="OnCancelClick"/>
+            <Button x:Name="ImportButton" Content="{loc:KeiString Common.Confirm}" Classes="accent" MinWidth="76"
+                    IsEnabled="{Binding CanImport}" Click="OnImportClick"/>
+        </StackPanel>
+    </Grid>
+</Window>

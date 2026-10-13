@@ -483,6 +483,8 @@ public class WorkspaceCoordinatorTests
 
         public string GetLocalCachePath(Guid sessionId, string remotePath) => remotePath;
 
+        public bool IsTracking(string localFilePath) => false;
+        public Task CheckForChangesAsync(string localFilePath, CancellationToken ct = default) => Task.CompletedTask;
         public Task RegisterTrackedFileAsync(Guid sessionId, string remotePath, string localFilePath, CancellationToken ct = default)
             => Task.CompletedTask;
 

@@ -34,6 +34,185 @@ namespace Kei.Term.Tests;
 public class FileManagerWorkspaceTests
 {
     [MonospaceTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public Task ShowShellButton_RestoresClosedShellWithSameConnectionAndPanelWidth(bool onLeft) => HeadlessAvalonia.RunAsync(async () =>
+    {
+        await using Host host = await Host.CreateAsync();
+        host.Terminal.IsFileManagerOnLeft = onLeft;
+        HeadlessAvalonia.Pump();
+        TerminalConnectionView connection = host.Window.GetVisualDescendants().OfType<TerminalConnectionView>().Single(view => view.IsEffectivelyVisible);
+        double originalWidth = connection.FindControl<Border>("SftpHost")!.Bounds.Width;
+        host.Terminal.Terminal.Focus();
+        await CloseShortcutAsync(host);
+        Assert.False(host.Terminal.IsShellVisible);
+
+        Click(host.Window, VisibleFiles(host).FindControl<Button>("FileManagerShowShellButton")!);
+        Assert.True(host.Terminal.IsShellVisible);
+        Assert.True(host.Terminal.IsFileManagerVisible);
+        Assert.Same(host.Terminal, Assert.Single(host.Model.WorkspaceTabs));
+        Assert.Same(host.Files, host.Terminal.FileManager);
+        Assert.Equal("/var/log", host.Files.CurrentPath);
+        Assert.Same(host.Terminal.Terminal, host.Window.FocusManager!.GetFocusedElement());
+        Assert.True(connection.FindControl<Border>("ShellHost")!.IsEffectivelyVisible);
+        Assert.True(connection.FindControl<GridSplitter>("FileManagerSplitter")!.IsVisible);
+        Assert.Equal(originalWidth, connection.FindControl<Border>("SftpHost")!.Bounds.Width, precision: 1);
+        Assert.True(host.Model.OpenTerminalFindCommand.CanExecute(null));
+        Assert.Equal(0, host.Session.DisposeCount);
+        Assert.Equal(0, host.FileSystem.DisposeCount);
+
+        await CloseShortcutAsync(host);
+        Assert.False(host.Terminal.IsShellVisible);
+        Assert.True(host.Terminal.IsFileManagerVisible);
+        Assert.Single(host.Model.WorkspaceTabs);
+    });
+
+    [MonospaceFact]
+    public Task ShowShellButton_InFileWorkspaceTabRestoresAndActivatesItsOwner() => HeadlessAvalonia.RunAsync(async () =>
+    {
+        await using Host host = await Host.CreateAsync();
+        host.Terminal.Terminal.Focus();
+        await CloseShortcutAsync(host);
+        FileManagerTabViewModel filesTab = Promote(host);
+        Assert.False(host.Terminal.IsShellVisible);
+
+        Click(host.Window, VisibleFiles(host).FindControl<Button>("FileManagerShowShellButton")!);
+        Assert.Same(host.Terminal, host.Model.ActiveWorkspaceTab);
+        Assert.True(host.Terminal.IsShellVisible);
+        Assert.False(host.Terminal.IsFileManagerVisible);
+        Assert.Contains(filesTab, host.Model.WorkspaceTabs);
+        Assert.Equal(2, host.Model.WorkspaceTabs.Count);
+        Assert.Same(host.Terminal.Terminal, host.Window.FocusManager!.GetFocusedElement());
+        Assert.Equal(0, host.Session.DisposeCount);
+        Assert.Equal(0, host.FileSystem.DisposeCount);
+    });
+
+    [MonospaceFact]
+    public Task ShowShellButton_WhenAlreadyVisibleFocusesShellWithoutOpeningAnotherTab() => HeadlessAvalonia.RunAsync(async () =>
+    {
+        await using Host host = await Host.CreateAsync();
+        VisibleFiles(host).FindControl<TextBox>("FileManagerPathInput")!.Focus();
+        Click(host.Window, VisibleFiles(host).FindControl<Button>("FileManagerShowShellButton")!);
+        Assert.Same(host.Terminal.Terminal, host.Window.FocusManager!.GetFocusedElement());
+        Assert.Equal(ConnectionDocumentKind.Shell, host.Terminal.ActiveDocument);
+        Assert.Same(host.Terminal, Assert.Single(host.Model.WorkspaceTabs));
+        Assert.Equal(0, host.Session.DisposeCount);
+    });
+
+    [MonospaceTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public Task CloseShortcut_FocusedFilesPreservesShellThenClosesEmptyTab(bool onLeft) => HeadlessAvalonia.RunAsync(async () =>
+    {
+        await using Host host = await Host.CreateAsync();
+        host.Terminal.IsFileManagerOnLeft = onLeft;
+        HeadlessAvalonia.Pump();
+        VisibleFiles(host).FindControl<TextBox>("FileManagerPathInput")!.Focus();
+        Assert.Equal(ConnectionDocumentKind.FileManager, host.Terminal.ActiveDocument);
+
+        await CloseShortcutAsync(host);
+        await Task.Delay(190);
+        HeadlessAvalonia.Pump();
+        Assert.Same(host.Terminal, Assert.Single(host.Model.WorkspaceTabs));
+        Assert.True(host.Terminal.IsShellVisible);
+        Assert.False(host.Terminal.IsFileManagerVisible);
+        Assert.Same(host.Terminal.Terminal, host.Window.FocusManager!.GetFocusedElement());
+        Assert.Equal(0, host.Session.DisposeCount);
+        Assert.Equal(0, host.FileSystem.DisposeCount);
+
+        await CloseShortcutAsync(host);
+        Assert.Empty(host.Model.WorkspaceTabs);
+        Assert.Equal(1, host.Session.DisposeCount);
+        Assert.Equal(1, host.FileSystem.DisposeCount);
+    });
+
+    [MonospaceTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public Task CloseShortcut_FocusedShellPreservesFilesAndUsesWholePanel(bool onLeft) => HeadlessAvalonia.RunAsync(async () =>
+    {
+        await using Host host = await Host.CreateAsync();
+        host.Terminal.IsFileManagerOnLeft = onLeft;
+        HeadlessAvalonia.Pump();
+        host.Terminal.Terminal.Focus();
+        Assert.Equal(ConnectionDocumentKind.Shell, host.Terminal.ActiveDocument);
+
+        await CloseShortcutAsync(host);
+        HeadlessAvalonia.Pump();
+        Assert.Same(host.Terminal, Assert.Single(host.Model.WorkspaceTabs));
+        Assert.False(host.Terminal.IsShellVisible);
+        Assert.True(host.Terminal.IsFileManagerVisible);
+        Assert.False(host.Model.IsTerminalWorkspaceActive);
+        Assert.False(host.Model.OpenTerminalFindCommand.CanExecute(null));
+        TerminalConnectionView connection = host.Window.GetVisualDescendants().OfType<TerminalConnectionView>().Single(view => view.IsEffectivelyVisible);
+        Assert.False(connection.FindControl<Border>("ShellHost")!.IsEffectivelyVisible);
+        Assert.False(connection.FindControl<GridSplitter>("FileManagerSplitter")!.IsVisible);
+        Assert.Equal(connection.Bounds.Width, connection.FindControl<Border>("SftpHost")!.Bounds.Width, precision: 1);
+        Assert.Same(VisibleFiles(host).FindControl<TextBox>("FileManagerPathInput"), host.Window.FocusManager!.GetFocusedElement());
+        Assert.Equal(0, host.Session.DisposeCount);
+        Assert.Equal(0, host.FileSystem.DisposeCount);
+
+        await CloseShortcutAsync(host);
+        Assert.Empty(host.Model.WorkspaceTabs);
+        Assert.Equal(1, host.Session.DisposeCount);
+        Assert.Equal(1, host.FileSystem.DisposeCount);
+    });
+
+    [MonospaceFact]
+    public Task ShellCloseButton_ClosesShellEvenWhenFilesHaveFocus() => HeadlessAvalonia.RunAsync(async () =>
+    {
+        await using Host host = await Host.CreateAsync();
+        VisibleFiles(host).FindControl<TextBox>("FileManagerPathInput")!.Focus();
+        TerminalConnectionView connection = host.Window.GetVisualDescendants().OfType<TerminalConnectionView>().Single(view => view.IsEffectivelyVisible);
+        Click(host.Window, connection.FindControl<Button>("ShellCloseButton")!);
+        Assert.False(host.Terminal.IsShellVisible);
+        Assert.True(host.Terminal.IsFileManagerVisible);
+        Assert.Single(host.Model.WorkspaceTabs);
+        Assert.Equal(0, host.Session.DisposeCount);
+
+        Click(host.Window, VisibleFiles(host).FindControl<Button>("FileManagerCloseButton")!);
+        HeadlessAvalonia.WaitUntil(() => host.Terminal.IsDisposed && host.FileSystem.DisposeCount == 1);
+        Assert.Empty(host.Model.WorkspaceTabs);
+    });
+
+    [MonospaceFact]
+    public Task CloseShortcut_AfterClickingSidebarInOtherSplitKeepsBothConnections() => HeadlessAvalonia.RunAsync(async () =>
+    {
+        await using Host host = await Host.CreateAsync();
+        TerminalTabViewModel other = new("other", InstalledMonospace.Require(), 14);
+        host.Model.Workspace.AddTab(other);
+        IDocumentDock original = (IDocumentDock)host.Model.Workspace.FindDocument(host.Terminal)!.Owner!;
+        host.Model.Workspace.SplitTab(other, original, DockOperation.Right);
+        HeadlessAvalonia.Pump();
+
+        VisibleFiles(host).FindControl<TextBox>("FileManagerPathInput")!.Focus();
+        Assert.Same(host.Terminal, host.Model.ActiveWorkspaceTab);
+        await CloseShortcutAsync(host);
+        Assert.False(host.Terminal.IsFileManagerVisible);
+        Assert.True(host.Terminal.IsShellVisible);
+        Assert.Contains(other, host.Model.WorkspaceTabs);
+        Assert.Contains(host.Terminal, host.Model.WorkspaceTabs);
+        Assert.False(other.IsDisposed);
+        Assert.Equal(0, host.Session.DisposeCount);
+    });
+
+    private static async Task CloseShortcutAsync(Host host)
+    {
+        if (OperatingSystem.IsMacOS())
+        {
+            NativeMenuItem close = Menus(NativeMenu.GetMenu(host.Window)!)
+                .Single(item => ReferenceEquals(item.Command, host.Model.CloseCurrentWorkspaceTabCommand));
+            Assert.Equal(AppShortcuts.CloseTab, close.Gesture);
+        }
+        RawInputModifiers modifier = OperatingSystem.IsMacOS() ? RawInputModifiers.Meta : RawInputModifiers.Control;
+        host.Window.KeyPress(AppShortcuts.CloseTab.Key, modifier, PhysicalKey.W, "w");
+        HeadlessAvalonia.Pump();
+        if (host.Model.CloseCurrentWorkspaceTabCommand.ExecutionTask is { } closing) await closing;
+        Assert.Equal(0, host.Session.SendCount);
+        HeadlessAvalonia.Pump();
+    }
+
+    [MonospaceTheory]
     [InlineData(false, false)]
     [InlineData(false, true)]
     [InlineData(true, false)]
@@ -319,6 +498,7 @@ public class FileManagerWorkspaceTests
         await host.Model.CloseTabCommand.ExecuteAsync(host.Terminal);
         host.Files.PromoteToTabCommand.Execute(null);
         host.Files.CloseCommand.Execute(null);
+        host.Files.ShowShellCommand.Execute(null);
         HeadlessAvalonia.Pump();
         Assert.Empty(host.Model.WorkspaceTabs);
         Assert.Null(host.Model.ActiveWorkspaceTab);
@@ -446,6 +626,8 @@ public class FileManagerWorkspaceTests
         public event EventHandler<LocalFileChangedEventArgs>? FileChanged { add { } remove { } }
         public event EventHandler<string>? FileUntracked { add { } remove { } }
         public string GetLocalCachePath(Guid sessionId, string remotePath) => remotePath;
+        public bool IsTracking(string localFilePath) => false;
+        public Task CheckForChangesAsync(string localFilePath, CancellationToken ct = default) => Task.CompletedTask;
         public Task RegisterTrackedFileAsync(Guid sessionId, string remotePath, string localFilePath, CancellationToken ct = default) => Task.CompletedTask;
         public Task UnregisterTrackedFileAsync(string localFilePath, CancellationToken ct = default) => Task.CompletedTask;
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;

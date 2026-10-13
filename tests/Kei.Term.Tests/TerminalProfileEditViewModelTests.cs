@@ -5,6 +5,7 @@ using System.Linq;
 using Kei.Term.App.Models;
 using Kei.Term.App.ViewModels;
 using Kei.Term.Core.Models.Profiles;
+using Kei.Term.Core.Services;
 using Xunit;
 
 namespace Kei.Term.Tests;
@@ -152,6 +153,47 @@ public class TerminalProfileEditViewModelTests
         view.Profile = new TerminalProfile();
         view.Font = null;
         view.Profile = null;
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ApplyJsonProfile_ReplacesOnlyDraftColors_PreservesIdentityAndFont_AndAllowsFurtherEditing(bool builtIn)
+    {
+        TerminalProfile source = new()
+        {
+            Name = "Original", IsBuiltIn = builtIn, FontFamily = "Legacy Font",
+            FontSize = 16, FontWeight = "Bold", IsItalic = true, LineHeight = 1.3, CursorBlink = false
+        };
+        TerminalProfileEditViewModel draft = new(source);
+        // 模拟字体弹窗已修改的草稿字段，后续 JSON 回写不能覆盖它。
+        draft.ResultProfile.FontWeight = "Medium";
+        draft.ActiveHex = "invalid";
+        TerminalProfile imported = TerminalThemeJsonParser.Parse(TerminalThemeJsonParser.ExampleJson, "JSON theme").Profile!;
+        draft.ApplyJsonProfile(imported);
+        Assert.Equal("JSON theme", draft.Name);
+        Assert.Equal(imported.Background, draft.Background);
+        Assert.Equal(imported.AnsiColors, draft.AnsiColors);
+        Assert.True(draft.IsCurrentColorValid);
+        imported.AnsiColors[0] = "#112233";
+        Assert.NotEqual(imported.AnsiColors[0], draft.AnsiColors[0]);
+        draft.SelectTarget("Ansi4");
+        draft.ActiveHex = "#224466";
+        draft.Name = "Final theme";
+        Assert.Equal("Final theme", draft.PreviewProfile.Name);
+        draft.Confirm();
+        Assert.Equal("Final theme", draft.ResultProfile.Name);
+        Assert.Equal("#224466", draft.ResultProfile.AnsiColors[4]);
+        Assert.Equal("Legacy Font", draft.ResultProfile.FontFamily);
+        Assert.Equal(16, draft.ResultProfile.FontSize);
+        Assert.Equal("Medium", draft.ResultProfile.FontWeight);
+        Assert.True(draft.ResultProfile.IsItalic);
+        Assert.Equal(1.3, draft.ResultProfile.LineHeight);
+        Assert.False(draft.ResultProfile.CursorBlink);
+        Assert.Equal("Original", source.Name);
+        Assert.Equal("Bold", source.FontWeight);
+        if (builtIn) Assert.NotEqual(source.Id, draft.ResultProfile.Id);
+        else Assert.Equal(source.Id, draft.ResultProfile.Id);
     }
 
 }
