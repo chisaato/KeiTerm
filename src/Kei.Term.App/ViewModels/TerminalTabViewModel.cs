@@ -330,6 +330,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
     // 主动断开：只卸下会话与文件侧栏，标签与终端内容保留，可原地重连
     public async Task DisconnectAsync()
     {
+        IsShellVisible = true;
         _userDisconnect = true;
         CancelReconnect();
         await DetachSessionAsync();
@@ -343,6 +344,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
     public async Task PrepareReconnectAsync(CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
+        IsShellVisible = true;
         await DetachSessionAsync();
         // 旧会话的网络释放可能较慢；被取消的自动重连不能继续复位后来建立的新会话。
         ct.ThrowIfCancellationRequested();

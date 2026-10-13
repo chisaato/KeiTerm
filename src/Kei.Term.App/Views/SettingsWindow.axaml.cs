@@ -26,7 +26,8 @@ public partial class SettingsWindow : Window
     public SettingsWindow(SettingsViewModel vm) : this()
     {
         DataContext = vm;
-        vm.SetInteraction(new SettingsWindowInteractionService(this, vm));
+        SettingsWindowInteractionService interaction = new(this, vm);
+        vm.SetInteraction(interaction);
         vm.Security.VaultSetupDialogAsync = passwordOnly =>
         {
             try
@@ -112,13 +113,7 @@ public partial class SettingsWindow : Window
             return files.Count > 0 ? files[0].Path.LocalPath : null;
         };
 
-        vm.OpenTerminalProfileEditDialogAsync = async (sourceProfile, fontSnapshot) =>
-        {
-            var editVm = new TerminalProfileEditViewModel(sourceProfile, fontSnapshot);
-            var dialog = new TerminalProfileEditWindow(editVm);
-            var result = await dialog.ShowDialog<bool>(this);
-            return result && editVm.IsConfirmed ? editVm.ResultProfile : null;
-        };
+        vm.OpenTerminalProfileEditDialogAsync = interaction.EditTerminalProfileAsync;
 
         // 接入真正可见且可复制的错误提示区域
         vm.ShowNotificationAsync = (title, message) =>

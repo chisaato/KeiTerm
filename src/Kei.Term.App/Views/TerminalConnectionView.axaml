@@ -12,7 +12,9 @@
              Focusable="True"
              FontFamily="{DynamicResource Kei.Font.UI}">
     <Grid x:Name="ConnectionLayout" ColumnDefinitions="*,Auto,0">
-        <Border Grid.Column="{Binding IsFileManagerOnLeft, Converter={x:Static conv:FileManagerDockConverter.Instance}, ConverterParameter=Terminal}"
+        <Border x:Name="ShellHost"
+                Grid.Column="{Binding IsFileManagerOnLeft, Converter={x:Static conv:FileManagerDockConverter.Instance}, ConverterParameter=Terminal}"
+                IsVisible="{Binding IsShellVisible}"
                 Background="{Binding TerminalBackground}">
             <Border.ContextMenu>
                 <ContextMenu>
@@ -71,6 +73,15 @@
                                 <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
                                     <Grid Width="24" Height="24">
                                         <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Delete}"/>
+                                    </Grid>
+                                </Viewbox>
+                            </Button>
+                            <Border Width="1" Height="16" Margin="4,0" Background="{DynamicResource Kei.Border.Subtle}" VerticalAlignment="Center"/>
+                            <Button x:Name="ShellCloseButton" Classes="iconBtn" Width="28" Height="28" Command="{Binding CloseShellDocumentCommand}"
+                                    ToolTip.Tip="{loc:KeiString Terminal.CloseDocument}" AutomationProperties.Name="{loc:KeiString Terminal.CloseDocument}">
+                                <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Grid Width="24" Height="24">
+                                        <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Close}"/>
                                     </Grid>
                                 </Viewbox>
                             </Button>

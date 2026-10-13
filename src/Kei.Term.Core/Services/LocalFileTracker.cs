@@ -23,7 +23,9 @@ public interface ILocalFileTracker : IAsyncDisposable
     public event EventHandler<string>? FileUntracked;
 
     string GetLocalCachePath(Guid sessionId, string remotePath);
+    bool IsTracking(string localFilePath);
     Task RegisterTrackedFileAsync(Guid sessionId, string remotePath, string localFilePath, CancellationToken ct = default);
+    Task CheckForChangesAsync(string localFilePath, CancellationToken ct = default);
     Task UnregisterTrackedFileAsync(string localFilePath, CancellationToken ct = default);
 }
 
@@ -36,8 +38,7 @@ public class LocalFileTracker : ILocalFileTracker
         public required string RemotePath { get; init; }
         public required string LocalFilePath { get; init; }
         public byte[]? LastHash { get; set; }
-        public DateTime LastWriteTimeUtc { get; set; }
-        public long LastLength { get; set; }
+        public SemaphoreSlim CheckGate { get; } = new(1, 1);
     }
 
     private readonly string _cacheBaseDirectory;
@@ -80,6 +81,8 @@ public class LocalFileTracker : ILocalFileTracker
         }
 
         Directory.CreateDirectory(_cacheBaseDirectory);
+        _logger.LogInformation("File tracker started: Mode={Mode}, PollInterval={PollIntervalMs}ms, Debounce={DebounceMs}ms, Cache={CacheDirectory}",
+            _configuredMode, _pollingInterval.TotalMilliseconds, _writeDebounce.TotalMilliseconds, _cacheBaseDirectory);
 
         // 如果启用轮询模式或智能模式，启动后台兜底轮询
         if (_configuredMode is FileWatcherMode.Auto or FileWatcherMode.Polling)
@@ -88,6 +91,15 @@ public class LocalFileTracker : ILocalFileTracker
             _pollingTask = Task.Run(() => PollingLoopAsync(ct));
         }
     }
+
+    public bool IsTracking(string localFilePath)
+    {
+        lock (_lock) return !_isDisposed && _trackedFiles.ContainsKey(Path.GetFullPath(localFilePath));
+    }
+
+    // 编辑器的等待进程结束时主动检查，避免最后一次保存落在轮询周期之间。
+    public Task CheckForChangesAsync(string localFilePath, CancellationToken ct = default)
+        => ProcessFilePotentialChangeAsync(Path.GetFullPath(localFilePath), "final-check", ct);
 
     public string GetLocalCachePath(Guid sessionId, string remotePath)
     {
@@ -113,14 +125,9 @@ public class LocalFileTracker : ILocalFileTracker
         ThrowIfDisposed();
 
         byte[]? initialHash = null;
-        DateTime writeTime = DateTime.MinValue;
-        long length = 0;
 
         if (File.Exists(localFilePath))
         {
-            var info = new FileInfo(localFilePath);
-            writeTime = info.LastWriteTimeUtc;
-            length = info.Length;
             initialHash = await TryComputeXxHash128Async(localFilePath, ct);
         }
 
@@ -129,9 +136,7 @@ public class LocalFileTracker : ILocalFileTracker
             SessionId = sessionId,
             RemotePath = remotePath,
             LocalFilePath = Path.GetFullPath(localFilePath),
-            LastHash = initialHash,
-            LastWriteTimeUtc = writeTime,
-            LastLength = length
+            LastHash = initialHash
         };
 
         _logger.LogInformation("RegisterTrackedFileAsync: {LocalFilePath} -> {RemotePath}", entry.LocalFilePath, entry.RemotePath);
@@ -152,12 +157,14 @@ public class LocalFileTracker : ILocalFileTracker
     public Task UnregisterTrackedFileAsync(string localFilePath, CancellationToken ct = default)
     {
         ThrowIfDisposed();
+        ct.ThrowIfCancellationRequested();
         string fullPath = Path.GetFullPath(localFilePath);
 
         _logger.LogInformation("UnregisterTrackedFileAsync: {LocalFilePath}", fullPath);
 
         lock (_lock)
         {
+            ct.ThrowIfCancellationRequested();
             if (_trackedFiles.Remove(fullPath))
             {
                 _logger.LogInformation("Successfully removed {LocalFilePath} from _trackedFiles. Remaining tracked count: {Count}", fullPath, _trackedFiles.Count);
@@ -211,6 +218,10 @@ public class LocalFileTracker : ILocalFileTracker
             watcher.Changed += OnFileSystemEvent;
             watcher.Created += OnFileSystemEvent;
             watcher.Renamed += OnFileSystemRenamed;
+            watcher.Deleted += OnFileSystemEvent;
+            watcher.Error += (_, e) => _logger.LogWarning(e.GetException(),
+                "FileSystemWatcher failed for {Directory}; Mode={Mode}, polling fallback={PollingFallback}",
+                directory, _configuredMode, _configuredMode == FileWatcherMode.Auto);
 
             _activeWatchers[directory] = watcher;
             _logger.LogInformation("Mounted FileSystemWatcher for directory: {Directory}", directory);
@@ -229,16 +240,24 @@ public class LocalFileTracker : ILocalFileTracker
     private void OnFileSystemEvent(object sender, FileSystemEventArgs e)
     {
         _logger.LogDebug("FileSystemWatcher event: {ChangeType} on {FullPath}", e.ChangeType, e.FullPath);
-        _ = ProcessFilePotentialChangeAsync(e.FullPath);
+        _ = ObserveNativeChangeAsync(e.FullPath);
     }
 
     private void OnFileSystemRenamed(object sender, RenamedEventArgs e)
     {
         _logger.LogDebug("FileSystemWatcher renamed: {OldFullPath} -> {FullPath}", e.OldFullPath, e.FullPath);
-        _ = ProcessFilePotentialChangeAsync(e.FullPath);
+        _ = ObserveNativeChangeAsync(e.FullPath);
+        _ = ObserveNativeChangeAsync(e.OldFullPath);
     }
 
-    private async Task ProcessFilePotentialChangeAsync(string filePath)
+    private async Task ObserveNativeChangeAsync(string filePath)
+    {
+        try { await ProcessFilePotentialChangeAsync(filePath, "native"); }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { _logger.LogWarning(ex, "Native file check failed: {LocalFilePath}", filePath); }
+    }
+
+    private async Task ProcessFilePotentialChangeAsync(string filePath, string source, CancellationToken cancellationToken = default)
     {
         TrackedEntry? entry;
         CancellationToken ct;
@@ -248,25 +267,38 @@ public class LocalFileTracker : ILocalFileTracker
             ct = _lifetimeCts.Token;
         }
 
+        using CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(ct, cancellationToken);
+        ct = linked.Token;
+        bool entered = false;
         try
         {
             // 每次事件都延迟检查最新内容，不能丢掉防抖窗口内的最后一次保存。
             await Task.Delay(_writeDebounce, ct);
-            if (!File.Exists(filePath)) return;
+            await entry.CheckGate.WaitAsync(ct);
+            entered = true;
+            if (!File.Exists(filePath))
+            {
+                _logger.LogDebug("Tracked file temporarily missing: Source={Source}, File={LocalFilePath}", source, filePath);
+                if (source == "final-check") throw new IOException($"编辑文件不存在: {filePath}");
+                return;
+            }
             byte[]? newHash = await WaitForFileReadyAndComputeHashAsync(filePath, ct);
-            if (newHash == null) return;
+            if (newHash == null) throw new IOException($"编辑文件暂不可读: {filePath}");
 
             lock (_lock)
             {
                 // 用户停止监视或关闭会话之后，已排队的文件事件不能再次触发回写。
                 if (_isDisposed || !_trackedFiles.TryGetValue(filePath, out TrackedEntry? current)
                     || !ReferenceEquals(entry, current)) return;
-                if (entry.LastHash != null && entry.LastHash.SequenceEqual(newHash)) return;
-
                 FileInfo info = new(filePath);
+                if (entry.LastHash != null && entry.LastHash.SequenceEqual(newHash))
+                {
+                    _logger.LogDebug("File check unchanged: Source={Source}, File={LocalFilePath}, Bytes={Length}", source, filePath, info.Length);
+                    return;
+                }
                 entry.LastHash = newHash;
-                entry.LastWriteTimeUtc = info.LastWriteTimeUtc;
-                entry.LastLength = info.Length;
+                _logger.LogInformation("File change detected: Source={Source}, Session={SessionId}, File={LocalFilePath}, Remote={RemotePath}, Bytes={Length}",
+                    source, entry.SessionId, filePath, entry.RemotePath, info.Length);
                 FileChanged?.Invoke(this, new LocalFileChangedEventArgs
                 {
                     LocalFilePath = entry.LocalFilePath,
@@ -276,13 +308,7 @@ public class LocalFileTracker : ILocalFileTracker
                 });
             }
         }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-        {
-        }
-        catch (IOException ex)
-        {
-            _logger.LogDebug(ex, "文件保存期间暂不可读: {LocalFilePath}", filePath);
-        }
+        finally { if (entered) entry.CheckGate.Release(); }
     }
 
     private async Task PollingLoopAsync(CancellationToken ct)
@@ -300,21 +326,9 @@ public class LocalFileTracker : ILocalFileTracker
                     snapshot = _trackedFiles.Values.ToList();
                 }
 
-                foreach (var entry in snapshot)
-                {
-                    if (ct.IsCancellationRequested) break;
-                    if (!File.Exists(entry.LocalFilePath)) continue;
-
-                    var info = new FileInfo(entry.LocalFilePath);
-                    if (info.LastWriteTimeUtc != entry.LastWriteTimeUtc || info.Length != entry.LastLength)
-                    {
-                        _logger.LogDebug("PollingLoop detected difference: {LocalFilePath} info.LastWriteTimeUtc={InfoTime}, entry.LastWriteTimeUtc={EntryTime}, info.Length={InfoLen}, entry.LastLength={EntryLen}",
-                            entry.LocalFilePath, info.LastWriteTimeUtc, entry.LastWriteTimeUtc, info.Length, entry.LastLength);
-                        await ProcessFilePotentialChangeAsync(entry.LocalFilePath);
-                    }
-                    // 编辑器通常只在保存时持有句柄；空闲不等于编辑结束。
-                    // 保留缓存和监视，直到用户注销或所属会话释放。
-                }
+                if (snapshot.Count > 0) _logger.LogDebug("File polling tick: TrackedCount={Count}", snapshot.Count);
+                // 独立检查各文件；一个正在写入的文件不能延迟其余文件的保存检测。
+                await Task.WhenAll(snapshot.Select(entry => PollEntryAsync(entry, ct)));
             }
             catch (OperationCanceledException)
             {
@@ -326,6 +340,21 @@ public class LocalFileTracker : ILocalFileTracker
             }
         }
     }
+
+    private async Task PollEntryAsync(TrackedEntry entry, CancellationToken ct)
+    {
+        try
+        {
+            // 每轮比较内容摘要，支持保留时间戳且字节数不变的保存/原子替换。
+            await ProcessFilePotentialChangeAsync(entry.LocalFilePath, "polling", ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Polling file check failed: {LocalFilePath}", entry.LocalFilePath);
+        }
+    }
+
 
     private async Task<byte[]?> WaitForFileReadyAndComputeHashAsync(string filePath, CancellationToken ct)
     {
@@ -339,12 +368,15 @@ public class LocalFileTracker : ILocalFileTracker
                 await xxh.AppendAsync(stream, ct);
                 return xxh.GetCurrentHash();
             }
-            catch (IOException)
+            catch (IOException ex)
             {
+                _logger.LogDebug(ex, "File hash retry: File={LocalFilePath}, Attempt={Attempt}", filePath, attempt + 1);
                 await Task.Delay(200 * (attempt + 1), ct);
             }
-            catch
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+            catch (Exception ex)
             {
+                _logger.LogWarning(ex, "Cannot hash tracked file: {LocalFilePath}", filePath);
                 return null;
             }
         }
@@ -361,6 +393,7 @@ public class LocalFileTracker : ILocalFileTracker
             await xxh.AppendAsync(stream, ct);
             return xxh.GetCurrentHash();
         }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
         catch
         {
             return null;

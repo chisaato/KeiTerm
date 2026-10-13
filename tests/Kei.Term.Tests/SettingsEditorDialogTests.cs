@@ -183,6 +183,33 @@ public sealed class SettingsEditorDialogTests : IDisposable
         finally { Directory.Delete(application, true); }
     }
 
+    [PlatformFact(TestPlatform.Windows)]
+    public void WindowsCodeSelection_UsesCliHostInsteadOfSingleInstanceGuiProcess()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), $"Code {Guid.NewGuid():N}");
+        string command = Path.Combine(directory, "bin", "code.cmd");
+        string script = Path.Combine(directory, "resources", "app", "out", "cli.js");
+        string executable = Path.Combine(directory, "Code.exe");
+        Directory.CreateDirectory(Path.GetDirectoryName(command)!);
+        Directory.CreateDirectory(Path.GetDirectoryName(script)!);
+        try
+        {
+            File.WriteAllText(command, "unused");
+            File.WriteAllText(script, "unused");
+            File.WriteAllText(executable, "unused");
+            foreach (string selected in new[] { command, executable })
+            {
+                System.Diagnostics.ProcessStartInfo launch = FileEditorLauncher.CreateEditorStartInfo("C:\\temp\\edit with spaces.txt", selected);
+                Assert.Equal(executable, launch.FileName);
+                Assert.Equal("1", launch.Environment["ELECTRON_RUN_AS_NODE"]);
+                Assert.StartsWith($"\"{script}\" --wait ", launch.Arguments);
+                Assert.Contains("\"C:\\temp\\edit with spaces.txt\"", launch.Arguments);
+                Assert.False(launch.UseShellExecute);
+            }
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
     public void Dispose()
     {
         SqliteConnection.ClearAllPools();

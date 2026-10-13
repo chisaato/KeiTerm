@@ -214,7 +214,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         WeakReferenceMessenger.Default.Register<WorkspaceActiveItemChangedMessage>(this, OnWorkspaceActiveTabChanged);
         WeakReferenceMessenger.Default.Register<WorkspaceItemCloseRequestedMessage>(this, OnWorkspaceCloseRequested);
         WeakReferenceMessenger.Default.Register<FileManagerTabRequestedMessage>(this, OnFileManagerTabRequested);
+        WeakReferenceMessenger.Default.Register<FileManagerShellRequestedMessage>(this, OnFileManagerShellRequested);
         WeakReferenceMessenger.Default.Register<FileManagerTabCloseRequestedMessage>(this, OnFileManagerTabCloseRequested);
+        WeakReferenceMessenger.Default.Register<ConnectionDocumentsChangedMessage>(this, OnConnectionDocumentsChanged);
         Workspace.AllItems.CollectionChanged += OnWorkspaceItemsChanged;
 
         // 配色变更单点订阅：不为每个标签单独挂钩子

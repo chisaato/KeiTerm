@@ -9,7 +9,7 @@ using Kei.Term.Core.Models.Profiles;
 
 namespace Kei.Term.App.ViewModels;
 
-public sealed partial class TerminalProfileEditViewModel : ObservableObject
+public sealed partial class TerminalProfileEditViewModel : ViewModelBase
 {
     private static readonly Regex HexColorRegex = new(@"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$");
 
@@ -91,9 +91,27 @@ public sealed partial class TerminalProfileEditViewModel : ObservableObject
         InitFromProfile(ResultProfile);
     }
 
-    private void InitFromProfile(TerminalProfile profile)
+    // JSON 确认只替换配色草稿；保留当前方案身份以及字体弹窗已经编辑的字段。
+    public void ApplyJsonProfile(TerminalProfile imported)
     {
-        Name = profile.IsBuiltIn ? $"{profile.Name} (副本)" : profile.Name;
+        TerminalProfile draft = ResultProfile.DeepCopy();
+        draft.Name = imported.Name;
+        draft.Background = imported.Background;
+        draft.Foreground = imported.Foreground;
+        draft.CursorColor = imported.CursorColor;
+        draft.SelectionBackground = imported.SelectionBackground;
+        draft.AnsiColors = (string[])imported.AnsiColors.Clone();
+        InitFromProfile(draft, appendCopySuffix: false);
+    }
+
+    partial void OnNameChanged(string value)
+    {
+        if (AnsiColors.Count == 16) UpdatePreviewProfile();
+    }
+
+    private void InitFromProfile(TerminalProfile profile, bool appendCopySuffix = true)
+    {
+        Name = profile.IsBuiltIn && appendCopySuffix ? $"{profile.Name} (副本)" : profile.Name;
         IsBuiltIn = false; // 用户编辑后均为自定义副本或自定义主题
 
         Background = NormalizeHex(profile.Background, "#1E1E1E");

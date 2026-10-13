@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "KeiTerm terminal color theme v1",
+  "description": "The dialog can supply or override name. Without a dialog name, a valid name is required in the document.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "colors"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "name": { "type": "string", "minLength": 1, "maxLength": 120, "pattern": "^(?=.*\\S)[^\\u0000-\\u001F\\u007F-\\u009F]+$" },
+    "colors": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["background", "foreground", "ansi"],
+      "properties": {
+        "background": { "$ref": "#/$defs/color" },
+        "foreground": { "$ref": "#/$defs/color" },
+        "cursor": { "$ref": "#/$defs/color" },
+        "selectionBackground": { "type": "string", "pattern": "^#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$", "description": "Eight digits use alpha first: #AARRGGBB." },
+        "ansi": {
+          "type": "array",
+          "minItems": 16,
+          "maxItems": 16,
+          "items": { "$ref": "#/$defs/color" },
+          "description": "Black, red, green, yellow, blue, magenta, cyan, white, then their bright variants in the same order."
+        }
+      }
+    }
+  },
+  "$defs": {
+    "color": { "type": "string", "pattern": "^#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$", "description": "Eight digits use alpha first: #AARRGGBB." }
+  }
+}

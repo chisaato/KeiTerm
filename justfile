@@ -78,6 +78,11 @@ bundle-macos rid:
     mkdir -p "$APP/Contents/Resources"
     cp packaging/macos/Info.plist "$APP/Contents/Info.plist"
 
+    # 许可证属于资源；放在 MacOS 可执行目录会导致 codesign 将其作为未签名代码检查。
+    if [ -d "$APP/Contents/MacOS/Licenses" ]; then
+        mv "$APP/Contents/MacOS/Licenses" "$APP/Contents/Resources/Licenses"
+    fi
+
     # codesign 要求 Contents/MacOS 下全部是可签名的 Mach-O 代码，
     # 托管程序集的 .pdb 会让签名失败（"code object is not signed at all"），故移除。
     find "$APP/Contents/MacOS" -name '*.pdb' -delete

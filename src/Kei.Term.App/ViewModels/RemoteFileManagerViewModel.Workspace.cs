@@ -19,6 +19,9 @@ public partial class RemoteFileManagerViewModel
     public void PromoteToTab() => WeakReferenceMessenger.Default.Send(new FileManagerTabRequestedMessage(this));
 
     [RelayCommand]
+    public void ShowShell() => WeakReferenceMessenger.Default.Send(new FileManagerShellRequestedMessage(this));
+
+    [RelayCommand]
     public void Close()
     {
         if (IsWorkspaceTab)

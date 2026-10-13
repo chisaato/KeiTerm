@@ -36,7 +36,7 @@ public partial class RemoteFileManagerViewModel
             desktop = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         }
 
-        IsTransferDrawerOpen = true;
+        ShowFileActivities(0);
 
         foreach (var item in targets)
         {
@@ -112,7 +112,7 @@ public partial class RemoteFileManagerViewModel
     {
         if (filePaths == null || filePaths.Length == 0) return;
 
-        IsTransferDrawerOpen = true;
+        ShowFileActivities(0);
 
         foreach (var localPath in filePaths)
         {

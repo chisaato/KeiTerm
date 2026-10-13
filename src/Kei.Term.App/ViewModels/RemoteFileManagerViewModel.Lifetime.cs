@@ -57,12 +57,14 @@ public partial class RemoteFileManagerViewModel
     private async Task DisposeCoreAsync(Task[] pending)
     {
         DisposeSizeDisplay();
+        DisposeFileActivities();
         _fileTracker.FileChanged -= OnTrackedFileChanged;
         _fileTracker.FileUntracked -= OnFileUntracked;
         _lifetimeCts.Cancel();
         try
         {
             // 停止事件源，并等待已开始的传输退出后才释放文件通道。
+            await _editorLauncher.DisposeAsync().ConfigureAwait(false);
             await _fileTracker.DisposeAsync().ConfigureAwait(false);
         }
         finally
