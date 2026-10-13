@@ -15,7 +15,7 @@ using Kei.Term.Infrastructure.Storage.Schema;
 // 数据密钥是随机 32 字节 Vault Key；主密码经 Argon2id 得到包装密钥，只用于
 // XChaCha20-Poly1305 包装 Vault Key，不直接加密业务行。条目用 Vault Key 加密，
 // AAD 绑定该行主键。旧 PBKDF2 库仍能打开，成功后在同一次解锁里迁移到 Vault Key。
-public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IProxySecretStore, IQuickUnlockVault
+public partial class InternalVaultManager : IVaultManager, IProxySecretStore, IQuickUnlockVault, IVaultSecretLibrary
 {
     // vault_metadata 键
     private const string KeyPlainMode = "plain_mode";
@@ -248,8 +248,16 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
         await EnsureInitializedAsync(ct);
         await WithSecretWriteLockAsync(async () =>
         {
-            using SqliteConnection conn = await CreateConnectionAsync(ct);
-            await CompletePendingCleanupAsync(conn, ct);
+            using (SqliteConnection conn = await CreateConnectionAsync(ct))
+            {
+                await CompletePendingCleanupAsync(conn, ct);
+            }
+
+            // 明文模式启动路径即「已解锁」：在既有连接作用域结束后挂载材料库迁移
+            if (!_hasMasterPassword)
+            {
+                await TryMigrateLegacySecretsAsync(ct);
+            }
         }, ct);
         // 明文模式恒可用；加密模式走懒解锁，不在启动时自动发起系统认证。
         return !_hasMasterPassword;
@@ -274,6 +282,8 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
                 _vaultKey = null;
                 _wrappingKey = null;
             }
+            // 明文模式解锁入口：挂载材料库迁移（自带连接与事务）
+            await TryMigrateLegacySecretsAsync(ct);
             return;
         }
 
@@ -309,6 +319,8 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
             // 在同一次解锁里迁移到 Vault Key + Argon2id；迁移失败不留下半新元数据
             await MigrateLegacyVaultAsync(wrappingKey, masterPassword, lockVersion, ct);
             _logger.LogInformation("Vault 由旧 PBKDF2 库迁移到 Vault Key");
+            // 旧库迁移返回即解锁成功：挂载材料库迁移（自带连接与事务）
+            await TryMigrateLegacySecretsAsync(ct);
             return;
         }
 
@@ -359,8 +371,13 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
             await RotateVaultKeyLockedAsync(ct);
         }
 
-        using SqliteConnection conn = await CreateConnectionAsync(ct);
-        await CompletePendingCleanupAsync(conn, ct);
+        using (SqliteConnection conn = await CreateConnectionAsync(ct))
+        {
+            await CompletePendingCleanupAsync(conn, ct);
+        }
+
+        // 口令解锁成功路径：在既有连接作用域结束后挂载材料库迁移
+        await TryMigrateLegacySecretsAsync(ct);
         _logger.LogInformation("Vault 解锁成功");
     }
 
@@ -448,6 +465,9 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
         }
     }
 
+    // 旧身份级整包（identity_secrets）读写：材料库迁移前的遗留通道。
+    // v8 保留该表（v9 再清理），此处仅服务运行时迁移的回归测试与只读回退，
+    // 生产消费路径已全部改走 IVaultSecretLibrary / vault_secrets。
     public async Task<Dictionary<string, SecretPayload>> GetSecretsAsync(Guid identityId, CancellationToken ct = default)
     {
         await EnsureInitializedAsync(ct);
@@ -668,8 +688,10 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
         {
             using (SqliteTransaction tx = conn.BeginTransaction())
             {
-                await WritePlaintextAsync(conn, tx, vaultKey, "identity_secrets", "identity_id", ct);
-                await WritePlaintextAsync(conn, tx, vaultKey, "proxy_secrets", "proxy_id", ct);
+                await WritePlaintextAsync(conn, tx, vaultKey, "identity_secrets", "identity_id", "secrets_blob", ct);
+                await WritePlaintextAsync(conn, tx, vaultKey, "proxy_secrets", "proxy_id", "secrets_blob", ct);
+                // vault_secrets 的载荷列名为单数 secret_blob
+                await WritePlaintextAsync(conn, tx, vaultKey, "vault_secrets", "id", "secret_blob", ct);
                 await UpsertMetadataAsync(conn, tx, KeyPlainMode, "1", ct);
                 await UpsertMetadataAsync(conn, tx, KeyCleanupPending, "1", ct);
                 await UpsertMetadataAsync(conn, tx, KeyRotationPending, "0", ct);
@@ -714,19 +736,19 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
         }
     }
 
-    // 表名与主键列是内部常量。解密后的明文只在这条事务里出现，提交后由清理流程处理旧页。
+    // 表名、主键列与载荷列是内部常量。解密后的明文只在这条事务里出现，提交后由清理流程处理旧页。
     private static async Task WritePlaintextAsync(
-        SqliteConnection conn, SqliteTransaction tx, byte[] vaultKey, string table, string idColumn, CancellationToken ct)
+        SqliteConnection conn, SqliteTransaction tx, byte[] vaultKey, string table, string idColumn, string blobColumn, CancellationToken ct)
     {
         var pending = new List<(string id, string algorithm, byte[] blob)>();
         using (SqliteCommand select = conn.CreateCommand())
         {
             select.Transaction = tx;
-            select.CommandText = $"SELECT {idColumn}, encryption_algorithm, secrets_blob FROM {table};";
+            select.CommandText = $"SELECT {idColumn}, encryption_algorithm, {blobColumn} FROM {table};";
             using SqliteDataReader reader = await select.ExecuteReaderAsync(ct);
             while (await reader.ReadAsync(ct))
             {
-                pending.Add((reader.GetString(0), reader.GetString(1), (byte[])reader["secrets_blob"]));
+                pending.Add((reader.GetString(0), reader.GetString(1), (byte[])reader[blobColumn]));
             }
         }
 
@@ -746,7 +768,7 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
                 update.Transaction = tx;
                 update.CommandText = $@"
                     UPDATE {table}
-                    SET secrets_blob = $blob, encryption_algorithm = $alg, nonce = NULL, tag = NULL
+                    SET {blobColumn} = $blob, encryption_algorithm = $alg, nonce = NULL, tag = NULL
                     WHERE {idColumn} = $id;
                 ";
                 update.Parameters.AddWithValue("$id", id);
@@ -773,12 +795,14 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
     // 把两种秘密表的全部行从 oldKey 换成 newKey；旧算法行与 PLAIN 行一并升级为带 AAD 的新算法
     private static async Task<int> ReEncryptAllSecretsAsync(SqliteConnection conn, SqliteTransaction tx, byte[]? oldKey, byte[] newKey, CancellationToken ct)
     {
-        int count = await ReEncryptTableAsync(conn, tx, oldKey, newKey, "identity_secrets", "identity_id", ct);
-        count += await ReEncryptTableAsync(conn, tx, oldKey, newKey, "proxy_secrets", "proxy_id", ct);
+        int count = await ReEncryptTableAsync(conn, tx, oldKey, newKey, "identity_secrets", "identity_id", "secrets_blob", ct);
+        count += await ReEncryptTableAsync(conn, tx, oldKey, newKey, "proxy_secrets", "proxy_id", "secrets_blob", ct);
+        // vault_secrets 的载荷列名为单数 secret_blob
+        count += await ReEncryptTableAsync(conn, tx, oldKey, newKey, "vault_secrets", "id", "secret_blob", ct);
         return count;
     }
 
-    // 表名与主键列是内部常量，不接受外部输入
+    // 表名、主键列与载荷列均为内部常量，不接受外部输入
     private static async Task<int> ReEncryptTableAsync(
         SqliteConnection conn,
         SqliteTransaction tx,
@@ -786,17 +810,18 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
         byte[] newKey,
         string table,
         string idColumn,
+        string blobColumn,
         CancellationToken ct)
     {
         var pending = new List<(string id, string algorithm, byte[] blob)>();
         using (var select = conn.CreateCommand())
         {
             select.Transaction = tx;
-            select.CommandText = $"SELECT {idColumn}, encryption_algorithm, secrets_blob FROM {table};";
+            select.CommandText = $"SELECT {idColumn}, encryption_algorithm, {blobColumn} FROM {table};";
             using var reader = await select.ExecuteReaderAsync(ct);
             while (await reader.ReadAsync(ct))
             {
-                pending.Add((reader.GetString(0), reader.GetString(1), (byte[])reader["secrets_blob"]));
+                pending.Add((reader.GetString(0), reader.GetString(1), (byte[])reader[blobColumn]));
             }
         }
 
@@ -830,7 +855,7 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
             update.Transaction = tx;
             update.CommandText = $@"
                 UPDATE {table}
-                SET secrets_blob = $blob, encryption_algorithm = $alg, nonce = $nonce, tag = $tag
+                SET {blobColumn} = $blob, encryption_algorithm = $alg, nonce = $nonce, tag = $tag
                 WHERE {idColumn} = $id;
             ";
             update.Parameters.AddWithValue("$id", id);

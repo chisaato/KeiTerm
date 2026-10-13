@@ -287,6 +287,16 @@ public sealed class MainWindowInteractionService : IInteractionService
         await _mainVm.ConnectQuickAsync(quickVm.Host, quickVm.Port, quickVm.Username, quickVm.Password, quickVm.SaveAsSession);
     });
 
+    // 材料库窗口：ViewModel 由命令构造并已完成 LoadAsync，此处只负责呈现。
+    // Task 5 将把 VaultSecretLibraryWindow 替换为完整 XAML 视图。
+    public Task OpenVaultSecretLibraryAsync(VaultSecretLibraryViewModel viewModel)
+        => Safe.RunAsync(_log, "打开材料库", () => new VaultSecretLibraryWindow(viewModel).ShowDialog(DialogOwner));
+
+    // 新建材料输入对话框：owner 取当前最上层可交互窗口（确保挂在材料库/编辑器之上）。
+    public Task<VaultSecretDraft?> PromptNewSecretAsync(bool privateKey)
+        => Safe.RunAsync<VaultSecretDraft?>(_log, "打开新建材料窗口",
+            () => new VaultSecretInputWindow(privateKey).ShowDialog<VaultSecretDraft?>(DialogOwner));
+
     // === 反馈 ===
 
     // 独立确认框尚未实现：保持现有行为直接放行

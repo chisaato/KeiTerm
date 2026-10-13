@@ -135,6 +135,11 @@ internal sealed class SettingsWindowInteractionService(Window owner, SettingsVie
 
     public Task OpenQuickConnectAsync() => Task.CompletedTask;
 
+    // 设置窗口不承载材料库入口：按「取消」处理
+    public Task OpenVaultSecretLibraryAsync(VaultSecretLibraryViewModel viewModel) => Task.CompletedTask;
+
+    public Task<VaultSecretDraft?> PromptNewSecretAsync(bool privateKey) => Task.FromResult<VaultSecretDraft?>(null);
+
     public Task<bool> ConfirmDeleteAsync(string name)
     {
         var message = new TextBlock

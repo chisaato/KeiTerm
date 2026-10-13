@@ -215,7 +215,7 @@ public class WelcomeActionsTests
             FixedSettingsService settings = new(new AppSettings { PreferSystemAgent = false, ConfirmBeforeClose = false });
             MainViewModel model = new(tree, identities, vault, vault, settings, new OfflineSshFactory());
             MainWindow window = new() { DataContext = model };
-            model.Interaction = new MainWindowInteractionService(window, model, new IdentityManagerViewModel(identities, vault, vault),
+            model.Interaction = new MainWindowInteractionService(window, model, new IdentityManagerViewModel(identities, vault),
                 new SettingsViewModel(settings), null, NullLogger.Instance);
             window.Show();
             HeadlessAvalonia.Pump();

@@ -52,53 +52,121 @@ public class VaultSessionServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task LoadSecrets_WhenUserCancelsUnlock_CancelsAndStaysLocked()
+    public async Task GetPayload_WhenUserCancelsUnlock_CancelsAndStaysLocked()
     {
         var (vault, session) = await CreateLockedAsync();
 
-        await Assert.ThrowsAsync<OperationCanceledException>(() => session.LoadIdentitySecretsAsync(_identityId));
+        await Assert.ThrowsAsync<OperationCanceledException>(() => session.GetSecretPayloadAsync(Guid.NewGuid()));
         Assert.False(vault.IsUnlocked);
         Assert.Equal(1, _ui.MasterPasswordPrompts);
     }
 
     [Fact]
-    public async Task PersistSecret_WhenUnlockCancelled_CancelsWithoutWriting()
+    public async Task SaveLibrarySecret_WhenUnlockCancelled_ReturnsFalseWithoutWriting()
     {
         var (vault, session) = await CreateLockedAsync();
+        Guid secretId = Guid.NewGuid();
 
-        await Assert.ThrowsAsync<OperationCanceledException>(() =>
-            session.PersistSecretAsync(_identityId, Guid.NewGuid(), new SecretPayload { Passphrase = "test" }));
+        bool saved = await session.SaveLibrarySecretAsync(
+            new VaultSecret { Id = secretId, Name = "pw", Kind = SecretKind.Password },
+            new SecretPayload { Password = "test" });
 
+        Assert.False(saved);
         Assert.False(vault.IsUnlocked);
         await vault.UnlockAsync("correct", rememberOnThisDevice: false);
-        Assert.Empty(await vault.GetSecretsAsync(_identityId));
+        Assert.Null(await vault.GetPayloadAsync(secretId));
     }
 
     [Fact]
-    public async Task KeyInfoPreview_WhenUnlockCancelled_ReturnsNoPreviewAndStaysLocked()
+    public async Task ListLibrarySecrets_WhileLocked_DoesNotPromptNorUnlock()
     {
         var (vault, session) = await CreateLockedAsync();
 
-        Assert.Null(await session.GetVaultKeyInfoAsync(_identityId, Guid.NewGuid()));
+        Assert.Empty(await session.ListLibrarySecretsAsync());
         Assert.False(vault.IsUnlocked);
+        Assert.Equal(0, _ui.MasterPasswordPrompts);
     }
 
     [Fact]
-    public async Task PersistSecret_MergesIntoExistingIdentityBundle()
+    public async Task SaveAndGetLibrarySecret_KeepsEntriesSeparate_AndUnlocksOnce()
     {
         var (_, session) = await CreateLockedAsync();
         _ui.MasterPasswords.Enqueue("correct");
         Guid first = Guid.NewGuid();
         Guid second = Guid.NewGuid();
 
-        await session.PersistSecretAsync(_identityId, first, new SecretPayload { Password = "p1" });
-        await session.PersistSecretAsync(_identityId, second, new SecretPayload { Passphrase = "k2" });
+        Assert.True(await session.SaveLibrarySecretAsync(
+            new VaultSecret { Id = first, Name = "pw", Kind = SecretKind.Password },
+            new SecretPayload { Password = "p1" }));
+        Assert.True(await session.SaveLibrarySecretAsync(
+            new VaultSecret { Id = second, Name = "pp", Kind = SecretKind.Passphrase },
+            new SecretPayload { Passphrase = "k2" }));
 
-        var secrets = await session.LoadIdentitySecretsAsync(_identityId);
-        Assert.Equal("p1", secrets[first.ToString()].Password);
-        Assert.Equal("k2", secrets[second.ToString()].Passphrase);
+        Assert.Equal("p1", (await session.GetSecretPayloadAsync(first))!.Password);
+        Assert.Equal("k2", (await session.GetSecretPayloadAsync(second))!.Passphrase);
         // 解锁一次后整个会话内不再追问主密码
         Assert.Equal(1, _ui.MasterPasswordPrompts);
+    }
+
+    [Fact]
+    public async Task SavePrivateKeySecret_ComputesFingerprintAndKeyType()
+    {
+        var (_, session) = await CreateLockedAsync();
+        _ui.MasterPasswords.Enqueue("correct");
+        Guid secretId = Guid.NewGuid();
+
+        Assert.True(await session.SaveLibrarySecretAsync(
+            new VaultSecret { Id = secretId, Name = "key", Kind = SecretKind.SshPrivateKey },
+            new SecretPayload { PrivateKeyContent = PrivateKeyFormatTests.PlainOpenSsh }));
+
+        VaultSecret saved = Assert.Single(await session.ListLibrarySecretsAsync());
+        Assert.False(string.IsNullOrEmpty(saved.Fingerprint));
+        Assert.Equal("ssh-ed25519", saved.KeyType);
+    }
+
+    [Fact]
+    public async Task DeleteLibrarySecret_WhenUnlockCancelled_ReturnsFalse()
+    {
+        var (vault, session) = await CreateLockedAsync();
+
+        Assert.False(await session.DeleteLibrarySecretAsync(Guid.NewGuid()));
+        Assert.False(vault.IsUnlocked);
+    }
+
+    // 惰性补算的并发最小缓解：只写元数据、且基于库内最新条目，不得用旧快照覆盖并发的改名或重写载荷
+    [Fact]
+    public async Task Backfill_StaleSnapshot_DoesNotClobberRenamedEntryOrPayload()
+    {
+        await VaultTestDb.CreateAsync(ConnStr, _identityId);
+        var vault = VaultTestDb.CreateVault(ConnStr);
+        await vault.SetMasterPasswordAsync("correct");
+        var session = new VaultSessionService(vault, vault, _settings, () => _ui);
+        Guid secretId = Guid.NewGuid();
+        // 迁移产出式旧条目：只落载荷、无指纹
+        await vault.SaveAsync(
+            new VaultSecret { Id = secretId, Name = "旧名", Kind = SecretKind.SshPrivateKey },
+            new SecretPayload { PrivateKeyContent = PrivateKeyFormatTests.PlainOpenSsh });
+
+        // 调用方捕获的快照（名称=旧名、无指纹）——模拟 LoadAsync 列出的旧数据
+        IReadOnlyList<VaultSecret> snapshot = await session.ListLibrarySecretsAsync();
+        // 并发：补算前先改名（只改元数据），并取加密基线
+        Assert.True(await session.SaveLibrarySecretAsync(
+            new VaultSecret { Id = secretId, Name = "新名", Kind = SecretKind.SshPrivateKey }, null));
+        var before = await VaultTestDb.ReadVaultSecretRowAsync(ConnStr, secretId);
+
+        await session.BackfillLibraryMetadataAsync(snapshot);
+
+        VaultSecret afterMeta = Assert.Single(await session.ListLibrarySecretsAsync());
+        Assert.Equal("新名", afterMeta.Name);
+        Assert.False(string.IsNullOrEmpty(afterMeta.Fingerprint));
+        Assert.Equal("ssh-ed25519", afterMeta.KeyType);
+
+        // 载荷密文未被补算重写（仍复用改名时的封套）
+        var after = await VaultTestDb.ReadVaultSecretRowAsync(ConnStr, secretId);
+        Assert.Equal(before.blob, after.blob);
+        Assert.Equal(before.nonce, after.nonce);
+        Assert.Equal(before.tag, after.tag);
+        Assert.Equal(PrivateKeyFormatTests.PlainOpenSsh, (await vault.GetPayloadAsync(secretId))!.PrivateKeyContent);
     }
 
     [Theory]
@@ -144,5 +212,43 @@ public class VaultSessionServiceTests : IDisposable
         _settings.Current.LockTimeoutMinutes = 0;
 
         Assert.False(session.AutoLockIfIdle(DateTime.UtcNow.AddDays(1)));
+    }
+
+    [Fact]
+    public async Task CreateLibrarySecretFromDraft_PasswordDraft_PersistsPasswordEntry()
+    {
+        var (vault, session) = await CreateLockedAsync();
+        _ui.MasterPasswords.Enqueue("correct");
+        var draft = new VaultSecretDraft("测试密码材料", false, null, null, "pass123");
+
+        var secret = await session.CreateLibrarySecretFromDraftAsync(draft);
+
+        Assert.NotNull(secret);
+        Assert.Equal("测试密码材料", secret.Name);
+        Assert.Equal(SecretKind.Password, secret.Kind);
+
+        var list = await session.ListLibrarySecretsAsync();
+        Assert.Contains(list, s => s.Id == secret.Id && s.Name == "测试密码材料");
+        var payload = await vault.GetPayloadAsync(secret.Id);
+        Assert.Equal("pass123", payload?.Password);
+    }
+
+    [Fact]
+    public async Task CreateLibrarySecretFromDraft_PrivateKeyDraft_ComputesFingerprintAndPersists()
+    {
+        var (vault, session) = await CreateLockedAsync();
+        _ui.MasterPasswords.Enqueue("correct");
+        var draft = new VaultSecretDraft("测试私钥材料", true, PrivateKeyFormatTests.PlainOpenSsh, null, null);
+
+        var secret = await session.CreateLibrarySecretFromDraftAsync(draft);
+
+        Assert.NotNull(secret);
+        Assert.Equal("测试私钥材料", secret.Name);
+        Assert.Equal(SecretKind.SshPrivateKey, secret.Kind);
+
+        var list = await session.ListLibrarySecretsAsync();
+        var saved = Assert.Single(list, s => s.Id == secret.Id);
+        Assert.False(string.IsNullOrEmpty(saved.Fingerprint));
+        Assert.Equal("ssh-ed25519", saved.KeyType);
     }
 }

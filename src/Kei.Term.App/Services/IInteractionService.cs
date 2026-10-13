@@ -13,6 +13,15 @@ using Kei.Term.Core.Vault;
 
 namespace Kei.Term.App.Services;
 
+// 新建材料输入结果：由新建材料对话框产出，私钥与密码二选一。
+// 仅内存流转，禁止记录到日志。
+public sealed record VaultSecretDraft(
+    string Name,
+    bool PrivateKey,
+    string? PrivateKeyContent,
+    string? Passphrase,
+    string? Password);
+
 // 所有「需要用户参与」的交互统一入口：弹窗、选择器、子窗口、通知。
 // ViewModel 与服务只依赖本接口，由窗口层提供 Avalonia 实现；测试与无界面场景使用 NullInteractionService。
 // 约定：返回 null / false 表示用户取消。
@@ -78,6 +87,13 @@ public interface IInteractionService
     Task OpenSettingsAsync();
 
     Task OpenQuickConnectAsync();
+
+    // 材料库窗口（独立 ViewModel 已加载完成，由窗口层负责呈现）
+    Task OpenVaultSecretLibraryAsync(VaultSecretLibraryViewModel viewModel);
+
+    // 新建材料输入（密码 / 私钥 + 口令）；取消 = null
+    Task<VaultSecretDraft?> PromptNewSecretAsync(bool privateKey);
+
     Task CloseWindowAsync() => Task.CompletedTask;
     Task<bool> HandleCloseShortcutInQuitConfirmationAsync() => Task.FromResult(false);
     bool IsQuitConfirmationSuppressionSelected => false;
@@ -131,6 +147,10 @@ public sealed class NullInteractionService : IInteractionService
     public Task OpenSettingsAsync() => Task.CompletedTask;
 
     public Task OpenQuickConnectAsync() => Task.CompletedTask;
+
+    public Task OpenVaultSecretLibraryAsync(VaultSecretLibraryViewModel viewModel) => Task.CompletedTask;
+
+    public Task<VaultSecretDraft?> PromptNewSecretAsync(bool privateKey) => Task.FromResult<VaultSecretDraft?>(null);
 
     public Task<bool> ConfirmDeleteAsync(string name) => Task.FromResult(true);
 

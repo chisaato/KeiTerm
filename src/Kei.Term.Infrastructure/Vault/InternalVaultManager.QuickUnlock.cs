@@ -71,8 +71,10 @@ public partial class InternalVaultManager
                     : VaultCryptography.TryLegacyVerifierMatches(candidate, verifierBlob);
                 if (!valid) return false;
 
-                using SqliteConnection conn = await CreateConnectionAsync(ct);
-                await CompletePendingCleanupAsync(conn, ct);
+                using (SqliteConnection conn = await CreateConnectionAsync(ct))
+                {
+                    await CompletePendingCleanupAsync(conn, ct);
+                }
                 ct.ThrowIfCancellationRequested();
                 lock (_keyStateLock)
                 {
@@ -82,6 +84,8 @@ public partial class InternalVaultManager
                     ReplaceKeysLocked(candidate, null);
                     installed = true;
                 }
+                // 设备解锁成功路径：挂载材料库迁移（自带连接与事务，在既有连接作用域之外）
+                await TryMigrateLegacySecretsAsync(ct);
                 return true;
             }
             finally { _secretWriteLock.Release(); }

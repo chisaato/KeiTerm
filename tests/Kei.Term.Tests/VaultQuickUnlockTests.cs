@@ -12,6 +12,7 @@ public sealed class VaultQuickUnlockTests : IDisposable
 {
     private readonly string _path = VaultTestDb.NewPath();
     private readonly Guid _identity = Guid.NewGuid();
+    private readonly Guid _secret = Guid.NewGuid();
     private readonly MemoryDeviceStore _store = new();
     private string Connection => $"Data Source={_path}";
     private const string MasterPassword = "quick-unlock-master";
@@ -21,7 +22,9 @@ public sealed class VaultQuickUnlockTests : IDisposable
         await VaultTestDb.CreateAsync(Connection, _identity);
         InternalVaultManager vault = VaultTestDb.CreateVault(Connection, _store);
         await vault.SetMasterPasswordAsync(MasterPassword);
-        await vault.SaveSecretsAsync(_identity, new() { ["method"] = new SecretPayload { PrivateKeyContent = "private-key", Passphrase = "passphrase" } });
+        await vault.SaveAsync(
+            new VaultSecret { Id = _secret, Name = "key", Kind = SecretKind.SshPrivateKey },
+            new SecretPayload { PrivateKeyContent = "private-key", Passphrase = "passphrase" });
         if (enroll) Assert.True(await new VaultQuickUnlockService(vault, _store).EnableAsync(PasswordInteraction()));
         vault.Lock();
         return vault;
@@ -43,12 +46,12 @@ public sealed class VaultQuickUnlockTests : IDisposable
         VaultQuickUnlockService service = new(reopened, _store);
 
         Assert.Equal(DeviceUnlockOutcome.Success, await service.TryUnlockAsync());
-        Dictionary<string, SecretPayload> secrets = await reopened.GetSecretsAsync(_identity);
-        Assert.Equal("private-key", secrets["method"].PrivateKeyContent);
-        Assert.Equal("passphrase", secrets["method"].Passphrase);
+        SecretPayload secrets = (await reopened.GetPayloadAsync(_secret))!;
+        Assert.Equal("private-key", secrets.PrivateKeyContent);
+        Assert.Equal("passphrase", secrets.Passphrase);
         Assert.NotNull(_store.LastReturnedKey);
         Assert.All(_store.LastReturnedKey, value => Assert.Equal(0, value));
-        var raw = await VaultTestDb.ReadRawAsync(Connection, _identity);
+        var raw = await VaultTestDb.ReadVaultSecretRawAsync(Connection, _secret);
         Assert.Equal("XCHACHA20-POLY1305", raw.algorithm);
         Assert.DoesNotContain("private-key", System.Text.Encoding.UTF8.GetString(raw.blob));
     }
@@ -60,7 +63,7 @@ public sealed class VaultQuickUnlockTests : IDisposable
         await vault.UnlockAsync(MasterPassword, false);
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => new VaultQuickUnlockService(vault, _store).EnableAsync(PasswordInteraction("wrong")));
         Assert.Equal(0, _store.Count);
-        Assert.Equal("private-key", (await vault.GetSecretsAsync(_identity))["method"].PrivateKeyContent);
+        Assert.Equal("private-key", (await vault.GetPayloadAsync(_secret))!.PrivateKeyContent);
     }
 
     [Fact]
@@ -70,7 +73,7 @@ public sealed class VaultQuickUnlockTests : IDisposable
         _store.CorruptReturnedKey = true;
         Assert.Equal(DeviceUnlockOutcome.Failed, await new VaultQuickUnlockService(vault, _store).TryUnlockAsync());
         Assert.False(vault.IsUnlocked);
-        await Assert.ThrowsAsync<InvalidOperationException>(() => vault.GetSecretsAsync(_identity));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => vault.GetPayloadAsync(_secret));
         Assert.All(_store.LastReturnedKey!, value => Assert.Equal(0, value));
     }
 
@@ -117,7 +120,7 @@ public sealed class VaultQuickUnlockTests : IDisposable
             vault.Lock();
             Assert.Equal(DeviceUnlockOutcome.NotEnrolled, await new VaultQuickUnlockService(vault, _store).TryUnlockAsync());
             await vault.UnlockAsync("new-master", false);
-            Assert.Equal("passphrase", (await vault.GetSecretsAsync(_identity))["method"].Passphrase);
+            Assert.Equal("passphrase", (await vault.GetPayloadAsync(_secret))!.Passphrase);
         }
         finally { CryptographicOperations.ZeroMemory(oldKey); }
     }
@@ -144,7 +147,7 @@ public sealed class VaultQuickUnlockTests : IDisposable
             Assert.False(vault.IsUnlocked);
 
             await vault.UnlockAsync("new-master", false);
-            Assert.Equal("passphrase", (await vault.GetSecretsAsync(_identity))["method"].Passphrase);
+            Assert.Equal("passphrase", (await vault.GetPayloadAsync(_secret))!.Passphrase);
         }
         finally { CryptographicOperations.ZeroMemory(leftover); }
     }
@@ -182,7 +185,7 @@ public sealed class VaultQuickUnlockTests : IDisposable
             Assert.Equal("0", await VaultTestDb.ReadMetaAsync(Connection, "vault_key_rotation_pending"));
 
             await vault.UnlockAsync("new-master", false);
-            Assert.Equal("passphrase", (await vault.GetSecretsAsync(_identity))["method"].Passphrase);
+            Assert.Equal("passphrase", (await vault.GetPayloadAsync(_secret))!.Passphrase);
         }
         finally { CryptographicOperations.ZeroMemory(leftover); }
     }
@@ -191,17 +194,17 @@ public sealed class VaultQuickUnlockTests : IDisposable
     public async Task PasswordRotation_WithSuccessfulDelete_ClearsPendingAndKeepsCiphertext()
     {
         InternalVaultManager vault = await CreateAsync();
-        byte[] blobBefore = (await VaultTestDb.ReadSecretRowAsync(Connection, _identity)).blob;
+        byte[] blobBefore = (await VaultTestDb.ReadVaultSecretRowAsync(Connection, _secret)).blob;
         await vault.UnlockAsync(MasterPassword, false);
         await vault.SetMasterPasswordAsync("new-master");
 
         // 删除成功：标记清回 "0"，条目密文字节不变
         Assert.Equal(0, _store.Count);
         Assert.Equal("0", await VaultTestDb.ReadMetaAsync(Connection, "vault_key_rotation_pending"));
-        Assert.Equal(blobBefore, (await VaultTestDb.ReadSecretRowAsync(Connection, _identity)).blob);
+        Assert.Equal(blobBefore, (await VaultTestDb.ReadVaultSecretRowAsync(Connection, _secret)).blob);
 
         await vault.UnlockAsync("new-master", false);
-        Assert.Equal("passphrase", (await vault.GetSecretsAsync(_identity))["method"].Passphrase);
+        Assert.Equal("passphrase", (await vault.GetPayloadAsync(_secret))!.Passphrase);
     }
 
     [Fact]
@@ -223,7 +226,7 @@ public sealed class VaultQuickUnlockTests : IDisposable
             Assert.False(vault.IsUnlocked);
 
             await vault.UnlockAsync(MasterPassword, false);
-            Assert.Equal("passphrase", (await vault.GetSecretsAsync(_identity))["method"].Passphrase);
+            Assert.Equal("passphrase", (await vault.GetPayloadAsync(_secret))!.Passphrase);
         }
         finally { CryptographicOperations.ZeroMemory(handedOut); }
     }
@@ -237,7 +240,7 @@ public sealed class VaultQuickUnlockTests : IDisposable
         // 与当前 Vault Key 不同的字节：安全，不触发轮换
         await vault.DiscardDeviceKeyCopyAsync("keiterm-v1-deadbeef", new byte[32]);
         Assert.True(vault.IsUnlocked);
-        Assert.Equal("passphrase", (await vault.GetSecretsAsync(_identity))["method"].Passphrase);
+        Assert.Equal("passphrase", (await vault.GetPayloadAsync(_secret))!.Passphrase);
     }
 
     [Fact]
@@ -263,7 +266,7 @@ public sealed class VaultQuickUnlockTests : IDisposable
             VaultQuickUnlockState after = (await vault.GetQuickUnlockStateAsync())!;
             Assert.False(await vault.UnlockWithDeviceKeyAsync(after, current));
             await vault.UnlockAsync(MasterPassword, false);
-            Assert.Equal("passphrase", (await vault.GetSecretsAsync(_identity))["method"].Passphrase);
+            Assert.Equal("passphrase", (await vault.GetPayloadAsync(_secret))!.Passphrase);
         }
         finally { CryptographicOperations.ZeroMemory(current); }
     }
@@ -293,7 +296,7 @@ public sealed class VaultQuickUnlockTests : IDisposable
             // 口令解锁先完成轮换再投入使用，标记清除
             await vault.UnlockAsync(MasterPassword, false);
             Assert.Equal("0", await VaultTestDb.ReadMetaAsync(Connection, "vault_key_rotation_pending"));
-            Assert.Equal("passphrase", (await vault.GetSecretsAsync(_identity))["method"].Passphrase);
+            Assert.Equal("passphrase", (await vault.GetPayloadAsync(_secret))!.Passphrase);
 
             // 轮换后旧字节已解不开当前库
             vault.Lock();
@@ -348,7 +351,7 @@ public sealed class VaultQuickUnlockTests : IDisposable
         await disable;
         Assert.False(vault.IsUnlocked);
         Assert.Equal(0, _store.Count);
-        await Assert.ThrowsAsync<InvalidOperationException>(() => vault.GetSecretsAsync(_identity));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => vault.GetPayloadAsync(_secret));
     }
 
     [Fact]
@@ -376,8 +379,8 @@ public sealed class VaultQuickUnlockTests : IDisposable
         VaultSessionService session = new(vault, vault, new FixedSettingsService(), () => interaction);
         session.ConfigureQuickUnlock(new(vault, _store));
 
-        Dictionary<string, SecretPayload> secrets = await session.LoadIdentitySecretsAsync(_identity);
-        Assert.Equal("private-key", secrets["method"].PrivateKeyContent);
+        SecretPayload secrets = (await session.GetSecretPayloadAsync(_secret))!;
+        Assert.Equal("private-key", secrets.PrivateKeyContent);
         Assert.Equal(1, _store.UnlockCount);
         Assert.Equal(2, interaction.VaultPrompts.Count);
         Assert.True(interaction.VaultPrompts[0].CanQuickUnlock);
@@ -407,7 +410,7 @@ public sealed class VaultQuickUnlockTests : IDisposable
         session.ConfigureQuickUnlock(new(vault, _store));
         Assert.False(await session.EnsureUnlockedAsync());
         Assert.False(vault.IsUnlocked);
-        await Assert.ThrowsAsync<OperationCanceledException>(() => session.LoadIdentitySecretsAsync(_identity, allowInteraction: false));
+        await Assert.ThrowsAsync<OperationCanceledException>(() => session.GetSecretPayloadAsync(_secret, allowInteraction: false));
         Assert.Equal(1, _store.UnlockCount);
         Assert.Equal(2, interaction.VaultPrompts.Count);
     }

@@ -20,7 +20,8 @@ public sealed class AuthMaterializerContext
     // SessionOnly 口令内存缓存查找（按 methodId 键控）
     public required Func<Guid, string?> GetSessionPassphrase { get; init; }
 
-    // Persistent 口令 / Vault 方法材料从 identity_secrets 整包取出；Vault 锁定时返回 null
+    // Vault 方法材料 / Persistent 口令按「材料条目 Id」取出；Vault 锁定时返回 null
+    // （Vault 方法 = method.SecretId；文件私钥持久化口令 = method.Id）
     public required Func<Guid, SecretPayload?> GetVaultSecret { get; init; }
 
     // 口令弹窗（三态选择）；返回 null 表示用户取消
@@ -48,9 +49,10 @@ public static class AuthMaterializer
         var logger = context.Logger;
         switch (method)
         {
-            case VaultPasswordMethod:
+            case VaultPasswordMethod password:
             {
-                var secret = context.GetVaultSecret(method.Id);
+                Guid? key = password.SecretId;
+                var secret = key is Guid k ? context.GetVaultSecret(k) : null;
                 if (string.IsNullOrEmpty(secret?.Password))
                 {
                     logger?.LogInformation("认证方法物化跳过 方法=VaultPassword 原因=无保管库密码材料");
@@ -61,9 +63,10 @@ public static class AuthMaterializer
                 return new MaterializedAuthMethod(AuthMaterialKind.Password, secret);
             }
 
-            case VaultPrivateKeyMethod:
+            case VaultPrivateKeyMethod privateKey:
             {
-                var secret = context.GetVaultSecret(method.Id);
+                Guid? key = privateKey.SecretId;
+                var secret = key is Guid k ? context.GetVaultSecret(k) : null;
                 if (string.IsNullOrEmpty(secret?.PrivateKeyContent))
                 {
                     logger?.LogInformation("认证方法物化跳过 方法=VaultPrivateKey 原因=无保管库私钥材料");
@@ -157,7 +160,7 @@ public static class AuthMaterializer
                 new SecretPayload { PrivateKeyContent = file.Content });
         }
 
-        // 有口令：Persistent 先尝试从 Vault 整包材料命中（按 methodId 键控）
+        // 有口令：Persistent 先尝试从材料库按条目 Id（= method.Id）命中
         string? passphrase = null;
         var fromVault = false;
         if (method.PassphraseMode == PassphrasePersistence.Persistent)
@@ -179,7 +182,7 @@ public static class AuthMaterializer
 
             passphrase = prompt.Passphrase;
 
-            // Persistent 且用户确认记住 -> 回调保存回 identity_secrets
+            // Persistent 且用户确认记住 -> 回调保存为材料库口令条目
             if (method.PassphraseMode == PassphrasePersistence.Persistent
                 && prompt.Remember
                 && context.SaveVaultSecretAsync != null)

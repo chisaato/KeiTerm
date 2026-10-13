@@ -60,6 +60,24 @@ public class IdentityJsonTests
     }
 
     [Fact]
+    public void RoundTrip_PreservesVaultMethodSecretId()
+    {
+        var m = new VaultPrivateKeyMethod { SecretId = Guid.NewGuid() };
+        var back = JsonSerializer.Deserialize<List<AuthMethodEntry>>(JsonSerializer.Serialize<List<AuthMethodEntry>>([m]));
+        Assert.Equal(m.SecretId, Assert.IsType<VaultPrivateKeyMethod>(back![0]).SecretId);
+    }
+
+    [Fact]
+    public void Deserialize_LegacyMethodWithoutSecretId_LeavesSecretIdNull()
+    {
+        // 旧配置：$kind 存在但无 SecretId 字段，反序列化后应为 null（尚未绑定材料）
+        var json = "[{\"$kind\":\"ssh/vault-key\",\"Id\":\"" + Guid.NewGuid() + "\",\"SortOrder\":0,\"Enabled\":true}]";
+
+        var back = JsonSerializer.Deserialize<List<AuthMethodEntry>>(json);
+        Assert.Null(Assert.IsType<VaultPrivateKeyMethod>(back![0]).SecretId);
+    }
+
+    [Fact]
     public void Deserialize_UnknownKind_Throws()
     {
         var json = "[{\"$kind\":\"vnc/password\",\"Id\":\"" + Guid.NewGuid() + "\",\"SortOrder\":0,\"Enabled\":true}]";

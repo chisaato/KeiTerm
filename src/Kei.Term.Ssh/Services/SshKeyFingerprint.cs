@@ -44,6 +44,48 @@ public static class SshKeyFingerprint
         }
     }
 
+    // 解析私钥并返回 SSH 公钥算法名（ssh-rsa / ssh-ed25519 / ecdsa-sha2-*）；
+    // 解析失败（格式错误/口令错/不支持类型）返回 null
+    public static string? KeyTypeOf(string pemContent, string? passphrase = null)
+    {
+        if (string.IsNullOrWhiteSpace(pemContent))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(pemContent));
+            using var keyFile = string.IsNullOrEmpty(passphrase)
+                ? new PrivateKeyFile(stream)
+                : new PrivateKeyFile(stream, passphrase);
+
+            var blob = BuildPublicKeyBlob(keyFile.Key);
+            return blob == null ? null : ReadFirstString(blob);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    // 读取 SSH wire-format blob 的首个 string（即算法名）
+    private static string? ReadFirstString(byte[] blob)
+    {
+        if (blob.Length < 4)
+        {
+            return null;
+        }
+
+        int length = (blob[0] << 24) | (blob[1] << 16) | (blob[2] << 8) | blob[3];
+        if (length <= 0 || 4 + length > blob.Length)
+        {
+            return null;
+        }
+
+        return Encoding.UTF8.GetString(blob, 4, length);
+    }
+
     // 按 key 类型构造 SSH 公钥 wire-format blob；不支持的类型返回 null
     private static byte[]? BuildPublicKeyBlob(Key key)
     {

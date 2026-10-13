@@ -147,9 +147,9 @@ public class SchemaMigratorTests : IDisposable
             .ToArray();
         Assert.Equal(expectedApplyNames, actualApplyNames);
 
-        // v7 是本次追加的唯一一项，且号在末尾
-        Assert.Equal(7, SchemaMigrations.All[^1].Version);
-        Assert.Equal("sync_columns", SchemaMigrations.All[^1].Name);
+        // v8 是本次追加的唯一一项，且号在末尾
+        Assert.Equal(8, SchemaMigrations.All[^1].Version);
+        Assert.Equal("vault_secrets", SchemaMigrations.All[^1].Name);
     }
 
     [Fact]
@@ -212,7 +212,7 @@ public class SchemaMigratorTests : IDisposable
 
         var factory = new SqliteConnectionFactory(ConnStr);
         int version = await SchemaMigrator.MigrateAsync(factory);
-        Assert.Equal(7, version);
+        Assert.Equal(8, version);
 
         using var conn = await factory.OpenAsync();
         foreach (string table in syncableTables)
@@ -238,6 +238,11 @@ public class SchemaMigratorTests : IDisposable
                 new { table });
             Assert.Equal(0L, count);
         }
+
+        // v8 新建的 vault_secrets 自带同步预留列（口径与 v7 一致），不属于 v7 的 excluded 范围
+        long vaultSecretSyncColumns = await conn.ExecuteScalarAsync<long>(
+            "SELECT COUNT(*) FROM pragma_table_info('vault_secrets') WHERE name IN ('revision', 'deleted_at');");
+        Assert.Equal(2L, vaultSecretSyncColumns);
     }
 
     // v6 已发布 schema 的冻结快照：表名 + 每张表的列（name/type/notnull/dflt_value/pk）。

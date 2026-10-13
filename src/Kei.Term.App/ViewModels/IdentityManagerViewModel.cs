@@ -23,7 +23,6 @@ public partial class IdentityManagerViewModel : ViewModelBase
 {
     private readonly IIdentityRepository _repo;
     private readonly IVaultManager _vault;
-    private readonly IVaultSecretStore _secretStore;
     private readonly ILogger<IdentityManagerViewModel> _logger;
     private VaultSessionService? _vaultSession;
 
@@ -56,24 +55,16 @@ public partial class IdentityManagerViewModel : ViewModelBase
     // 删除确认（未注入时默认确认）
     public Func<string, Task<bool>>? ConfirmDeleteAsync { get; set; }
 
-    // 读取指定 Vault 私钥方法已存材料信息（字节数 + 指纹），编辑器回显用
-    public Func<Guid, Guid, Task<VaultKeyInfo?>>? VaultKeyInfoLoader { get; set; }
-
-    // 身份落库后统一写入 Vault 私钥材料（由 MainViewModel 提供）；false = 未解锁被取消
-    public Func<Guid, IReadOnlyList<VaultKeyImport>, Task<bool>>? PersistVaultKeysAsync { get; set; }
-
     // 弹保管库初始化框（仅由明文横幅「设置主密码」触发）
     public Func<Task<VaultSetupResult>>? VaultSetupDialogAsync { get; set; }
 
     public IdentityManagerViewModel(
         IIdentityRepository repo,
         IVaultManager vault,
-        IVaultSecretStore secretStore,
         ILogger<IdentityManagerViewModel>? logger = null)
     {
         _repo = repo;
         _vault = vault;
-        _secretStore = secretStore;
         _logger = logger ?? NullLogger<IdentityManagerViewModel>.Instance;
         WeakReferenceMessenger.Default.Register<IdentityManagerViewModel, VaultLockStateChangedMessage>(this,
             static (recipient, message) =>
@@ -171,8 +162,8 @@ public partial class IdentityManagerViewModel : ViewModelBase
             return;
         }
 
-        // 仓储 + 材料存储双清（identity_secrets 亦有 ON DELETE CASCADE 兜底）
-        await _secretStore.DeleteSecretsAsync(id);
+        // 身份删除由仓储 ON DELETE CASCADE 清理旧 identity_secrets；
+        // 材料库条目按设计保留，由用户在材料库窗口显式清理。
         await _repo.DeleteAsync(id);
         await LoadAsync();
     });
@@ -185,6 +176,20 @@ public partial class IdentityManagerViewModel : ViewModelBase
         else _vault.Lock();
         RefreshVaultState();
     }
+
+    [RelayCommand]
+    private Task OpenVaultSecretLibraryAsync() => Safe.RunAsync(_logger, "打开材料库", async () =>
+    {
+        if (_vaultSession == null)
+        {
+            _logger.LogWarning("打开材料库中止：VaultSession 未就绪");
+            return;
+        }
+
+        var libraryVm = new VaultSecretLibraryViewModel(_vaultSession, _repo, Interaction, _logger);
+        await libraryVm.LoadAsync();
+        await Interaction.OpenVaultSecretLibraryAsync(libraryVm);
+    });
 
     [RelayCommand(CanExecute = nameof(CanUnlockVault))]
     private Task UnlockVaultAsync() => Safe.RunAsync(_logger, "解锁保管库", async () =>
@@ -204,6 +209,28 @@ public partial class IdentityManagerViewModel : ViewModelBase
     {
         _logger.LogInformation("身份落库 IdentityId={IdentityId} 名称={Name}", identity.Id, identity.Name);
         return _repo.SaveAsync(identity);
+    }
+
+    // 身份编辑器材料下拉数据源：列出材料库元数据（不解锁）
+    public async Task<IReadOnlyList<VaultSecret>> LoadLibrarySecretsAsync()
+        => _vaultSession == null ? [] : await _vaultSession.ListLibrarySecretsAsync();
+
+    // 材料条目引用数：扫描全部身份的 methods_json（SecretReferences 纯函数）
+    public async Task<int> CountSecretReferencesAsync(Guid secretId)
+        => SecretReferences.Find(await _repo.GetAllAsync(), secretId).Count;
+
+    // 身份编辑器「新建材料」：经交互服务录入草稿后在材料库落库。
+    // 弹窗经 IInteractionService、落库复用 VaultSessionService，窗口层只需把本方法接到编辑器的 CreateSecretAsync。
+    public async Task<VaultSecret?> CreateLibrarySecretAsync(bool isPrivateKey)
+    {
+        if (_vaultSession == null)
+        {
+            _logger.LogWarning("新建材料中止：VaultSession 未就绪");
+            return null;
+        }
+
+        VaultSecretDraft? draft = await Interaction.PromptNewSecretAsync(isPrivateKey);
+        return draft == null ? null : await _vaultSession.CreateLibrarySecretFromDraftAsync(draft);
     }
 
     // 明文横幅「设置主密码」：弹初始化框，成功后横幅消失、可手动锁定

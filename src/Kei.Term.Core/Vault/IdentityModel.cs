@@ -27,10 +27,18 @@ public abstract class AuthMethodEntry
 }
 
 // 密码，密文存 Vault
-public sealed class VaultPasswordMethod : AuthMethodEntry { }
+public sealed class VaultPasswordMethod : AuthMethodEntry
+{
+    // 材料库条目引用；null = 未绑定
+    public Guid? SecretId { get; set; }
+}
 
 // 私钥密文托管
-public sealed class VaultPrivateKeyMethod : AuthMethodEntry { }
+public sealed class VaultPrivateKeyMethod : AuthMethodEntry
+{
+    // 材料库条目引用；null = 未绑定
+    public Guid? SecretId { get; set; }
+}
 
 // 文件引用（只存路径）
 public sealed class FilePrivateKeyMethod : AuthMethodEntry

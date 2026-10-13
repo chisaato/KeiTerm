@@ -13,8 +13,8 @@ public enum AuthPromptMethod
     Interactive
 }
 
-// 公钥来源下拉中的「保管库密钥」项（当前连接身份已导入的 Vault 私钥方法）
-public sealed record VaultKeyOption(Guid MethodId, string DisplayName);
+// 公钥来源下拉中的「保管库密钥」项（条目 Id + 显示名）
+public sealed record VaultKeyOption(Guid SecretId, string DisplayName);
 
 // 统一认证窗完整模式的结果
 public sealed record AuthPromptResult(
@@ -23,13 +23,7 @@ public sealed record AuthPromptResult(
     string? Password,
     string? KeyFilePath,
     string? Passphrase,
-    Guid? VaultMethodId);
+    Guid? SecretId);
 
-// 身份编辑器暂存的 Vault 私钥变更：Remove=true 表示待删除，否则为待写入内容
-public sealed record VaultKeyImport(Guid MethodId, string? PrivateKeyContent, string? Passphrase, bool Remove);
-
-// Vault 私钥已存材料回显信息：字节数 + SSH 指纹（解析失败为 null）
-public sealed record VaultKeyInfo(int Size, string? Fingerprint);
-
-// 身份编辑结果：领域对象 + 需在身份落库后写入 Vault 的私钥变更
-public sealed record IdentityEditResult(Identity Identity, IReadOnlyList<VaultKeyImport> VaultKeyImports);
+// 身份编辑结果：领域对象（材料由编辑器在应用时直接写入材料库，不再携带暂存导入）
+public sealed record IdentityEditResult(Identity Identity);

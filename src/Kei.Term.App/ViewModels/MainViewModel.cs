@@ -160,7 +160,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         ITreeRepository treeRepo,
         IIdentityRepository identityRepo,
         IVaultManager vault,
-        IVaultSecretStore vaultSecretStore,
+        IVaultSecretLibrary vaultSecretLibrary,
         ISettingsService settingsService,
         ISshSessionFactory sshFactory,
         IExternalEditorRepository? editorRepo = null,
@@ -184,7 +184,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         _uiDispatch = uiDispatch ?? DefaultUiDispatch;
         VaultSession = new VaultSessionService(
             vault,
-            vaultSecretStore,
+            vaultSecretLibrary,
             settingsService,
             () => Interaction,
             loggerFactory?.CreateLogger<VaultSessionService>());
@@ -841,6 +841,19 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
     private Task OpenSettingsAsync() => Safe.RunAsync(_logger, "打开设置", async () =>
     {
         await Interaction.OpenSettingsAsync();
+    });
+
+    // 材料库窗口：构造 ViewModel、加载元数据，再交由交互层呈现
+    [RelayCommand]
+    private Task OpenVaultSecretLibraryAsync() => Safe.RunAsync(_logger, "打开材料库", async () =>
+    {
+        var libraryVm = new VaultSecretLibraryViewModel(
+            VaultSession,
+            _identityRepo,
+            Interaction,
+            _loggerFactory?.CreateLogger<VaultSecretLibraryViewModel>());
+        await libraryVm.LoadAsync();
+        await Interaction.OpenVaultSecretLibraryAsync(libraryVm);
     });
 
     // 连接侧栏选中的会话（选中节点为会话时可用）

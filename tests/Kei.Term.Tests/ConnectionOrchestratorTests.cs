@@ -407,10 +407,10 @@ public partial class ConnectionOrchestratorTests
         public SessionNode? FindSession(Guid id) => Sessions.GetValueOrDefault(id);
     }
 
-    // 明文模式 Vault：恒解锁，材料存内存
-    private sealed class PlainVault : IVaultManager, IVaultSecretStore
+    // 明文模式 Vault：恒解锁，材料存内存（按条目 Id）
+    private sealed class PlainVault : IVaultManager, IVaultSecretLibrary
     {
-        private readonly Dictionary<Guid, Dictionary<string, SecretPayload>> _secrets = [];
+        private readonly Dictionary<Guid, (VaultSecret Secret, SecretPayload? Payload)> _secrets = [];
 
         public bool IsUnlocked => true;
         public bool IsPlainMode => true;
@@ -421,18 +421,21 @@ public partial class ConnectionOrchestratorTests
         public Task UnlockAsync(string masterPassword, bool rememberOnThisDevice, CancellationToken ct = default) => Task.CompletedTask;
         public void Lock() { }
 
-        public Task<Dictionary<string, SecretPayload>> GetSecretsAsync(Guid identityId, CancellationToken ct = default)
-            => Task.FromResult(_secrets.TryGetValue(identityId, out var s) ? new Dictionary<string, SecretPayload>(s) : new());
+        public Task<IReadOnlyList<VaultSecret>> ListAsync(CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<VaultSecret>>(_secrets.Values.Select(item => item.Secret).ToList());
 
-        public Task SaveSecretsAsync(Guid identityId, Dictionary<string, SecretPayload> secrets, CancellationToken ct = default)
+        public Task<SecretPayload?> GetPayloadAsync(Guid id, CancellationToken ct = default)
+            => Task.FromResult(_secrets.TryGetValue(id, out var entry) ? entry.Payload : null);
+
+        public Task SaveAsync(VaultSecret secret, SecretPayload? payload, CancellationToken ct = default)
         {
-            _secrets[identityId] = new Dictionary<string, SecretPayload>(secrets);
+            _secrets[secret.Id] = (secret, payload);
             return Task.CompletedTask;
         }
 
-        public Task DeleteSecretsAsync(Guid identityId, CancellationToken ct = default)
+        public Task DeleteAsync(Guid id, CancellationToken ct = default)
         {
-            _secrets.Remove(identityId);
+            _secrets.Remove(id);
             return Task.CompletedTask;
         }
     }

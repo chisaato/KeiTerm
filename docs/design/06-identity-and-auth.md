@@ -1,7 +1,7 @@
 # 06 - 身份（Identity）与认证编排设计
 
 > 状态：已评审定稿（2026-09-23）。取代 [02-vault-and-credentials.md](./02-vault-and-credentials.md) 中的单凭据模型；
-> 02 的存储加密流程（Argon2id / AES-256-GCM / 表结构）仍有效并被本文引用。
+> 02 的存储加密流程（Argon2id / XChaCha20-Poly1305 / 表结构）仍有效并被本文引用。
 
 ---
 
@@ -45,14 +45,21 @@ public class Identity
 [JsonDerivedType(typeof(InteractiveMethod), "ssh/interactive")]
 public abstract class AuthMethodEntry
 {
-    public Guid Id { get; set; } = Guid.NewGuid();   // identity_secrets 材料映射（methodId -> SecretPayload）的键
+    public Guid Id { get; set; } = Guid.NewGuid();   // 方法 Id；Vault 材料经 SecretId 引用材料库条目（迁移期条目 Id = 方法 Id）
     public int SortOrder { get; set; }
     public bool Enabled { get; set; } = true;
     // 未来协议方法：派生新子类 + 追加一行 [JsonDerivedType]（如 "vnc/password"），零 DDL 迁移
 }
 
-public sealed class VaultPasswordMethod : AuthMethodEntry { }     // 密码，密文存 Vault
-public sealed class VaultPrivateKeyMethod : AuthMethodEntry { }   // 私钥密文托管
+public sealed class VaultPasswordMethod : AuthMethodEntry          // 密码，密文存 Vault 材料库
+{
+    public Guid? SecretId { get; set; }   // 引用 vault_secrets 条目；null = 未绑定
+}
+
+public sealed class VaultPrivateKeyMethod : AuthMethodEntry        // 私钥密文托管
+{
+    public Guid? SecretId { get; set; }   // 引用 vault_secrets 条目；null = 未绑定
+}
 
 public sealed class FilePrivateKeyMethod : AuthMethodEntry        // 文件引用（只存路径）
 {
@@ -71,22 +78,28 @@ public enum PassphrasePersistence   // 文件私钥口令三态
 {
     AlwaysAsk   = 0,   // 每次连接询问
     SessionOnly = 1,   // 本次运行内存缓存（锁定/退出清空）
-    Persistent  = 2    // 永久保存（入 Vault 密文，材料映射内按 methodId 键控）
+    Persistent  = 2    // 永久保存（入 Vault 材料库，Kind=passphrase，条目 Id = 方法 Id）
 }
 ```
 
 - `SecretPayload`（Password / PrivateKeyContent / Passphrase）保持不变，仍仅内存流转。
+- Vault 级「材料库」条目 `VaultSecret`（`SecretKind`：`password` / `ssh-private-key` / `passphrase`）持有加密载荷；
+  Vault 密码/私钥方法只经 `SecretId` 引用条目，同一材料可被多个身份复用。详见
+  [Vault 材料库设计](../superpowers/specs/2026-10-13-vault-secret-library-design.md)。
 - 一个 Identity 至少一个启用方法；方法在连接前**物化**（取材料/问口令），物化失败跳过顺延。
 
 ## 4. Vault（主密码可选）
 
 - **不设主密码**：允许，启动时与设置页明确警示「密钥材料不加密存储」；落库为明文但结构不变
   （`vault_metadata.plain_mode = 1`），未来可无损升级为加密模式。
-- **设主密码**：Argon2id（salt 16B, m=64MB, t=3, p=4）派生 32B MEK；AES-256-GCM 加密，
-  blob 格式 `[salt 16B][nonce 12B][tag 16B][ciphertext]`。
+- **设主密码**：Argon2id（salt 16B, m=64MB/65536KiB, t=3, p=1）派生 32B 包装密钥，
+  用其以 XChaCha20-Poly1305 包装随机 32B Vault Key（AAD = `keiterm/vk/v1` || vault_id）；
+  业务条目（含 `vault_secrets`）用 Vault Key 同样以 XChaCha20-Poly1305 加密，
+  blob 格式 `[nonce 24B][ciphertext][tag 16B]`，AAD 绑定条目 Id（`keiterm/item/v1` || Guid）。
+  旧库（PBKDF2-HMAC-SHA512 600k + AES-256-GCM）在解锁时迁移到该形态。
 - **解锁策略**：懒解锁——首次用到 Vault 材料时弹主密码框；纯 Agent/文件私钥用户永不被打扰。
-- **锁定超时**：实现，设置可配，**默认关闭**。锁定 = 清内存 MEK 与口令缓存。
-- **本机快速解锁**：macOS Touch ID / Windows Hello 显式验证后，读取系统保护的 MEK 副本，
+- **锁定超时**：实现，设置可配，**默认关闭**。锁定 = 清内存 Vault Key 与口令缓存。
+- **本机快速解锁**：macOS Touch ID / Windows Hello 显式验证后，读取系统保护的 Vault Key 副本，
   不保存主密码，不在启动或自动重连时静默解锁。启用需再次输入主密码，始终保留密码入口。
   登记仅在本机生效，不随配置导出；更换主密码会撤销旧登记。Linux 尚未实现。
   详见 [14-vault-quick-unlock.md](./14-vault-quick-unlock.md)。
@@ -178,11 +191,11 @@ flowchart TD
 stateDiagram-v2
     [*] --> 未初始化
     未初始化 --> 未加密模式 : 不设主密码（警示"数据不加密"）
-    未初始化 --> 锁定 : 设置主密码（Argon2id 派生 MEK）
+    未初始化 --> 锁定 : 设置主密码（Argon2id 派生包装密钥）
     未加密模式 --> 已解锁 : 恒等（无锁定语义）
     锁定 --> 已解锁 : 懒解锁（首次用到时输入主密码）
     已解锁 --> 锁定 : 手动锁定 / 超时锁定（默认关闭）
-    锁定 --> 已解锁 : 本机快速解锁（系统验证 + MEK 校验）
+    锁定 --> 已解锁 : 本机快速解锁（系统验证 + Vault Key 校验）
 ```
 
 ## 7. SQLite 建模
@@ -199,14 +212,33 @@ CREATE TABLE identities (
     updated_at TEXT NOT NULL
 );
 
--- 每身份一个整包密钥材料 blob：内部为 { methodId: SecretPayload } 映射，整体 AES-256-GCM；
--- 明文模式下为原始 JSON 字节（UI 已警示不加密）。会话绑定身份后，身份删除 → 级联清材料。
+-- 旧身份级整包密钥材料 blob：内部为 { methodId: SecretPayload } 映射，整体 AES-256-GCM。
+-- v8 起被 vault_secrets 材料库取代：首次解锁时运行时拆分为独立条目（条目 Id = 旧 methodId，相同私钥合并），
+-- 未迁移期间读取回退本表（只读）；校验通过后本表保留、由 v9 清理。会话绑定身份后，身份删除仍级联清本表行。
 CREATE TABLE identity_secrets (
     identity_id TEXT PRIMARY KEY NOT NULL REFERENCES identities(id) ON DELETE CASCADE,
     secrets_blob BLOB NOT NULL,
     encryption_algorithm TEXT NOT NULL DEFAULT 'AES-256-GCM',
     nonce BLOB,
     tag BLOB
+);
+
+-- v8 材料库：Vault 级可复用材料条目。公开元数据（name/kind/meta_json）明文存放，未解锁也能列出与选择；
+-- 载荷 secret_blob 用 Vault Key 以 XChaCha20-Poly1305 加密、AAD 绑定条目 Id（明文模式下为原始 JSON 字节）。
+-- 身份方法经 SecretId 引用条目：密码/私钥方法持有 SecretId；文件私钥持久化口令按「条目 Id = 方法 Id」隐式引用。
+CREATE TABLE IF NOT EXISTS vault_secrets (
+    id TEXT PRIMARY KEY NOT NULL,
+    name TEXT NOT NULL,
+    kind TEXT NOT NULL,                  -- SecretKind: password / ssh-private-key / passphrase
+    meta_json TEXT,                      -- 指纹、密钥类型等公开元数据（可空）
+    secret_blob BLOB NOT NULL,
+    encryption_algorithm TEXT NOT NULL,  -- XCHACHA20-POLY1305 或 PLAIN（明文模式）
+    nonce BLOB,
+    tag BLOB,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    revision INTEGER NOT NULL DEFAULT 0, -- 预留同步列，仓储当前仍物理删除、读取不过滤 deleted_at
+    deleted_at TEXT
 );
 
 -- Vault 全局元数据（salt / 校验 blob / plain_mode 标志 / 自动锁定配置）
@@ -248,14 +280,26 @@ erDiagram
         TEXT name
         TEXT description
         TEXT username "预填用户名"
-        TEXT methods_json "多态JSON方法序列($kind)"
+        TEXT methods_json "多态JSON方法序列($kind)；Vault方法内含 SecretId 引用材料"
     }
     IDENTITY_SECRETS {
-        TEXT identity_id PK,FK "1:1 整包材料blob"
+        TEXT identity_id PK,FK "旧整包材料blob（v8 起废弃，v9 清理）"
         BLOB secrets_blob "AES-256-GCM 或明文(警示)"
         TEXT encryption_algorithm
         BLOB nonce
         BLOB tag
+    }
+    VAULT_SECRETS {
+        TEXT id PK "材料库条目；方法经 SecretId 引用"
+        TEXT name
+        TEXT kind "password/ssh-private-key/passphrase"
+        TEXT meta_json "指纹/密钥类型（明文）"
+        BLOB secret_blob "XChaCha20-Poly1305 或明文(警示)"
+        TEXT encryption_algorithm
+        BLOB nonce
+        BLOB tag
+        TEXT created_at
+        TEXT updated_at
     }
     VAULT_METADATA {
         TEXT key PK "salt/verifier/plain_mode/锁定配置"
@@ -264,11 +308,14 @@ erDiagram
 
     TREE_NODES ||--o{ TREE_NODES : "parent_id"
     TREE_NODES ||--o| SESSION_DETAILS : "node_id"
-    IDENTITIES ||--o| IDENTITY_SECRETS : "identity_id"
+    IDENTITIES ||--o| IDENTITY_SECRETS : "identity_id(旧，待 v9)"
     IDENTITIES ||--o{ SESSION_DETAILS : "identity_id(可空)"
 ```
 
 - 所有连接表保持 `PRAGMA foreign_keys = ON`。
+- `identity_secrets` 为 v8 前的旧整包材料表，v8 起只读回退、待 v9 清理。
+- `vault_secrets` 与身份方法之间没有声明式外键：`SecretId` 存于 `methods_json`，引用统计在 Core 中按需扫描
+  （`SecretReferences.Find`），删除被引用材料时由上层服务先校验。
 - 迁移（旧库）：`credentials` 行元数据重建为 `identities`（name/description/username 迁入，
   旧 cred_type 映射为单个等价方法写入 methods_json；旧表从未实现密钥材料，无秘密可迁）；
   `session_details.credential_id` 改列 `identity_id` + FK；`session_details` 其余结构不变。
@@ -285,7 +332,10 @@ erDiagram
 ## 9. UI 变更点
 
 - 「凭据管理器」→「身份管理器」：Identity 列表 + 编辑器（名称/描述/用户名/有序方法列表）。
-- 方法行内编辑：Vault 方法无额外字段；文件私钥填路径 + 口令三态；Agent 方法可选指纹（二期 UI）。
+- 方法行内编辑：Vault 方法改为「材料下拉 + 新建/导入…」（选中后显示指纹与引用数）；文件私钥填路径 + 口令三态；
+  Agent 方法可选指纹（二期 UI）。
+- 「材料库」窗口：列出材料库条目的名称/类型/指纹/引用数，支持导入私钥、新建密码、重命名、删除，
+  以及「仅显示无引用」筛选；删除被引用的材料时提示引用它的身份。
 - 会话编辑器：绑定身份下拉（含「不绑定」）；设置页：默认身份下拉 + PreferSystemAgent 开关
   （仅无绑定场景生效，开关描述文案注明）。
 - 单次认证弹窗、主密码懒解锁框、口令三态框共用深色主题与输入风格。
@@ -294,7 +344,7 @@ erDiagram
 
 | 阶段 | 内容 |
 |---|---|
-| **一期** | identities/identity_secrets/vault_metadata 三表（方法多态 JSON）+ 旧表迁移；Vault（可选主密码、懒解锁、超时默认关）；文件私钥口令三态；Agent 方法（全量身份）；Interactive；失败回弹重试编排（后台线程 + KI 真交互）；身份管理器与绑定接线；tree_nodes.protocol 列；单元测试 |
+| **一期** | identities/vault_metadata 两表（方法多态 JSON）+ 旧表迁移；Vault 材料库 vault_secrets（v8，Vault 级可复用条目 + SecretId 引用 + 运行时迁出旧整包 identity_secrets）；Vault（可选主密码、懒解锁、超时默认关）；文件私钥口令三态；Agent 方法（全量身份）；Interactive；失败回弹重试编排（后台线程 + KI 真交互）；身份管理器与绑定接线；tree_nodes.protocol 列；单元测试 |
 | **二期** | Linux 本机快速解锁；Agent 指纹绑定 UI |
 | **三期** | 1Password / Bitwarden / OpenBao 适配器；SSH 证书；VNC / S3 协议落地 |
 
@@ -302,6 +352,7 @@ erDiagram
 
 - 编排计划构建：有/无 Identity × PreferSystemAgent 四象限；方法排序与 Enabled 过滤。
 - 方法物化：Vault 锁定时跳过顺延；文件不存在跳过；口令三态行为；Agent 无身份跳过。
-- Vault：主密码设置/校验、明文模式标志、加解密往返、锁定清缓存（MEK + SessionOnly 口令）。
-- 三态口令持久化：Persistent 口令进入 identity_secrets 整包映射（methodId 键控），随身份级联删除。
+- Vault：主密码设置/校验、明文模式标志、加解密往返、锁定清缓存（Vault Key + SessionOnly 口令）。
+- 三态口令持久化：Persistent 口令进入 vault_secrets 条目（Kind=passphrase，条目 Id = 方法 Id），
+  随材料库按引用保留（不再随身份级联删除）。
 - 多态 JSON 往返：序列化含 $kind 判别符、反序列化命中各子类、未知 $kind 抛错、数组序保持。

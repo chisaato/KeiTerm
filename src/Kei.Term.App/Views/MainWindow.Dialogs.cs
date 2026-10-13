@@ -1,10 +1,12 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Kei.Term.App.Helpers;
+using Kei.Term.App.Services;
 
 namespace Kei.Term.App.Views;
 

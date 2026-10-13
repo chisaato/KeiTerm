@@ -2185,4 +2185,137 @@ Latin: AaBb CcDd GgYy gypq
   <data name="VaultQuickUnlock.Unavailable" xml:space="preserve">
     <value>本机验证当前不可用，请使用主密码解锁。</value>
   </data>
+
+  <!-- Secret Library -->
+  <data name="Secret.Kind.Passphrase" xml:space="preserve">
+    <value>口令</value>
+  </data>
+  <data name="Secret.NameFormat" xml:space="preserve">
+    <value>{0} · {1}</value>
+  </data>
+  <data name="Secret.Status.NotBound" xml:space="preserve">
+    <value>未绑定材料</value>
+  </data>
+  <data name="Secret.Material" xml:space="preserve">
+    <value>材料:</value>
+  </data>
+  <data name="Secret.Status.Format" xml:space="preserve">
+    <value>{0} · 指纹 {1}</value>
+  </data>
+  <data name="Secret.Action.New" xml:space="preserve">
+    <value>新建/导入…</value>
+  </data>
+  <data name="Secret.Error.SecretsLoadFailed" xml:space="preserve">
+    <value>无法验证材料库状态，请稍后重试或检查保管库连接。</value>
+  </data>
+
+  <!-- Vault Secret Library window -->
+  <data name="VaultSecretLibrary.Title" xml:space="preserve">
+    <value>材料库</value>
+  </data>
+  <data name="VaultSecretLibrary.Kind.Password" xml:space="preserve">
+    <value>密码</value>
+  </data>
+  <data name="VaultSecretLibrary.Kind.PrivateKey" xml:space="preserve">
+    <value>私钥</value>
+  </data>
+  <data name="VaultSecretLibrary.ImportPrivateKey" xml:space="preserve">
+    <value>导入私钥…</value>
+  </data>
+  <data name="VaultSecretLibrary.NewPassword" xml:space="preserve">
+    <value>新建密码…</value>
+  </data>
+  <data name="VaultSecretLibrary.Rename" xml:space="preserve">
+    <value>重命名</value>
+  </data>
+  <data name="VaultSecretLibrary.Delete" xml:space="preserve">
+    <value>删除</value>
+  </data>
+  <data name="VaultSecretLibrary.UnreferencedOnly" xml:space="preserve">
+    <value>仅显示无引用</value>
+  </data>
+  <data name="VaultSecretLibrary.RenameTitle" xml:space="preserve">
+    <value>重命名材料</value>
+  </data>
+  <data name="VaultSecretLibrary.NameLabel" xml:space="preserve">
+    <value>材料名称</value>
+  </data>
+  <data name="VaultSecretLibrary.DeleteBlockedTitle" xml:space="preserve">
+    <value>无法删除材料</value>
+  </data>
+  <data name="VaultSecretLibrary.Empty" xml:space="preserve">
+    <value>保管库中暂无保存的材料条目</value>
+  </data>
+  <data name="VaultSecretLibrary.Column.Name" xml:space="preserve">
+    <value>名称</value>
+  </data>
+  <data name="VaultSecretLibrary.Column.Kind" xml:space="preserve">
+    <value>类型</value>
+  </data>
+  <data name="VaultSecretLibrary.Column.Fingerprint" xml:space="preserve">
+    <value>指纹</value>
+  </data>
+  <data name="VaultSecretLibrary.Column.References" xml:space="preserve">
+    <value>引用数</value>
+  </data>
+  <data name="VaultSecretLibrary.ReferenceCountFormat" xml:space="preserve">
+    <value>{0} 次引用</value>
+  </data>
+  <data name="IdentityEdit.VaultKey.SelectMaterial" xml:space="preserve">
+    <value>选择保管库材料…</value>
+  </data>
+  <data name="Secret.Status.FormatWithRefs" xml:space="preserve">
+    <value>{0} · 指纹 {1} · 引用 {2}</value>
+  </data>
+  <data name="Secret.Status.FormatNoFingerprintWithRefs" xml:space="preserve">
+    <value>{0} · 引用 {1}</value>
+  </data>
+  <data name="Secret.Error.NotFound" xml:space="preserve">
+    <value>所选的材料条目已不存在，请重新选择。</value>
+  </data>
+  <data name="VaultSecretInput.Title.Password" xml:space="preserve">
+    <value>新建密码材料</value>
+  </data>
+  <data name="VaultSecretInput.Title.PrivateKey" xml:space="preserve">
+    <value>导入私钥材料</value>
+  </data>
+  <data name="VaultSecretInput.Name" xml:space="preserve">
+    <value>材料名称</value>
+  </data>
+  <data name="VaultSecretInput.Name.Placeholder" xml:space="preserve">
+    <value>如：生产服务器密钥 / 运维主密码</value>
+  </data>
+  <data name="VaultSecretInput.Password" xml:space="preserve">
+    <value>密码</value>
+  </data>
+  <data name="VaultSecretInput.PrivateKeyFile" xml:space="preserve">
+    <value>私钥文件</value>
+  </data>
+  <data name="VaultSecretInput.PrivateKeyFile.Placeholder" xml:space="preserve">
+    <value>选择或输入本地私钥文件路径</value>
+  </data>
+  <data name="VaultSecretInput.Passphrase" xml:space="preserve">
+    <value>私钥口令</value>
+  </data>
+  <data name="VaultSecretInput.Passphrase.Placeholder" xml:space="preserve">
+    <value>私钥未加密可留空</value>
+  </data>
+  <data name="VaultSecretInput.Error.NameRequired" xml:space="preserve">
+    <value>请输入材料名称</value>
+  </data>
+  <data name="VaultSecretInput.Error.PasswordRequired" xml:space="preserve">
+    <value>请输入密码内容</value>
+  </data>
+  <data name="VaultSecretInput.Error.FileRequired" xml:space="preserve">
+    <value>请选择私钥文件</value>
+  </data>
+  <data name="VaultSecretInput.Error.ReadFailed" xml:space="preserve">
+    <value>无法读取指定的私钥文件</value>
+  </data>
+  <data name="Menu.Tools.VaultSecretLibrary" xml:space="preserve">
+    <value>材料库管理</value>
+  </data>
+  <data name="Toolbar.VaultSecretLibrary" xml:space="preserve">
+    <value>材料库</value>
+  </data>
 </root>

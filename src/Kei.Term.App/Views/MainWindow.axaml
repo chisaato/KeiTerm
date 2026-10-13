@@ -213,6 +213,7 @@
                         <NativeMenuItem Header="{loc:KeiString Menu.Tools.CommandPalette}" Command="{Binding OpenCommandPaletteCommand}"/>
                         <NativeMenuItemSeparator/>
                         <NativeMenuItem Header="{loc:KeiString Menu.Tools.IdentityManager}" Command="{Binding OpenIdentityManagerCommand}"/>
+                        <NativeMenuItem Header="{loc:KeiString Menu.Tools.VaultSecretLibrary}" Command="{Binding OpenVaultSecretLibraryCommand}"/>
                         <NativeMenuItem Header="{loc:KeiString Menu.Tools.KnownHosts}" Command="{Binding OpenKnownHostsCommand}"/>
                         <NativeMenuItem Header="{loc:KeiString Menu.Tools.BatchEdit}" Command="{Binding OpenBatchEditCommand}"/>
                         <NativeMenuItem Header="{loc:KeiString Menu.Tools.Settings}" Command="{Binding OpenSettingsCommand}"/>
@@ -311,6 +312,13 @@
                         <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
                             <Grid Width="24" Height="24">
                                 <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Key}" Width="24" Height="24" Stretch="None"/>
+                            </Grid>
+                        </Viewbox>
+                    </Button>
+                    <Button Classes="iconBtn" ToolTip.Tip="{loc:KeiString Toolbar.VaultSecretLibrary}" Command="{Binding OpenVaultSecretLibraryCommand}">
+                        <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Grid Width="24" Height="24">
+                                <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Lock}" Width="24" Height="24" Stretch="None"/>
                             </Grid>
                         </Viewbox>
                     </Button>

@@ -161,7 +161,6 @@ public partial class App : Application
             var identityMgrVm = new IdentityManagerViewModel(
                 identityRepo,
                 vault,
-                vault,
                 _loggerFactory.CreateLogger<IdentityManagerViewModel>());
             var settingsVm = new SettingsViewModel(
                 settingsService,

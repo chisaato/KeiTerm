@@ -98,17 +98,33 @@ public partial class IdentityEditViewModel : ViewModelBase
         }
     }
 
-    // Vault 私钥导入时的口令输入（一次性，无三态）；由管理器窗口注入
-    public Func<string, Task<PassphrasePromptResult?>>? VaultKeyPassphrasePrompt { get; set; }
+    // 材料库元数据加载（不解锁）；由管理器窗口注入
+    public Func<Task<IReadOnlyList<VaultSecret>>>? SecretsLoader { get; set; }
 
-    // Vault 私钥已存材料信息读取（字节数 + 指纹）；由管理器窗口注入
-    public Func<Guid, Guid, Task<VaultKeyInfo?>>? VaultKeyInfoLoader { get; set; }
+    // 新建材料条目（布尔 = 私钥）；由管理器窗口注入（导入/输入流程）
+    public Func<bool, Task<VaultSecret?>>? CreateSecretAsync { get; set; }
+
+    // 材料条目引用数读取；由管理器窗口注入
+    private Func<Guid, Task<int>>? _referenceCountLoader;
+    public Func<Guid, Task<int>>? ReferenceCountLoader
+    {
+        get => _referenceCountLoader;
+        set
+        {
+            _referenceCountLoader = value;
+            foreach (var row in Methods)
+            {
+                row.ReferenceCountLoader = value;
+            }
+        }
+    }
 
     // 身份落库（「应用」时调用）；由管理器窗口注入
     public Func<Identity, Task>? SaveIdentityAsync { get; set; }
 
-    // Vault 私钥材料写入/删除；返回 false 表示保管库未解锁（用户取消）
-    public Func<Guid, IReadOnlyList<VaultKeyImport>, Task<bool>>? PersistVaultKeysAsync { get; set; }
+    // 材料库全部条目（元数据），按 kind 过滤后下发到各行
+    private IReadOnlyList<VaultSecret> _allSecrets = [];
+    public IReadOnlyList<VaultSecret> AvailableSecrets => _allSecrets;
 
     public IdentityEditViewModel(Identity? existing = null, ILogger? logger = null)
     {
@@ -252,6 +268,36 @@ public partial class IdentityEditViewModel : ViewModelBase
             return false;
         }
 
+        // 保存前校验所选材料仍然存在于材料库（处理悬空 SecretId）。
+        // SecretsLoader 未注入 = 编辑器未接入材料库（非管理器窗口场景，例如纯单元测试），
+        // 此时没有可校验的数据源，按原契约跳过校验放行；生产路径始终注入 loader
+        // （无 Vault 会话时返回空列表），故悬空引用在生产中仍会被拦截并给出明确提示。
+        bool hasSelectedVaultSecrets = Methods.Any(m => m.IsVaultMethod && m.SelectedSecretId is not null);
+        if (hasSelectedVaultSecrets && SecretsLoader != null)
+        {
+            try
+            {
+                IReadOnlyList<VaultSecret> currentSecrets = await SecretsLoader();
+                HashSet<Guid> validSecretIds = currentSecrets.Select(s => s.Id).ToHashSet();
+                foreach (var row in Methods.Where(m => m.IsVaultMethod && m.SelectedSecretId is not null))
+                {
+                    if (!validSecretIds.Contains(row.SelectedSecretId!.Value))
+                    {
+                        ErrorMessage = Strings.Get("Secret.Error.NotFound");
+                        _logger.LogWarning("身份应用失败 身份Id={IdentityId} 原因=所选材料不存在 SecretId={SecretId}", IdentityId, row.SelectedSecretId);
+                        return false;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // 加载失败不得静默放行：拒绝保存并提示，避免把无法校验的引用写回
+                ErrorMessage = Strings.Get("Secret.Error.SecretsLoadFailed");
+                _logger.LogError(ex, "身份应用失败 身份Id={IdentityId} 原因=校验材料存在性时未能加载材料库元数据", IdentityId);
+                return false;
+            }
+        }
+
         try
         {
             // 新身份首次应用转已存在；复用 _model 保留 CreatedAt
@@ -259,26 +305,10 @@ public partial class IdentityEditViewModel : ViewModelBase
             await SaveIdentityAsync(model);
             _model = model;
 
-            // 身份已落库：即便随后 Vault 材料写入失败，也应视为可刷新列表
+            // 身份已落库：材料在编辑器内已直接写入材料库，这里仅刷新列表
             WasApplied = true;
             IsExisting = true;
             Title = Strings.Get("IdentityEdit.Title.Edit");
-
-            var imports = CollectVaultKeyImports();
-            if (imports.Count > 0 && PersistVaultKeysAsync != null)
-            {
-                if (!await PersistVaultKeysAsync(model.Id, imports))
-                {
-                    ErrorMessage = Strings.Get("IdentityEdit.Error.VaultLocked");
-                    _logger.LogWarning("身份应用部分失败 身份Id={IdentityId} 原因=保管库未解锁，私钥材料未保存", model.Id);
-                    return false;
-                }
-            }
-
-            foreach (var row in Methods)
-            {
-                row.MarkApplied();
-            }
 
             ErrorMessage = null;
             _logger.LogInformation("身份应用成功 身份Id={IdentityId} 方法数={Count}", model.Id, model.Methods.Count);
@@ -320,52 +350,65 @@ public partial class IdentityEditViewModel : ViewModelBase
         var row = new IdentityMethodRowViewModel(method)
         {
             FilePicker = _filePicker,
-            VaultKeyPassphrasePrompt = VaultKeyPassphrasePrompt,
-            VaultKeyInfoLoader = VaultKeyInfoLoader,
+            CreateSecretAsync = CreateSecretAsync,
+            ReferenceCountLoader = ReferenceCountLoader,
         };
         Methods.Add(row);
+        ApplySecretsToRow(row);
         return row;
     }
 
-    // 窗口注入完成后调用：把委托下发到各行并回显已存 Vault 私钥状态
-    public async Task InitializeVaultKeyStatusAsync()
+    // 窗口注入完成后调用：加载材料库元数据并按 kind 下发到各行，回显已选状态。
+    // 材料加载失败不阻断编辑器打开：材料列表置空并记日志，其余字段照常可编辑。
+    public async Task LoadSecretsAsync()
     {
-        // 仅已存在的身份才去 Vault 回显材料（新身份尚无 Id，避免无谓解锁）
-        if (!IsExisting || IdentityId == Guid.Empty)
+        if (SecretsLoader != null)
+        {
+            try
+            {
+                _allSecrets = await SecretsLoader();
+            }
+            catch (Exception ex)
+            {
+                _allSecrets = [];
+                _logger.LogWarning(ex, "加载材料库元数据失败，材料列表置空");
+            }
+
+            OnPropertyChanged(nameof(AvailableSecrets));
+        }
+
+        foreach (var row in Methods)
+        {
+            row.CreateSecretAsync = CreateSecretAsync;
+            row.ReferenceCountLoader = ReferenceCountLoader;
+            ApplySecretsToRow(row);
+            if (row.SelectedSecretId is Guid secretId && ReferenceCountLoader != null)
+            {
+                try
+                {
+                    row.SelectedSecretReferenceCount = await ReferenceCountLoader(secretId);
+                }
+                catch
+                {
+                    // 引用数读取失败不阻断编辑
+                }
+            }
+            // 文件私钥行顺带计算指纹（失败留空、不阻塞）
+            await row.RefreshFileKeyFingerprintAsync();
+        }
+    }
+
+    // 按方法类型把对应 kind 的材料下发到行
+    private void ApplySecretsToRow(IdentityMethodRowViewModel row)
+    {
+        if (!row.IsVaultMethod)
         {
             return;
         }
 
-        foreach (var row in Methods)
-        {
-            row.VaultKeyPassphrasePrompt = VaultKeyPassphrasePrompt;
-            row.VaultKeyInfoLoader = VaultKeyInfoLoader;
-            await row.InitializeVaultKeyStatusAsync(IdentityId);
-        }
-    }
-
-    // 收集本编辑器暂存的 Vault 私钥变更（导入/移除），供身份落库后写入
-    public IReadOnlyList<VaultKeyImport> CollectVaultKeyImports()
-    {
-        var imports = new List<VaultKeyImport>();
-        foreach (var row in Methods)
-        {
-            if (row.Model is not VaultPrivateKeyMethod)
-            {
-                continue;
-            }
-
-            if (row.IsRemovalRequested)
-            {
-                imports.Add(new VaultKeyImport(row.Model.Id, null, null, Remove: true));
-            }
-            else if (row.StagedPrivateKeyContent != null)
-            {
-                imports.Add(new VaultKeyImport(row.Model.Id, row.StagedPrivateKeyContent, row.StagedPassphrase, Remove: false));
-            }
-        }
-
-        return imports;
+        row.AvailableSecrets = row.Model is VaultPrivateKeyMethod
+            ? _allSecrets.Where(secret => secret.Kind == SecretKind.SshPrivateKey).ToList()
+            : _allSecrets.Where(secret => secret.Kind == SecretKind.Password).ToList();
     }
 
     private static AuthMethodEntry CreateMethod(string key) => key switch
@@ -380,8 +423,8 @@ public partial class IdentityEditViewModel : ViewModelBase
 
     private static AuthMethodEntry CloneMethod(AuthMethodEntry source) => source switch
     {
-        VaultPasswordMethod => new VaultPasswordMethod { Id = source.Id, SortOrder = source.SortOrder, Enabled = source.Enabled },
-        VaultPrivateKeyMethod => new VaultPrivateKeyMethod { Id = source.Id, SortOrder = source.SortOrder, Enabled = source.Enabled },
+        VaultPasswordMethod password => new VaultPasswordMethod { Id = source.Id, SortOrder = source.SortOrder, Enabled = source.Enabled, SecretId = password.SecretId },
+        VaultPrivateKeyMethod key => new VaultPrivateKeyMethod { Id = source.Id, SortOrder = source.SortOrder, Enabled = source.Enabled, SecretId = key.SecretId },
         FilePrivateKeyMethod file => new FilePrivateKeyMethod
         {
             Id = source.Id,

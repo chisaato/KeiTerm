@@ -35,8 +35,8 @@ public partial class AuthPromptWindow : Window
 
     private AuthPromptMethod _method = AuthPromptMethod.Password;
 
-    // 公钥来源：索引 0 = 文件，其余为对应保管库密钥方法 Id
-    private readonly List<Guid?> _keySourceVaultIds = [];
+    // 公钥来源：索引 0 = 文件，其余为对应材料库条目 Id
+    private readonly List<Guid?> _keySourceSecretIds = [];
 
     public AuthPromptWindow()
     {
@@ -66,11 +66,11 @@ public partial class AuthPromptWindow : Window
 
         // 密钥来源：先「文件…」，再逐个保管库密钥
         var sources = new List<string> { Strings.Get("AuthPrompt.KeySource.FromFile") };
-        _keySourceVaultIds.Add(null);
+        _keySourceSecretIds.Add(null);
         foreach (var key in vaultKeys)
         {
             sources.Add(key.DisplayName);
-            _keySourceVaultIds.Add(key.MethodId);
+            _keySourceSecretIds.Add(key.SecretId);
         }
         KeySourceCombo.ItemsSource = sources;
         KeySourceCombo.SelectedIndex = 0;
@@ -171,14 +171,14 @@ public partial class AuthPromptWindow : Window
             case AuthPromptMethod.PublicKeyFile:
                 if (KeySourceCombo.SelectedIndex > 0)
                 {
-                    var vaultId = _keySourceVaultIds[KeySourceCombo.SelectedIndex];
+                    var secretId = _keySourceSecretIds[KeySourceCombo.SelectedIndex];
                     Close(new AuthPromptResult(
                         AuthPromptMethod.PublicKeyVault,
                         username,
                         null,
                         null,
                         null,
-                        vaultId));
+                        secretId));
                     return;
                 }
 

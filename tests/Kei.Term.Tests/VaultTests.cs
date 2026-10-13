@@ -43,36 +43,51 @@ internal static class VaultTestDb
         await identities.SaveAsync(new Identity { Id = identityId, Name = "Test" });
     }
 
-    public static async Task<(string algorithm, byte[] blob, bool hasNonce, bool hasTag)> ReadRawAsync(string connStr, Guid identityId)
+    // 材料库条目密文行（vault_secrets 载荷列为单数 secret_blob）
+    public static async Task<(string algorithm, byte[] blob, bool hasNonce, bool hasTag)> ReadVaultSecretRawAsync(string connStr, Guid secretId)
     {
         using var conn = new SqliteConnection(connStr);
         await conn.OpenAsync();
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT secrets_blob, encryption_algorithm, nonce, tag FROM identity_secrets WHERE identity_id = $id;";
-        cmd.Parameters.AddWithValue("$id", identityId.ToString());
+        cmd.CommandText = "SELECT secret_blob, encryption_algorithm, nonce, tag FROM vault_secrets WHERE id = $id;";
+        cmd.Parameters.AddWithValue("$id", secretId.ToString());
         using var reader = await cmd.ExecuteReaderAsync();
         Assert.True(await reader.ReadAsync());
         return (
             reader.GetString(1),
-            (byte[])reader["secrets_blob"],
+            (byte[])reader["secret_blob"],
             !reader.IsDBNull(2),
             !reader.IsDBNull(3));
     }
 
-    public static async Task<(string algorithm, byte[] blob, byte[]? nonce, byte[]? tag)> ReadSecretRowAsync(string connStr, Guid identityId)
+    public static async Task<(string algorithm, byte[] blob, byte[]? nonce, byte[]? tag)> ReadVaultSecretRowAsync(string connStr, Guid secretId)
     {
         using var conn = new SqliteConnection(connStr);
         await conn.OpenAsync();
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT secrets_blob, encryption_algorithm, nonce, tag FROM identity_secrets WHERE identity_id = $id;";
-        cmd.Parameters.AddWithValue("$id", identityId.ToString());
+        cmd.CommandText = "SELECT secret_blob, encryption_algorithm, nonce, tag FROM vault_secrets WHERE id = $id;";
+        cmd.Parameters.AddWithValue("$id", secretId.ToString());
         using var reader = await cmd.ExecuteReaderAsync();
         Assert.True(await reader.ReadAsync());
         return (
             reader.GetString(1),
-            (byte[])reader["secrets_blob"],
+            (byte[])reader["secret_blob"],
             reader.IsDBNull(2) ? null : (byte[])reader["nonce"],
             reader.IsDBNull(3) ? null : (byte[])reader["tag"]);
+    }
+
+    // 改写已有 vault_secrets 密文行（不改变算法），用于模拟密文被对调/篡改
+    public static async Task OverwriteVaultSecretAsync(string connStr, Guid secretId, byte[] blob, byte[]? nonce, byte[]? tag)
+    {
+        using var conn = new SqliteConnection(connStr);
+        await conn.OpenAsync();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "UPDATE vault_secrets SET secret_blob = $blob, nonce = $nonce, tag = $tag WHERE id = $id;";
+        cmd.Parameters.AddWithValue("$id", secretId.ToString());
+        cmd.Parameters.Add("$blob", SqliteType.Blob).Value = blob;
+        cmd.Parameters.AddWithValue("$nonce", (object?)nonce ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$tag", (object?)tag ?? DBNull.Value);
+        await cmd.ExecuteNonQueryAsync();
     }
 
     // 改写已有密文行（不改变算法），用于模拟密文被对调/篡改
@@ -147,12 +162,6 @@ internal static class VaultTestDb
 
 public class InternalVaultManagerTests
 {
-    private static Dictionary<string, SecretPayload> Sample() => new()
-    {
-        ["m1"] = new SecretPayload { Password = "topsecret" },
-        ["m2"] = new SecretPayload { PrivateKeyContent = "KEY", Passphrase = "pp" }
-    };
-
     [Fact]
     public async Task PlainMode_IsUnlocked_AndPassthroughBytes()
     {
@@ -163,19 +172,25 @@ public class InternalVaultManagerTests
         {
             await VaultTestDb.CreateAsync(connStr, identityId);
             var vault = VaultTestDb.CreateVault(connStr);
+            var passwordId = Guid.NewGuid();
+            var keyId = Guid.NewGuid();
 
-            await vault.SaveSecretsAsync(identityId, Sample());
+            await vault.SaveAsync(
+                new VaultSecret { Id = passwordId, Kind = SecretKind.Password },
+                new SecretPayload { Password = "topsecret" });
+            await vault.SaveAsync(
+                new VaultSecret { Id = keyId, Kind = SecretKind.SshPrivateKey },
+                new SecretPayload { PrivateKeyContent = "KEY", Passphrase = "pp" });
 
             Assert.True(vault.IsPlainMode);
             Assert.True(vault.IsUnlocked);
             Assert.True(await vault.TryAutoUnlockAsync());
 
-            var secrets = await vault.GetSecretsAsync(identityId);
-            Assert.Equal("topsecret", secrets["m1"].Password);
-            Assert.Equal("pp", secrets["m2"].Passphrase);
+            Assert.Equal("topsecret", (await vault.GetPayloadAsync(passwordId))!.Password);
+            Assert.Equal("pp", (await vault.GetPayloadAsync(keyId))!.Passphrase);
 
             // 明文模式直通：algorithm=PLAIN，blob 即 JSON 明文
-            var raw = await VaultTestDb.ReadRawAsync(connStr, identityId);
+            var raw = await VaultTestDb.ReadVaultSecretRawAsync(connStr, passwordId);
             Assert.Equal("PLAIN", raw.algorithm);
             Assert.Contains("topsecret", Encoding.UTF8.GetString(raw.blob));
             Assert.False(raw.hasNonce);
@@ -239,25 +254,27 @@ public class InternalVaultManagerTests
     {
         var path = VaultTestDb.NewPath();
         var connStr = $"Data Source={path}";
-        var identityId = Guid.NewGuid();
         try
         {
-            await VaultTestDb.CreateAsync(connStr, identityId);
+            await VaultTestDb.CreateAsync(connStr, Guid.NewGuid());
             var vault = VaultTestDb.CreateVault(connStr);
+            var entryId = Guid.NewGuid();
 
             await vault.SetMasterPasswordAsync("pw");
-            await vault.SaveSecretsAsync(identityId, Sample());
+            await vault.SaveAsync(
+                new VaultSecret { Id = entryId, Kind = SecretKind.SshPrivateKey },
+                new SecretPayload { Password = "topsecret", PrivateKeyContent = "KEY", Passphrase = "pp" });
 
             vault.Lock();
-            await Assert.ThrowsAsync<InvalidOperationException>(() => vault.GetSecretsAsync(identityId));
+            await Assert.ThrowsAsync<InvalidOperationException>(() => vault.GetPayloadAsync(entryId));
 
             await vault.UnlockAsync("pw", false);
-            var secrets = await vault.GetSecretsAsync(identityId);
-            Assert.Equal("topsecret", secrets["m1"].Password);
-            Assert.Equal("KEY", secrets["m2"].PrivateKeyContent);
+            SecretPayload payload = (await vault.GetPayloadAsync(entryId))!;
+            Assert.Equal("topsecret", payload.Password);
+            Assert.Equal("KEY", payload.PrivateKeyContent);
 
             // 密文落库：algorithm=XCHACHA20-POLY1305，且 blob 不含明文
-            var raw = await VaultTestDb.ReadRawAsync(connStr, identityId);
+            var raw = await VaultTestDb.ReadVaultSecretRawAsync(connStr, entryId);
             Assert.Equal("XCHACHA20-POLY1305", raw.algorithm);
             Assert.True(raw.hasNonce);
             Assert.True(raw.hasTag);
@@ -274,14 +291,16 @@ public class InternalVaultManagerTests
     {
         var path = VaultTestDb.NewPath();
         var connStr = $"Data Source={path}";
-        var identityId = Guid.NewGuid();
         try
         {
-            await VaultTestDb.CreateAsync(connStr, identityId);
+            await VaultTestDb.CreateAsync(connStr, Guid.NewGuid());
             var vault = VaultTestDb.CreateVault(connStr);
+            var entryId = Guid.NewGuid();
 
             // 先在明文模式写入
-            await vault.SaveSecretsAsync(identityId, Sample());
+            await vault.SaveAsync(
+                new VaultSecret { Id = entryId, Kind = SecretKind.Password },
+                new SecretPayload { Password = "topsecret" });
 
             // 再设置主密码：应无损升级为密文
             await vault.SetMasterPasswordAsync("pw");
@@ -289,10 +308,9 @@ public class InternalVaultManagerTests
             vault.Lock();
             await vault.UnlockAsync("pw", false);
 
-            var secrets = await vault.GetSecretsAsync(identityId);
-            Assert.Equal("topsecret", secrets["m1"].Password);
+            Assert.Equal("topsecret", (await vault.GetPayloadAsync(entryId))!.Password);
 
-            var raw = await VaultTestDb.ReadRawAsync(connStr, identityId);
+            var raw = await VaultTestDb.ReadVaultSecretRawAsync(connStr, entryId);
             Assert.Equal("XCHACHA20-POLY1305", raw.algorithm);
         }
         finally
@@ -315,69 +333,6 @@ public class InternalVaultManagerTests
 
             Assert.True(vault.IsUnlocked);
             Assert.True(vault.IsPlainMode);
-        }
-        finally
-        {
-            if (File.Exists(path)) File.Delete(path);
-        }
-    }
-}
-
-// identity_secrets 整包存取删 + 身份删除级联清材料
-public class VaultSecretStoreTests
-{
-    [Fact]
-    public async Task SaveGetDelete_RoundTrip()
-    {
-        var path = VaultTestDb.NewPath();
-        var connStr = $"Data Source={path}";
-        var identityId = Guid.NewGuid();
-        try
-        {
-            await VaultTestDb.CreateAsync(connStr, identityId);
-            var store = VaultTestDb.CreateVault(connStr);
-
-            var secrets = new Dictionary<string, SecretPayload>
-            {
-                ["method-a"] = new SecretPayload { Password = "a" },
-                ["method-b"] = new SecretPayload { Passphrase = "b" }
-            };
-            await store.SaveSecretsAsync(identityId, secrets);
-
-            var loaded = await store.GetSecretsAsync(identityId);
-            Assert.Equal(2, loaded.Count);
-            Assert.Equal("a", loaded["method-a"].Password);
-            Assert.Equal("b", loaded["method-b"].Passphrase);
-
-            await store.DeleteSecretsAsync(identityId);
-            Assert.Empty(await store.GetSecretsAsync(identityId));
-        }
-        finally
-        {
-            if (File.Exists(path)) File.Delete(path);
-        }
-    }
-
-    [Fact]
-    public async Task DeleteIdentity_CascadesSecrets()
-    {
-        var path = VaultTestDb.NewPath();
-        var connStr = $"Data Source={path}";
-        var identityId = Guid.NewGuid();
-        try
-        {
-            await VaultTestDb.CreateAsync(connStr, identityId);
-            var store = VaultTestDb.CreateVault(connStr);
-            await store.SaveSecretsAsync(identityId, new Dictionary<string, SecretPayload>
-            {
-                ["m1"] = new SecretPayload { Password = "x" }
-            });
-
-            // 删除身份应通过 ON DELETE CASCADE 一并清除材料
-            var repo = new SqliteIdentityRepository(connStr);
-            await repo.DeleteAsync(identityId);
-
-            Assert.Empty(await store.GetSecretsAsync(identityId));
         }
         finally
         {
@@ -416,21 +371,25 @@ public class VaultKeyFormatTests
         var path = VaultTestDb.NewPath();
         var connStr = $"Data Source={path}";
         var identityId = Guid.NewGuid();
+        var method = new VaultPasswordMethod();
         byte[] mek = [];
         try
         {
-            mek = await VaultTestDb.SeedLegacyVaultAsync(connStr, identityId, "legacy-password", Sample());
+            // 旧库整包键控在方法 Id 上：解锁后材料库条目 Id = 方法 Id
+            mek = await VaultTestDb.SeedLegacyVaultAsync(connStr, identityId, "legacy-password", new Dictionary<string, SecretPayload>
+            {
+                [method.Id.ToString()] = new SecretPayload { Password = "topsecret" }
+            });
+            await new SqliteIdentityRepository(connStr).SaveAsync(new Identity { Id = identityId, Name = "legacy", Methods = [method] });
 
             var vault = VaultTestDb.CreateVault(connStr);
             await vault.UnlockAsync("legacy-password", false);
 
             // 迁移后数据仍在
-            var secrets = await vault.GetSecretsAsync(identityId);
-            Assert.Equal("topsecret", secrets["m1"].Password);
-            Assert.Equal("pp", secrets["m2"].Passphrase);
+            Assert.Equal("topsecret", (await vault.GetPayloadAsync(method.Id))!.Password);
 
             // 条目升级为新算法
-            var raw = await VaultTestDb.ReadRawAsync(connStr, identityId);
+            var raw = await VaultTestDb.ReadVaultSecretRawAsync(connStr, method.Id);
             Assert.Equal("XCHACHA20-POLY1305", raw.algorithm);
 
             // 元数据换成 Argon2id + Vault Key 包装
@@ -441,7 +400,7 @@ public class VaultKeyFormatTests
             // 重启后按新格式解锁，旧口令仍可用，错误口令被拒绝
             var reopened = VaultTestDb.CreateVault(connStr);
             await reopened.UnlockAsync("legacy-password", false);
-            Assert.Equal("topsecret", (await reopened.GetSecretsAsync(identityId))["m1"].Password);
+            Assert.Equal("topsecret", (await reopened.GetPayloadAsync(method.Id))!.Password);
             await Assert.ThrowsAsync<UnauthorizedAccessException>(() => reopened.UnlockAsync("wrong", false));
         }
         finally
@@ -490,23 +449,26 @@ public class VaultKeyFormatTests
     {
         var path = VaultTestDb.NewPath();
         var connStr = $"Data Source={path}";
-        var identityA = Guid.NewGuid();
-        var identityB = Guid.NewGuid();
+        var firstId = Guid.NewGuid();
+        var secondId = Guid.NewGuid();
         try
         {
-            await VaultTestDb.CreateAsync(connStr, identityA);
-            await new SqliteIdentityRepository(connStr).SaveAsync(new Identity { Id = identityB, Name = "B" });
+            await VaultTestDb.CreateAsync(connStr, Guid.NewGuid());
 
             var vault = VaultTestDb.CreateVault(connStr);
             await vault.SetMasterPasswordAsync("pw");
-            await vault.SaveSecretsAsync(identityA, Sample());
-            await vault.SaveSecretsAsync(identityB, new() { ["m1"] = new SecretPayload { Password = "other" } });
+            await vault.SaveAsync(
+                new VaultSecret { Id = firstId, Kind = SecretKind.Password },
+                new SecretPayload { Password = "topsecret" });
+            await vault.SaveAsync(
+                new VaultSecret { Id = secondId, Kind = SecretKind.Password },
+                new SecretPayload { Password = "other" });
 
-            // 把 A 的密文对调到 B：AAD 绑定的是行主键，解密必须失败
-            var rowA = await VaultTestDb.ReadSecretRowAsync(connStr, identityA);
-            await VaultTestDb.OverwriteSecretAsync(connStr, identityB, rowA.blob, rowA.nonce, rowA.tag);
+            // 把 first 的密文对调到 second：AAD 绑定条目 Id，解密必须失败
+            var rowFirst = await VaultTestDb.ReadVaultSecretRowAsync(connStr, firstId);
+            await VaultTestDb.OverwriteVaultSecretAsync(connStr, secondId, rowFirst.blob, rowFirst.nonce, rowFirst.tag);
 
-            await Assert.ThrowsAsync<CryptographicException>(() => vault.GetSecretsAsync(identityB));
+            await Assert.ThrowsAsync<CryptographicException>(() => vault.GetPayloadAsync(secondId));
         }
         finally
         {

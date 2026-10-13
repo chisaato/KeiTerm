@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Security.Cryptography;
+using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Messaging;
 using Kei.Term.App.Helpers;
@@ -19,7 +22,7 @@ namespace Kei.Term.App.Services;
 public sealed class VaultSessionService
 {
     private readonly IVaultManager _vault;
-    private readonly IVaultSecretStore _secretStore;
+    private readonly IVaultSecretLibrary _library;
     private readonly ISettingsService _settings;
     private readonly Func<IInteractionService> _interaction;
     private readonly ILogger _logger;
@@ -35,13 +38,13 @@ public sealed class VaultSessionService
 
     public VaultSessionService(
         IVaultManager vault,
-        IVaultSecretStore secretStore,
+        IVaultSecretLibrary library,
         ISettingsService settings,
         Func<IInteractionService> interaction,
         ILogger? logger = null)
     {
         _vault = vault;
-        _secretStore = secretStore;
+        _library = library;
         _settings = settings;
         _interaction = interaction;
         _logger = logger ?? NullLogger.Instance;
@@ -53,6 +56,9 @@ public sealed class VaultSessionService
     public void MarkAccessed(DateTime? nowUtc = null) => LastAccessUtc = nowUtc ?? DateTime.UtcNow;
 
     public void ConfigureQuickUnlock(VaultQuickUnlockService service) => _quickUnlock = service;
+
+    // 当前是否已解锁（明文模式恒为 true）；供材料库等只读路径判断能否补算元数据
+    public bool IsUnlocked => _vault.IsUnlocked;
 
     // 锁定 Vault 并清空 SessionOnly 口令缓存（手动锁定与超时锁定共用）
     public void Lock()
@@ -203,7 +209,7 @@ public sealed class VaultSessionService
     }
 
     // 写入前确保可用：明文模式直通（明文警示由身份管理器横幅承担），加密模式需先解锁
-    private async Task<bool> EnsureReadyForWriteAsync()
+    public async Task<bool> EnsureReadyForWriteAsync()
     {
         if (_vault.IsPlainMode)
         {
@@ -214,8 +220,13 @@ public sealed class VaultSessionService
         return await EnsureUnlockedAsync();
     }
 
-    // 读取身份整包材料；取消解锁必须中止调用方，不能伪装成空材料后继续读取文件密钥。
-    public async Task<Dictionary<string, SecretPayload>> LoadIdentitySecretsAsync(Guid identityId, bool allowInteraction = true)
+    // 材料库元数据列表：不解锁也能列出与选择
+    public Task<IReadOnlyList<VaultSecret>> ListLibrarySecretsAsync(CancellationToken ct = default)
+        => _library.ListAsync(ct);
+
+    // 使用已存身份材料前的读门槛（与旧身份整包读取一致）：
+    // allowInteraction=false（自动重连）锁定时中止；否则先解锁，取消解锁同样中止。
+    public async Task EnsureReadyForReadAsync(bool allowInteraction, CancellationToken ct = default)
     {
         // 自动重连只能使用当前已解锁的材料，不能在后台弹出主密码框。
         if (!allowInteraction && !_vault.IsUnlocked)
@@ -227,115 +238,207 @@ public sealed class VaultSessionService
         {
             throw new OperationCanceledException("已取消保管库解锁。");
         }
+    }
+
+    // 取单条材料载荷：需解锁。取消解锁必须中止调用方，不能伪装成空材料后继续读取文件密钥。
+    public async Task<SecretPayload?> GetSecretPayloadAsync(Guid secretId, bool allowInteraction = true, CancellationToken ct = default)
+    {
+        await EnsureReadyForReadAsync(allowInteraction, ct);
 
         try
         {
-            Dictionary<string, SecretPayload> secrets = await _secretStore.GetSecretsAsync(identityId);
+            SecretPayload? payload = await _library.GetPayloadAsync(secretId, ct);
             MarkAccessed();
-            return secrets;
+            if (payload == null)
+            {
+                // 条目不存在/未命中属正常结果，仅在排查时可见：降到 Debug，且只记条目 Id
+                _logger.LogDebug("材料库条目不存在 条目Id={SecretId}", secretId);
+            }
+
+            return payload;
         }
         catch (OperationCanceledException)
         {
             throw;
         }
+        catch (CryptographicException ex)
+        {
+            // 预期错误（密文损坏/AAD 不匹配）：只记条目 Id 与异常类型，不打印堆栈
+            _logger.LogWarning("读取材料库条目失败 条目Id={SecretId} 错误类型={ErrorType}", secretId, ex.GetType().Name);
+            return null;
+        }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "读取身份材料失败 身份Id={IdentityId}", identityId);
-            return new Dictionary<string, SecretPayload>();
-        }
-    }
-
-    // 把单个方法的材料并入身份整包写回；取消解锁同时中止本次认证材料收集。
-    public async Task PersistSecretAsync(Guid identityId, Guid methodId, SecretPayload payload)
-    {
-        if (!await EnsureReadyForWriteAsync())
-        {
-            throw new OperationCanceledException("已取消保管库解锁。");
-        }
-
-        Dictionary<string, SecretPayload> secrets = await _secretStore.GetSecretsAsync(identityId);
-        secrets[methodId.ToString()] = payload;
-        await _secretStore.SaveSecretsAsync(identityId, secrets);
-        MarkAccessed();
-        // 仅记录有无与字节数，绝不记录材料内容
-        _logger.LogInformation(
-            "Vault 材料持久化 身份Id={IdentityId} 方法Id={MethodId} 含密码={HasPassword} 私钥字节={KeyBytes} 含口令={HasPassphrase}",
-            identityId,
-            methodId,
-            !string.IsNullOrEmpty(payload.Password),
-            payload.PrivateKeyContent == null ? 0 : PrivateKeyImport.ByteCount(payload.PrivateKeyContent),
-            !string.IsNullOrEmpty(payload.Passphrase));
-    }
-
-    // 指定 Vault 私钥方法的已存材料信息（字节数 + 指纹）；无材料返回 null。供身份编辑器回显
-    public async Task<VaultKeyInfo?> GetVaultKeyInfoAsync(Guid identityId, Guid methodId)
-    {
-        Dictionary<string, SecretPayload> secrets;
-        try
-        {
-            secrets = await LoadIdentitySecretsAsync(identityId);
-        }
-        catch (OperationCanceledException)
-        {
-            // 编辑器的信息预览无需建立连接；取消时保留空预览。
+            // 非预期错误：保留完整异常便于定位，但日志正文仍不含任何材料内容
+            _logger.LogWarning(ex, "读取材料库条目失败 条目Id={SecretId} 错误类型={ErrorType}", secretId, ex.GetType().Name);
             return null;
         }
-
-        if (!secrets.TryGetValue(methodId.ToString(), out SecretPayload? payload)
-            || string.IsNullOrEmpty(payload.PrivateKeyContent))
-        {
-            return null;
-        }
-
-        return new VaultKeyInfo(
-            PrivateKeyImport.ByteCount(payload.PrivateKeyContent),
-            SshKeyFingerprint.Compute(payload.PrivateKeyContent, payload.Passphrase));
     }
 
-    // 身份落库后统一写入/删除其 Vault 私钥材料；返回 false 表示保管库未解锁（用户取消）
-    public async Task<bool> PersistVaultKeyImportsAsync(Guid identityId, IReadOnlyList<VaultKeyImport> imports)
+    // 新建/更新材料条目；私钥载荷写入时计算并落库指纹与密钥类型。false = 保管库未解锁（取消）
+    public async Task<bool> SaveLibrarySecretAsync(VaultSecret secret, SecretPayload? payload, CancellationToken ct = default)
     {
-        if (imports.Count == 0)
-        {
-            return true;
-        }
-
         if (!await EnsureReadyForWriteAsync())
         {
             return false;
         }
 
-        Dictionary<string, SecretPayload> secrets = await _secretStore.GetSecretsAsync(identityId);
-        foreach (VaultKeyImport import in imports)
+        VaultSecret toSave = EnrichMetadata(secret, payload);
+        await _library.SaveAsync(toSave, payload, ct);
+        MarkAccessed();
+        // 仅记录有无与字节数，绝不记录材料内容
+        _logger.LogInformation(
+            "材料库条目写入 条目Id={SecretId} 类型={Kind} 含密码={HasPassword} 私钥字节={KeyBytes} 含口令={HasPassphrase} 指纹={HasFingerprint}",
+            toSave.Id,
+            toSave.Kind,
+            !string.IsNullOrEmpty(payload?.Password),
+            payload?.PrivateKeyContent == null ? 0 : PrivateKeyImport.ByteCount(payload.PrivateKeyContent),
+            !string.IsNullOrEmpty(payload?.Passphrase),
+            !string.IsNullOrEmpty(toSave.Fingerprint));
+        return true;
+    }
+
+    // 删除材料条目（引用校验由调用方负责）。false = 保管库未解锁（取消）
+    public async Task<bool> DeleteLibrarySecretAsync(Guid secretId, CancellationToken ct = default)
+    {
+        if (!await EnsureReadyForWriteAsync())
         {
-            string key = import.MethodId.ToString();
-            if (import.Remove)
+            return false;
+        }
+
+        await _library.DeleteAsync(secretId, ct);
+        MarkAccessed();
+        _logger.LogInformation("材料库条目删除 条目Id={SecretId}", secretId);
+        return true;
+    }
+
+    // 惰性补算缺失的私钥指纹/密钥类型（迁移产出的旧条目 meta_json 为空）。
+    // 仅在已解锁（或明文模式）时执行：锁定时直接返回，不读取载荷、不弹主密码框。
+    // 并发最小缓解：以库内最新元数据为基准，并只写元数据（payload = null，复用已存密文封套），
+    // 避免用调用方可能已过期的快照覆盖并发的改名，也绝不重加密或触碰载荷。
+    public async Task BackfillLibraryMetadataAsync(IReadOnlyList<VaultSecret> secrets, CancellationToken ct = default)
+    {
+        if (!_vault.IsUnlocked)
+        {
+            return;
+        }
+
+        IReadOnlyList<VaultSecret> latest = await _library.ListAsync(ct);
+        var latestById = latest.ToDictionary(secret => secret.Id);
+
+        foreach (VaultSecret snapshot in secrets)
+        {
+            // 条目已被删除：跳过（悬空引用在消费端另行按可恢复处理）
+            if (!latestById.TryGetValue(snapshot.Id, out VaultSecret? current))
             {
-                secrets.Remove(key);
-                _logger.LogInformation("Vault 私钥材料移除 身份Id={IdentityId} 方法Id={MethodId}", identityId, import.MethodId);
                 continue;
             }
 
-            if (!string.IsNullOrEmpty(import.PrivateKeyContent))
+            if (current.Kind != SecretKind.SshPrivateKey
+                || (!string.IsNullOrEmpty(current.Fingerprint) && !string.IsNullOrEmpty(current.KeyType)))
             {
-                secrets[key] = new SecretPayload
-                {
-                    PrivateKeyContent = import.PrivateKeyContent,
-                    Passphrase = import.Passphrase,
-                };
-                // 记录字节数与指纹有无，不记录私钥内容
-                bool hasFingerprint = SshKeyFingerprint.Compute(import.PrivateKeyContent, import.Passphrase) != null;
-                _logger.LogInformation(
-                    "Vault 私钥材料写入 身份Id={IdentityId} 方法Id={MethodId} 字节={Bytes} 指纹={HasFingerprint}",
-                    identityId,
-                    import.MethodId,
-                    PrivateKeyImport.ByteCount(import.PrivateKeyContent),
-                    hasFingerprint);
+                continue;
             }
+
+            SecretPayload? payload;
+            try
+            {
+                payload = await _library.GetPayloadAsync(current.Id, ct);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                // 单条读取失败不影响其余条目，也不阻断列表展示
+                _logger.LogWarning("材料库元数据补算读取失败 条目Id={SecretId} 错误类型={ErrorType}", current.Id, ex.GetType().Name);
+                continue;
+            }
+
+            if (string.IsNullOrEmpty(payload?.PrivateKeyContent))
+            {
+                continue;
+            }
+
+            VaultSecret enriched = EnrichMetadata(current, payload);
+            if (ReferenceEquals(enriched, current))
+            {
+                continue;
+            }
+
+            // 只更新元数据：SaveAsync(secret, null) 复用已存封套，不重新加密、不触碰载荷
+            await _library.SaveAsync(enriched, null, ct);
+            MarkAccessed();
+            _logger.LogInformation("材料库元数据补算 条目Id={SecretId} 类型={Kind}", current.Id, current.Kind);
+        }
+    }
+
+    // 私钥载荷：写入前在 App 层解析出指纹与密钥类型一并落库；口令条目无需指纹。
+    private static VaultSecret EnrichMetadata(VaultSecret secret, SecretPayload? payload)
+    {
+        if (string.IsNullOrEmpty(payload?.PrivateKeyContent))
+        {
+            return secret;
         }
 
-        await _secretStore.SaveSecretsAsync(identityId, secrets);
-        MarkAccessed();
-        return true;
+        string? fingerprint = SshKeyFingerprint.Compute(payload.PrivateKeyContent, payload.Passphrase);
+        string? keyType = SshKeyFingerprint.KeyTypeOf(payload.PrivateKeyContent, payload.Passphrase);
+        return fingerprint == null && keyType == null
+            ? secret
+            : secret with
+            {
+                Fingerprint = secret.Fingerprint ?? fingerprint,
+                KeyType = secret.KeyType ?? keyType,
+            };
+    }
+
+    // 根据草稿新建材料条目（密码或私钥），完成校验与落库并返回元数据（保管库未解锁或取消返回 null）
+    public async Task<VaultSecret?> CreateLibrarySecretFromDraftAsync(VaultSecretDraft draft)
+    {
+        if (string.IsNullOrWhiteSpace(draft.Name))
+        {
+            return null;
+        }
+
+        if (draft.PrivateKey)
+        {
+            if (string.IsNullOrEmpty(draft.PrivateKeyContent))
+            {
+                return null;
+            }
+
+            var secret = new VaultSecret
+            {
+                Id = Guid.NewGuid(),
+                Name = draft.Name.Trim(),
+                Kind = SecretKind.SshPrivateKey,
+            };
+            bool saved = await SaveLibrarySecretAsync(secret, new SecretPayload
+            {
+                PrivateKeyContent = draft.PrivateKeyContent,
+                Passphrase = draft.Passphrase,
+            });
+            return saved ? secret : null;
+        }
+        else
+        {
+            if (string.IsNullOrEmpty(draft.Password))
+            {
+                return null;
+            }
+
+            var secret = new VaultSecret
+            {
+                Id = Guid.NewGuid(),
+                Name = draft.Name.Trim(),
+                Kind = SecretKind.Password,
+            };
+            bool saved = await SaveLibrarySecretAsync(secret, new SecretPayload
+            {
+                Password = draft.Password,
+            });
+            return saved ? secret : null;
+        }
     }
 }

@@ -29,10 +29,14 @@ public interface IVaultManager
     void Lock();
 }
 
-// 身份级整包密钥材料存储：Dictionary<methodId, SecretPayload>
-public interface IVaultSecretStore
+// Vault 级材料库：条目可命名、可复用，身份方法仅持有 SecretId 引用。
+// 登录/锁定语义：ListAsync 只读元数据、无需解锁；GetPayloadAsync 需解锁；
+// SaveAsync 的 payload=null 表示只改元数据（名称/指纹等）而不重写已加密载荷；
+// DeleteAsync 不检查引用，由上层服务先校验后再调用。
+public interface IVaultSecretLibrary
 {
-    Task<Dictionary<string, SecretPayload>> GetSecretsAsync(Guid identityId, CancellationToken ct = default);
-    Task SaveSecretsAsync(Guid identityId, Dictionary<string, SecretPayload> secrets, CancellationToken ct = default);
-    Task DeleteSecretsAsync(Guid identityId, CancellationToken ct = default);
+    Task<IReadOnlyList<VaultSecret>> ListAsync(CancellationToken ct = default);
+    Task<SecretPayload?> GetPayloadAsync(Guid id, CancellationToken ct = default);
+    Task SaveAsync(VaultSecret secret, SecretPayload? payload, CancellationToken ct = default);
+    Task DeleteAsync(Guid id, CancellationToken ct = default);
 }

@@ -440,7 +440,7 @@ public class QuitConfirmationTests
         ISettingsService settings = settingsService ?? new FixedSettingsService();
         MainViewModel model = new(new SqliteTreeRepository(database), identities, vault, vault, settings, new SshSessionFactory());
         MainWindow window = new() { DataContext = model };
-        MainWindowInteractionService interaction = new(window, model, new IdentityManagerViewModel(identities, vault, vault),
+        MainWindowInteractionService interaction = new(window, model, new IdentityManagerViewModel(identities, vault),
             new SettingsViewModel(settings), null, NullLogger.Instance);
         model.Interaction = interaction;
         return (window, model, interaction);

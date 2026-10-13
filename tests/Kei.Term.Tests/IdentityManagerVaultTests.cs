@@ -44,7 +44,7 @@ public class IdentityManagerVaultTests
             Click(window, unlock);
             await fixture.Manager.UnlockVaultCommand.ExecutionTask!.WaitAsync(TimeSpan.FromSeconds(5));
             HeadlessAvalonia.Pump();
-            Assert.Equal("stored secret", (await fixture.Vault.GetSecretsAsync(fixture.IdentityId))["password"].Password);
+            Assert.Equal("stored secret", (await fixture.Vault.GetPayloadAsync(fixture.SecretId))!.Password);
             Assert.True(lockButton.IsEffectivelyVisible);
             Assert.False(unlock.IsVisible);
             AssertAtRightEdge(window, lockButton);
@@ -58,7 +58,7 @@ public class IdentityManagerVaultTests
             Click(window, lockButton);
             Assert.False(fixture.Vault.IsUnlocked);
             Assert.Null(fixture.Session.GetSessionPassphrase(method.Id));
-            await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Vault.GetSecretsAsync(fixture.IdentityId));
+            await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Vault.GetPayloadAsync(fixture.SecretId));
             Assert.True(unlock.IsEffectivelyVisible);
             Assert.False(lockButton.IsVisible);
         }
@@ -70,13 +70,13 @@ public class IdentityManagerVaultTests
     {
         using Fixture fixture = await Fixture.CreateAsync();
         await fixture.Manager.UnlockVaultCommand.ExecuteAsync(null);
-        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Vault.GetSecretsAsync(fixture.IdentityId));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Vault.GetPayloadAsync(fixture.SecretId));
         Assert.True(fixture.Manager.CanUnlockVault);
         Assert.False(fixture.Manager.CanLockVault);
 
         fixture.Interaction.MasterPasswords.Enqueue(Fixture.MasterPassword);
         await fixture.Manager.UnlockVaultCommand.ExecuteAsync(null);
-        Assert.Equal("stored secret", (await fixture.Vault.GetSecretsAsync(fixture.IdentityId))["password"].Password);
+        Assert.Equal("stored secret", (await fixture.Vault.GetPayloadAsync(fixture.SecretId))!.Password);
         Assert.True(fixture.Manager.CanLockVault);
     });
 
@@ -119,7 +119,7 @@ public class IdentityManagerVaultTests
 
         Assert.True(fixture.Manager.CanLockVault);
         fixture.Manager.LockVaultCommand.Execute(null);
-        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Vault.GetSecretsAsync(fixture.IdentityId));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Vault.GetPayloadAsync(fixture.SecretId));
     });
 
     [Fact]
@@ -145,7 +145,7 @@ public class IdentityManagerVaultTests
             passwordWindow.FindControl<TextBox>("PasswordBox")!.Text = Fixture.MasterPassword;
             Click(passwordWindow, passwordWindow.FindControl<Button>("PasswordUnlockButton")!);
             await unlocking.WaitAsync(TimeSpan.FromSeconds(5));
-            Assert.Equal("stored secret", (await fixture.Vault.GetSecretsAsync(fixture.IdentityId))["password"].Password);
+            Assert.Equal("stored secret", (await fixture.Vault.GetPayloadAsync(fixture.SecretId))!.Password);
             managerWindow.Close();
             await managerClosed;
         }
@@ -191,6 +191,7 @@ public class IdentityManagerVaultTests
         public required string Path { get; init; }
         public string ConnectionString => $"Data Source={Path};Pooling=False";
         public Guid IdentityId { get; } = Guid.NewGuid();
+        public Guid SecretId { get; } = Guid.NewGuid();
         public ScriptedInteraction Interaction { get; } = new();
         public FixedSettingsService Settings { get; } = new(new AppSettings { LockTimeoutMinutes = 5 });
         public InternalVaultManager Vault { get; private set; } = null!;
@@ -205,13 +206,12 @@ public class IdentityManagerVaultTests
             fixture.Vault = new(fixture.ConnectionString);
             fixture.Repository = new(fixture.ConnectionString);
             await fixture.Vault.SetMasterPasswordAsync(MasterPassword);
-            await fixture.Vault.SaveSecretsAsync(fixture.IdentityId, new Dictionary<string, SecretPayload>
-            {
-                ["password"] = new() { Password = "stored secret" }
-            });
+            await fixture.Vault.SaveAsync(
+                new VaultSecret { Id = fixture.SecretId, Name = "password", Kind = SecretKind.Password },
+                new SecretPayload { Password = "stored secret" });
             fixture.Vault.Lock();
-            fixture.Session = new(fixture.Vault, fixture.Vault, fixture.Settings, () => fixture.Interaction);
-            fixture.Manager = new(fixture.Repository, fixture.Vault, fixture.Vault);
+            fixture.Session = new VaultSessionService(fixture.Vault, fixture.Vault, fixture.Settings, () => fixture.Interaction);
+            fixture.Manager = new(fixture.Repository, fixture.Vault);
             fixture.Manager.ConfigureVaultSession(fixture.Session);
             await fixture.Manager.LoadAsync();
             return fixture;

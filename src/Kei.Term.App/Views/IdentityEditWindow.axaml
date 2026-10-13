@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Kei.Term.App.ViewModels"
+        xmlns:vault="using:Kei.Term.Core.Vault"
         xmlns:loc="using:Kei.Term.App.Helpers"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -188,46 +189,33 @@
                                                        TextWrapping="Wrap"/>
                                         </StackPanel>
 
-                                        <!-- Vault 私钥行内字段 -->
-                                        <StackPanel IsVisible="{Binding IsVaultPrivateKey}" Spacing="6">
-                                            <!-- 行间距改用子元素 Margin：Grid 的 RowSpacing 按定义行数无条件计入，行塌缩时仍会留空隙 -->
-                                            <Grid ColumnDefinitions="Auto, *" RowDefinitions="Auto, Auto" ColumnSpacing="8">
-                                                <!-- 私钥材料状态行 -->
-                                                <TextBlock Grid.Row="0" Grid.Column="0"
-                                                           Text="{loc:KeiString IdentityEdit.VaultKeyMaterial}"
+                                        <!-- Vault 方法行内字段：材料库条目下拉 + 新建/导入 -->
+                                        <StackPanel IsVisible="{Binding IsVaultMethod}" Spacing="6">
+                                            <Grid ColumnDefinitions="Auto, *, Auto" ColumnSpacing="8">
+                                                <TextBlock Grid.Column="0"
+                                                           Text="{loc:KeiString Secret.Material}"
                                                            Foreground="{DynamicResource Kei.Text.Secondary}"
                                                            FontSize="12"
                                                            VerticalAlignment="Center"/>
-                                                <SelectableTextBlock Grid.Row="0" Grid.Column="1"
-                                                                     Text="{Binding VaultKeyStatus}"
-                                                                     Foreground="{DynamicResource Kei.Text.Primary}"
-                                                                     FontSize="12"
-                                                                     VerticalAlignment="Center"/>
-
-                                                <!-- 指纹行（有指纹时显示，左侧标签与材料对齐，右侧指纹支持选中与折行） -->
-                                                <TextBlock Grid.Row="1" Grid.Column="0"
-                                                           Text="{loc:KeiString IdentityEdit.Fingerprint}"
-                                                           Foreground="{DynamicResource Kei.Text.Secondary}"
-                                                           FontSize="12"
-                                                           VerticalAlignment="Top"
-                                                           Margin="0,4,0,0"
-                                                           IsVisible="{Binding HasVaultKeyFingerprint}"/>
-                                                <SelectableTextBlock Grid.Row="1" Grid.Column="1"
-                                                                     Text="{Binding VaultKeyFingerprint}"
-                                                                     Foreground="{DynamicResource Kei.Text.Primary}"
-                                                                     FontSize="12"
-                                                                     FontFamily="{DynamicResource Kei.Font.Mono}"
-                                                                     TextWrapping="Wrap"
-                                                                     VerticalAlignment="Center"
-                                                                     Margin="0,4,0,0"
-                                                                     IsVisible="{Binding HasVaultKeyFingerprint}"/>
+                                                <ComboBox x:Name="VaultSecretComboBox" Grid.Column="1" HorizontalAlignment="Stretch"
+                                                          ItemsSource="{Binding AvailableSecrets}"
+                                                          SelectedItem="{Binding SelectedSecret}"
+                                                          PlaceholderText="{loc:KeiString IdentityEdit.VaultKey.SelectMaterial}">
+                                                    <ComboBox.ItemTemplate>
+                                                        <DataTemplate x:DataType="vault:VaultSecret">
+                                                            <TextBlock Text="{Binding Name}"/>
+                                                        </DataTemplate>
+                                                    </ComboBox.ItemTemplate>
+                                                </ComboBox>
+                                                <Button x:Name="CreateSecretButton" Grid.Column="2"
+                                                        Content="{loc:KeiString Secret.Action.New}"
+                                                        Command="{Binding CreateNewSecretCommand}"/>
                                             </Grid>
-                                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <Button Content="{loc:KeiString IdentityEdit.ImportVaultKey}"
-                                                        Command="{Binding ImportVaultKeyCommand}"/>
-                                                <Button Classes="danger" Content="{loc:KeiString IdentityEdit.RemoveVaultKey}"
-                                                        Command="{Binding RemoveVaultKeyCommand}"/>
-                                            </StackPanel>
+                                            <TextBlock x:Name="VaultSecretStatusText"
+                                                       Text="{Binding SelectedSecretStatus}"
+                                                       Foreground="{DynamicResource Kei.Text.Muted}"
+                                                       FontSize="12"
+                                                       TextWrapping="Wrap"/>
                                         </StackPanel>
                                     </StackPanel>
                                 </Border>

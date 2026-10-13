@@ -433,7 +433,7 @@ public class WorkspaceHostTests
         public Task DeleteAsync(Guid id, CancellationToken ct = default) => Task.CompletedTask;
     }
 
-    private sealed class PlainVault : IVaultManager, IVaultSecretStore
+    private sealed class PlainVault : IVaultManager, IVaultSecretLibrary
     {
         public bool IsUnlocked => true;
 
@@ -450,13 +450,15 @@ public class WorkspaceHostTests
         {
         }
 
-        public Task<Dictionary<string, SecretPayload>> GetSecretsAsync(Guid identityId, CancellationToken ct = default)
-            => Task.FromResult(new Dictionary<string, SecretPayload>());
+        public Task<IReadOnlyList<VaultSecret>> ListAsync(CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<VaultSecret>>([]);
 
-        public Task SaveSecretsAsync(Guid identityId, Dictionary<string, SecretPayload> secrets, CancellationToken ct = default)
-            => Task.CompletedTask;
+        public Task<SecretPayload?> GetPayloadAsync(Guid id, CancellationToken ct = default)
+            => Task.FromResult<SecretPayload?>(null);
 
-        public Task DeleteSecretsAsync(Guid identityId, CancellationToken ct = default) => Task.CompletedTask;
+        public Task SaveAsync(VaultSecret secret, SecretPayload? payload, CancellationToken ct = default) => Task.CompletedTask;
+
+        public Task DeleteAsync(Guid id, CancellationToken ct = default) => Task.CompletedTask;
     }
 
     private sealed class UnusedFactory : ISshSessionFactory

@@ -7,7 +7,7 @@ namespace Kei.Term.Tests;
 public class PrivateKeyFormatTests
 {
     // ssh-keygen -t ed25519 -N secret（OpenSSH 新格式，ssh-keygen 默认）
-    private const string EncryptedOpenSsh = """
+    internal const string EncryptedOpenSsh = """
         -----BEGIN OPENSSH PRIVATE KEY-----
         b3BlbnNzaC1rZXktdjEAAAAACmFlczI1Ni1jdHIAAAAGYmNyeXB0AAAAGAAAABCazjLsc6
         f1is/3n3PlcPx7AAAAGAAAAAEAAAAzAAAAC3NzaC1lZDI1NTE5AAAAIEBMkE2sJ3039rGD

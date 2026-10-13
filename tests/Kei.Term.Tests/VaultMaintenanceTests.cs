@@ -56,14 +56,14 @@ public class VaultMaintenanceTests
         using SqliteConnection keeper = await fixture.Database.OpenAsync();
         await fixture.SaveSecretsAsync();
         Guid deletedId = Guid.NewGuid();
+        Guid deletedSecretId = Guid.NewGuid();
         await new SqliteIdentityRepository(fixture.Database).SaveAsync(new Identity { Id = deletedId, Name = "deleted" });
         string oldSecret = "deleted-secret-marker-91d0f39d" + new string('x', 32_000);
-        await fixture.Vault.SaveSecretsAsync(deletedId, new Dictionary<string, SecretPayload>
-        {
-            ["old"] = new() { PrivateKeyContent = oldSecret }
-        });
+        await fixture.Vault.SaveAsync(
+            new VaultSecret { Id = deletedSecretId, Name = "old", Kind = SecretKind.SshPrivateKey },
+            new SecretPayload { PrivateKeyContent = oldSecret });
         await keeper.ExecuteAsync("PRAGMA wal_checkpoint(FULL);");
-        await fixture.Vault.DeleteSecretsAsync(deletedId);
+        await fixture.Vault.DeleteAsync(deletedSecretId);
         Assert.True(fixture.FilesContain(Fixture.Password));
         Assert.True(fixture.FilesContain("deleted-secret-marker-91d0f39d"));
 
@@ -111,7 +111,7 @@ public class VaultMaintenanceTests
         await using Fixture fixture = await Fixture.CreateAsync();
         await fixture.SaveSecretsAsync();
         ScriptedInteraction interaction = new();
-        IdentityManagerViewModel model = new(new SqliteIdentityRepository(fixture.Database), fixture.Vault, fixture.Vault)
+        IdentityManagerViewModel model = new(new SqliteIdentityRepository(fixture.Database), fixture.Vault)
         {
             Interaction = interaction,
             VaultSetupDialogAsync = () => Task.FromResult(new VaultSetupResult(VaultSetupChoice.SetMasterPassword, "new-password"))
@@ -147,7 +147,7 @@ public class VaultMaintenanceTests
         byte[] before = await ReadProxyBlobAsync(fixture);
         using (SqliteConnection connection = await fixture.Database.OpenAsync())
         {
-            await connection.ExecuteAsync("UPDATE identity_secrets SET secrets_blob = zeroblob(48);");
+            await connection.ExecuteAsync("UPDATE vault_secrets SET secret_blob = zeroblob(48);");
         }
 
         // 已是 Vault Key 的库换密码只换盐并重新包装同一个 Vault Key，不读也不重写条目密文
@@ -183,7 +183,7 @@ public class VaultMaintenanceTests
         await fixture.AssertSecretsAsync(restarted);
         using SqliteConnection connection = await fixture.Database.OpenAsync();
         int sealedRows = await connection.ExecuteScalarAsync<int>(
-            "SELECT COUNT(*) FROM identity_secrets WHERE encryption_algorithm <> 'PLAIN';");
+            "SELECT COUNT(*) FROM vault_secrets WHERE encryption_algorithm <> 'PLAIN';");
         sealedRows += await connection.ExecuteScalarAsync<int>(
             "SELECT COUNT(*) FROM proxy_secrets WHERE encryption_algorithm <> 'PLAIN';");
         Assert.Equal(0, sealedRows);
@@ -227,6 +227,9 @@ public class VaultMaintenanceTests
         public required InternalVaultManager Vault { get; init; }
         public required Guid IdentityId { get; init; }
         public required Guid ProxyId { get; init; }
+        // 材料库条目 Id（密码 / 私钥）
+        public Guid PasswordSecretId { get; } = Guid.NewGuid();
+        public Guid KeySecretId { get; } = Guid.NewGuid();
 
         public static async Task<Fixture> CreateAsync()
         {
@@ -248,20 +251,21 @@ public class VaultMaintenanceTests
 
         public async Task SaveSecretsAsync()
         {
-            await Vault.SaveSecretsAsync(IdentityId, new Dictionary<string, SecretPayload>
-            {
-                ["password"] = new() { Password = Password },
-                ["private-key"] = new() { PrivateKeyContent = PrivateKey, Passphrase = "key-passphrase" }
-            });
+            await Vault.SaveAsync(
+                new VaultSecret { Id = PasswordSecretId, Name = "password", Kind = SecretKind.Password },
+                new SecretPayload { Password = Password });
+            await Vault.SaveAsync(
+                new VaultSecret { Id = KeySecretId, Name = "private-key", Kind = SecretKind.SshPrivateKey },
+                new SecretPayload { PrivateKeyContent = PrivateKey, Passphrase = "key-passphrase" });
             await Vault.SetPasswordAsync(ProxyId, ProxyPassword);
         }
 
         public async Task AssertSecretsAsync(InternalVaultManager vault)
         {
-            Dictionary<string, SecretPayload> secrets = await vault.GetSecretsAsync(IdentityId);
-            Assert.Equal(Password, secrets["password"].Password);
-            Assert.Equal(PrivateKey, secrets["private-key"].PrivateKeyContent);
-            Assert.Equal("key-passphrase", secrets["private-key"].Passphrase);
+            Assert.Equal(Password, (await vault.GetPayloadAsync(PasswordSecretId))!.Password);
+            SecretPayload key = (await vault.GetPayloadAsync(KeySecretId))!;
+            Assert.Equal(PrivateKey, key.PrivateKeyContent);
+            Assert.Equal("key-passphrase", key.Passphrase);
             Assert.Equal(ProxyPassword, await vault.GetPasswordAsync(ProxyId));
         }
 

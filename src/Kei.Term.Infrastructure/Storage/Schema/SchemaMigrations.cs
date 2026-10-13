@@ -18,6 +18,7 @@ public static class SchemaMigrations
         new(5, "port_forwards", ApplyPortForwardsAsync),
         new(6, "proxy_secrets", ApplyProxySecretsAsync),
         new(7, "sync_columns", ApplySyncColumnsAsync),
+        new(8, "vault_secrets", ApplyVaultSecretsAsync),
     ];
 
     // v1 基线：必须幂等，兼容三类库——全新库、user_version=0 的现行库、更早的 credentials 旧库
@@ -350,6 +351,26 @@ public static class SchemaMigrations
             await AddColumnIfMissingAsync(conn, tx, table, "deleted_at", "TEXT", ct);
         }
     }
+
+    // v8 材料库：公开元数据明文（未解锁也能列出/选择），载荷逐条加密、AAD 绑定条目 Id。
+    // 只追加新表，不改 v1–v7；旧 identity_secrets 保留，待运行时迁移校验通过后由 v9 清理。
+    private static Task ApplyVaultSecretsAsync(SqliteConnection conn, SqliteTransaction tx, CancellationToken ct)
+        => ExecAsync(conn, tx, @"
+            CREATE TABLE IF NOT EXISTS vault_secrets (
+                id TEXT PRIMARY KEY NOT NULL,
+                name TEXT NOT NULL,
+                kind TEXT NOT NULL,
+                meta_json TEXT,
+                secret_blob BLOB NOT NULL,
+                encryption_algorithm TEXT NOT NULL,
+                nonce BLOB,
+                tag BLOB,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                revision INTEGER NOT NULL DEFAULT 0,
+                deleted_at TEXT
+            );
+        ", ct);
 
     private sealed class JumpBackfillRow
     {

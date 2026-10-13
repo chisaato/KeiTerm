@@ -133,7 +133,8 @@ public class AuthMaterializerTests
             "u",
             Context(
                 read: (_, _) => Task.FromResult<FileKeyReadResult?>(new FileKeyReadResult("KEY", true)),
-                vault: _ => new SecretPayload { Passphrase = "vault-pp" },
+                // 文件私钥持久化口令以方法 Id 为条目 Id
+                vault: id => id == method.Id ? new SecretPayload { Passphrase = "vault-pp" } : null,
                 prompt: ThrowingPrompt()));
 
         Assert.Equal("vault-pp", result!.Secret!.Passphrase);
@@ -189,7 +190,7 @@ public class AuthMaterializerTests
     [Fact]
     public async Task VaultPassword_Locked_ReturnsNull()
     {
-        var method = new VaultPasswordMethod();
+        var method = new VaultPasswordMethod { SecretId = Guid.NewGuid() };
 
         var result = await AuthMaterializer.MaterializeAsync(method, "u", Context(vault: _ => null));
 
@@ -197,7 +198,7 @@ public class AuthMaterializerTests
     }
 
     [Fact]
-    public async Task VaultPassword_Unlocked_ReturnsMaterial()
+    public async Task VaultPassword_NoSecretId_ReturnsNull()
     {
         var method = new VaultPasswordMethod();
 
@@ -206,6 +207,19 @@ public class AuthMaterializerTests
             "u",
             Context(vault: _ => new SecretPayload { Password = "pw" }));
 
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task VaultPassword_Unlocked_ReturnsMaterial()
+    {
+        var method = new VaultPasswordMethod { SecretId = Guid.NewGuid() };
+
+        var result = await AuthMaterializer.MaterializeAsync(
+            method,
+            "u",
+            Context(vault: id => id == method.SecretId ? new SecretPayload { Password = "pw" } : null));
+
         Assert.Equal(AuthMaterialKind.Password, result!.Kind);
         Assert.Equal("pw", result.Secret!.Password);
     }
@@ -213,15 +227,28 @@ public class AuthMaterializerTests
     [Fact]
     public async Task VaultPrivateKey_ReturnsMaterial()
     {
+        var method = new VaultPrivateKeyMethod { SecretId = Guid.NewGuid() };
+
+        var result = await AuthMaterializer.MaterializeAsync(
+            method,
+            "u",
+            Context(vault: id => id == method.SecretId ? new SecretPayload { PrivateKeyContent = "KEY", Passphrase = "pp" } : null));
+
+        Assert.Equal(AuthMaterialKind.PrivateKey, result!.Kind);
+        Assert.Equal("KEY", result.Secret!.PrivateKeyContent);
+    }
+
+    [Fact]
+    public async Task VaultPrivateKey_NoSecretId_ReturnsNull()
+    {
         var method = new VaultPrivateKeyMethod();
 
         var result = await AuthMaterializer.MaterializeAsync(
             method,
             "u",
-            Context(vault: _ => new SecretPayload { PrivateKeyContent = "KEY", Passphrase = "pp" }));
+            Context(vault: _ => new SecretPayload { PrivateKeyContent = "KEY" }));
 
-        Assert.Equal(AuthMaterialKind.PrivateKey, result!.Kind);
-        Assert.Equal("KEY", result.Secret!.PrivateKeyContent);
+        Assert.Null(result);
     }
 
     [Fact]

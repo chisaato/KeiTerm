@@ -880,7 +880,7 @@ public class ProxyFirewallTests : IDisposable
         }
     }
 
-    private sealed class PlainVault : IVaultManager, IVaultSecretStore
+    private sealed class PlainVault : IVaultManager, IVaultSecretLibrary
     {
         public bool IsUnlocked => true;
         public bool IsPlainMode => true;
@@ -889,10 +889,10 @@ public class ProxyFirewallTests : IDisposable
         public Task<bool> TryAutoUnlockAsync(CancellationToken ct = default) => Task.FromResult(true);
         public Task UnlockAsync(string masterPassword, bool rememberOnThisDevice, CancellationToken ct = default) => Task.CompletedTask;
         public void Lock() { }
-        public Task<Dictionary<string, SecretPayload>> GetSecretsAsync(Guid identityId, CancellationToken ct = default)
-            => Task.FromResult(new Dictionary<string, SecretPayload>());
-        public Task SaveSecretsAsync(Guid identityId, Dictionary<string, SecretPayload> secrets, CancellationToken ct = default) => Task.CompletedTask;
-        public Task DeleteSecretsAsync(Guid identityId, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<IReadOnlyList<VaultSecret>> ListAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<VaultSecret>>([]);
+        public Task<SecretPayload?> GetPayloadAsync(Guid id, CancellationToken ct = default) => Task.FromResult<SecretPayload?>(null);
+        public Task SaveAsync(VaultSecret secret, SecretPayload? payload, CancellationToken ct = default) => Task.CompletedTask;
+        public Task DeleteAsync(Guid id, CancellationToken ct = default) => Task.CompletedTask;
     }
 
     private sealed class RecordingProxySecrets : IProxySecretStore

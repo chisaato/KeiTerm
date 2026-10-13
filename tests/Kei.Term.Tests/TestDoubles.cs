@@ -29,6 +29,9 @@ internal sealed class ScriptedInteraction : IInteractionService
     public List<VaultUnlockPrompt> VaultPrompts { get; } = [];
     public Func<VaultUnlockPrompt, Task<VaultUnlockResponse>>? VaultPromptHandler { get; set; }
     public Queue<PassphrasePromptResult?> Passphrases { get; } = new();
+
+    // 口令弹窗触发前的钩子（用于在保存口令前制造锁定等状态）
+    public Action? PassphrasePromptHook { get; set; }
     public Queue<AuthPromptResult?> AuthResults { get; } = new();
     public Queue<string?> KeyboardInteractiveAnswers { get; } = new();
     public Queue<HostKeyDecision> HostKeyDecisions { get; } = new();
@@ -58,6 +61,7 @@ internal sealed class ScriptedInteraction : IInteractionService
     public Task<PassphrasePromptResult?> PromptPassphraseAsync(FilePrivateKeyMethod method)
     {
         PassphrasePrompts++;
+        PassphrasePromptHook?.Invoke();
         return Task.FromResult(Passphrases.Count > 0 ? Passphrases.Dequeue() : null);
     }
 
@@ -108,6 +112,25 @@ internal sealed class ScriptedInteraction : IInteractionService
     public Task<Kei.Term.App.ViewModels.CommandPaletteItem?> ShowCommandPaletteAsync(Kei.Term.App.ViewModels.CommandPaletteViewModel model)
         => Task.FromResult(PaletteSelection?.Invoke(model));
     public Task OpenQuickConnectAsync() => QuickConnectAction?.Invoke() ?? Task.CompletedTask;
+
+    // 材料库：测试可断言窗口被打开的视图模型与新建材料输入脚本
+    public int SecretLibraryOpenedCount { get; private set; }
+    public VaultSecretLibraryViewModel? LastSecretLibraryViewModel { get; private set; }
+    public Queue<VaultSecretDraft?> NewSecretDrafts { get; } = new();
+    public List<bool> NewSecretPrompts { get; } = [];
+
+    public Task OpenVaultSecretLibraryAsync(VaultSecretLibraryViewModel viewModel)
+    {
+        SecretLibraryOpenedCount++;
+        LastSecretLibraryViewModel = viewModel;
+        return Task.CompletedTask;
+    }
+
+    public Task<VaultSecretDraft?> PromptNewSecretAsync(bool privateKey)
+    {
+        NewSecretPrompts.Add(privateKey);
+        return Task.FromResult(NewSecretDrafts.Count > 0 ? NewSecretDrafts.Dequeue() : null);
+    }
     public Action? CloseWindowAction { get; set; }
     public Task CloseWindowAsync()
     {

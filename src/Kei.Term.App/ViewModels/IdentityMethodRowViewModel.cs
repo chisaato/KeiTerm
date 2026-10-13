@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -24,9 +26,12 @@ public partial class IdentityMethodRowViewModel : ViewModelBase
     // 文件私钥专有字段显隐
     public bool IsFilePrivateKey { get; }
 
-    // Agent 方法与 Vault 私钥专有字段显隐
+    // Agent 方法与 Vault 方法专有字段显隐
     public bool IsAgent { get; }
     public bool IsVaultPrivateKey { get; }
+
+    // Vault 密码 / 私钥方法：材料来自材料库、按条目引用
+    public bool IsVaultMethod => Model is VaultPasswordMethod or VaultPrivateKeyMethod;
 
     [ObservableProperty]
     private string _keyFilePath = string.Empty;
@@ -35,17 +40,6 @@ public partial class IdentityMethodRowViewModel : ViewModelBase
     [ObservableProperty]
     private int _passphraseModeIndex;
 
-    // Vault 私钥状态回显：未导入 / 已导入 · N 字节 / 待保存 … / 待移除
-    [ObservableProperty]
-    private string _vaultKeyStatus = Strings.Get("IdentityEdit.VaultKey.NotImported");
-
-    // Vault 私钥指纹回显（无指纹时留空）
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasVaultKeyFingerprint))]
-    private string _vaultKeyFingerprint = string.Empty;
-
-    public bool HasVaultKeyFingerprint => !string.IsNullOrEmpty(VaultKeyFingerprint);
-
     // 文件私钥指纹回显（读取文件计算，失败留空不阻塞）
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasFileKeyStatus))]
@@ -53,39 +47,90 @@ public partial class IdentityMethodRowViewModel : ViewModelBase
 
     public bool HasFileKeyStatus => !string.IsNullOrEmpty(FileKeyStatus);
 
+    // 材料下拉数据源：由编辑器按方法类型过滤后下发
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SelectedSecret))]
+    [NotifyPropertyChangedFor(nameof(SelectedSecretStatus))]
+    private IReadOnlyList<VaultSecret> _availableSecrets = [];
+
+    // 当前选中的材料条目 Id；回写底层 Model.SecretId
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SelectedSecret))]
+    [NotifyPropertyChangedFor(nameof(SelectedSecretStatus))]
+    private Guid? _selectedSecretId;
+
+    // 下拉框绑定用：当前选中材料对象（映射自 SelectedSecretId）。
+    // setter 忽略 null 回写：ItemsSource 变化/过滤时 ComboBox 可能回写 SelectedItem=null，
+    // 不能借此静默清掉已绑定 SecretId；解除绑定须显式设置 SelectedSecretId = null。
+    public VaultSecret? SelectedSecret
+    {
+        get => SelectedSecretId is Guid id ? AvailableSecrets.FirstOrDefault(item => item.Id == id) : null;
+        set
+        {
+            if (value != null)
+            {
+                SelectedSecretId = value.Id;
+            }
+        }
+    }
+
+    // 选中材料状态回显：名称 + 指纹 + 引用数；未绑定显示占位
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SelectedSecretStatus))]
+    private int? _selectedSecretReferenceCount;
+
+    public string SelectedSecretStatus
+    {
+        get
+        {
+            if (SelectedSecretId is not Guid id)
+            {
+                return Strings.Get("Secret.Status.NotBound");
+            }
+
+            VaultSecret? secret = AvailableSecrets.FirstOrDefault(item => item.Id == id);
+            if (secret == null)
+            {
+                return Strings.Get("Secret.Status.NotBound");
+            }
+
+            if (SelectedSecretReferenceCount is int count)
+            {
+                return string.IsNullOrEmpty(secret.Fingerprint)
+                    ? string.Format(Strings.Get("Secret.Status.FormatNoFingerprintWithRefs"), secret.Name, count)
+                    : string.Format(Strings.Get("Secret.Status.FormatWithRefs"), secret.Name, secret.Fingerprint, count);
+            }
+
+            return string.IsNullOrEmpty(secret.Fingerprint)
+                ? secret.Name
+                : string.Format(Strings.Get("Secret.Status.Format"), secret.Name, secret.Fingerprint);
+        }
+    }
+
     // 由窗口注入的文件选择器（StorageProvider FilePicker）
     public Func<Task<string?>>? FilePicker { get; set; }
 
-    // Vault 私钥导入时的口令输入（一次性）；由编辑器下发
-    public Func<string, Task<PassphrasePromptResult?>>? VaultKeyPassphrasePrompt { get; set; }
+    // 新建材料条目（布尔 = 私钥）；由编辑器下发
+    public Func<bool, Task<VaultSecret?>>? CreateSecretAsync { get; set; }
 
-    // Vault 私钥已存材料信息读取（字节数 + 指纹）；由编辑器下发
-    public Func<Guid, Guid, Task<VaultKeyInfo?>>? VaultKeyInfoLoader { get; set; }
-
-    // 暂存的导入内容（「应用」前不落库）
-    public string? StagedPrivateKeyContent { get; private set; }
-    public string? StagedPassphrase { get; private set; }
-
-    // 已有 Vault 材料时的待删除标记
-    public bool IsRemovalRequested { get; private set; }
-
-    private int? _persistedSize;
-    private string? _fingerprint;
-    private string? _stagedFingerprint;
+    // 材料条目引用数读取；由编辑器下发
+    public Func<Guid, Task<int>>? ReferenceCountLoader { get; set; }
 
     public IdentityMethodRowViewModel(AuthMethodEntry model)
     {
         Model = model;
         switch (model)
         {
-            case VaultPasswordMethod:
+            case VaultPasswordMethod password:
                 KindName = Strings.Get("IdentityEdit.Method.VaultPassword");
                 Hint = Strings.Get("IdentityEdit.Method.VaultPasswordHint");
+                _selectedSecretId = password.SecretId;
                 break;
-            case VaultPrivateKeyMethod:
+            case VaultPrivateKeyMethod key:
                 KindName = Strings.Get("IdentityEdit.Method.VaultKey");
                 Hint = Strings.Get("IdentityEdit.Method.VaultKeyHint");
                 IsVaultPrivateKey = true;
+                _selectedSecretId = key.SecretId;
                 break;
             case FilePrivateKeyMethod file:
                 KindName = Strings.Get("IdentityEdit.Method.FileKey");
@@ -143,134 +188,76 @@ public partial class IdentityMethodRowViewModel : ViewModelBase
         FileKeyStatus = string.IsNullOrEmpty(fingerprint) ? string.Empty : string.Format(Strings.Get("IdentityEdit.FingerprintFormat"), fingerprint);
     }
 
-    // 回显已存 Vault 私钥材料（编辑已存在身份时）；文件私钥行顺带计算指纹
-    public async Task InitializeVaultKeyStatusAsync(Guid identityId)
-    {
-        if (IsVaultPrivateKey && VaultKeyInfoLoader != null)
-        {
-            var info = await VaultKeyInfoLoader(identityId, Model.Id);
-            _persistedSize = info?.Size;
-            _fingerprint = info?.Fingerprint;
-            if (info != null)
-            {
-                var bytesText = string.Format(Strings.Get("IdentityEdit.BytesFormat"), info.Size);
-                VaultKeyStatus = $"{Strings.Get("IdentityEdit.VaultKey.Imported")} · {bytesText}";
-                VaultKeyFingerprint = info.Fingerprint ?? string.Empty;
-            }
-            else
-            {
-                VaultKeyStatus = Strings.Get("IdentityEdit.VaultKey.NotImported");
-                VaultKeyFingerprint = string.Empty;
-            }
-        }
-
-        if (IsFilePrivateKey && !string.IsNullOrWhiteSpace(KeyFilePath))
-        {
-            await RefreshFileKeyFingerprintAsync();
-        }
-    }
-
-    // 导入私钥：选文件 → 读内容 → 需口令则弹一次性口令框 → 暂存于内存（「应用」时落库）
+    // 新建材料：调用编辑器下发的创建流程，成功后加入下拉并选中
     [RelayCommand]
-    private async Task ImportVaultKeyAsync()
+    private async Task CreateNewSecretAsync()
     {
-        if (FilePicker == null)
+        if (CreateSecretAsync == null)
         {
             return;
         }
 
-        var path = await FilePicker();
-        if (string.IsNullOrWhiteSpace(path))
+        VaultSecret? created = await CreateSecretAsync(IsVaultPrivateKey);
+        if (created == null)
         {
             return;
         }
 
-        var read = await PrivateKeyImport.ReadAsync(path);
-        if (read == null)
+        var list = AvailableSecrets.Where(item => item.Id != created.Id).ToList();
+        list.Add(created);
+        AvailableSecrets = list;
+        SelectedSecretId = created.Id;
+        if (ReferenceCountLoader != null)
         {
-            VaultKeyStatus = Strings.Get("IdentityEdit.VaultKey.ReadFailed");
-            VaultKeyFingerprint = string.Empty;
-            return;
-        }
-
-        string? passphrase = null;
-        if (read.RequiresPassphrase)
-        {
-            if (VaultKeyPassphrasePrompt == null)
+            try
             {
-                VaultKeyStatus = Strings.Get("IdentityEdit.VaultKey.PassphrasePromptUnavailable");
-                VaultKeyFingerprint = string.Empty;
-                return;
+                SelectedSecretReferenceCount = await ReferenceCountLoader(created.Id);
             }
-
-            var prompt = await VaultKeyPassphrasePrompt(path);
-            if (prompt == null)
+            catch
             {
-                // 用户取消：保持原状态
-                return;
+                // 引用数读取失败保持现状
             }
-
-            passphrase = prompt.Passphrase;
-        }
-
-        StagedPrivateKeyContent = read.Content;
-        StagedPassphrase = passphrase;
-        _stagedFingerprint = SshKeyFingerprint.Compute(read.Content, passphrase);
-        IsRemovalRequested = false;
-        var stagedBytesText = string.Format(Strings.Get("IdentityEdit.BytesFormat"), PrivateKeyImport.ByteCount(read.Content));
-        VaultKeyStatus = $"{Strings.Get("IdentityEdit.VaultKey.PendingSave")} · {stagedBytesText}";
-        VaultKeyFingerprint = _stagedFingerprint ?? string.Empty;
-    }
-
-    // 移除私钥：清空暂存；已有 Vault 材料则标记待删除
-    [RelayCommand]
-    private void RemoveVaultKey()
-    {
-        StagedPrivateKeyContent = null;
-        StagedPassphrase = null;
-        _stagedFingerprint = null;
-        VaultKeyFingerprint = string.Empty;
-
-        if (_persistedSize.HasValue)
-        {
-            IsRemovalRequested = true;
-            VaultKeyStatus = Strings.Get("IdentityEdit.VaultKey.PendingRemove");
-        }
-        else
-        {
-            IsRemovalRequested = false;
-            VaultKeyStatus = Strings.Get("IdentityEdit.VaultKey.NotImported");
         }
     }
 
-    // 「应用」成功后调用：把暂存材料固化为已导入状态，并清空暂存标记
-    public void MarkApplied()
+    // 选中项变化即回写底层模型的 SecretId（Vault 方法）并刷新引用数
+    partial void OnSelectedSecretIdChanged(Guid? value)
     {
-        if (!IsVaultPrivateKey)
+        switch (Model)
         {
-            return;
+            case VaultPasswordMethod password:
+                password.SecretId = value;
+                break;
+            case VaultPrivateKeyMethod key:
+                key.SecretId = value;
+                break;
         }
 
-        if (StagedPrivateKeyContent != null)
-        {
-            _persistedSize = PrivateKeyImport.ByteCount(StagedPrivateKeyContent);
-            _fingerprint = _stagedFingerprint;
-            var bytesText = string.Format(Strings.Get("IdentityEdit.BytesFormat"), _persistedSize.Value);
-            VaultKeyStatus = $"{Strings.Get("IdentityEdit.VaultKey.Imported")} · {bytesText}";
-            VaultKeyFingerprint = _fingerprint ?? string.Empty;
-        }
-        else if (IsRemovalRequested)
-        {
-            _persistedSize = null;
-            _fingerprint = null;
-            VaultKeyStatus = Strings.Get("IdentityEdit.VaultKey.NotImported");
-            VaultKeyFingerprint = string.Empty;
-        }
+        // 切换选项先清空旧引用数，避免上一个条目的「引用 N」短暂挂在新条目名称旁
+        SelectedSecretReferenceCount = null;
 
-        StagedPrivateKeyContent = null;
-        StagedPassphrase = null;
-        _stagedFingerprint = null;
-        IsRemovalRequested = false;
+        if (value is Guid secretId && ReferenceCountLoader != null)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    int count = await ReferenceCountLoader(secretId);
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    {
+                        // 仅当仍选中同一条目时回填，防止切换后旧结果覆盖新条目
+                        if (SelectedSecretId == secretId)
+                        {
+                            SelectedSecretReferenceCount = count;
+                        }
+                    });
+                }
+                catch
+                {
+                    // 引用数读取失败保持清空态
+                }
+            });
+        }
     }
 
     // 把行内编辑字段写回底层模型
@@ -280,6 +267,14 @@ public partial class IdentityMethodRowViewModel : ViewModelBase
         {
             file.KeyFilePath = string.IsNullOrWhiteSpace(KeyFilePath) ? null : KeyFilePath.Trim();
             file.PassphraseMode = (PassphrasePersistence)Math.Clamp(PassphraseModeIndex, 0, 2);
+        }
+        else if (Model is VaultPasswordMethod password)
+        {
+            password.SecretId = SelectedSecretId;
+        }
+        else if (Model is VaultPrivateKeyMethod key)
+        {
+            key.SecretId = SelectedSecretId;
         }
     }
 }

@@ -28,18 +28,22 @@ public partial class IdentityManagerWindow : Window
             log.LogInformation("身份编辑器打开请求 模式={Mode} 身份Id={IdentityId}", existing == null ? "新建" : "编辑", existing?.Id);
             var editVm = new IdentityEditViewModel(existing, log);
 
-            // Vault 私钥导入口令输入（一次性）
-            editVm.VaultKeyPassphrasePrompt = keyPath =>
-            {
-                var promptWindow = PassphrasePromptWindow.ForVaultImport(keyPath);
-                return promptWindow.ShowDialog<PassphrasePromptResult?>(this);
-            };
-            editVm.VaultKeyInfoLoader = vm.VaultKeyInfoLoader;
+            // 材料库元数据加载 / 新建材料 / 引用数读取；材料写库由编辑器内经这些委托直接完成
             editVm.SaveIdentityAsync = vm.SaveIdentityAsync;
-            editVm.PersistVaultKeysAsync = vm.PersistVaultKeysAsync;
+            editVm.SecretsLoader = vm.LoadLibrarySecretsAsync;
+            editVm.ReferenceCountLoader = vm.CountSecretReferencesAsync;
+            // 只保留接线：弹窗与落库逻辑都在 IdentityManagerViewModel/服务层
+            editVm.CreateSecretAsync = vm.CreateLibrarySecretAsync;
 
-            // 编辑已有身份时回显已存 Vault 私钥材料（字节数 + 指纹）
-            await editVm.InitializeVaultKeyStatusAsync();
+            // 加载材料库元数据并按 kind 下发到各行，回显已选材料状态；加载失败不阻断编辑器打开
+            try
+            {
+                await editVm.LoadSecretsAsync();
+            }
+            catch (Exception ex)
+            {
+                log.LogWarning(ex, "加载材料库元数据失败，编辑器以空材料列表打开");
+            }
 
             var win = new IdentityEditWindow(editVm);
             await win.ShowDialog(this);
@@ -48,7 +52,7 @@ public partial class IdentityManagerWindow : Window
             log.LogInformation("身份编辑器关闭 结果={Result}", editVm.AppliedIdentity == null ? "取消" : "已应用");
             return editVm.AppliedIdentity == null
                 ? null
-                : new IdentityEditResult(editVm.AppliedIdentity, []);
+                : new IdentityEditResult(editVm.AppliedIdentity);
         });
 
         // 明文横幅「设置主密码」：以本窗口为 owner 弹初始化框（异常按取消语义返回）

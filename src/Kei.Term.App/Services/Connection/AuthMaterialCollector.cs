@@ -219,33 +219,50 @@ public sealed class AuthMaterialCollector
 
         var results = new List<MaterializedAuthMethod>();
 
-        // identity_secrets 整包材料缓存（按 methodId 字符串键控），首次用到时懒加载
-        Dictionary<string, SecretPayload>? secrets = null;
+        // 材料库条目缓存（按条目 Id 键控），首次用到时按身份引用的条目懒加载
+        Dictionary<Guid, SecretPayload>? secrets = null;
 
         var context = new AuthMaterializerContext
         {
             ReadPrivateKeyFileAsync = (path, ct) => PrivateKeyImport.ReadAsync(path, ct),
             Logger = _logger,
             GetSessionPassphrase = _vault.GetSessionPassphrase,
-            GetVaultSecret = methodId =>
-                secrets != null && secrets.TryGetValue(methodId.ToString(), out SecretPayload? payload) ? payload : null,
+            GetVaultSecret = entryId =>
+                secrets != null && secrets.TryGetValue(entryId, out SecretPayload? payload) ? payload : null,
             PromptPassphraseAsync = (method, _) =>
             {
                 if (!allowInteraction) return Task.FromResult<PassphrasePromptResult?>(null);
                 onInteraction?.Invoke();
                 return _vault.PromptPassphraseAsync(method);
             },
-            SaveVaultSecretAsync = async (methodId, payload) =>
+            SaveVaultSecretAsync = async (entryId, payload) =>
             {
                 if (identity == null)
                 {
                     return;
                 }
 
-                await _vault.PersistSecretAsync(identity.Id, methodId, payload);
+                // 文件私钥持久化口令：材料库条目 Id = 方法 Id。
+                // 已存在条目（含迁移产物）只更新载荷/元数据，保留其名称与类型；
+                // 仅新建时按命名规则设置名称并定为 Passphrase。
+                VaultSecret? existing = (await _vault.ListLibrarySecretsAsync())
+                    .FirstOrDefault(secret => secret.Id == entryId);
+                var target = existing ?? new VaultSecret
+                {
+                    Id = entryId,
+                    Name = Strings.Format("Secret.NameFormat", identity.Name, Strings.Get("Secret.Kind.Passphrase")),
+                    Kind = SecretKind.Passphrase,
+                };
+
+                if (!await _vault.SaveLibrarySecretAsync(target, payload))
+                {
+                    // 取消解锁：恢复旧「持久化身份整包」语义，中止本次认证材料收集，不静默继续
+                    throw new OperationCanceledException("已取消保管库解锁。");
+                }
+
                 // 同步内存副本，后续同一连接内读取命中
-                secrets ??= new Dictionary<string, SecretPayload>();
-                secrets[methodId.ToString()] = payload;
+                secrets ??= new Dictionary<Guid, SecretPayload>();
+                secrets[entryId] = payload;
             },
             PromptInteractiveAsync = async (method, username, ct) =>
             {
@@ -266,7 +283,7 @@ public sealed class AuthMaterialCollector
                 case MethodStep methodStep:
                     if (identity != null)
                     {
-                        secrets ??= await _vault.LoadIdentitySecretsAsync(identity.Id, allowInteraction);
+                        secrets ??= await LoadReferencedSecretsAsync(identity, allowInteraction);
                     }
 
                     MaterializedAuthMethod? material = await AuthMaterializer.MaterializeAsync(methodStep.Method, config.Username, context);
@@ -291,10 +308,43 @@ public sealed class AuthMaterialCollector
         return results;
     }
 
+    // 按身份引用的材料条目按需读取载荷（按条目 Id 去重）；未命中的条目跳过
+    private async Task<Dictionary<Guid, SecretPayload>> LoadReferencedSecretsAsync(Identity identity, bool allowInteraction)
+    {
+        // 与旧行为一致：身份含认证方法时，使用其材料前先过读门槛（后台重连锁定时中止）
+        await _vault.EnsureReadyForReadAsync(allowInteraction);
+
+        var secrets = new Dictionary<Guid, SecretPayload>();
+        foreach (AuthMethodEntry method in identity.Methods)
+        {
+            Guid? entryId = SecretReferences.SecretIdOf(method);
+            if (entryId is not Guid id || secrets.ContainsKey(id))
+            {
+                continue;
+            }
+
+            SecretPayload? payload = await _vault.GetSecretPayloadAsync(id, allowInteraction);
+            if (payload != null)
+            {
+                secrets[id] = payload;
+            }
+            else
+            {
+                // 悬空引用（条目已不存在）或不可读：可恢复，跳过该方法并记日志，不使连接崩溃
+                _logger.LogWarning(
+                    "身份引用的材料条目不存在或不可用，已跳过 身份Id={IdentityId} 条目Id={SecretId}",
+                    identity.Id,
+                    id);
+            }
+        }
+
+        return secrets;
+    }
+
     // 弹统一认证窗（完整模式）；identity 提供保管库密钥下拉项
     private async Task<AuthPromptResult?> PromptAuthAsync(string prefillUsername, Identity? identity, AuthPromptMethod? defaultMethod = null)
     {
-        AuthPromptResult? result = await _interaction().PromptAuthAsync(prefillUsername, BuildVaultKeyOptions(identity), defaultMethod);
+        AuthPromptResult? result = await _interaction().PromptAuthAsync(prefillUsername, await BuildVaultKeyOptionsAsync(identity), defaultMethod);
         _logger.LogInformation(
             "认证窗结果 方法={Method} 用户名={Username}",
             result?.Method.ToString() ?? "取消",
@@ -302,19 +352,31 @@ public sealed class AuthMaterialCollector
         return result;
     }
 
-    // 当前身份中已配置的 Vault 私钥方法 → 认证窗「保管库密钥」下拉项
-    private static IReadOnlyList<VaultKeyOption> BuildVaultKeyOptions(Identity? identity)
+    // 当前身份引用的 Vault 私钥材料条目 → 认证窗「保管库密钥」下拉项
+    private async Task<IReadOnlyList<VaultKeyOption>> BuildVaultKeyOptionsAsync(Identity? identity)
     {
         if (identity == null)
         {
             return [];
         }
 
-        return identity.Methods
+        var methods = identity.Methods
             .OfType<VaultPrivateKeyMethod>()
+            .Where(method => method.SecretId != null)
+            .ToList();
+        if (methods.Count == 0)
+        {
+            return [];
+        }
+
+        var library = await _vault.ListLibrarySecretsAsync();
+        var names = library.ToDictionary(secret => secret.Id, secret => secret.Name);
+        return methods
             .Select((method, i) => new VaultKeyOption(
-                method.Id,
-                string.Format(Strings.Get("Status.Vault.KeyOptionFormat"), identity.Name, i + 1)))
+                method.SecretId!.Value,
+                names.TryGetValue(method.SecretId.Value, out string? name) && !string.IsNullOrWhiteSpace(name)
+                    ? name
+                    : string.Format(Strings.Get("Status.Vault.KeyOptionFormat"), identity.Name, i + 1)))
             .ToList();
     }
 
@@ -350,14 +412,13 @@ public sealed class AuthMaterialCollector
 
             case AuthPromptMethod.PublicKeyVault:
             {
-                if (identity == null || result.VaultMethodId == null)
+                if (result.SecretId is not Guid secretId)
                 {
                     return (null, result.Username);
                 }
 
-                Dictionary<string, SecretPayload> secrets = await _vault.LoadIdentitySecretsAsync(identity.Id);
-                if (!secrets.TryGetValue(result.VaultMethodId.Value.ToString(), out SecretPayload? payload)
-                    || string.IsNullOrEmpty(payload.PrivateKeyContent))
+                SecretPayload? payload = await _vault.GetSecretPayloadAsync(secretId);
+                if (string.IsNullOrEmpty(payload?.PrivateKeyContent))
                 {
                     return (null, result.Username);
                 }

@@ -88,6 +88,8 @@ S:""Username""=
 
             var devopsId = identities.First(i => i.Name == "devops-key");
             Assert.Empty(devopsId.Methods); // 空 profile，等待用户添加私钥
+            // 导入只建空方法身份：两个占位身份都不带任何方法
+            Assert.All(identities, i => Assert.Empty(i.Methods));
 
             // 验证树节点与层级
             var nodes = await treeRepo.GetAllNodesAsync();

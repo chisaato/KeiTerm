@@ -81,6 +81,18 @@
                             <TextBlock Text="{loc:KeiString IdentityManager.DeleteIdentity}" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
+                    <Separator Classes="toolSep"/>
+                    <Button x:Name="VaultSecretLibraryButton" Command="{Binding OpenVaultSecretLibraryCommand}"
+                            AutomationProperties.Name="{loc:KeiString VaultSecretLibrary.Title}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Viewbox Width="16" Height="16" Stretch="Uniform" VerticalAlignment="Center">
+                                <Grid Width="24" Height="24">
+                                    <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Key}"/>
+                                </Grid>
+                            </Viewbox>
+                            <TextBlock Text="{loc:KeiString VaultSecretLibrary.Title}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
                     <Button x:Name="UnlockVaultButton" Command="{Binding UnlockVaultCommand}" IsVisible="{Binding CanUnlockVault}"
