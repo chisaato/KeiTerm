@@ -25,7 +25,10 @@ public partial class SettingsViewModel : ViewModelBase
     private readonly AppearanceSettingsPage _appearance;
     private readonly TerminalSettingsPage _terminal;
     private readonly SshSettingsPage _ssh;
+    private readonly SecuritySettingsPage _security;
     private readonly FileTransferSettingsPage _fileTransfer;
+
+    public SecuritySettingsPage Security => _security;
 
     // 左侧分类树数据源
     public IReadOnlyList<SettingsCategoryItem> Categories { get; private set; }
@@ -73,7 +76,8 @@ public partial class SettingsViewModel : ViewModelBase
         IProxyRepository? proxyRepo = null,
         Func<IReadOnlyList<SessionNode>>? sessionSnapshot = null,
         Func<IReadOnlyList<TreeNodeBase>>? sessionTree = null,
-        IProxySecretStore? proxySecrets = null)
+        IProxySecretStore? proxySecrets = null,
+        IVaultManager? vault = null)
     {
         ProxySecrets = proxySecrets;
         _settingsService = settingsService;
@@ -82,6 +86,7 @@ public partial class SettingsViewModel : ViewModelBase
         _appearance = new AppearanceSettingsPage();
         _terminal = new TerminalSettingsPage();
         _ssh = new SshSettingsPage(identityRepo, _general);
+        _security = new SecuritySettingsPage(vault);
         _fileTransfer = new FileTransferSettingsPage(editorRepo, _terminal);
         if (proxyRepo != null)
         {
@@ -126,6 +131,11 @@ public partial class SettingsViewModel : ViewModelBase
                 Strings.Get("Settings.Categories.Ssh"),
                 Strings.Get("Settings.Categories.SshDesc"),
                 _ssh,
+                SettingsIcons.Ssh),
+            new SettingsCategoryItem(
+                Strings.Get("Settings.Categories.Security"),
+                Strings.Get("Settings.Categories.SecurityDesc"),
+                _security,
                 SettingsIcons.Ssh),
             new SettingsCategoryItem(
                 Strings.Get("Settings.Categories.FileTransfer"),
@@ -236,7 +246,8 @@ public partial class SettingsViewModel : ViewModelBase
         _ssh.DefaultUsername = current.DefaultUsername;
         _ssh.SelectedIdentityId = current.DefaultIdentityId;
         _ssh.PreferSystemAgent = current.PreferSystemAgent;
-        _ssh.LockTimeoutMinutes = current.LockTimeoutMinutes;
+        _security.LockTimeoutMinutes = current.LockTimeoutMinutes;
+        _security.RefreshVaultState();
         _ssh.ConnectTimeoutSeconds = current.ConnectTimeoutSeconds;
         _ssh.KeepAliveIntervalSeconds = current.KeepAliveIntervalSeconds;
         _ssh.EnableAgentForwarding = current.EnableAgentForwarding;
@@ -326,7 +337,7 @@ public partial class SettingsViewModel : ViewModelBase
         settings.DefaultUsername = string.IsNullOrWhiteSpace(_ssh.DefaultUsername) ? "" : _ssh.DefaultUsername.Trim();
         settings.DefaultIdentityId = _ssh.SelectedIdentityId;
         settings.PreferSystemAgent = _ssh.PreferSystemAgent;
-        settings.LockTimeoutMinutes = Math.Clamp(_ssh.LockTimeoutMinutes, 0, 120);
+        settings.LockTimeoutMinutes = Math.Clamp(_security.LockTimeoutMinutes, 0, 120);
         settings.ConnectTimeoutSeconds = Math.Clamp(_ssh.ConnectTimeoutSeconds, 3, 300);
         settings.KeepAliveIntervalSeconds = Math.Clamp(_ssh.KeepAliveIntervalSeconds, 0, 300);
         settings.EnableAgentForwarding = _ssh.EnableAgentForwarding;

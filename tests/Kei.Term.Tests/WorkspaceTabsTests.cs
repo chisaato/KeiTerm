@@ -346,7 +346,7 @@ public class WorkspaceTabsTests
     private static MainViewModel CreateModel()
     {
         SqliteConnectionFactory database = new("Data Source=:memory:");
-        InternalVaultManager vault = new(database);
+        InternalVaultManager vault = VaultTestDb.CreateVault(database);
         MainViewModel model = new(new SqliteTreeRepository(database), new SqliteIdentityRepository(database), vault, vault,
             new FixedSettingsService(), new SshSessionFactory());
         model.CurrentSettings.ConfirmBeforeClose = false;

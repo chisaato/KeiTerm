@@ -435,7 +435,7 @@ public class QuitConfirmationTests
     private static (MainWindow, MainViewModel, IInteractionService) CreateWindow(ISettingsService? settingsService = null)
     {
         SqliteConnectionFactory database = new("Data Source=:memory:");
-        InternalVaultManager vault = new(database);
+        InternalVaultManager vault = VaultTestDb.CreateVault(database);
         SqliteIdentityRepository identities = new(database);
         ISettingsService settings = settingsService ?? new FixedSettingsService();
         MainViewModel model = new(new SqliteTreeRepository(database), identities, vault, vault, settings, new SshSessionFactory());

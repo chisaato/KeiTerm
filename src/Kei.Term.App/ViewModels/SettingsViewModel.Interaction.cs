@@ -10,6 +10,8 @@ public partial class SettingsViewModel
     {
         System.ArgumentNullException.ThrowIfNull(interaction);
         _interaction = interaction;
+        _quickUnlockInteraction = interaction;
+        _security.Interaction = () => interaction;
         _fileTransfer.Interaction = interaction;
         if (ProxyPage != null) ProxyPage.Interaction = interaction;
     }

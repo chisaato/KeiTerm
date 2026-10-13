@@ -171,7 +171,7 @@ public class TreeClipboardTests
                     BindAddress = "127.0.0.1", ListenPort = 15432, DestinationHost = session.Host, DestinationPort = 5432
                 });
             FailingForwards access = new(forwards);
-            InternalVaultManager vault = new(database);
+            InternalVaultManager vault = VaultTestDb.CreateVault(database);
             MainViewModel model = new(tree, new SqliteIdentityRepository(database), vault, vault,
                 new JsonSettingsService(Path.Combine(directory, "settings.json")), new SshSessionFactory(),
                 uiDispatch: action => action(), portForwards: access);

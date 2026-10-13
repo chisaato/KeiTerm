@@ -28,8 +28,22 @@ public partial class SettingsWindow : Window
         DataContext = vm;
         SettingsWindowInteractionService interaction = new(this, vm);
         vm.SetInteraction(interaction);
+        vm.Security.VaultSetupDialogAsync = passwordOnly =>
+        {
+            try
+            {
+                return new VaultSetupWindow(passwordOnly).ShowDialog<VaultSetupResult?>(this);
+            }
+            catch (Exception)
+            {
+                return Task.FromResult<VaultSetupResult?>(null);
+            }
+        };
         // 每次打开都从当前设置重读，丢弃上次未保存的改动
         vm.Reload();
+
+        // 本机验证能力可能在系统设置中变化，每次打开窗口重新探测。
+        Opened += async (_, _) => await vm.RefreshQuickUnlockAsync();
 
         // 统一成功出口（Save/Cancel成功后触发）
         Action? onRequestClose = null;

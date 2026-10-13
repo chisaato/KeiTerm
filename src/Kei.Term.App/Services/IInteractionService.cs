@@ -27,6 +27,15 @@ public interface IInteractionService
     // 主密码懒解锁；error 为上次失败原因
     Task<string?> PromptMasterPasswordAsync(string? error);
 
+    // 保留旧交互实现的密码路径，测试替身和无界面实现无需增加快捷解锁入口。
+    async Task<VaultUnlockResponse> PromptVaultUnlockAsync(VaultUnlockPrompt prompt)
+    {
+        string? password = await PromptMasterPasswordAsync(prompt.Error);
+        return password == null
+            ? new(VaultUnlockKind.Cancelled)
+            : new(VaultUnlockKind.Password, password);
+    }
+
     Task<PassphrasePromptResult?> PromptPassphraseAsync(FilePrivateKeyMethod method);
 
     // 关闭窗口 / 取消一律视为拒绝
