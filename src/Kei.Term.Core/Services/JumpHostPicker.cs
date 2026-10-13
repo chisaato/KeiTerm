@@ -19,7 +19,7 @@ public static class JumpHostPicker
 
         return sessions
             .Where(session => IsSelectable(session, editingId, lookup))
-            .OrderBy(session => session.Name, StringComparer.CurrentCultureIgnoreCase)
+            .OrderBy(session => session.Name, NaturalStringComparer.Instance)
             .ToArray();
     }
 

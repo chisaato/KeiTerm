@@ -59,14 +59,14 @@ public partial class BatchSessionEditViewModel : ViewModelBase
         Sessions = allNodes
             .OfType<SessionNode>()
             .Select(s => new BatchSessionItem(s, FolderPath(s.ParentId, byId), preselected.Contains(s.Id), OnSessionSelectionChanged))
-            .OrderBy(i => i.Path, StringComparer.CurrentCultureIgnoreCase)
-            .ThenBy(i => i.Node.Name, StringComparer.CurrentCultureIgnoreCase)
+            .OrderBy(i => i.Path, NaturalStringComparer.Instance)
+            .ThenBy(i => i.Node.Name, NaturalStringComparer.Instance)
             .ToList();
 
         Folders = allNodes
             .OfType<FolderNode>()
             .Select(f => new BatchFolderOption(f.Id, JoinPath(FolderPath(f.ParentId, byId), f.Name)))
-            .OrderBy(f => f.Path, StringComparer.CurrentCultureIgnoreCase)
+            .OrderBy(f => f.Path, NaturalStringComparer.Instance)
             .ToList();
         _folderDescendants = allNodes.OfType<FolderNode>().ToDictionary(f => f.Id, f => TreeTraversal.DescendantSessionIds(f.Id, allNodes).ToHashSet());
 

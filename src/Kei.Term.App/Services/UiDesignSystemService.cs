@@ -64,6 +64,21 @@ public static class UiDesignSystemService
         }
     }
 
+    // 树一行的横向构成（与 KeiControls.axaml 里 KeiTreeViewItem 模板一致，改模板要同步改这里）：
+    //   内容左缘 → 箭头槽（容器 16 + 右边距 6）→ 图标（Kei.Tree.IconSize）→ 图标与名称间距。
+    private const double TreeChevronSlotWidth = 16;
+    private const double TreeChevronGap = 6;
+    // 竖线到子项箭头槽左缘的留白：箭头字形在槽内再内缩 2px，实际到手性箭头的间距 ≥ 4px。
+    private const double TreeRailClearance = 2;
+
+    // 引导线画在父项图标轴上，子项内容必须整体落在竖线右侧；缩进小于图标轴到箭头槽的距离时线会压住子项箭头。
+    public static double MinimumTreeIndent(double iconSize) =>
+        TreeChevronSlotWidth + TreeChevronGap + (iconSize > 0 ? iconSize : 14.0) / 2 + TreeRailClearance;
+
+    // 生效缩进：用户缩进偏小时抬到最小值；用户缩进更大时照旧生效（横线随之变长）。
+    public static double EffectiveTreeIndent(double indent, double iconSize) =>
+        Math.Max(indent > 0 ? indent : 12.0, MinimumTreeIndent(iconSize));
+
     // 动态注册与更新会话树密度尺寸资源
     public static void ApplyTreeDensity(double itemHeight, double fontSize, double iconSize, double indent)
     {
@@ -73,7 +88,7 @@ public static class UiDesignSystemService
         var h = itemHeight > 0 ? itemHeight : 22.0;
         var fs = fontSize > 0 ? fontSize : 12.0;
         var icon = iconSize > 0 ? iconSize : 14.0;
-        var ind = indent > 0 ? indent : 12.0;
+        var ind = EffectiveTreeIndent(indent, icon);
 
         app.Resources["Kei.Tree.ItemHeight"] = h;
         app.Resources["Kei.Tree.FontSize"] = fs;

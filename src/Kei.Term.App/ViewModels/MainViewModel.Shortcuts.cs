@@ -1,5 +1,6 @@
 namespace Kei.Term.App.ViewModels;
 
+using Kei.Term.Core.Services;
 using Kei.Term.App.Helpers;
 using System;
 using System.Collections.Generic;
@@ -61,7 +62,7 @@ public partial class MainViewModel
     private IEnumerable<CommandPaletteItem> SavedConnectionItems()
     {
         Dictionary<Guid, TreeNodeBase> nodes = _allNodesCache.ToDictionary(node => node.Id);
-        foreach (SessionNode session in _allNodesCache.OfType<SessionNode>().OrderBy(session => session.Name, StringComparer.CurrentCultureIgnoreCase))
+        foreach (SessionNode session in _allNodesCache.OfType<SessionNode>().OrderBy(session => session.Name, NaturalStringComparer.Instance))
         {
             List<string> path = [];
             Guid? parent = session.ParentId;

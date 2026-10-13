@@ -12,29 +12,17 @@
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource Kei.Bg.Window}"
         FontFamily="{DynamicResource Kei.Font.UI}">
+    <Window.Resources>
+        <DataTemplate x:Key="PickerSessionTemplate" x:DataType="models:SessionNode">
+            <controls:SessionTreeItemView Opacity="{Binding Converter={x:Static views:PickerSessionOpacity.Instance}}"/>
+        </DataTemplate>
+    </Window.Resources>
     <Grid RowDefinitions="Auto, *, Auto" Margin="16" RowSpacing="10">
         <TextBox Grid.Row="0" Text="{Binding FilterText}" PlaceholderText="{loc:KeiString SessionPicker.Filter}"/>
-        <TreeView Grid.Row="1" Classes="sessionTree" ItemsSource="{Binding Roots}"
-                  SelectedItem="{Binding SelectedNode}"
-                  DoubleTapped="Tree_DoubleTapped"
-                  Background="Transparent">
-            <TreeView.Styles>
-                <Style Selector="TreeViewItem" x:DataType="models:TreeNodeBase">
-                    <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
-                </Style>
-            </TreeView.Styles>
-            <TreeView.DataTemplates>
-                <TreeDataTemplate DataType="models:VirtualRootNode" ItemsSource="{Binding Children}">
-                    <controls:SessionTreeItemView/>
-                </TreeDataTemplate>
-                <TreeDataTemplate DataType="models:FolderNode" ItemsSource="{Binding Children}">
-                    <controls:SessionTreeItemView/>
-                </TreeDataTemplate>
-                <DataTemplate DataType="models:SessionNode">
-                    <controls:SessionTreeItemView Opacity="{Binding Converter={x:Static views:PickerSessionOpacity.Instance}}"/>
-                </DataTemplate>
-            </TreeView.DataTemplates>
-        </TreeView>
+        <controls:SessionTreeView Grid.Row="1" ItemsSource="{Binding Roots}"
+                                  SelectedItem="{Binding SelectedNode}"
+                                  DoubleTapped="Tree_DoubleTapped"
+                                  SessionTemplate="{StaticResource PickerSessionTemplate}"/>
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
             <Button Content="{loc:KeiString Common.Cancel}" Command="{Binding CancelCommand}" MinWidth="84"/>
             <Button Content="{loc:KeiString Common.Confirm}" Command="{Binding ConfirmCommand}"

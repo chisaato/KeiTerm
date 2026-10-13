@@ -1,0 +1,33 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="using:Kei.Term.App.Views.Controls"
+        xmlns:models="using:Kei.Term.Core.Models">
+
+    <!-- 会话树样式作用域：统一限制在 SessionTreeView 与 .sessionTree 上，
+         避免级联影响远端文件管理器的目录树 (RemoteDirectoryNodeViewModel)。 -->
+    <Style Selector=":is(controls|SessionTreeView) TreeViewItem, .sessionTree TreeViewItem" x:DataType="models:TreeNodeBase">
+        <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+    </Style>
+
+    <Style Selector=":is(controls|SessionTreeView) TreeViewItem /template/ Border#PART_LayoutRoot, .sessionTree TreeViewItem /template/ Border#PART_LayoutRoot">
+        <Setter Property="Padding" Value="2,1"/>
+    </Style>
+
+    <!-- 拖拽悬停视觉反馈样式：合法目标微亮强调 + 亮蓝左边线，禁止目标微红警示 -->
+    <Style Selector=":is(controls|SessionTreeView) TreeViewItem.drop-target-valid /template/ Border#PART_ContentPill, .sessionTree TreeViewItem.drop-target-valid /template/ Border#PART_ContentPill">
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Accent}"/>
+        <Setter Property="BorderThickness" Value="2,0,0,0"/>
+    </Style>
+    <Style Selector=":is(controls|SessionTreeView) TreeViewItem.drop-target-valid, .sessionTree TreeViewItem.drop-target-valid">
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Accent}"/>
+        <Setter Property="BorderThickness" Value="2,0,0,0"/>
+    </Style>
+    <Style Selector=":is(controls|SessionTreeView) TreeViewItem.drop-target-invalid /template/ Border#PART_ContentPill, .sessionTree TreeViewItem.drop-target-invalid /template/ Border#PART_ContentPill">
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.ErrorSubtle}"/>
+    </Style>
+    <Style Selector=":is(controls|SessionTreeView) TreeViewItem.drop-target-invalid, .sessionTree TreeViewItem.drop-target-invalid">
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.ErrorSubtle}"/>
+    </Style>
+</Styles>

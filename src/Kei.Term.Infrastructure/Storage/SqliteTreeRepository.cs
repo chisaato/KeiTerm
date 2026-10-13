@@ -8,6 +8,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Kei.Term.Core.Models;
+using Kei.Term.Core.Services;
 using Kei.Term.Core.Storage;
 using Kei.Term.Infrastructure.Storage.Schema;
 
@@ -52,7 +53,12 @@ public class SqliteTreeRepository : ITreeRepository
         IEnumerable<NodeRow> rows = await conn.QueryAsync<NodeRow>(new CommandDefinition(
             SelectNodesSql + " ORDER BY t.node_type ASC, t.sort_order ASC, t.name COLLATE NOCASE ASC;",
             cancellationToken: ct));
-        return rows.Select(ToNode).ToList();
+
+        // SQL 的 NOCASE 排序只是粗略基线，真正的同级顺序统一交给 Core 自然排序，
+        // 使仓库加载顺序与视图层建树（TreeNodeOrdering）完全一致（数字段按数值、忽略大小写）。
+        List<TreeNodeBase> nodes = rows.Select(ToNode).ToList();
+        TreeNodeOrdering.Sort(nodes);
+        return nodes;
     }
 
     public async Task<TreeNodeBase?> GetNodeByIdAsync(Guid id, CancellationToken ct = default)

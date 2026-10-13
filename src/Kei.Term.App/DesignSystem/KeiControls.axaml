@@ -468,6 +468,8 @@
         <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}"/>
     </Style>
 
+    <StyleInclude Source="avares://Kei.Term.App/Views/Controls/SessionTreeViewStyles.axaml"/>
+
     <Style Selector="TreeViewItem">
         <Setter Property="Theme" Value="{StaticResource KeiTreeViewItem}"/>
     </Style>

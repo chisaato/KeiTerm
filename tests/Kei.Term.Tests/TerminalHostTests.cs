@@ -5,6 +5,8 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Media;
+using Avalonia.Media.Fonts;
 using Avalonia.VisualTree;
 using Kei.Term.App.Models;
 using Kei.Term.App.Terminals;
@@ -125,7 +127,7 @@ public class TerminalHostTests
         window.Close();
     });
 
-    [MonospaceFact]
+    [Fact]
     public Task Reparent_PreservesTerminalInstance_ContinuesOutput_AndResizesGrid() => HeadlessAvalonia.RunAsync(() =>
     {
         Window? firstWindow = null;
@@ -215,11 +217,158 @@ public class TerminalHostTests
         }
     });
 
+    // 缺首选时必须跳过调用方给出的缺失族名，落到 FontManager 能精确解析的下一等宽字体。
+    // 期望值由测试直接枚举 SystemFonts，不调用选择器，避免写死本机族名后选择器忽略入参仍能通过。
+    [Fact]
+    public Task Reparent_MissingPreferredFont_UsesFirstInstalledFallback() => HeadlessAvalonia.RunAsync(() =>
+    {
+        const string missing = "KeiTerm Missing Preferred Mono";
+        const string alsoMissing = "KeiTerm Also Missing Mono";
+        string[] injected = [missing, alsoMissing, ..ProbeMonospaceCandidates];
+
+        Assert.False(IsExactInstalledFamily(missing), "可控缺失族名不应出现在 FontManager.SystemFonts");
+        Assert.False(IsExactInstalledFamily(alsoMissing));
+
+        string? expected = null;
+        foreach (string candidate in injected)
+        {
+            if (IsExactInstalledFamily(candidate))
+            {
+                expected = candidate.Trim();
+                break;
+            }
+        }
+
+        Assert.False(
+            string.IsNullOrEmpty(expected),
+            "FontManager 没有候选链上可精确解析的等宽字体。不要 Skip，也不要用未安装族名把度量做成假通过。候选="
+            + string.Join(", ", ProbeMonospaceCandidates));
+        Assert.NotEqual(missing, expected);
+        Assert.NotEqual(alsoMissing, expected);
+
+        string chosen = SelectProbeMonospace(injected);
+        Assert.Equal(expected, chosen);
+
+        Window? window = null;
+        try
+        {
+            (window, TerminalTabViewModel tab) = OpenProbe(800, 505, chosen);
+            Assert.Equal(chosen, tab.CurrentFontSnapshot.PrimaryFontFamily);
+            Assert.Equal(chosen, tab.Terminal.FontFamilyName);
+            AssertRealCellMetrics(tab.Terminal);
+        }
+        finally
+        {
+            window?.Close();
+        }
+    });
+
     private static (Window Window, TerminalTabViewModel Tab) ProbeHost(double width, double height)
     {
-        (Window window, TerminalTabViewModel tab) = OpenProbe(width, height, InstalledMonospace.Require());
+        string family = SelectProbeMonospace(ProbeMonospaceCandidates);
+        (Window window, TerminalTabViewModel tab) = OpenProbe(width, height, family);
+        Assert.Equal(family, tab.CurrentFontSnapshot.PrimaryFontFamily);
         AssertRealCellMetrics(tab.Terminal);
         return (window, tab);
+    }
+
+    // 跨 Linux / Windows / macOS 的常见等宽族。命中与否只看本机 FontManager，不假设某一台机器装了谁。
+    private static readonly string[] ProbeMonospaceCandidates =
+    [
+        "Cascadia Mono",
+        "Cascadia Code",
+        "Consolas",
+        "Courier New",
+        "Menlo",
+        "SF Mono",
+        "Monaco",
+        "DejaVu Sans Mono",
+        "Liberation Mono",
+        "Nimbus Mono PS",
+        "Noto Sans Mono",
+        "Ubuntu Mono",
+        "Hack",
+        "Source Code Pro",
+        "FreeMono",
+        "Courier 10 Pitch",
+        "Adwaita Mono",
+        "JetBrains Mono",
+        "JetBrainsMono Nerd Font",
+        "JetBrainsMono Nerd Font Mono",
+    ];
+
+    private static string SelectProbeMonospace(IReadOnlyList<string> candidates)
+    {
+        foreach (string candidate in candidates)
+        {
+            if (string.IsNullOrWhiteSpace(candidate))
+            {
+                continue;
+            }
+
+            string family = candidate.Trim();
+            if (IsExactInstalledFamily(family))
+            {
+                return family;
+            }
+        }
+
+        Assert.Fail(
+            "本机 FontManager 没有候选等宽字体可精确解析，拒绝用未安装族名继续。"
+            + " 候选=" + string.Join(", ", candidates));
+        return string.Empty;
+    }
+
+    // TryGetGlyphTypeface 找不到族时可能返回别的脸。必须同时出现在 SystemFonts，且字形族名与请求一致。
+    private static bool IsExactInstalledFamily(string familyName)
+    {
+        IFontCollection? fonts = FontManager.Current?.SystemFonts;
+        if (fonts is null || string.IsNullOrWhiteSpace(familyName))
+        {
+            return false;
+        }
+
+        bool listed = false;
+        foreach (FontFamily font in fonts)
+        {
+            if (string.Equals(font.Name, familyName, StringComparison.OrdinalIgnoreCase))
+            {
+                listed = true;
+                break;
+            }
+        }
+
+        if (!listed)
+        {
+            return false;
+        }
+
+        if (!fonts.TryGetGlyphTypeface(
+                familyName,
+                FontStyle.Normal,
+                FontWeight.Normal,
+                FontStretch.Normal,
+                out GlyphTypeface? glyphTypeface)
+            || glyphTypeface is null)
+        {
+            return false;
+        }
+
+        if (string.Equals(glyphTypeface.FamilyName, familyName, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(glyphTypeface.TypographicFamilyName, familyName, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        foreach (string name in glyphTypeface.FamilyNames.Values)
+        {
+            if (string.Equals(name, familyName, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static (Window Window, TerminalTabViewModel Tab) OpenProbe(double width, double height, string family)

@@ -1,5 +1,6 @@
 namespace Kei.Term.Ssh.Services;
 
+using Kei.Term.Core.Services;
 using System;
 using System.IO;
 using System.Threading;
@@ -103,7 +104,7 @@ public class SftpRemoteFileSystem : IRemoteFileSystem
                 ));
             }
 
-            return results.OrderByDescending(r => r.IsDirectory).ThenBy(r => r.Name, StringComparer.OrdinalIgnoreCase).ToList();
+            return results.OrderByDescending(r => r.IsDirectory).ThenBy(r => r.Name, NaturalStringComparer.Instance).ToList();
         }, ct);
     }
 

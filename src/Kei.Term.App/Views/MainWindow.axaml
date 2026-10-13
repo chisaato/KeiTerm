@@ -22,41 +22,71 @@
 
         <conv:ConnectionStateBrushConverter x:Key="ConnectionStateBrush"/>
         <conv:TabStatusBrushConverter x:Key="TabStatusBrush"/>
+
+        <TreeDataTemplate x:Key="MainWindowFolderTemplate" x:DataType="models:FolderNode" ItemsSource="{Binding Children}">
+            <Grid>
+                <controls:SessionTreeItemView>
+                    <controls:SessionTreeItemView.HideName>
+                        <MultiBinding Converter="{x:Static conv:SameNodeConverter.Instance}">
+                            <Binding />
+                            <Binding Path="$parent[Window].((vm:MainViewModel)DataContext).RenamingNode"/>
+                        </MultiBinding>
+                    </controls:SessionTreeItemView.HideName>
+                </controls:SessionTreeItemView>
+                <TextBox Classes="treeRenameBox" Margin="22,0,0,0"
+                         Text="{Binding $parent[Window].((vm:MainViewModel)DataContext).TreeRenameText, Mode=TwoWay}">
+                    <TextBox.IsVisible>
+                        <MultiBinding Converter="{x:Static conv:SameNodeConverter.Instance}">
+                            <Binding />
+                            <Binding Path="$parent[Window].((vm:MainViewModel)DataContext).RenamingNode"/>
+                        </MultiBinding>
+                    </TextBox.IsVisible>
+                </TextBox>
+            </Grid>
+        </TreeDataTemplate>
+
+        <DataTemplate x:Key="MainWindowSessionTemplate" x:DataType="models:SessionNode">
+            <Grid Background="Transparent">
+                <Grid.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="{loc:KeiString Tree.Menu.Connect}"
+                                  Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).OpenSessionCommand}"
+                                  CommandParameter="{Binding}"/>
+                        <MenuItem Header="{loc:KeiString Tree.Menu.Rename}"
+                                  Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).RenameSelectedNodeCommand}"/>
+                        <MenuItem Header="{loc:KeiString Tree.Menu.Edit}"
+                                  Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).EditSelectedNodeCommand}"/>
+                        <MenuItem Header="{loc:KeiString Tree.Menu.DuplicateSession}"
+                                  Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).DuplicateSelectedSessionCommand}"/>
+                        <MenuItem Header="{loc:KeiString Tree.Menu.Delete}"
+                                  Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).DeleteSelectedNodeCommand}"/>
+                        <Separator/>
+                        <MenuItem Header="{loc:KeiString Tree.Menu.BatchEdit}"
+                                  Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).OpenBatchEditCommand}"/>
+                    </ContextMenu>
+                </Grid.ContextMenu>
+                <controls:SessionTreeItemView>
+                    <controls:SessionTreeItemView.HideName>
+                        <MultiBinding Converter="{x:Static conv:SameNodeConverter.Instance}">
+                            <Binding />
+                            <Binding Path="$parent[Window].((vm:MainViewModel)DataContext).RenamingNode"/>
+                        </MultiBinding>
+                    </controls:SessionTreeItemView.HideName>
+                </controls:SessionTreeItemView>
+                <TextBox Classes="treeRenameBox" Margin="22,0,0,0"
+                         Text="{Binding $parent[Window].((vm:MainViewModel)DataContext).TreeRenameText, Mode=TwoWay}">
+                    <TextBox.IsVisible>
+                        <MultiBinding Converter="{x:Static conv:SameNodeConverter.Instance}">
+                            <Binding />
+                            <Binding Path="$parent[Window].((vm:MainViewModel)DataContext).RenamingNode"/>
+                        </MultiBinding>
+                    </TextBox.IsVisible>
+                </TextBox>
+            </Grid>
+        </DataTemplate>
     </Window.Resources>
 
     <Window.Styles>
-        <!-- 侧栏树：统一由基类 TreeNodeBase 绑定 IsExpanded，消除子类型强转与样式冲突。
-             注意：必须用 .sessionTree 限定作用域，否则会级联命中文件管理面板的 TreeViewItem，
-             导致其 RemoteDirectoryNodeViewModel 被强转为 TreeNodeBase 而抛绑定异常。 -->
-        <Style Selector=".sessionTree TreeViewItem" x:DataType="models:TreeNodeBase">
-            <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
-        </Style>
-
-        <Style Selector=".sessionTree TreeViewItem /template/ Border#PART_LayoutRoot">
-            <Setter Property="Padding" Value="2,1"/>
-        </Style>
-
-        <!-- 拖拽悬停视觉反馈样式：合法目标微亮强调 + 亮蓝左边线，禁止目标微红警示 -->
-        <Style Selector=".sessionTree TreeViewItem.drop-target-valid /template/ Border#PART_ContentPill">
-            <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource Kei.Accent}"/>
-            <Setter Property="BorderThickness" Value="2,0,0,0"/>
-        </Style>
-        <Style Selector=".sessionTree TreeViewItem.drop-target-valid">
-            <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource Kei.Accent}"/>
-            <Setter Property="BorderThickness" Value="2,0,0,0"/>
-        </Style>
-        <Style Selector=".sessionTree TreeViewItem.drop-target-invalid /template/ Border#PART_ContentPill">
-            <Setter Property="Background" Value="{DynamicResource Kei.Bg.ErrorSubtle}"/>
-        </Style>
-        <Style Selector=".sessionTree TreeViewItem.drop-target-invalid">
-            <Setter Property="Background" Value="{DynamicResource Kei.Bg.ErrorSubtle}"/>
-        </Style>
-
-        <!-- 控件外观类样式（iconBtn/tabItem/closeBtn）已迁至 DesignSystem/KeiControls.axaml，
-             仅 KeiClassic 档挂载，使 Semi/Material 档可由第三方库模板接管。 -->
-
         <!-- NativeMenuBar 的默认模板只把 Background/BorderBrush 透传给内部 presenter，
              文字色与最小高度需在此补齐，否则 Windows/Linux 上窗口内菜单栏会丢失原有观感。 -->
         <Style Selector="NativeMenuBar /template/ MenuBase#PART_NativeMenuPresenter">
@@ -575,14 +605,14 @@
 
                         <!-- Row3 目录树 + 空树引导态 -->
                         <Grid Grid.Row="3">
-                            <TreeView x:Name="SessionTree"
-                                      Classes="sessionTree"
-                                      ItemsSource="{Binding TreeNodes}"
-                                      SelectedItem="{Binding SelectedTreeNode}"
-                                      DoubleTapped="Tree_DoubleTapped"
-                                      DragDrop.AllowDrop="True"
-                                      Background="Transparent">
-                                <TreeView.ContextMenu>
+                            <controls:SessionTreeView x:Name="SessionTree"
+                                                      ItemsSource="{Binding TreeNodes}"
+                                                      SelectedItem="{Binding SelectedTreeNode}"
+                                                      DoubleTapped="Tree_DoubleTapped"
+                                                      DragDrop.AllowDrop="True"
+                                                      FolderTemplate="{StaticResource MainWindowFolderTemplate}"
+                                                      SessionTemplate="{StaticResource MainWindowSessionTemplate}">
+                                <controls:SessionTreeView.ContextMenu>
                                     <ContextMenu>
                                         <MenuItem Header="{loc:KeiString Tree.Menu.NewSession}" Command="{Binding CreateSessionCommand}"/>
                                         <MenuItem Header="{loc:KeiString Tree.Menu.NewFolder}" Command="{Binding CreateFolderCommand}"/>
@@ -593,74 +623,8 @@
                                         <Separator/>
                                         <MenuItem Header="{loc:KeiString Tree.Menu.BatchEdit}" Command="{Binding OpenBatchEditCommand}"/>
                                     </ContextMenu>
-                                </TreeView.ContextMenu>
-                                <TreeView.DataTemplates>
-                                    <!-- 条目视觉在 SessionTreeItemView。右键、双击连接、拖放仍留在本窗口。 -->
-                                    <TreeDataTemplate DataType="models:VirtualRootNode" ItemsSource="{Binding Children}">
-                                        <controls:SessionTreeItemView/>
-                                    </TreeDataTemplate>
-                                    <TreeDataTemplate DataType="models:FolderNode" ItemsSource="{Binding Children}">
-                                        <Grid>
-                                            <controls:SessionTreeItemView>
-                                                <controls:SessionTreeItemView.HideName>
-                                                    <MultiBinding Converter="{x:Static conv:SameNodeConverter.Instance}">
-                                                        <Binding />
-                                                        <Binding Path="$parent[Window].((vm:MainViewModel)DataContext).RenamingNode"/>
-                                                    </MultiBinding>
-                                                </controls:SessionTreeItemView.HideName>
-                                            </controls:SessionTreeItemView>
-                                            <TextBox Classes="treeRenameBox" Margin="22,0,0,0"
-                                                     Text="{Binding $parent[Window].((vm:MainViewModel)DataContext).TreeRenameText, Mode=TwoWay}">
-                                                <TextBox.IsVisible>
-                                                    <MultiBinding Converter="{x:Static conv:SameNodeConverter.Instance}">
-                                                        <Binding />
-                                                        <Binding Path="$parent[Window].((vm:MainViewModel)DataContext).RenamingNode"/>
-                                                    </MultiBinding>
-                                                </TextBox.IsVisible>
-                                            </TextBox>
-                                        </Grid>
-                                    </TreeDataTemplate>
-                                    <DataTemplate DataType="models:SessionNode" x:DataType="models:SessionNode">
-                                        <Grid Background="Transparent">
-                                            <Grid.ContextMenu>
-                                                <ContextMenu>
-                                                    <MenuItem Header="{loc:KeiString Tree.Menu.Connect}"
-                                                              Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).OpenSessionCommand}"
-                                                              CommandParameter="{Binding}"/>
-                                                    <MenuItem Header="{loc:KeiString Tree.Menu.Rename}"
-                                                              Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).RenameSelectedNodeCommand}"/>
-                                                    <MenuItem Header="{loc:KeiString Tree.Menu.Edit}"
-                                                              Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).EditSelectedNodeCommand}"/>
-                                                    <MenuItem Header="{loc:KeiString Tree.Menu.DuplicateSession}"
-                                                              Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).DuplicateSelectedSessionCommand}"/>
-                                                    <MenuItem Header="{loc:KeiString Tree.Menu.Delete}"
-                                                              Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).DeleteSelectedNodeCommand}"/>
-                                                    <Separator/>
-                                                    <MenuItem Header="{loc:KeiString Tree.Menu.BatchEdit}"
-                                                              Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).OpenBatchEditCommand}"/>
-                                                </ContextMenu>
-                                            </Grid.ContextMenu>
-                                            <controls:SessionTreeItemView>
-                                                <controls:SessionTreeItemView.HideName>
-                                                    <MultiBinding Converter="{x:Static conv:SameNodeConverter.Instance}">
-                                                        <Binding />
-                                                        <Binding Path="$parent[Window].((vm:MainViewModel)DataContext).RenamingNode"/>
-                                                    </MultiBinding>
-                                                </controls:SessionTreeItemView.HideName>
-                                            </controls:SessionTreeItemView>
-                                            <TextBox Classes="treeRenameBox" Margin="22,0,0,0"
-                                                     Text="{Binding $parent[Window].((vm:MainViewModel)DataContext).TreeRenameText, Mode=TwoWay}">
-                                                <TextBox.IsVisible>
-                                                    <MultiBinding Converter="{x:Static conv:SameNodeConverter.Instance}">
-                                                        <Binding />
-                                                        <Binding Path="$parent[Window].((vm:MainViewModel)DataContext).RenamingNode"/>
-                                                    </MultiBinding>
-                                                </TextBox.IsVisible>
-                                            </TextBox>
-                                        </Grid>
-                                    </DataTemplate>
-                                </TreeView.DataTemplates>
-                            </TreeView>
+                                </controls:SessionTreeView.ContextMenu>
+                            </controls:SessionTreeView>
 
                             <!-- 空树引导态 -->
                             <StackPanel IsVisible="{Binding !HasNodes}"

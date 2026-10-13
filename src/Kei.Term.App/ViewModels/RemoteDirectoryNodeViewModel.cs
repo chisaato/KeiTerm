@@ -1,5 +1,6 @@
 namespace Kei.Term.App.ViewModels;
 
+using Kei.Term.Core.Services;
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -102,7 +103,7 @@ public partial class RemoteDirectoryNodeViewModel : ViewModelBase
             bool showHidden = _showHiddenFilesFunc();
             var dirItems = remoteItems
                 .Where(x => x.IsDirectory && (showHidden || !x.Name.StartsWith('.')))
-                .OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(x => x.Name, NaturalStringComparer.Instance)
                 .Select(x =>
                 {
                     // 构造规范的绝对子路径

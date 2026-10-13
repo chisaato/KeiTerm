@@ -557,41 +557,21 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
             }
         }
 
-        // 同级排序规约：
+        // 同级排序规约统一收敛到 Core（TreeNodeOrdering），使仓库加载、建树、
+        // 新增/重命名/导入后的重新定位共用同一套自然排序：
         // 1. 目录必须在前（0），会话在后（1）；
         // 2. 按 SortOrder 升序；
-        // 3. 名称排序：根据当前配置，若为 AsciiFirst（默认），则首字符为 ASCII/英文/数字 排在非 ASCII/中文 前面；
-        //    若同为 ASCII 或同为非 ASCII，则按大小写不敏感自然顺序比较。
+        // 3. 名称走自然排序（数字段按数值，如 pve-3 < pve-11 < pve-31），忽略大小写；
+        //    AsciiFirst 模式下首字符为 ASCII 的排在中文等非 ASCII 之前（Pinyin 模式不额外抬升）。
         var isAsciiFirst = !string.Equals(CurrentSettings?.TreeSortMode, "Pinyin", StringComparison.OrdinalIgnoreCase);
 
-        int CompareNodes(TreeNodeBase a, TreeNodeBase b)
-        {
-            var typeCmp = a.NodeType.CompareTo(b.NodeType);
-            if (typeCmp != 0) return typeCmp;
-            var orderCmp = a.SortOrder.CompareTo(b.SortOrder);
-            if (orderCmp != 0) return orderCmp;
-
-            var nameA = a.Name ?? string.Empty;
-            var nameB = b.Name ?? string.Empty;
-
-            if (isAsciiFirst && nameA.Length > 0 && nameB.Length > 0)
-            {
-                var aIsAscii = nameA[0] < 128;
-                var bIsAscii = nameB[0] < 128;
-                if (aIsAscii && !bIsAscii) return -1;
-                if (!aIsAscii && bIsAscii) return 1;
-            }
-
-            return string.Compare(nameA, nameB, StringComparison.CurrentCultureIgnoreCase);
-        }
-
-        roots.Sort(CompareNodes);
+        TreeNodeOrdering.Sort(roots, isAsciiFirst);
 
         foreach (var node in allNodes)
         {
-            if (node is FolderNode folder && folder.Children.Count > 1)
+            if (node is FolderNode folder)
             {
-                folder.Children.Sort(CompareNodes);
+                TreeNodeOrdering.Sort(folder.Children, isAsciiFirst);
             }
         }
 

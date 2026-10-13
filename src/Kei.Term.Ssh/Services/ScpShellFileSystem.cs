@@ -1,5 +1,6 @@
 namespace Kei.Term.Ssh.Services;
 
+using Kei.Term.Core.Services;
 using System.Globalization;
 using Kei.Term.Core.Models;
 
@@ -82,7 +83,7 @@ internal sealed class ScpShellFileSystem(Func<string, CancellationToken, Task<Re
         }
 
         return items.OrderByDescending(item => item.IsDirectory)
-            .ThenBy(item => item.Name, StringComparer.OrdinalIgnoreCase).ToList();
+            .ThenBy(item => item.Name, NaturalStringComparer.Instance).ToList();
     }
 
     public Task DeleteAsync(string path, bool isDirectory, CancellationToken ct)

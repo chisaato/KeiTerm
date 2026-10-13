@@ -17,6 +17,9 @@
     <Color x:Key="Kei.Color.Border">#FF3A3A42</Color>
     <Color x:Key="Kei.Color.Border.Subtle">#FF2E2E35</Color>
     <Color x:Key="Kei.Color.Border.Focus">#FF3574F0</Color>
+    <!-- 树引导线：1px 细线不能直接借用描边色，否则在面板底上几乎同色（Border.Subtle 与 Panel 仅 1.13:1）而看不见。
+         取“默认面板 + 45/50 通道”的结果，与 ProfileManagerService 派生规则对同一面板给出的值一致。 -->
+    <Color x:Key="Kei.Color.Tree.Line">#FF52525C</Color>
 
     <!-- 文字层级 -->
     <Color x:Key="Kei.Color.Text.Primary">#FFE8E8EC</Color>
@@ -77,7 +80,7 @@
     <x:Double x:Key="Kei.Tree.FontSize">12</x:Double>
     <x:Double x:Key="Kei.Tree.IconSize">14</x:Double>
     <x:Double x:Key="Kei.Tree.Indent">16</x:Double>
-    <SolidColorBrush x:Key="Kei.Tree.Line" Color="{StaticResource Kei.Color.Border.Subtle}"/>
+    <SolidColorBrush x:Key="Kei.Tree.Line" Color="{StaticResource Kei.Color.Tree.Line}"/>
 
     <!-- 标签页 (Dock Tab) 几何与尺寸令牌 -->
     <x:Double x:Key="Kei.Tab.Height">30</x:Double>
