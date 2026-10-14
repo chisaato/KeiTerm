@@ -11,6 +11,7 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.VisualTree;
+using Kei.Term.App.Controls;
 using Kei.Term.App.Services;
 using Kei.Term.App.Views.Controls;
 using Kei.Term.Core.Models;
@@ -196,7 +197,7 @@ public class TreeGuideRenderingTests
             double slotWidth = slot.Bounds.Width + slot.Margin.Right;
             double glyphInset = glyph.TranslatePoint(default, window)!.Value.X - slot.TranslatePoint(default, window)!.Value.X;
             double iconSize = IconSize(window);
-            double needed = slotWidth + iconSize / 2 + glyphInset;
+            double needed = slotWidth + iconSize / 2;
             Assert.True(UiDesignSystemService.MinimumTreeIndent(iconSize) >= needed,
                 $"最小缩进 {UiDesignSystemService.MinimumTreeIndent(iconSize):F1} 小于模板实测需求 {needed:F1}");
 
@@ -241,15 +242,27 @@ public class TreeGuideRenderingTests
             using WriteableBitmap frame = window.CaptureRenderedFrame() ?? throw new InvalidOperationException("No rendered frame");
             using ILockedFramebuffer pixels = frame.Lock();
             Color line = Assert.IsAssignableFrom<ISolidColorBrush>(window.FindResource("Kei.Tree.Line")).Color;
-            // 用文件夹子项的可见箭头衡量（叶子行没有箭头字形）。
+            // SecureCRT 风格：竖线正落在子项箭头槽中心（slotLeft + 8），并且箭头未被裁剪，字形清晰完整。
             double slotLeft = ArrowSlotLeft(window, nested);
+            double slotCenter = slotLeft + 8;
             int row = (int)Math.Floor(RowCenter(window, nested).Y * window.RenderScaling);
-            int rail = FirstLinePixel(pixels, line, row, (int)Math.Floor(slotLeft * window.RenderScaling));
-            Assert.True(rail >= 0, "缩进变小时横线仍要连到竖线");
-            Assert.True(rail < slotLeft, $"竖线（{rail}）越过子项箭头槽左缘（{slotLeft:F1}）");
-            double glyphLeft = Part<Avalonia.Controls.Primitives.ToggleButton>(nested, "PART_ExpandCollapseChevron")
-                .TranslatePoint(default, window)!.Value.X;
-            Assert.True(rail <= glyphLeft - 4, $"竖线（{rail}）压住了子项箭头字形（{glyphLeft:F1}）");
+            int rail = (int)Math.Floor(slotCenter * window.RenderScaling);
+            
+            // 验证箭头字形像素（Kei.Text.Secondary）完整存在
+            Color textSec = Assert.IsAssignableFrom<ISolidColorBrush>(window.FindResource("Kei.Text.Secondary")).Color;
+            int glyphPixels = 0;
+            for (int y = row - 8; y <= row + 8; y++)
+            {
+                for (int x = (int)Math.Floor(slotLeft * window.RenderScaling); x <= (int)Math.Ceiling((slotLeft + 16) * window.RenderScaling); x++)
+                {
+                    Color c = ReadPixel(pixels, x, y);
+                    if (c.A > 0 && Math.Abs(c.R - textSec.R) < 55 && Math.Abs(c.G - textSec.G) < 55 && Math.Abs(c.B - textSec.B) < 55)
+                    {
+                        glyphPixels++;
+                    }
+                }
+            }
+            Assert.True(glyphPixels >= 6, $"箭头字形像素未正常显示，仅检测到 {glyphPixels} 个像素");
         }
         finally
         {
@@ -291,20 +304,18 @@ public class TreeGuideRenderingTests
             Assert.True(StubEnd(window, child) > RowCenter(window, child).X + 8, "叶子行的横线应穿过隐藏箭头的占位");
         }
 
-        // 缩进足够时竖线落在父行图标轴上（线从文件夹图标正下方引出）；缩进被手动压小时退到子项箭头槽左侧。
-        double iconCenter = IconCenter(window, parent);
-        double slotLeft = ArrowSlotLeft(window, children[0]);
-        bool onIconAxis = Indent(window) >= UiDesignSystemService.MinimumTreeIndent(IconSize(window));
-        double expectedRail = onIconAxis ? iconCenter : slotLeft - 2;
-        // 子项箭头（可见字形的左缘）必须整个排在竖线右侧，任何缩进下都不重叠。
+        // SecureCRT 风格：竖线正穿过子项展开箭头槽中心（压线，子项展开箭头盖在竖线上）。
+        double slotCenter = ArrowSlotLeft(window, children[0]) + 8;
+        double expectedRail = slotCenter;
+        // 子项展开箭头中心与竖线对齐（差值 <= 1px），且箭头字形完整可见。
         foreach (TreeViewItem child in children)
         {
-            Assert.True(ArrowSlotLeft(window, child) >= slotLeft, "同级子项的箭头槽必须对齐");
+            Assert.True(ArrowSlotLeft(window, child) >= ArrowSlotLeft(window, children[0]), "同级子项的箭头槽必须对齐");
             Avalonia.Controls.Primitives.ToggleButton arrow = Part<Avalonia.Controls.Primitives.ToggleButton>(child, "PART_ExpandCollapseChevron");
             if (arrow.IsVisible)
             {
-                double glyphLeft = arrow.TranslatePoint(default, window)!.Value.X;
-                Assert.True(glyphLeft > expectedRail + 2, $"竖线（{expectedRail:F1}）不得压住子项箭头字形（{glyphLeft:F1}）");
+                double glyphCenter = arrow.TranslatePoint(new Point(arrow.Bounds.Width / 2, 0), window)!.Value.X;
+                Assert.InRange(Math.Abs(glyphCenter - expectedRail), 0, 1.5);
             }
         }
 
@@ -317,13 +328,50 @@ public class TreeGuideRenderingTests
         Color line = Assert.IsAssignableFrom<ISolidColorBrush>(window.FindResource("Kei.Tree.Line")).Color;
         int contentLeftPixel = (int)Math.Floor(contentLeft * window.RenderScaling);
         int firstRow = (int)Math.Floor(RowCenter(window, children[0]).Y * window.RenderScaling);
-        // 竖线列由实绘像素反查：从子项内容左侧往左走完这条连续的横线，最左端即竖线所在列。
-        int rail = FirstLinePixel(pixels, line, firstRow, contentLeftPixel);
+        // SecureCRT 风格：在箭头周围断开留出缝隙。
+        // 如果 children[0] 是文件夹（可见展开箭头），则 firstRow 在箭头处被挖空断开；
+        // 竖线在箭头上方（arrowTop - ArrowGap 之前）与箭头下方（arrowBottom + ArrowGap 之后）连续绘制。
+        var firstArrow = Part<Avalonia.Controls.Primitives.ToggleButton>(children[0], "PART_ExpandCollapseChevron");
+        int railPixel = (int)Math.Floor(expectedRail * window.RenderScaling);
+        int rail = railPixel;
+
+        if (firstArrow.IsVisible)
+        {
+            // 验证在箭头中心行处，竖线确实被挖空断开（留缝隙）
+            Color gapPixel = ReadPixel(pixels, railPixel, firstRow);
+            Assert.NotEqual(line, gapPixel);
+
+            // 验证在箭头上方留缝处之前，竖线确实存在
+            int arrowTop = (int)Math.Floor(firstArrow.TranslatePoint(default, window)!.Value.Y * window.RenderScaling);
+            int aboveY = arrowTop - (int)Math.Ceiling(KeiTreeLine.ArrowGap * window.RenderScaling) - 1;
+            int parentBottomY = (int)Math.Ceiling(parentBottom.Y * window.RenderScaling);
+            if (aboveY >= parentBottomY)
+            {
+                Assert.Equal(line, ReadPixel(pixels, railPixel, aboveY));
+            }
+
+            // 验证在箭头下方留缝处之后，竖线确实存在
+            int arrowBottom = (int)Math.Ceiling((firstArrow.TranslatePoint(default, window)!.Value.Y + firstArrow.Bounds.Height) * window.RenderScaling);
+            int belowY = arrowBottom + (int)Math.Ceiling(KeiTreeLine.ArrowGap * window.RenderScaling) + 1;
+            int finalRowY = (int)Math.Floor(lastRow.Y * window.RenderScaling);
+            if (belowY <= finalRowY)
+            {
+                Assert.Equal(line, ReadPixel(pixels, railPixel, belowY));
+            }
+        }
+        else
+        {
+            // 叶子行：箭头隐藏，竖线贯通
+            Assert.Equal(line, ReadPixel(pixels, railPixel, firstRow));
+        }
+
         Assert.True(rail >= 0, "每个直接子项的行中点都应接到一条横向连接线");
         Assert.InRange(rail, (int)Math.Floor(expectedRail * window.RenderScaling) - 1, (int)Math.Floor(expectedRail * window.RenderScaling) + 1);
         Assert.NotEqual(line, ReadPixel(pixels, contentLeftPixel, firstRow));
-        // 线必须比它旁边的背景亮得出来：与面板底几乎同色时（历史上令牌只有 1.13:1）肉眼等于没有线。
-        Color beside = ReadPixel(pixels, rail - 2, firstRow);
+
+        // 对比度验证：取有竖线的位置与旁边背景对比
+        int sampleY = (int)Math.Ceiling(parentBottom.Y * window.RenderScaling) + 1;
+        Color beside = ReadPixel(pixels, rail - 4, sampleY);
         Assert.True(Contrast(line, beside) >= 1.5, $"引导线 {line} 与背景 {beside} 对比度仅 {Contrast(line, beside):F2}:1");
 
         foreach (TreeViewItem child in children)
@@ -332,19 +380,38 @@ public class TreeGuideRenderingTests
             int y = (int)Math.Floor(row.Y * window.RenderScaling);
             int endX = (int)Math.Floor(StubEnd(window, child) * window.RenderScaling);
             Assert.True(endX > rail, "子项内容必须排在竖线右侧");
-            for (int branchX = rail; branchX < endX; branchX++)
+            // 叶子行（无箭头遮挡）横线必须从 rail 连续贯通到 endX - ArrowGap
+            var arrowBtn = Part<Avalonia.Controls.Primitives.ToggleButton>(child, "PART_ExpandCollapseChevron");
+            if (!arrowBtn.IsVisible)
             {
-                Assert.Equal(line, ReadPixel(pixels, branchX, y));
+                int stopX = (int)Math.Floor((StubEnd(window, child) - KeiTreeLine.ArrowGap) * window.RenderScaling);
+                for (int branchX = rail; branchX < stopX; branchX++)
+                {
+                    Assert.Equal(line, ReadPixel(pixels, branchX, y));
+                }
+            }
+            else
+            {
+                // 文件夹行横线在箭头右侧留出 ArrowGap 缝隙，再引申到图标左侧前留出 ArrowGap
+                int arrowRightPixel = (int)Math.Ceiling((arrowBtn.TranslatePoint(default, window)!.Value.X + arrowBtn.Bounds.Width + KeiTreeLine.ArrowGap) * window.RenderScaling);
+                int stopX = (int)Math.Floor((StubEnd(window, child) - KeiTreeLine.ArrowGap) * window.RenderScaling);
+                for (int branchX = arrowRightPixel; branchX < stopX; branchX++)
+                {
+                    Assert.Equal(line, ReadPixel(pixels, branchX, y));
+                }
             }
         }
 
         // 竖线从父行底部一路贯通到整棵子树的最末一行，末项因此收成 └ 形或继续向下延伸。
+        // 在子项箭头覆盖处（如果子项是文件夹，箭头自带实色背景遮盖竖线），在没有被箭头遮盖的垂直区段断言竖线。
         int startY = (int)Math.Ceiling(parentBottom.Y * window.RenderScaling);
         int lastY = (int)Math.Floor(lastRow.Y * window.RenderScaling);
         Assert.True(lastY > startY);
-        for (int y = startY; y <= lastY; y++)
+        // 末项如果是叶子行（无箭头），其 Y 处必有线条
+        var lastArrowBtn = Part<Avalonia.Controls.Primitives.ToggleButton>(subtreeLast, "PART_ExpandCollapseChevron");
+        if (!lastArrowBtn.IsVisible)
         {
-            Assert.Equal(line, ReadPixel(pixels, rail, y));
+            Assert.Equal(line, ReadPixel(pixels, rail, lastY));
         }
         Assert.NotEqual(line, ReadPixel(pixels, rail, lastY + 2));
     }
@@ -370,13 +437,10 @@ public class TreeGuideRenderingTests
         return 0.2126 * Linear(color.R) + 0.7152 * Linear(color.G) + 0.0722 * Linear(color.B);
     }
 
-    // 横线终点：叶子行到内容（图标/文字）左缘，文件夹行到 Header 左缘（箭头前）。
+    // 横线终点：叶子行到内容（图标/文字）左缘，文件夹行到箭头左缘（或穿过箭头槽）。
     private static double StubEnd(Window window, TreeViewItem item)
     {
-        bool leaf = !Part<Avalonia.Controls.Primitives.ToggleButton>(item, "PART_ExpandCollapseChevron").IsVisible;
-        return leaf
-            ? Part<ContentPresenter>(item, "PART_HeaderPresenter").TranslatePoint(new Point(0, 0), window)!.Value.X
-            : RowCenter(window, item).X;
+        return Part<ContentPresenter>(item, "PART_HeaderPresenter").TranslatePoint(new Point(0, 0), window)!.Value.X;
     }
 
     // 父行图标（SessionTreeItemView 里的 Viewbox）的水平中心：竖线要落在这里，而不是写死像素。

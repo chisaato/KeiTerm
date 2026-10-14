@@ -66,14 +66,20 @@ public static class UiDesignSystemService
 
     // 树一行的横向构成（与 KeiControls.axaml 里 KeiTreeViewItem 模板一致，改模板要同步改这里）：
     //   内容左缘 → 箭头槽（容器 16 + 右边距 6）→ 图标（Kei.Tree.IconSize）→ 图标与名称间距。
-    private const double TreeChevronSlotWidth = 16;
-    private const double TreeChevronGap = 6;
-    // 竖线到子项箭头槽左缘的留白：箭头字形在槽内再内缩 2px，实际到手性箭头的间距 ≥ 4px。
-    private const double TreeRailClearance = 2;
+    //   SecureCRT 风格：竖线正穿过子项箭头槽中心，即竖线 X = 箭头槽中心 X = 8。
+    public const double TreeChevronSlotWidth = 16;
+    public const double TreeChevronGap = 6;
+    // 竖线对齐到子项箭头槽中心（8px）；箭头槽左缘到中心的偏移量。
+    public const double TreeChevronCenterOffset = TreeChevronSlotWidth / 2; // 8px
 
-    // 引导线画在父项图标轴上，子项内容必须整体落在竖线右侧；缩进小于图标轴到箭头槽的距离时线会压住子项箭头。
+    // 缩进几何对齐：
+    // 父项展开后，竖线引出的水平坐标为 父项箭头槽中心 + Indent。
+    // 为了使竖线恰好穿过子项的箭头槽中心，必须满足：
+    // 父层箭头中心 + Indent = 子层箭头中心。
+    // 因为每深一层缩进即为 Indent，所以竖线 X 始终与所有子项的箭头槽中心严格对齐！
+    // 最小缩进只需保证内容区（箭头+间距+图标）合理排布，通常 >= TreeChevronSlotWidth + TreeChevronGap。
     public static double MinimumTreeIndent(double iconSize) =>
-        TreeChevronSlotWidth + TreeChevronGap + (iconSize > 0 ? iconSize : 14.0) / 2 + TreeRailClearance;
+        TreeChevronSlotWidth + TreeChevronGap + (iconSize > 0 ? iconSize : 14.0) / 2;
 
     // 生效缩进：用户缩进偏小时抬到最小值；用户缩进更大时照旧生效（横线随之变长）。
     public static double EffectiveTreeIndent(double indent, double iconSize) =>

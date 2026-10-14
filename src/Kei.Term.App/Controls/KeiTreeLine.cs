@@ -13,16 +13,17 @@ using Kei.Term.App.Views.Controls;
 
 /// <summary>
 /// 按实际布局坐标绘制会话树的父子连接线。
-/// 竖线挂在父项图标轴（SessionTreeItemView 里图标的水平中心）上——线看起来从文件夹图标正下方引出；
-/// 取不到图标时退化到父箭头轴。竖线从父行底部向下贯通该父项的整棵已展开子树：
-/// 末项仍是叶子时收在它的行中点（└ 形），末项自己也已展开时继续下潜到子树最末一行，
-/// 因此同一层的竖线在整个展开范围内连续不断。横向短线由每个直接子项的行中点决定
-/// （叶子穿过隐藏箭头的占位连到图标/文字），不缓存缩进、行高、内边距与子项自身展开高度。
+/// SecureCRT 风格：竖线正穿过子项展开箭头槽中心，并在箭头字形/图标周围断开留出微小缝隙（ArrowGap）。
+/// 横线接到展开箭头右侧以及接到叶子行图标前，也保留同样的断开留白。
 /// </summary>
 public class KeiTreeLine : Control
 {
-    // 竖线到子项箭头槽左缘的留白；箭头字形在槽内再内缩 2px，所以到手性箭头的实际间距 ≥ 4px。
-    private const double ArrowClearance = 2;
+    /// <summary>
+    /// SecureCRT 风格间隙（逻辑像素）：
+    /// 竖线在展开箭头字形上下各留出的断线缝隙；
+    /// 以及横线在箭头右侧或叶子图标左侧留出的断线缝隙。
+    /// </summary>
+    public const double ArrowGap = 1.5;
 
     public static readonly StyledProperty<IBrush?> LineBrushProperty =
         AvaloniaProperty.Register<KeiTreeLine, IBrush?>(nameof(LineBrush));
@@ -154,10 +155,10 @@ public class KeiTreeLine : Control
             return null;
         }
 
-        // 叶子行的箭头被隐藏但仍占位：横线要穿过占位，一直连到图标/文字，而不是停在 Header 左缘。
+        // 无论叶子还是文件夹，横线都从竖线处向右引申到 HeaderPresenter（图标/文字左缘），
+        // 从而穿过箭头槽（若有展开箭头，展开箭头正盖在横竖线交点上并有实色底遮盖；若是叶子行，横线直通图标）。
         double startX = 0;
-        if (FindPart(item, "PART_ExpandCollapseChevron") is { IsVisible: false }
-            && FindPart(item, "PART_HeaderPresenter") is { } presenter
+        if (FindPart(item, "PART_HeaderPresenter") is { } presenter
             && presenter.TranslatePoint(new Point(0, 0), header) is { } presenterOrigin)
         {
             startX = presenterOrigin.X;
@@ -265,10 +266,13 @@ public class KeiTreeLine : Control
             return;
         }
 
-        // 竖线列优先取父行图标轴（从文件夹图标正下方引出），退化到父箭头轴。
+        // SecureCRT 风格：竖线正穿过子项展开箭头槽中心（压线，子项展开箭头自带背景遮盖竖线或落在竖线上）。
+        // 优先对齐到直接子项的箭头槽中心；若子项尚未布局则取父箭头轴 + 缩进或父图标中心。
+        double? childSlotCenter = GetLeftmostArrowSlotCenter(children);
         Control? chevron = FindPart(parentItem, "PART_ExpandCollapseChevronContainer");
         Point? iconCenter = GetIconCenter(parentItem);
-        double? axis = iconCenter?.X
+        double? axis = childSlotCenter
+            ?? iconCenter?.X
             ?? (chevron?.TranslatePoint(new Point(chevron.Bounds.Width / 2, 0), this) is { } chevronAxis
                 ? chevronAxis.X
                 : null);
@@ -277,27 +281,95 @@ public class KeiTreeLine : Control
             return;
         }
 
-        double railX = axisX;
-        if (iconCenter != null && GetLeftmostArrowSlotLeft(children) is { } slotLeft)
-        {
-            // 图标轴可能落在子项缩进槽的右侧（缩进偏小时），退回子项箭头槽左侧，任何缩进下都不会压住子项箭头。
-            railX = Math.Min(railX, slotLeft - ArrowClearance);
-        }
-        railX = Math.Max(0, railX);
+        double railX = Math.Max(0, axisX);
         double endY = GetSubtreeEndY(children[^1]);
 
-        // 将 1px 线条边缘贴到设备像素，避免不同密度下出现半像素发虚。
         double scale = TopLevel.GetTopLevel(this)?.RenderScaling ?? 1;
         double x = Math.Floor(railX * scale) / scale;
         double end = Math.Floor(Math.Max(0, endY) * scale) / scale;
-        context.FillRectangle(brush, new Rect(x, 0, 1, end + 1));
-        foreach (Point row in rows)
+
+        // 收集展开子项中可见展开箭头的垂直断线缝隙区间 [gapTop, gapBottom]
+        List<(double Top, double Bottom)> verticalGaps = [];
+        foreach (TreeViewItem child in children)
         {
+            if (FindPart(child, "PART_ExpandCollapseChevron") is { IsVisible: true } arrowBtn
+                && arrowBtn.Bounds.Height > 0
+                && arrowBtn.TranslatePoint(default, this) is { } arrowOrigin)
+            {
+                // 字形按 arrowBtn 的实际边界计算，上下挖掉 ArrowGap
+                double gapTop = Math.Floor((arrowOrigin.Y - ArrowGap) * scale) / scale;
+                double gapBottom = Math.Ceiling((arrowOrigin.Y + arrowBtn.Bounds.Height + ArrowGap) * scale) / scale;
+                if (gapBottom > gapTop)
+                {
+                    verticalGaps.Add((gapTop, gapBottom));
+                }
+            }
+        }
+        // 按 Top 排序并合并重叠缝隙
+        verticalGaps.Sort((a, b) => a.Top.CompareTo(b.Top));
+        List<(double Top, double Bottom)> mergedGaps = [];
+        foreach (var gap in verticalGaps)
+        {
+            if (mergedGaps.Count > 0 && gap.Top <= mergedGaps[^1].Bottom)
+            {
+                mergedGaps[^1] = (mergedGaps[^1].Top, Math.Max(mergedGaps[^1].Bottom, gap.Bottom));
+            }
+            else
+            {
+                mergedGaps.Add(gap);
+            }
+        }
+
+        // 分段绘制竖线（避开箭头断线缝隙）
+        double currentY = 0;
+        foreach (var (gapTop, gapBottom) in mergedGaps)
+        {
+            double segmentEnd = Math.Min(end + 1, gapTop);
+            if (segmentEnd > currentY)
+            {
+                context.FillRectangle(brush, new Rect(x, currentY, 1, segmentEnd - currentY));
+            }
+            currentY = Math.Max(currentY, gapBottom);
+            if (currentY >= end + 1)
+            {
+                break;
+            }
+        }
+        if (currentY < end + 1)
+        {
+            context.FillRectangle(brush, new Rect(x, currentY, 1, (end + 1) - currentY));
+        }
+
+        // 绘制每个子项的横线
+        for (int i = 0; i < children.Count && i < rows.Count; i++)
+        {
+            TreeViewItem child = children[i];
+            Point row = rows[i];
             double y = Math.Floor(row.Y * scale) / scale;
             double contentX = Math.Floor(row.X * scale) / scale;
-            if (contentX > x)
+
+            if (FindPart(child, "PART_ExpandCollapseChevron") is { IsVisible: true } arrowBtn
+                && arrowBtn.Bounds.Width > 0
+                && arrowBtn.TranslatePoint(default, this) is { } arrowOrigin)
             {
-                context.FillRectangle(brush, new Rect(x, y, contentX - x, 1));
+                // 文件夹行：展开箭头中心正落在竖线上（线与箭头在上下断开）。
+                // 横线在箭头右边缘与 contentX（图标）之间绘制，在箭头右侧保留 ArrowGap 缝隙，在图标前保留 ArrowGap 缝隙
+                double arrowRight = Math.Ceiling((arrowOrigin.X + arrowBtn.Bounds.Width + ArrowGap) * scale) / scale;
+                double branchEnd = Math.Floor((contentX - ArrowGap) * scale) / scale;
+                if (branchEnd > arrowRight)
+                {
+                    context.FillRectangle(brush, new Rect(arrowRight, y, branchEnd - arrowRight, 1));
+                }
+            }
+            else
+            {
+                // 叶子行：横线穿过隐藏箭头占位直达图标，竖线处引出，至图标前保留 ArrowGap 缝隙
+                double branchStart = x;
+                double branchEnd = Math.Floor((contentX - ArrowGap) * scale) / scale;
+                if (branchEnd > branchStart)
+                {
+                    context.FillRectangle(brush, new Rect(branchStart, y, branchEnd - branchStart, 1));
+                }
             }
         }
     }
@@ -311,24 +383,24 @@ public class KeiTreeLine : Control
         return icon?.TranslatePoint(new Point(icon.Bounds.Width / 2, 0), this);
     }
 
-    // 最左子项的箭头槽（PART_ExpandCollapseChevronContainer）左缘：叶子行的箭头被隐藏但槽仍占位。
-    private double? GetLeftmostArrowSlotLeft(List<TreeViewItem> children)
+    // 最左子项的箭头槽（PART_ExpandCollapseChevronContainer）中心：叶子行的箭头被隐藏但槽仍占位。
+    private double? GetLeftmostArrowSlotCenter(List<TreeViewItem> children)
     {
-        double? leftmost = null;
+        double? leftmostCenter = null;
         foreach (TreeViewItem child in children)
         {
             Control? slot = FindPart(child, "PART_ExpandCollapseChevronContainer");
-            if (slot is not { Bounds.Width: > 0 } || slot.TranslatePoint(default, this) is not { } origin)
+            if (slot is not { Bounds.Width: > 0 } || slot.TranslatePoint(new Point(slot.Bounds.Width / 2, 0), this) is not { } center)
             {
                 continue;
             }
 
-            if (leftmost == null || origin.X < leftmost)
+            if (leftmostCenter == null || center.X < leftmostCenter)
             {
-                leftmost = origin.X;
+                leftmostCenter = center.X;
             }
         }
-        return leftmost;
+        return leftmostCenter;
     }
 
     private static Control? FindPart(TreeViewItem item, string name) => item.GetVisualDescendants()

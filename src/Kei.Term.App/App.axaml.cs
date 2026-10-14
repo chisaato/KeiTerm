@@ -34,6 +34,11 @@ public partial class App : Application
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
+#if DEBUG
+        // F12 连接 Developer Tools。方法在 Avalonia 命名空间，由 AvaloniaUI.DiagnosticsSupport 提供。
+        // 该包在非 Debug 配置下 IncludeAssets=None，Release 编译看不到这个方法，所以调用必须留在 DEBUG 内。
+        this.AttachDeveloperTools();
+#endif
         WireAppMenuHandlers();
     }
 

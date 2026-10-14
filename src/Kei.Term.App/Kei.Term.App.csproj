@@ -20,10 +20,15 @@
     <PackageReference Include="Dock.Avalonia" Version="12.1.0.7" />
     <PackageReference Include="Dock.Avalonia.Themes.Fluent" Version="12.1.0.7" />
     <PackageReference Include="Dock.Model.Mvvm" Version="12.1.0.7" />
+    <!-- 诊断桥仅 Debug 消费。非 Debug 把 IncludeAssets 置为 None，编译与复制都不带走该程序集，避免多 RID 的 Release 发布带上 DevTools。 -->
     <PackageReference Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.3">
       <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
       <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
     </PackageReference>
+    <!-- 官方 XAML 热重载是授权包，无密钥时模块初始化会抛 AvaloniaLicensingException。
+         仅 Debug 且已设置 AvaloniaUILicenseKey（MSBuild 属性或同名环境变量）时引用；密钥由 AvaloniaUI.Licensing 的 targets 写入宿主配置。 -->
+    <PackageReference Include="AvaloniaUI.DiagnosticsSupport.HotReload" Version="1.0.1"
+                      Condition="'$(Configuration)' == 'Debug' AND '$(AvaloniaUILicenseKey)' != ''" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
     <PackageReference Include="RoyalApps.RoyalTerminal.Avalonia" Version="0.6.2" />
