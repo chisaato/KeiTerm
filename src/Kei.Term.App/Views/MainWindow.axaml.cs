@@ -200,7 +200,7 @@ public partial class MainWindow : Window
         }
     }
 
-    // 只有会话树持有焦点时才吃 F2。文本框、下拉、终端聚焦则放过。
+    // 只有会话树持有焦点时才吃快捷键。文本框、下拉、终端聚焦则放过。
     private void Tree_KeyDown(object? sender, KeyEventArgs e)
     {
         if (DataContext is not MainViewModel vm)
@@ -224,18 +224,28 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (e.Key != Key.F2 || !vm.RenameSelectedNodeCommand.CanExecute(null))
-        {
-            return;
-        }
-
         if (!TreeHasFocus() || FocusIsTextInput())
         {
             return;
         }
 
-        e.Handled = true;
-        vm.RenameSelectedNodeCommand.Execute(null);
+        // F2 触发重命名
+        if (e.Key == Key.F2 && vm.RenameSelectedNodeCommand.CanExecute(null))
+        {
+            e.Handled = true;
+            vm.RenameSelectedNodeCommand.Execute(null);
+            return;
+        }
+
+        // Ctrl+D (macOS 为 Cmd+D) 触发复制会话；仅对会话有效，对目录无效
+        if (AppShortcuts.DuplicateSession.Matches(e))
+        {
+            if (vm.SelectedTreeNode is SessionNode && vm.DuplicateSelectedSessionCommand.CanExecute(null))
+            {
+                e.Handled = true;
+                vm.DuplicateSelectedSessionCommand.Execute(null);
+            }
+        }
     }
 
     private void Tree_RenameLostFocus(object? sender, RoutedEventArgs e)

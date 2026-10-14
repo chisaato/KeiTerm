@@ -1898,6 +1898,24 @@ Latin: AaBb CcDd GgYy gypq
   <data name="Tree.Menu.DuplicateSession" xml:space="preserve">
     <value>复制一份会话</value>
   </data>
+  <data name="DuplicateSession.Title" xml:space="preserve">
+    <value>复制会话</value>
+  </data>
+  <data name="DuplicateSession.Name" xml:space="preserve">
+    <value>名称:</value>
+  </data>
+  <data name="DuplicateSession.Hostname" xml:space="preserve">
+    <value>主机名:</value>
+  </data>
+  <data name="DuplicateSession.Port" xml:space="preserve">
+    <value>端口:</value>
+  </data>
+  <data name="DuplicateSession.Confirm" xml:space="preserve">
+    <value>确定</value>
+  </data>
+  <data name="DuplicateSession.Cancel" xml:space="preserve">
+    <value>取消</value>
+  </data>
   <data name="NewTab.Title" xml:space="preserve">
     <value>新标签页</value>
   </data>

@@ -15,12 +15,19 @@ public partial class MainViewModel
     private Task DuplicateSelectedSessionAsync() => Safe.RunAsync(_logger, "复制会话副本", async () =>
     {
         if (SelectedTreeNode is not SessionNode source) return;
+
+        // 收集同级节点，以便按规则提供默认不冲突的命名
+        var siblings = _allNodesCache.Where(node => node.ParentId == source.ParentId).ToList();
+        DuplicateSessionResult? promptResult = await Interaction.PromptDuplicateSessionAsync(source, siblings);
+        if (promptResult == null)
+        {
+            return;
+        }
+
         SessionNode copy = (SessionNode)TreeNodeCloner.DeepClone(source);
-        string baseName = string.Format(Strings.Get("Common.CopySuffix"), source.Name);
-        copy.Name = baseName;
-        int suffix = 2;
-        while (_allNodesCache.Any(node => node.ParentId == source.ParentId && node.Name == copy.Name))
-            copy.Name = $"{baseName} {suffix++}";
+        copy.Name = promptResult.Name;
+        copy.Host = promptResult.Hostname;
+        copy.Port = promptResult.Port;
         copy.SortOrder = _allNodesCache.Where(node => node.ParentId == source.ParentId).Select(node => node.SortOrder).DefaultIfEmpty(0).Max() + 1;
 
         // 身份只复用原引用；独立的端口转发记录必须换 Id，避免编辑副本影响原会话。

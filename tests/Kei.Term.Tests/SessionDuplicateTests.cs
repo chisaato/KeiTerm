@@ -31,7 +31,7 @@ public class SessionDuplicateTests
         SessionNode copy = Assert.IsType<SessionNode>(model.SelectedTreeNode);
         Assert.NotEqual(fixture.Source.Id, copy.Id);
         Assert.Equal(fixture.Source.ParentId, copy.ParentId);
-        Assert.Equal(string.Format(Strings.Get("Common.CopySuffix"), fixture.Source.Name), copy.Name);
+        Assert.Equal("LAN server (1)", copy.Name);
         Assert.Equal("", model.FilterText);
         Assert.Equal(fixture.Source.IdentityId, copy.IdentityId);
         Assert.Equal(fixture.Source.JumpHostSessionId, copy.JumpHostSessionId);

@@ -57,6 +57,7 @@
                         <MenuItem Header="{loc:KeiString Tree.Menu.Edit}"
                                   Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).EditSelectedNodeCommand}"/>
                         <MenuItem Header="{loc:KeiString Tree.Menu.DuplicateSession}"
+                                  InputGesture="{x:Static loc:AppShortcuts.DuplicateSession}"
                                   Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).DuplicateSelectedSessionCommand}"/>
                         <MenuItem Header="{loc:KeiString Tree.Menu.Delete}"
                                   Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).DeleteSelectedNodeCommand}"/>

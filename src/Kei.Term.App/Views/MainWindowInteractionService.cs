@@ -116,6 +116,17 @@ public sealed class MainWindowInteractionService : IInteractionService
             return result;
         });
 
+    public Task<DuplicateSessionResult?> PromptDuplicateSessionAsync(SessionNode source, IReadOnlyList<TreeNodeBase> siblings)
+        => Safe.RunAsync<DuplicateSessionResult?>(_log, "打开复制会话窗口", async () =>
+        {
+            _log.LogInformation("复制会话窗口打开 源={Source}", source.Name);
+            var vm = new DuplicateSessionViewModel(source, siblings);
+            await new DuplicateSessionWindow(vm).ShowDialog(_owner);
+            DuplicateSessionResult? result = vm.IsConfirmed ? vm.ToResult() : null;
+            _log.LogInformation("复制会话窗口关闭 结果={Result}", result != null ? result.Name : "取消");
+            return result;
+        });
+
     private async Task<SessionNode?> PickSessionAsync(SessionPickerRequest request)
     {
         IReadOnlyList<TreeNodeBase> roots = request.Roots.Count > 0

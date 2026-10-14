@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Kei.Term.App.Models;
@@ -43,6 +44,12 @@ public interface IInteractionService
 
     // === 编辑器 ===
     Task<SessionNode?> EditSessionAsync(SessionNode? existing, Guid? parentId, IReadOnlyList<Identity> identities);
+
+    Task<DuplicateSessionResult?> PromptDuplicateSessionAsync(SessionNode source, IReadOnlyList<TreeNodeBase> siblings)
+    {
+        string name = DuplicateSessionViewModel.GenerateDefaultName(source.Name, siblings.Select(s => s.Name));
+        return Task.FromResult<DuplicateSessionResult?>(new(name, source.Host, source.Port ?? 22));
+    }
 
     // 会话编辑确认后待写入的端口转发。默认空，测试替身不用实现。
     IReadOnlyList<PortForward> TakePendingForwards() => [];
