@@ -75,3 +75,17 @@ var d = XXX
 - 长链式方法后无法准确推断类型时
 - Lambda式链式调用的返回值接收器. (即无法轻松推导)
 - 包含有泛型或类型参数等,可能导致类型表示过场且包裹时
+
+## Agent skills
+
+### Issue tracker
+
+Issues live as markdown files under `.scratch/<feature>/`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Five roles, label string equals the role name: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: one `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
