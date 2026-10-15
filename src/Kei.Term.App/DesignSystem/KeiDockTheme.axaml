@@ -36,6 +36,11 @@
         </ResourceDictionary>
     </Styles.Resources>
 
+    <!-- 横向滚动视口占满标签栏；按内容宽度左停靠会在动态新增标签后保留旧的裁剪宽度。 -->
+    <Style Selector="dc|DocumentTabStrip[Orientation=Horizontal] /template/ Panel#PART_Panel">
+        <Setter Property="DockPanel.Dock" Value="Top" />
+    </Style>
+
     <!-- 底部标签栏穿透覆盖：当 DockControl 带有 .tabs-bottom class 时，命中文档控件内的 TabStrip 与分割线并停靠至底部 -->
     <Style Selector="dc|DockControl.tabs-bottom dc|DocumentControl /template/ dc|DocumentTabStrip#PART_TabStrip">
         <Setter Property="DockPanel.Dock" Value="Bottom" />
@@ -61,8 +66,26 @@
         <Setter Property="Height" Value="{DynamicResource Kei.Tab.Height}" />
         <Setter Property="Padding" Value="6,2" />
         <Setter Property="Margin" Value="0,0,2,0" />
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.TabInactive}" />
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Secondary}" />
+        <!-- 所有标签预留相同的指示线空间，切换时标题和关闭按钮不会跳动。 -->
+        <Setter Property="BorderThickness" Value="0,2,0,0" />
+        <Setter Property="BorderBrush" Value="Transparent" />
         <!-- 业务菜单来自 typed header，由工作区将其转接至整片标签。 -->
         <Setter Property="DocumentContextMenu" Value="{x:Null}" />
+    </Style>
+
+    <Style Selector="dc|DocumentTabStripItem:selected">
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.PanelAlt}" />
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Accent}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="dc|DocumentTabStripItem:pointerover:not(:selected)">
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}" />
+    </Style>
+    <Style Selector="dc|DockControl.tabs-bottom dc|DocumentTabStripItem">
+        <Setter Property="BorderThickness" Value="0,0,0,2" />
     </Style>
 
     <!-- 标签关闭按钮：移除复古凸起边框与实体背景，提供 24×24px 充裕易点热区与微圆角悬停底色 -->
@@ -95,6 +118,10 @@
     <!-- 内容表面不画整圈边框；标签栏与分屏分割条继续提供层级边界。 -->
     <Style Selector="dc|DocumentControl /template/ Border#PART_Border">
         <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <!-- 分隔线保持中性，强调色只跟随所选标签。 -->
+    <Style Selector="dc|DocumentControl:active /template/ Panel#PART_DocumentSeperator">
+        <Setter Property="Background" Value="{DynamicResource Kei.Border.Subtle}" />
     </Style>
 
     <!-- 覆盖 DocumentControl 的 CloseTemplate，彻底使用自己的 Path 与 Lucide 图标，避免上游 Path.Styles 遮蔽 -->
@@ -155,6 +182,23 @@
         <Setter Property="Stroke" Value="{DynamicResource Kei.Status.Error}" />
     </Style>
 
+    <!-- 连接标签共用尺寸与状态标记，类型由 Lucide 图标区分。 -->
+    <Style Selector="Viewbox.workspaceTabIcon">
+        <Setter Property="Width" Value="16"/>
+        <Setter Property="Height" Value="16"/>
+        <Setter Property="Stretch" Value="Uniform"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Border.workspaceTabState">
+        <Setter Property="Width" Value="3"/>
+        <Setter Property="Height" Value="14"/>
+        <Setter Property="CornerRadius" Value="1"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="dc|DocumentTabStripItem:selected Path.workspaceTabKind">
+        <Setter Property="Stroke" Value="{DynamicResource Kei.Text.Primary}"/>
+    </Style>
+
     <!-- 混合工作区的标题按 VM 分发，保留连接状态与原有业务菜单。 -->
     <Style Selector="dc|DocumentControl">
         <Setter Property="HeaderTemplate">
@@ -179,8 +223,16 @@
                                     </ContextMenu>
                                 </Grid.ContextMenu>
                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <Border Width="3" Height="14" CornerRadius="1" VerticalAlignment="Center"
+                                    <Border x:Name="ConnectionStateIndicator" Classes="workspaceTabState"
                                             Background="{Binding State, Converter={StaticResource ConnectionStateBrush}}"/>
+                                    <Viewbox Classes="workspaceTabIcon">
+                                        <Grid Width="24" Height="24">
+                                            <Path x:Name="TerminalKindIcon" Classes="kei-icon workspaceTabKind" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Terminal}"
+                                                  IsVisible="{Binding IsShellVisible}"/>
+                                            <Path x:Name="FileManagerKindIcon" Classes="kei-icon workspaceTabKind" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Folder}"
+                                                  IsVisible="{Binding !IsShellVisible}"/>
+                                        </Grid>
+                                    </Viewbox>
                                     <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontSize="12"
                                                MaxWidth="200" TextTrimming="CharacterEllipsis"/>
                                     <Ellipse Width="6" Height="6" VerticalAlignment="Center" Fill="{DynamicResource Kei.Accent}"
@@ -196,9 +248,11 @@
                                     </ContextMenu>
                                 </Grid.ContextMenu>
                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <Viewbox Width="16" Height="16" Stretch="Uniform" VerticalAlignment="Center">
+                                    <Border x:Name="ConnectionStateIndicator" Classes="workspaceTabState"
+                                            Background="{Binding Owner.State, Converter={StaticResource ConnectionStateBrush}}"/>
+                                    <Viewbox Classes="workspaceTabIcon">
                                         <Grid Width="24" Height="24">
-                                            <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Folder}"/>
+                                            <Path x:Name="FileManagerKindIcon" Classes="kei-icon workspaceTabKind" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Folder}"/>
                                         </Grid>
                                     </Viewbox>
                                     <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontSize="12"
@@ -216,9 +270,9 @@
                                     </ContextMenu>
                                 </Grid.ContextMenu>
                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Viewbox Classes="workspaceTabIcon">
                                         <Grid Width="24" Height="24">
-                                            <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Terminal}"/>
+                                            <Path Classes="kei-icon workspaceTabKind" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Terminal}"/>
                                         </Grid>
                                     </Viewbox>
                                     <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontSize="12"

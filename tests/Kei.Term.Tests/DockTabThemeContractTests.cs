@@ -25,7 +25,7 @@ using AvaloniaPath = Avalonia.Controls.Shapes.Path;
 namespace Kei.Term.Tests;
 
 // 验证 Dock 标签关闭按钮的悬停/按下描边，以及关闭指定标签后相邻标签仍在。
-public sealed class DockTabThemeContractTests
+public sealed partial class DockTabThemeContractTests
 {
     [Fact]
     public Task TabControl_RendersModernCloseButton_With24HitBoxAndCharacterEllipsis() => HeadlessAvalonia.RunAsync(async () =>
