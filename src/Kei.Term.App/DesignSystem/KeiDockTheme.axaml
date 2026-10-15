@@ -36,6 +36,11 @@
         </ResourceDictionary>
     </Styles.Resources>
 
+    <!-- 横向滚动视口占满标签栏；按内容宽度左停靠会在动态新增标签后保留旧的裁剪宽度。 -->
+    <Style Selector="dc|DocumentTabStrip[Orientation=Horizontal] /template/ Panel#PART_Panel">
+        <Setter Property="DockPanel.Dock" Value="Top" />
+    </Style>
+
     <!-- 底部标签栏穿透覆盖：当 DockControl 带有 .tabs-bottom class 时，命中文档控件内的 TabStrip 与分割线并停靠至底部 -->
     <Style Selector="dc|DockControl.tabs-bottom dc|DocumentControl /template/ dc|DocumentTabStrip#PART_TabStrip">
         <Setter Property="DockPanel.Dock" Value="Bottom" />
@@ -61,8 +66,26 @@
         <Setter Property="Height" Value="{DynamicResource Kei.Tab.Height}" />
         <Setter Property="Padding" Value="6,2" />
         <Setter Property="Margin" Value="0,0,2,0" />
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.TabInactive}" />
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Secondary}" />
+        <!-- 所有标签预留相同的指示线空间，切换时标题和关闭按钮不会跳动。 -->
+        <Setter Property="BorderThickness" Value="0,2,0,0" />
+        <Setter Property="BorderBrush" Value="Transparent" />
         <!-- 业务菜单来自 typed header，由工作区将其转接至整片标签。 -->
         <Setter Property="DocumentContextMenu" Value="{x:Null}" />
+    </Style>
+
+    <Style Selector="dc|DocumentTabStripItem:selected">
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.PanelAlt}" />
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Accent}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="dc|DocumentTabStripItem:pointerover:not(:selected)">
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}" />
+    </Style>
+    <Style Selector="dc|DockControl.tabs-bottom dc|DocumentTabStripItem">
+        <Setter Property="BorderThickness" Value="0,0,0,2" />
     </Style>
 
     <!-- 标签关闭按钮：移除复古凸起边框与实体背景，提供 24×24px 充裕易点热区与微圆角悬停底色 -->
@@ -95,6 +118,10 @@
     <!-- 内容表面不画整圈边框；标签栏与分屏分割条继续提供层级边界。 -->
     <Style Selector="dc|DocumentControl /template/ Border#PART_Border">
         <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <!-- 分隔线保持中性，强调色只跟随所选标签。 -->
+    <Style Selector="dc|DocumentControl:active /template/ Panel#PART_DocumentSeperator">
+        <Setter Property="Background" Value="{DynamicResource Kei.Border.Subtle}" />
     </Style>
 
     <!-- 覆盖 DocumentControl 的 CloseTemplate，彻底使用自己的 Path 与 Lucide 图标，避免上游 Path.Styles 遮蔽 -->
