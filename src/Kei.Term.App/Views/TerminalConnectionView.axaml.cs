@@ -268,6 +268,9 @@ public partial class TerminalConnectionView : UserControl
             return;
         }
 
+        // 菜单关闭会恢复旧控件的焦点；已被同组新文档替换的视图不能反向激活旧页。
+        if (this.FindAncestorOfType<TerminalWorkspaceView>() is { } workspace && !workspace.IsItemPresented(tab)) return;
+
         // 记录内部文档；点击标题栏或文件列表也有效，不依赖编辑控件是否获得焦点。
         if (source != null)
         {

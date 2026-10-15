@@ -23,7 +23,7 @@
 | 256 色 / true color | ✅ 16–255 走 xterm 色立方；真彩色不另写解析器。见 [终端日常](./superpowers/specs/2026-10-01-terminal-daily-design.md) |
 | 关键字高亮 | ✅ error / fail / IP / URL，规则在 Core。见 [终端日常](./superpowers/specs/2026-10-01-terminal-daily-design.md) |
 | 本地 Shell / 串口 / Telnet | RoyalTerminal 已有传输层。每种协议一个 `ITerminalSessionProvider`，见 [10 §6](./design/10-refactor-plan.md) |
-| 目录跟随 | 开关已有，跟随行为还没做。只收 OSC 7 和 tmux 标题，见 [09](./design/09-cwd-tracking.md) |
+| 目录跟随 | 已接入自动跟随与手动同步；支持 OSC 7、tmux / GNU Screen（含 Byobu）标题兼容、全局默认与会话覆盖，见 [09](./design/09-cwd-tracking.md) |
 | 命令块 | RoyalTerminal 已解析 OSC 133 |
 | 会话录制 | asciicast v2 |
 | 命令片段与广播 | 撰写栏扩展 |

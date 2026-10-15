@@ -369,12 +369,14 @@
         <Setter Property="Stroke" Value="{DynamicResource Kei.Text.Muted}"/>
     </Style>
 
-    <!-- 侧栏固定按钮以底色与图标强调表示已固定。 -->
+    <!-- 固定状态通过中性底色与描边表达，图标保持与其他工具栏操作相同的文字色。 -->
     <Style Selector="Button.iconBtn.sessionManagerPin.pinned">
         <Setter Property="Background" Value="{DynamicResource Kei.Bg.Pressed}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Text.Muted}"/>
+        <Setter Property="BorderThickness" Value="1"/>
     </Style>
     <Style Selector="Button.iconBtn.sessionManagerPin.pinned Path.kei-icon">
-        <Setter Property="Stroke" Value="{DynamicResource Kei.Accent}"/>
+        <Setter Property="Stroke" Value="{DynamicResource Kei.Text.Primary}"/>
     </Style>
 
     <Style Selector="Button.danger">

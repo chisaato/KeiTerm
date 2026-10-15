@@ -1,188 +1,99 @@
-# 09 - 跟随终端当前目录（CWD Tracking）设计草案
+# 09 - 跟随终端当前目录
 
-> 状态：方向已定（2026-09-29，见 §0）。§5 第 0 步（全局设置 + 会话覆盖 + 批量修改）已落地，见 [12](./12-terminal-host-and-session-options.md)；
-> 跟随行为本身（第 1–2 步）排在 `RemoteFileManagerViewModel` 拆分之后。本文先讲清楚原理，再给出方案。
-> 文中 tmux 行为均为在 tmux 3.4 + zsh 5.9 上的**实测结果**（实验脚本见 §7）。
+> 已实现：OSC 7 目录上报、复用器标题兼容、自动跟随与手动同步。
+> 不安装远端 helper，不修改远端 shell 或复用器配置；以下片段由用户自行选择配置。
 
----
+## 设置入口与优先级
 
-## 0. 已定决策
+- **设置 → 文件传输 → 文件管理**：设置新连接的全局默认。
+- **会话属性 → 会话行为**：目录跟随和多路复用器兼容都可以“继承全局”，或覆盖本会话。
+- **文件管理面板顶部 → 同步终端目录**：仅执行一次导航，不修改任何策略。没有收到可信目录时不可用；自动跟随关闭时仍可使用。
 
-1. **三种模式：关闭 / 打开时同步一次 / 永远跟随；全局设置 + 会话级覆盖（继承 / 三选一），全局默认关闭。**
+配置按 **会话覆盖 → 全局默认** 解析，连接时生效，重连重新解析。会话覆盖存入已有 `options_json`，不新增表或修改旧迁移。
 
-   | 模式 | 行为 |
-   |---|---|
-   | 关闭 | 从不自动导航；仍可手动点「跳到终端所在目录」 |
-   | 打开时同步一次 | **本次连接中第一次打开文件侧栏**时导航到终端当前目录，之后不再跟随：终端里继续 `cd`、关掉侧栏再打开，都不会再自动跳转 |
-   | 永远跟随 | 侧栏打开期间，终端每次换目录都导航过去——包括用户在侧栏里手动去了别处之后；关掉再打开侧栏时也先同步到终端当前目录 |
-2. **只做被动接收，不往服务器安装或写入任何东西**：不做远端 helper，不自动写 `~/.zshrc`，不提供可编辑的标题正则。
-   信号源只有两个：OSC 7（用户自己配置了 shell 集成时）与 tmux 标题内置格式（§2 方案 C，一行 `.tmux.conf`）。文档中给出可复制的配置片段即可。
-3. 定位为「文件侧栏与终端同窗」时的便利功能，而非核心卖点——Xshell / SecureCRT 的双窗口形态本就不需要它，
-   MobaXterm 的同类功能在 tmux 下也长期失效，用户对它的依赖度低。
-
-### 0.1 要不要像 Warp / Wave 那样在服务器上装一个小工具？
-
-**不做，并把「零远端安装（agentless）」作为设计原则写入路线图。** 理由：
-
-| 考量 | 说明 |
+| 目录跟随 | 行为 |
 |---|---|
-| 目标用户的服务器环境 | 生产机普遍有变更审计 / 基线扫描，往上面放未知二进制常被禁止；而 Xshell / SecureCRT 用户恰恰大量管理这类机器 |
-| 覆盖面 | 需为 x86_64 / arm64 / musl / 旧 glibc / AIX / BusyBox 各自构建；网络设备、跳板堡垒机根本不能装 |
-| 维护成本 | 版本协商、自动升级、残留清理、多用户共享目录的权限 |
-| 攻击面 | 远端常驻组件即新的提权 / 供应链风险点 |
-| 收益 | 就目录跟随而言收益很低（见决策 3） |
+| 关闭（默认） | 不自动导航，仍记录有效目录供手动同步 |
+| 打开时同步一次 | 每次连接第一次打开文件面板时同步；尚无目录时等待第一个信号，关闭再打开不重复 |
+| 永远跟随 | 面板可见时跟随目录变化；重新打开时同步到最近目录 |
 
-真正需要远端信息的功能（如轻量系统监控、远端文件搜索），优先走 **SSH exec 通道执行 POSIX 命令**（`cat /proc/loadavg`、`df -P` 等），
-与 XPipe 的思路一致：零安装、用完即走、审计日志里就是普通命令。只有当某个功能被证明无法用这种方式完成、且收益足够大时，才重新评估远端组件，
-且必须是可选、可一键清除的。
+| 多路复用器兼容 | 接受的信号 |
+|---|---|
+| 关闭 | 仅标准 OSC 7 目录上报 |
+| 自动检测（默认） | OSC 7、tmux / Screen 带标记标题、内置 `host:/absolute/path` / `user@host: /absolute/path` 标题 |
+| tmux（含 Byobu） | OSC 7、tmux 带标记标题、内置标题；不采用 Screen 带标记标题 |
+| GNU Screen（含 Byobu） | OSC 7、Screen 带标记标题、内置标题；不采用 tmux 带标记标题 |
 
----
+自动检测基于收到的信号，不扫描远端进程、不猜测 Byobu 后端，也不会自动配置远端。Byobu 使用 tmux 或 GNU Screen，可用 `byobu-select-backend` 查看或切换。
 
-## 1. 背景知识：终端是怎么"知道"目录的
+## 普通 shell：OSC 7
 
-终端（KeiTerm、MobaXterm、iTerm2……）只看得到一条字节流：远端程序往 PTY 写什么，终端就收到什么。
-终端**无法**直接问远端 shell"你现在在哪个目录"——SSH 协议里没有这个概念。
-所以只有两条路：
+终端无法通过 SSH 协议直接取得交互式 shell 的工作目录。远端需要通过 OSC 7 或含目录的标题报告目录。
 
-1. **远端主动告诉终端**：shell 在每次显示提示符前，往输出里夹带一段"不可见的控制序列"，终端解析后不显示，只拿来更新状态。
-2. **终端另开通道去问**：通过 SSH exec 通道执行命令（如读 `/proc/<pid>/cwd`），但这需要知道是哪个进程，比较脆弱。
-
-### 1.1 什么是 OSC
-
-控制序列里有一类叫 **OSC（Operating System Command）**，格式是：
-
-```
-ESC ] <编号> ; <内容> BEL          即字节  1B 5D ... 07
-ESC ] <编号> ; <内容> ESC \        另一种结束符（ST）
-```
-
-常见编号：
-
-| 序列 | 含义 | 谁在用 |
-|---|---|---|
-| `OSC 0` / `OSC 2` | 设置窗口/标签标题 | 几乎所有 shell 与 tmux |
-| `OSC 7;file://主机/路径` | **报告当前目录**（含主机名） | macOS Terminal、VTE、WezTerm、kitty、fish 默认发送 |
-| `OSC 133;A/B/C/D` | 语义提示符：提示符开始 / 输入开始 / 命令输出开始 / 命令结束（带退出码） | FinalTerm 协议，iTerm2/kitty/WezTerm/VS Code 支持 |
-| `OSC 633;…` | VS Code 私有的 shell 集成 | VS Code |
-| `OSC 1337;CurrentDir=…` | iTerm2 私有 | iTerm2 |
-| `OSC 9;9;路径` | ConEmu / Windows Terminal | Windows |
-
-shell 要发出这些序列，需要一段"hook"：zsh 的 `precmd`、bash 的 `PROMPT_COMMAND`、fish 默认内置。例如 zsh：
+zsh 示例（普通 shell；`PWD` 中有百分号、空格或非 ASCII 字符时应采用能正确进行 URI 编码的既有 shell 集成）：
 
 ```zsh
-precmd() { printf '\033]7;file://%s%s\007' "$HOST" "$PWD" }
+__kei_osc7() { printf '\033]7;file://%s%s\007' "$HOST" "$PWD" }
+autoload -Uz add-zsh-hook
+add-zsh-hook precmd __kei_osc7
 ```
 
-### 1.2 我们手上已经有什么
+OSC 7 由 RoyalTerminal 解析，不从可见提示符文本猜测目录。标准 URI 中的百分号编码由终端库解码。
 
-RoyalTerminal 已内置解析，**不需要自己写 OSC 解析器**（已用反射实测）：
+## tmux / Byobu 的 tmux 后端
 
-| 输入 | `TerminalControl.ShellIntegrationEventReceived` 事件 |
-|---|---|
-| `OSC 7;file://myhost/home/me/src` | `WorkingDirectoryChanged`，`WorkingDirectory=/home/me/src`，`Host=myhost` |
-| `OSC 133;A` / `B` / `C` / `D;0` | `FreshLineNewPrompt` / `InputStarted` / `OutputStarted` / `CommandFinished`（`ExitCode=0`） |
-| `OSC 633`、`OSC 1337`、`OSC 9;9`、标题里的路径 | **不识别** |
-
-另有 `TerminalControl.TitleChanged`（标题），以及 `SshShellBootstrapCommandBuilder` 可生成 bash/zsh/fish/PowerShell 的 hook 脚本（同时发 OSC 7 与 OSC 133）。
-
----
-
-## 2. 为什么 tmux + zsh 下会失效（实测）
-
-tmux 自己就是一个终端：pane 里的 zsh 发出的 OSC 7 被 **tmux 接收并消化**，不会转发给外层（KeiTerm / MobaXterm）。
-实测三种配置下外层终端收到的内容：
-
-| 配置 | 外层收到的 cwd 信号 |
-|---|---|
-| A. tmux 默认 + zsh 发原生 OSC 7 | **无**（这就是 MobaXterm 等工具在 tmux 里失效的典型原因） |
-| B. `set -g allow-passthrough on` + zsh 用 DCS 包装 OSC 7（`ESC P tmux; …ESC 加倍… ESC \`） | `OSC 7;file://vm/etc` ✅ |
-| C. `set -g set-titles on` + `set -g set-titles-string '#{host}:#{pane_current_path}'`（zsh 无需任何 hook） | 标题 `vm:/etc`、`vm:/usr/share` ✅；默认 `status-interval 15` 下，`cd` 后 0.8 秒内即更新 |
-
-两者的区别：
-
-- **B（透传）**：每个 pane 的 shell 各自发，外层收到的是"**最后打印提示符的那个 pane**"的目录，不一定是你正在看的 pane；需要 tmux ≥ 3.3 且改 `.tmux.conf` 和 shell 配置两处。
-- **C（标题）**：tmux 自己读取**当前活动 pane** 进程的 cwd，切 pane / 切窗口时也会刷新，**不依赖 shell hook**；只改 `.tmux.conf` 一处。
-  缺点：若在 pane 里又 `ssh` 到别的机器，`pane_current_path` 是本机 ssh 客户端进程所在目录（错的）——可在格式串里带上 `#{pane_current_command}`，为 `ssh`/`mosh` 时不跟随。
-
----
-
-## 3. 方案：分层信号源 + 统一的"目录跟踪器"
-
-```
-TerminalControl.ShellIntegrationEventReceived (OSC 7) ─┐
-TerminalControl.TitleChanged（按规则解析标题）  ───────┼──► CwdTracker（Core，纯逻辑） ──► 文件侧栏 Navigate
-（可选）exec 通道查询 tmux / /proc                ───────┘        │
-                                                                   └── 主机校验 / 去抖 / 置信度
-```
-
-### 3.1 信号源优先级
-
-1. **OSC 7**（最准确，含主机名）。
-2. **标题解析**（tmux 方案 C，以及 Debian/Ubuntu 默认 bash 标题 `user@host: ~/dir`）；规则可配置为正则，默认内置 2～3 条。
-3. **手动**：文件侧栏按钮「跳到终端所在目录」（使用最近一次已知目录），以及反向「在终端中 cd 到此目录」——
-   只在 OSC 133 表明**处于提示符状态**时才发送 `cd '<路径>'\r`，避免把命令敲进 vim 之类的全屏程序。
-
-### 3.2 主机校验（关键正确性）
-
-文件侧栏的 SFTP 连的是**会话登录的那台机器**。用户在终端里再 `ssh` 到另一台时，OSC 7 / 标题里的主机名会变，此时**必须停止跟随**，
-否则侧栏会在错误的机器上打开同名路径。做法：连接后记录远端 `hostname`（首个 OSC 7 或一次 exec），之后仅接受同主机的目录信号，
-主机不同时在侧栏显示「终端当前在 xxx 上，已暂停跟随」。
-
-### 3.3 远端如何发出信号
-
-按 §0 决策，Kei 不修改远端。文档提供两段可复制的配置，用户自行决定是否使用：
-
-```zsh
-# ~/.zshrc：发 OSC 7；在 tmux 内自动用透传包装（需 tmux ≥ 3.3 且 set -g allow-passthrough on）
-# 已在 zsh 5.9 + tmux 3.4 实测：外层终端收到 OSC 7;file://<host>/<cwd>
-__kei_osc7() {
-  local esc=$'\e' bel=$'\a'
-  local seq="${esc}]7;file://${HOST}${PWD}${bel}"
-  # tmux 透传：ESC P tmux; <原序列中每个 ESC 加倍> ESC \
-  [[ -n $TMUX ]] && seq="${esc}Ptmux;${seq//${esc}/${esc}${esc}}${esc}\\"
-  printf '%s' "$seq"
-}
-autoload -Uz add-zsh-hook && add-zsh-hook precmd __kei_osc7
-```
+tmux 默认会消费 pane 内 shell 的 OSC 7，外层终端未必收到。推荐使用活动 pane 的标题报告，写入 `~/.tmux.conf`；Byobu 用户把同样设置放入自己加载的 tmux 用户配置（通常是 `~/.byobu/.tmux.conf`）。
 
 ```tmux
-# ~/.tmux.conf：tmux 用户只需这两行，shell 无需任何配置（推荐）
+set -g set-titles on
+set -g set-titles-string 'kei;tmux;#{host};#{pane_current_command};#{pane_current_path}'
+```
+
+在已有会话里加载相应配置，或重启/重新进入复用器。设置只对实际加载了该配置的 tmux server 生效。
+
+该格式包含当前活动 pane 的主机、前台命令与完整绝对路径。`ssh`、`mosh`、`mosh-client` 或 `telnet` 作为前台命令时暂停采用外层 pane 的目录，避免把内层远端目录映射到外层 SFTP。
+
+也兼容旧配置：
+
+```tmux
 set -g set-titles on
 set -g set-titles-string '#{host}:#{pane_current_path}'
 ```
 
-## 4. 已决问题
+旧格式没有前台命令，无法判断 pane 中的嵌套 SSH，建议使用带标记格式。标题会参与现有标签标题跟随；若不希望显示这段标题，可关闭会话的“标签标题跟随远端”。
 
-| 问题 | 决定 |
-|---|---|
-| 默认是否开启 | 全局默认关；会话可覆盖（继承 / 关闭 / 打开时同步一次 / 永远跟随） |
-| 片段是否一键写入远端 | 否，只在文档/设置页提供复制 |
-| 标题规则是否可编辑 | 否，只内置 `host:path` 与 Debian 默认 `user@host: path` 两种格式 |
-| 立即导航还是提示 | 开启即立即导航（用户已显式开启），300 ms 去抖并取消在途列目录请求 |
-| 「同步一次」时终端还没报告过目录 | 侧栏先按默认目录打开，等到本次连接的**第一个**目录信号到达时导航一次，随后停止（仍只算一次） |
-| 侧栏未打开时收到的信号 | 所有模式都只记录「最近一次终端目录」，不做导航；供打开侧栏或手动跳转时使用 |
+另一条路是 tmux `allow-passthrough` 配合 shell 的 DCS 包装。复用器解包后，KeiTerm 接收的是普通 OSC 7，不必在 KeiTerm 再次解包。该方案可能收到其他可见 pane 的上报，因此活动 pane 的标题方案优先。
 
-## 5. 实施拆分（排在连接流程拆分之后）
+## GNU Screen / Byobu 的 Screen 后端
 
-0. ✅ 设置：`enum CwdFollowMode { Off, OnceOnOpen, Always }`；`AppSettings.CwdFollowMode`（默认 Off）+ `SessionOverrides.CwdFollow`（可空，null = 继承，存 `options_json`），解析结果为 `ResolvedSessionConfig.CwdFollow`。
-   跟随判定为 Core 纯函数（输入：模式、侧栏是否打开、本连接是否已同步过、信号），「一次」状态挂在单个连接/标签上，重连新会话时重置。
-1. Core：`CwdTracker`（输入信号 → 输出"可信目录 + 主机"），含主机校验、去抖、两种内置标题格式解析；纯逻辑、可单测。
-2. App：`TerminalTabViewModel` 订阅 `ShellIntegrationEventReceived` / `TitleChanged` 喂给 tracker；`RemoteFileManagerViewModel` 增加跟随开关与「跳到终端目录」。
-3. 文档：§3.3 两段配置放进设置页的「如何让远端报告目录」说明里。
-4. 同一套 OSC 133 事件顺带支撑：命令块跳转、「上一条命令输出」复制、命令耗时/退出码标记。
+Screen 不提供与 `pane_current_path` 等价的标题变量，需由 shell 在提示符时报告。以下 zsh hook 把含主机和目录的标题经 Screen DCS 透传给外层终端；在 KeiTerm 选择自动检测或 GNU Screen：
 
-## 6. 与 MobaXterm 的差异
-
-MobaXterm 的具体实现未公开，这里不做推断；可以确定的是，任何"shell 发序列、终端收"的方案在 tmux 默认配置下都会失效（§2 实验 A）。
-本方案的区别在于：同时接受标题与透传两条 tmux 友好的路径，并对主机做校验。
-
-## 7. 实验脚本
-
-```bash
-# 外层"终端"用 script 录下 tmux 客户端输出的全部字节，再从中提取 OSC 序列
-sleep 60 | script -qfc "tmux -L kt attach -t s" out.bin &
-tmux -L kt send-keys -t s "cd /etc" Enter
-tmux -L kt set -g allow-passthrough on                 # 方案 B
-tmux -L kt set -g set-titles on                        # 方案 C
-tmux -L kt set -g set-titles-string '#{host}:#{pane_current_path}'
+```zsh
+__kei_screen_cwd() {
+  [[ -n $STY && -z $TMUX ]] || return
+  printf '\033P\033]2;kei;screen;%s;%s\007\033\\' "$HOST" "$PWD"
+}
+autoload -Uz add-zsh-hook
+add-zsh-hook precmd __kei_screen_cwd
 ```
+
+路径按标题原文传递，支持空格、中文、冒号与分号，不做 URI 解码。这个 hook 应仅在实际运行 Screen 的外层服务器配置，不能把另一个 SSH 目标的目录当作当前 SFTP 目录。
+
+**限制**：Screen 透传报告来自最后一次输出提示符的 shell；切窗口本身不一定重发，多个可见 region 也可能交错上报。切换后显示新提示符再同步。此方案不能保证像 tmux 的活动 pane 标题一样精确识别当前 region；单独选择 Screen 也不会消除这一限制。
+
+## 跟随与生命周期
+
+- 仅接受无控制字符的绝对路径，不展开 `~`，不把普通命令输出当路径。
+- 首个有效报告的主机名是本连接的基准，允许同主机短名称/FQDN；此后遇到其他主机则清空可同步目录并暂停，原主机重新上报后恢复。IP 登录、SSH 别名与远端 hostname 不必一致。若连接首次上报就来自嵌套 SSH，单靠被动信号无法确认外层主机；应在外层提示符先上报一次。
+- 最近一次有效信号更新目录。复用器未转发新信号时无法凭空推断目录；手动同步也只使用最近报告。
+- 自动导航 300 ms 去抖；后续信号取消旧导航和列目录请求。即便远端忽略取消，迟到结果也不能覆盖新目录列表。
+- 隐藏面板停止自动导航但保留最近目录。断开、关闭和重连会取消在途跟随；新连接清空主机基准和“一次同步”状态。
+- 文件系统通道仍经现有 `SshDialer` 创建，目录跟随不额外创建连接或向交互式终端注入命令。
+
+## 实现与验证
+
+Core `TerminalDirectoryTracker` 负责路径校验、主机基准和内置标题解析。App `TerminalTabViewModel.DirectoryFollow` 接收 OSC 7 / 标题并协调跟随；文件管理器统一处理导航取消和迟到结果。
+
+测试覆盖真实终端控件输出解析、手动按钮、跟随模式、重连、错误主机、两种复用器信号、设置与会话覆盖持久化，以及列目录响应乱序。Headless 信号测试不等同于所有版本的 Byobu/tmux/Screen 实机测试。
+
+参考：[tmux 官方手册](https://man.openbsd.org/tmux.1)（`set-titles-string`、`allow-passthrough`）、[GNU Screen 手册](https://www.gnu.org/software/screen/manual/screen.html)（Control Sequences / DCS）、[Byobu 源码](https://github.com/dustinkirkland/byobu)（后端与用户配置）。

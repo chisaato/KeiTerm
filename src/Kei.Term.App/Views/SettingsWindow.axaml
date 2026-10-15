@@ -144,6 +144,20 @@
                                                 <TextBlock Grid.Row="2" Grid.ColumnSpan="3" Text="{Binding CommandPaletteShortcutError}"
                                                            FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource Kei.Status.Error}"/>
                                             </Grid>
+                                            <Grid ColumnDefinitions="150,*" ColumnSpacing="8" RowDefinitions="Auto,Auto" RowSpacing="8">
+                                                <TextBlock Text="{loc:KeiString Settings.General.TabNavigationModifier}" VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                                <ComboBox Grid.Column="1" ItemsSource="{Binding TabNavigationModifiers}"
+                                                          SelectedItem="{Binding SelectedTabNavigationModifier}" HorizontalAlignment="Stretch">
+                                                    <ComboBox.ItemTemplate>
+                                                        <DataTemplate x:DataType="settings:TabNavigationModifierOption">
+                                                            <TextBlock Text="{Binding Label}"/>
+                                                        </DataTemplate>
+                                                    </ComboBox.ItemTemplate>
+                                                </ComboBox>
+                                                <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding TabNavigationShortcutDescription}"
+                                                           TextWrapping="Wrap" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                            </Grid>
                                             <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="6">
                                                 <TextBlock Grid.Row="0" Text="{loc:KeiString Menu.File.NewSession}" FontSize="12" Foreground="{DynamicResource Kei.Text.Secondary}"/>
                                                 <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding NewSessionShortcutLabel}" FontSize="12" Foreground="{DynamicResource Kei.Text.Primary}"/>
@@ -610,8 +624,6 @@
                             <DataTemplate DataType="settings:TabBarSettingsProxyPage"
                                           x:DataType="settings:TabBarSettingsProxyPage">
                                 <StackPanel MaxWidth="760" HorizontalAlignment="Stretch" Spacing="12">
-                                    <TextBlock Text="{loc:KeiString Settings.Categories.TabBarPageDescription}" FontSize="12" TextWrapping="Wrap"
-                                               Foreground="{DynamicResource Kei.Text.Secondary}" Margin="0,0,0,6"/>
                                     <Border Classes="settingsSection first">
                                         <StackPanel Spacing="8" DataContext="{Binding Appearance}">
                                             <TextBlock Text="{loc:KeiString Settings.Appearance.TabBarSection}" FontSize="13" FontWeight="SemiBold"
@@ -635,11 +647,42 @@
                                     <Border Classes="settingsSection" x:Name="TabTitleBehaviorSection">
                                         <StackPanel Spacing="8">
                                             <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.TabBar.TitleSection}"/>
-                                            <CheckBox x:Name="TabTitleFollowsRemoteCheckBox" IsChecked="{Binding Terminal.TabTitleFollowsRemote}"
-                                                      Content="{loc:KeiString Settings.Terminal.TabTitleFollowsRemote}"
-                                                      ToolTip.Tip="{loc:KeiString Settings.Terminal.TabTitleFollowsRemoteTip}"/>
-                                            <TextBlock Text="{loc:KeiString Settings.Terminal.SessionOverrideHint}" FontSize="12" TextWrapping="Wrap"
+                                            <TextBox x:Name="TabTitleTemplateInput" Text="{Binding Terminal.TabTitleTemplate}"
+                                                     MaxLength="512" PlaceholderText="{loc:KeiString Settings.TabBar.TemplateExample}"/>
+                                            <TextBlock Text="{loc:KeiString Settings.TabBar.TemplateHint}" FontSize="12" TextWrapping="Wrap"
                                                        Foreground="{DynamicResource Kei.Text.Muted}"/>
+                                            <TextBlock x:Name="TabTitleTemplateError" Text="{Binding Terminal.TitleTemplateError}"
+                                                       IsVisible="{Binding Terminal.HasTitleTemplateError}" FontSize="12" TextWrapping="Wrap"
+                                                       Foreground="{DynamicResource Kei.Status.Error}"/>
+                                            <Grid ColumnDefinitions="80,*" ColumnSpacing="12">
+                                                <TextBlock Text="{loc:KeiString Settings.TabBar.Preview}" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                                <TextBlock x:Name="TabTitlePreview" Grid.Column="1" Text="{Binding Terminal.TitlePreview}" TextTrimming="CharacterEllipsis"/>
+                                            </Grid>
+                                            <Expander x:Name="TabTitleVariableReference" Header="{loc:KeiString Settings.TabBar.VariableReference}"
+                                                      IsExpanded="False" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                                <StackPanel Spacing="8" Margin="0,8,0,0">
+                                                    <TextBlock Text="{loc:KeiString Settings.TabBar.VariableSources}" FontSize="12" TextWrapping="Wrap"
+                                                               Foreground="{DynamicResource Kei.Text.Muted}"/>
+                                                    <ItemsControl ItemsSource="{Binding Terminal.TitleVariables}">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate x:DataType="settings:TabTitleVariable">
+                                                                <Grid ColumnDefinitions="190,*" ColumnSpacing="12" Margin="0,3">
+                                                                    <SelectableTextBlock Text="{Binding Placeholder}" FontSize="12"/>
+                                                                    <TextBlock Grid.Column="1" Text="{Binding Description}" FontSize="12" TextWrapping="Wrap"
+                                                                               Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                                                </Grid>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                    <TextBlock Text="{loc:KeiString Settings.TabBar.TemplateSyntax}" FontSize="12" TextWrapping="Wrap"
+                                                               Foreground="{DynamicResource Kei.Text.Muted}"/>
+                                                    <TextBlock Text="{loc:KeiString Settings.TabBar.RemoteIpHint}" FontSize="12" TextWrapping="Wrap"
+                                                               Foreground="{DynamicResource Kei.Text.Muted}"/>
+                                                </StackPanel>
+                                            </Expander>
+                                            <CheckBox x:Name="TabTitleFollowsRemoteCheckBox" IsChecked="{Binding Terminal.TabTitleFollowsRemote}"
+                                                      Content="{loc:KeiString Settings.TabBar.DefaultRemoteTitle}"
+                                                      ToolTip.Tip="{loc:KeiString Settings.TabBar.DefaultHint}"/>
                                         </StackPanel>
                                     </Border>
                                 </StackPanel>
@@ -833,7 +876,21 @@
                                                           SelectedItem="{Binding Terminal.SelectedCwdFollow}"
                                                           ToolTip.Tip="{loc:KeiString Settings.Terminal.CwdFollowTip}"/>
                                             </Grid>
-                                            <TextBlock Text="{loc:KeiString Settings.Terminal.SessionOverrideHint}" FontSize="12" TextWrapping="Wrap"
+                                            <TextBlock Text="{loc:KeiString Settings.Terminal.CwdFollowTip}" FontSize="12" TextWrapping="Wrap"
+                                                       Foreground="{DynamicResource Kei.Text.Muted}"/>
+                                            <Grid ColumnDefinitions="150,*" ColumnSpacing="12">
+                                                <TextBlock Text="{loc:KeiString Settings.Terminal.Multiplexer}" VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                                <ComboBox x:Name="TerminalMultiplexerModeComboBox" Grid.Column="1" MinWidth="220" HorizontalAlignment="Stretch"
+                                                          ItemsSource="{Binding Terminal.MultiplexerModes}" SelectedItem="{Binding Terminal.SelectedMultiplexer}"
+                                                          ToolTip.Tip="{loc:KeiString Settings.Terminal.MultiplexerTip}"/>
+                                            </Grid>
+                                            <TextBlock Text="{loc:KeiString Settings.Terminal.MultiplexerTip}" FontSize="12" TextWrapping="Wrap"
+                                                       Foreground="{DynamicResource Kei.Text.Muted}"/>
+                                            <HyperlinkButton x:Name="DirectoryFollowHelpLink" Content="{loc:KeiString Settings.Terminal.CwdFollowHelp}"
+                                                             NavigateUri="https://github.com/chisaato/KeiTerm/blob/main/docs/design/09-cwd-tracking.md"
+                                                             HorizontalAlignment="Left" Height="28" Padding="0"/>
+                                            <TextBlock Text="{loc:KeiString Settings.Terminal.DirectoryFollowScopeHint}" FontSize="12" TextWrapping="Wrap"
                                                        Foreground="{DynamicResource Kei.Text.Muted}"/>
                                         </StackPanel>
                                     </Border>

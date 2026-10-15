@@ -11,12 +11,14 @@ using System.Globalization;
 
 namespace Kei.Term.Tests;
 
+[Collection(GuiResourceCollection.Name)]
 public class GuiThemeTokenTests
 {
     [Fact]
     public Task SwitchingGuiTheme_UpdatesDerivedSurfacesAndDockColorAliases() => HeadlessAvalonia.RunAsync(() =>
     {
         UiDesignSystemService.Apply();
+        HeadlessAvalonia.Pump();
         var originalResources = Application.Current!.Resources.ToDictionary(pair => pair.Key, pair => pair.Value);
         Border dockIndicator = new();
         dockIndicator.Bind(Border.BackgroundProperty, new DynamicResourceExtension("DockSplitterHoverBrush"));

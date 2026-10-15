@@ -1,10 +1,12 @@
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.VisualTree;
+using Kei.Term.App.Helpers;
 using Kei.Term.App.Services;
 using Kei.Term.App.ViewModels;
 using Kei.Term.App.Views;
@@ -15,8 +17,117 @@ using Kei.Term.Core.Services;
 
 namespace Kei.Term.Tests;
 
+[Collection(GuiResourceCollection.Name)]
 public class RemoteFileManagerLayoutTests
 {
+    [Theory]
+    [InlineData(300)]
+    [InlineData(450)]
+    public Task LoadingToolbar_ReservesProgressRowAndKeepsActionsReachable(int width) => HeadlessAvalonia.RunAsync(async () =>
+    {
+        UiDesignSystemService.Apply();
+        LayoutFileServices services = new();
+        await using RemoteFileManagerViewModel model = new(Guid.NewGuid(), services, services)
+        {
+            IsLoading = true,
+            IsShellVisible = false,
+            TerminalDirectory = "/srv/project"
+        };
+        RemoteFileManagerView view = new() { DataContext = model };
+        Window window = new() { Width = width, Height = 600, Content = view };
+        window.Show();
+        try
+        {
+            HeadlessAvalonia.Pump();
+            Grid toolbar = view.FindControl<Grid>("FileManagerToolbar")!;
+            ProgressBar progress = view.FindControl<ProgressBar>("FileManagerLoadingProgressBar")!;
+            TextBlock heading = view.FindControl<TextBlock>("FileManagerHeading")!;
+            Assert.True(progress.IsEffectivelyVisible);
+            AssertInsideHorizontally(progress, window);
+            Button[] actions = toolbar.GetVisualDescendants().OfType<Button>().Where(button => button.IsEffectivelyVisible).ToArray();
+            Rect progressBounds = WindowBounds(progress, window);
+            Rect headingBounds = WindowBounds(heading, window);
+            foreach (Button button in actions)
+            {
+                AssertInsideHorizontally(button, window);
+                Rect buttonBounds = WindowBounds(button, window);
+                Assert.False(progressBounds.Intersects(buttonBounds), "加载条不得覆盖工具栏按钮");
+                Assert.False(headingBounds.Intersects(buttonBounds), "标题应在按钮前截断");
+                Assert.True(progressBounds.Top >= buttonBounds.Bottom + 3.9);
+                Control? hit = window.InputHitTest(buttonBounds.Center) as Control;
+                Assert.True(ReferenceEquals(hit, button) || hit?.GetVisualAncestors().Contains(button) == true,
+                    $"{button.Name} 的点击区域被其他控件覆盖");
+            }
+            await CaptureAsync(window, width, "loading-toolbar");
+            double loadingHeight = toolbar.Bounds.Height;
+            model.IsLoading = false;
+            HeadlessAvalonia.Pump();
+            Assert.False(progress.IsVisible);
+            Assert.True(toolbar.Bounds.Height < loadingHeight);
+        }
+        finally { window.Close(); }
+    });
+
+    [Fact]
+    public Task ViewActions_ReflectVisibleShellAndCurrentPageFullscreen() => HeadlessAvalonia.RunAsync(async () =>
+    {
+        UiDesignSystemService.Apply();
+        LayoutFileServices services = new();
+        await using RemoteFileManagerViewModel model = new(Guid.NewGuid(), services, services);
+        RemoteFileManagerView view = new() { DataContext = model };
+        Window window = new() { Width = 450, Height = 600, Content = view };
+        window.Show();
+        try
+        {
+            HeadlessAvalonia.Pump();
+            Button showShell = view.FindControl<Button>("FileManagerShowShellButton")!;
+            Button fullscreen = view.FindControl<Button>("FileManagerMaximizeButton")!;
+            Assert.False(showShell.IsVisible);
+            Assert.True(fullscreen.IsEffectivelyVisible);
+            Assert.Equal(Strings.Get("FileManager.Maximize"), AutomationProperties.GetName(fullscreen));
+            model.IsShellVisible = false;
+            model.IsMaximized = true;
+            HeadlessAvalonia.Pump();
+            Assert.True(showShell.IsEffectivelyVisible);
+            Assert.Contains("maximized", fullscreen.Classes);
+            Assert.Equal(Strings.Get("FileManager.RestoreLayout"), AutomationProperties.GetName(fullscreen));
+            AssertTokenColor(window, "Kei.Bg.Pressed", fullscreen.Background);
+            AssertTokenColor(window, "Kei.Text.Muted", fullscreen.BorderBrush);
+            await CaptureAsync(window, 450, "current-page-fullscreen-actions");
+            model.IsWorkspaceTab = true;
+            HeadlessAvalonia.Pump();
+            Assert.False(fullscreen.IsVisible);
+            Assert.False(view.FindControl<Button>("FileManagerOpenInTabButton")!.IsVisible);
+            Assert.True(showShell.IsEffectivelyVisible);
+            model.IsShellVisible = true;
+            HeadlessAvalonia.Pump();
+            Assert.False(showShell.IsVisible);
+        }
+        finally { window.Close(); }
+    });
+
+    [Theory]
+    [InlineData(300)]
+    [InlineData(450)]
+    public Task ManualDirectorySync_RemainsReachable(int width) => HeadlessAvalonia.RunAsync(async () =>
+    {
+        UiDesignSystemService.Apply();
+        LayoutFileServices services = new();
+        await using RemoteFileManagerViewModel model = new(Guid.NewGuid(), services, services);
+        RemoteFileManagerView view = new() { DataContext = model };
+        Window window = new() { Width = width, Height = 600, Content = view };
+        window.Show();
+        try
+        {
+            HeadlessAvalonia.Pump();
+            Button sync = view.FindControl<Button>("FileManagerSyncTerminalDirectoryButton")!;
+            AssertInsideHorizontally(sync, window);
+            AssertInsideHorizontally(view.FindControl<Button>("FileManagerCloseButton")!, window);
+            await CaptureAsync(window, width, "manual-directory-sync");
+        }
+        finally { window.Close(); }
+    });
+
     [Theory]
     [InlineData(300)]
     [InlineData(450)]
@@ -100,6 +211,7 @@ public class RemoteFileManagerLayoutTests
         }
         finally { window.Close(); }
     });
+
 
     [Theory]
     [InlineData(300)]
@@ -247,7 +359,7 @@ public class RemoteFileManagerLayoutTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public Task Activity_FadesTwiceThenKeepsAccentWithoutChangingSelectedTab(bool trackedActivity) => HeadlessAvalonia.RunAsync(async () =>
+    public Task Activity_FadesTwiceThenKeepsNeutralMarkerWithoutChangingSelectedTab(bool trackedActivity) => HeadlessAvalonia.RunAsync(async () =>
     {
         UiDesignSystemService.Apply();
         LayoutFileServices services = new();
@@ -295,11 +407,16 @@ public class RemoteFileManagerLayoutTests
             TabItem tab = view.FindControl<TabItem>(trackedActivity ? "TrackedActivityTab" : "TransferActivityTab")!;
             Assert.Contains("activity", tab.Classes);
             AssertHeaderColors(tab);
-            Assert.NotEqual(Brushes.Transparent, tab.Foreground);
+            AssertTokenColor(window, "Kei.Text.Primary", tab.Foreground);
+            AssertTokenColor(window, "Kei.Bg.PanelAlt", tab.Background);
+            Border marker = view.FindControl<Border>(trackedActivity ? "TrackedActivityMarker" : "TransferActivityMarker")!;
+            Assert.True(marker.IsEffectivelyVisible);
+            AssertTokenColor(window, "Kei.Text.Secondary", marker.Background);
             Click(window, view.FindControl<TabItem>("TransferActivityTab")!);
             Click(window, view.FindControl<TabItem>("TrackedActivityTab")!);
             Assert.Contains("activity", tab.Classes);
             Assert.Equal(1, header.Opacity);
+            Assert.True(marker.IsEffectivelyVisible);
             await model.DisposeAsync();
             revision = model.TransferActivityRevision;
             transfer.State = FileTransferState.Failed;
@@ -368,18 +485,25 @@ public class RemoteFileManagerLayoutTests
             TabItem monitor = view.FindControl<TabItem>("TrackedActivityTab")!;
             ProfileManagerService.ApplyGuiProfile(NordGuiPreset.Instance);
             HeadlessAvalonia.Pump();
-            Assert.Equal(Color.Parse(NordGuiPreset.Instance.AccentColor), Assert.IsAssignableFrom<ISolidColorBrush>(transfer.Foreground).Color);
+            Assert.Equal(Color.Parse(NordGuiPreset.Instance.PrimaryText), Assert.IsAssignableFrom<ISolidColorBrush>(transfer.Foreground).Color);
             Assert.Equal(Color.Parse(NordGuiPreset.Instance.SecondaryText), Assert.IsAssignableFrom<ISolidColorBrush>(monitor.Foreground).Color);
             model.TrackedActivityRevision++;
             HeadlessAvalonia.Pump();
-            Assert.Equal(Color.Parse(NordGuiPreset.Instance.AccentColor), Assert.IsAssignableFrom<ISolidColorBrush>(monitor.Foreground).Color);
+            Assert.Equal(Color.Parse(NordGuiPreset.Instance.PrimaryText), Assert.IsAssignableFrom<ISolidColorBrush>(monitor.Foreground).Color);
+            Assert.Equal(Color.Parse(NordGuiPreset.Instance.PanelAltBackground), Assert.IsAssignableFrom<ISolidColorBrush>(monitor.Background).Color);
+            Border transferMarker = view.FindControl<Border>("TransferActivityMarker")!;
+            Border monitorMarker = view.FindControl<Border>("TrackedActivityMarker")!;
+            Assert.Equal(Color.Parse(NordGuiPreset.Instance.SecondaryText), Assert.IsAssignableFrom<ISolidColorBrush>(monitorMarker.Background).Color);
 
-            // 通过生产主题切换入口替换 Token，已亮起的提醒也必须立即跟随新主题。
+            // 通过生产主题切换入口替换 Token，中性边框与活动标记也必须立即跟随新主题。
             ProfileManagerService.ApplyGuiProfile(VeritasKotamaGuiPreset.Instance);
             HeadlessAvalonia.Pump();
-            Color accent = Color.Parse(VeritasKotamaGuiPreset.Instance.AccentColor);
-            Assert.Equal(accent, Assert.IsAssignableFrom<ISolidColorBrush>(transfer.Foreground).Color);
-            Assert.Equal(accent, Assert.IsAssignableFrom<ISolidColorBrush>(monitor.Foreground).Color);
+            Color foreground = Color.Parse(VeritasKotamaGuiPreset.Instance.PrimaryText);
+            Assert.Equal(foreground, Assert.IsAssignableFrom<ISolidColorBrush>(transfer.Foreground).Color);
+            Assert.Equal(foreground, Assert.IsAssignableFrom<ISolidColorBrush>(monitor.Foreground).Color);
+            Assert.Equal(Color.Parse(VeritasKotamaGuiPreset.Instance.SecondaryText), Assert.IsAssignableFrom<ISolidColorBrush>(transferMarker.Background).Color);
+            Assert.Equal(Color.Parse(VeritasKotamaGuiPreset.Instance.SecondaryText), Assert.IsAssignableFrom<ISolidColorBrush>(monitorMarker.Background).Color);
+            Assert.Equal(Color.Parse(VeritasKotamaGuiPreset.Instance.PanelAltBackground), Assert.IsAssignableFrom<ISolidColorBrush>(monitor.Background).Color);
             AssertHeaderColors(transfer);
             AssertHeaderColors(monitor);
         }
@@ -492,6 +616,13 @@ public class RemoteFileManagerLayoutTests
         foreach (Avalonia.Controls.Shapes.Path icon in header.GetVisualDescendants().OfType<Avalonia.Controls.Shapes.Path>())
             Assert.Equal(color, Assert.IsAssignableFrom<ISolidColorBrush>(icon.Stroke).Color);
     }
+
+    private static Rect WindowBounds(Control control, Window window)
+        => new(control.TranslatePoint(default, window)!.Value, control.Bounds.Size);
+
+    private static void AssertTokenColor(Window window, string token, IBrush? brush)
+        => Assert.Equal(Assert.IsAssignableFrom<ISolidColorBrush>(window.FindResource(token)).Color,
+            Assert.IsAssignableFrom<ISolidColorBrush>(brush).Color);
 
     private static void Click(Window window, Control control)
     {

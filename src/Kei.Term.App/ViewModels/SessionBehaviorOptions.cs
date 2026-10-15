@@ -10,6 +10,11 @@ public sealed record CwdFollowOption(CwdFollowMode Mode, string DisplayName)
     public override string ToString() => DisplayName;
 }
 
+public sealed record TerminalMultiplexerOption(TerminalMultiplexerMode Mode, string DisplayName)
+{
+    public override string ToString() => DisplayName;
+}
+
 // 会话级「可继承」选项：Value 为 null 表示继承全局设置
 public sealed record InheritableOption<T>(T? Value, string DisplayName) where T : struct
 {
@@ -19,6 +24,11 @@ public sealed record InheritableOption<T>(T? Value, string DisplayName) where T 
 // 会话行为相关下拉项的唯一来源：设置页、会话编辑、批量修改共用，保证文案一致
 public static class SessionBehaviorOptions
 {
+    private const string MultiplexerOffKey = "Behavior.Multiplexer.Off";
+    private const string MultiplexerAutoKey = "Behavior.Multiplexer.Auto";
+    private const string MultiplexerTmuxKey = "Behavior.Multiplexer.Tmux";
+    private const string MultiplexerScreenKey = "Behavior.Multiplexer.Screen";
+
     public static IReadOnlyList<CwdFollowOption> CwdFollowModes { get; } =
     [
         new(CwdFollowMode.Off, Strings.Get("Behavior.CwdFollow.Off")),
@@ -26,8 +36,19 @@ public static class SessionBehaviorOptions
         new(CwdFollowMode.Always, Strings.Get("Behavior.CwdFollow.Always"))
     ];
 
+    public static IReadOnlyList<TerminalMultiplexerOption> MultiplexerModes { get; } =
+    [
+        new(TerminalMultiplexerMode.Off, Strings.Get(MultiplexerOffKey)),
+        new(TerminalMultiplexerMode.Auto, Strings.Get(MultiplexerAutoKey)),
+        new(TerminalMultiplexerMode.Tmux, Strings.Get(MultiplexerTmuxKey)),
+        new(TerminalMultiplexerMode.Screen, Strings.Get(MultiplexerScreenKey))
+    ];
+
     public static string Describe(CwdFollowMode mode)
         => CwdFollowModes.FirstOrDefault(o => o.Mode == mode)?.DisplayName ?? mode.ToString();
+
+    public static string Describe(TerminalMultiplexerMode mode)
+        => MultiplexerModes.FirstOrDefault(option => option.Mode == mode)?.DisplayName ?? mode.ToString();
 
     public static string Describe(bool followRemoteTitle)
         => Strings.Get(followRemoteTitle ? "Behavior.TabTitle.Remote" : "Behavior.TabTitle.SessionName");
@@ -37,6 +58,12 @@ public static class SessionBehaviorOptions
         => [
             new(null, Strings.Format("Behavior.Inherit", Describe(globalDefault))),
             .. CwdFollowModes.Select(o => new InheritableOption<CwdFollowMode>(o.Mode, o.DisplayName))
+        ];
+
+    public static IReadOnlyList<InheritableOption<TerminalMultiplexerMode>> InheritableMultiplexerMode(TerminalMultiplexerMode globalDefault)
+        => [
+            new(null, Strings.Format("Behavior.Inherit", Describe(globalDefault))),
+            .. MultiplexerModes.Select(option => new InheritableOption<TerminalMultiplexerMode>(option.Mode, option.DisplayName))
         ];
 
     public static IReadOnlyList<InheritableOption<bool>> InheritableTitleFollow(bool globalDefault)

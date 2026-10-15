@@ -120,5 +120,7 @@ public record ResolvedSessionConfig(
     // 会话出口是已保存代理时的档案 id；与 JumpHostSessionId 互斥
     Guid? ProxyProfileId = null,
     // 保留继承语义，已经打开的连接也会采用当前全局上传设置。
-    TerminalUploadProtocol? TerminalUploadProtocolOverride = null
+    TerminalUploadProtocol? TerminalUploadProtocolOverride = null,
+    TerminalMultiplexerMode MultiplexerMode = TerminalMultiplexerMode.Auto,
+    string TabTitleTemplate = ""
 );

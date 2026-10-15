@@ -21,6 +21,7 @@ public partial class MainWindow
         _editCommands = new FocusedEditCommands(this, SessionTree, GetTreeEditCommand);
         AddHandler(KeyDownEvent, OnTreeEditKeyDown, RoutingStrategies.Tunnel);
         AddHandler(KeyDownEvent, OnDocumentCloseKeyDown, RoutingStrategies.Tunnel);
+        AddHandler(KeyDownEvent, OnTabNavigationKeyDown, RoutingStrategies.Tunnel);
         Closed += OnEditCommandsClosed;
         ApplyEditMenus();
     }
@@ -125,6 +126,20 @@ public partial class MainWindow
         _editCommands?.Refresh();
     }
 
+    private void OnTabNavigationKeyDown(object? sender, KeyEventArgs args)
+    {
+        if (DataContext is not MainViewModel model || IsCommandPaletteOpen) return;
+        // 在终端处理输入前接管导航，避免将 Ctrl+数字或符号发送给远端。
+        if (AppShortcuts.TryGetTabNumber(args, model.CurrentSettings.TabNavigationModifier, out int index))
+            model.SelectWorkspaceTabByIndexCommand.Execute(index);
+        else if (AppShortcuts.PreviousTab(model.CurrentSettings.TabNavigationModifier).Matches(args))
+            model.MoveWorkspaceTabSelectionCommand.Execute(-1);
+        else if (AppShortcuts.NextTab(model.CurrentSettings.TabNavigationModifier).Matches(args))
+            model.MoveWorkspaceTabSelectionCommand.Execute(1);
+        else return;
+        args.Handled = true;
+    }
+
     private void OnDocumentCloseKeyDown(object? sender, KeyEventArgs args)
     {
         if (!AppShortcuts.CloseTab.Matches(args) || DataContext is not MainViewModel model) return;
@@ -140,6 +155,7 @@ public partial class MainWindow
         _editMenus.Clear();
         RemoveHandler(KeyDownEvent, OnTreeEditKeyDown);
         RemoveHandler(KeyDownEvent, OnDocumentCloseKeyDown);
+        RemoveHandler(KeyDownEvent, OnTabNavigationKeyDown);
         _editCommands?.Dispose();
         Closed -= OnEditCommandsClosed;
     }

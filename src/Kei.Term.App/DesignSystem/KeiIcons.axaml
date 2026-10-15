@@ -104,6 +104,9 @@
     <!-- lucide:external-link -->
     <StreamGeometry x:Key="Kei.Icon.ExternalLink">M15 3h6v6m-11 5L21 3m-3 10v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6</StreamGeometry>
 
+    <!-- lucide:maximize -->
+    <StreamGeometry x:Key="Kei.Icon.Maximize">M8 3H5a2 2 0 0 0-2 2v3m13-5h3a2 2 0 0 1 2 2v3m-5 13h3a2 2 0 0 0 2-2v-3M8 21H5a2 2 0 0 1-2-2v-3</StreamGeometry>
+
     <!-- lucide:arrow-left-right -->
     <StreamGeometry x:Key="Kei.Icon.DockSwap">M8 3L4 7l4 4M4 7h16m-4 14l4-4l-4-4m4 4H4</StreamGeometry>
 

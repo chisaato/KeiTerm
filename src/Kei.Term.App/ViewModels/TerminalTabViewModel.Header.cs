@@ -48,7 +48,7 @@ public partial class TerminalTabViewModel
     // 标签右键菜单动作，由主窗口 VM 订阅处理
     public event Action<TerminalTabViewModel, TabAction>? ActionRequested;
 
-    // 显示在标签上的标题：跟随远端时为远端标题（未设置则回退标签名），否则为标签名
+    // 连接名保持在首位；跟随远端时追加内容标题，避免多个连接的远端标题相同而无法区分。
     [ObservableProperty]
     private string _title = Strings.Get("Main.Tab.DefaultTitle");
 
@@ -86,15 +86,25 @@ public partial class TerminalTabViewModel
     partial void OnTitleChanged(string value) => UpdateToolTip();
 
     private void UpdateTitle()
-        => Title = FollowRemoteTitle && !string.IsNullOrWhiteSpace(RemoteTitle) ? RemoteTitle! : TabName;
+    {
+        Title = !IsShellVisible && IsFileManagerVisible
+            ? FormatFileTabTitle(FileManager?.CurrentPath ?? string.Empty)
+            : _hasManualTitle ? TabName
+            : RenderTitleTemplate(TitleContext) ?? (FollowRemoteTitle && !string.IsNullOrWhiteSpace(RemoteTitle)
+                && !string.Equals(RemoteTitle, TabName, StringComparison.Ordinal)
+                ? $"{TabName} · {RemoteTitle}"
+                : TabName);
+        OnPropertyChanged(nameof(TitleContext));
+    }
 
     private void UpdateToolTip()
     {
         var lines = new List<string> { Title };
-        if (!string.Equals(Title, TabName, StringComparison.Ordinal))
+        if (!IsShellVisible && IsFileManagerVisible && FileManager is { } files)
         {
-            lines.Add(Strings.Format("Main.Tab.ToolTip.Session", TabName));
+            lines.Add(files.CurrentPath);
         }
+        else if (_terminalWorkingDirectory is { } path) lines.Add(path);
 
         if (Config is { } config)
         {
@@ -116,9 +126,13 @@ public partial class TerminalTabViewModel
         if (Config == null)
         {
             FollowRemoteTitle = config.FollowRemoteTitle;
+            _titleTemplate = config.TabTitleTemplate;
         }
 
         Config = config;
+        _directoryFollowMode = config.CwdFollow;
+        _directoryMultiplexerMode = config.MultiplexerMode;
+        UpdateTitle();
         UpdateToolTip();
     }
 
@@ -148,7 +162,12 @@ public partial class TerminalTabViewModel
         return cleaned.Length == 0 ? null : cleaned;
     }
 
-    public void ApplyRemoteTitle(string? raw) => RemoteTitle = SanitizeRemoteTitle(raw);
+    public void ApplyRemoteTitle(string? raw)
+    {
+        RemoteTitle = SanitizeRemoteTitle(raw);
+        // 路径不能使用为标签显示截断过的标题。
+        TrackDirectoryTitle(raw);
+    }
 
     // 重命名：用户给定的名字优先于远端标题，因此同时停止跟随
     public void Rename(string name)
@@ -158,12 +177,19 @@ public partial class TerminalTabViewModel
             return;
         }
 
+        _hasManualTitle = true;
         TabName = name.Trim();
         FollowRemoteTitle = false;
+        UpdateTitle();
     }
 
     [RelayCommand]
-    private void ToggleFollowRemoteTitle() => FollowRemoteTitle = !FollowRemoteTitle;
+    private void ToggleFollowRemoteTitle()
+    {
+        _hasManualTitle = false;
+        FollowRemoteTitle = !FollowRemoteTitle;
+        UpdateTitle();
+    }
 
     [RelayCommand]
     private void RequestReconnect() => ActionRequested?.Invoke(this, TabAction.Reconnect);

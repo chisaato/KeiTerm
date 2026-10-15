@@ -80,11 +80,6 @@ public partial class SessionEditViewModel : ViewModelBase
     [ObservableProperty]
     private InheritableOption<bool>? _selectedTitleFollow;
 
-    public IReadOnlyList<InheritableOption<CwdFollowMode>> CwdFollowOptions { get; }
-
-    [ObservableProperty]
-    private InheritableOption<CwdFollowMode>? _selectedCwdFollow;
-
     // 选中的连接超时选项
     [ObservableProperty]
     private InheritableOption<int>? _selectedConnectTimeout;
@@ -123,12 +118,11 @@ public partial class SessionEditViewModel : ViewModelBase
     {
         AppSettings global = globalSettings ?? new AppSettings();
         TitleFollowOptions = SessionBehaviorOptions.InheritableTitleFollow(global.TabTitleFollowsRemote);
-        CwdFollowOptions = SessionBehaviorOptions.InheritableCwdFollow(global.CwdFollowMode);
         ConnectTimeoutOptions = SessionBehaviorOptions.InheritableConnectTimeout(global.ConnectTimeoutSeconds);
         SessionOverrides overrides = existing?.Overrides ?? new SessionOverrides();
         InitializeTerminalUploadPreference(overrides, global);
+        InitializeDirectoryFollowPreferences(overrides, global);
         SelectedTitleFollow = TitleFollowOptions.First(o => o.Value == overrides.FollowRemoteTitle);
-        SelectedCwdFollow = CwdFollowOptions.First(o => o.Value == overrides.CwdFollow);
         SelectedConnectTimeout = ConnectTimeoutOptions.FirstOrDefault(o => o.Value == overrides.ConnectTimeoutSeconds) ?? ConnectTimeoutOptions[0];
 
         Identities.Add(new IdentityOption(null, Strings.Get("SessionEdit.IdentityNone")));
@@ -313,7 +307,7 @@ public partial class SessionEditViewModel : ViewModelBase
         model.SftpMode = SelectedSftpMode;
         // 只改本窗口管理的覆盖项，其余覆盖项（如批量修改设置的新项）原样保留
         model.Overrides.FollowRemoteTitle = SelectedTitleFollow?.Value;
-        model.Overrides.CwdFollow = SelectedCwdFollow?.Value;
+        ApplyDirectoryFollowPreferences(model.Overrides);
         model.Overrides.ConnectTimeoutSeconds = SelectedConnectTimeout?.Value;
         model.Overrides.TerminalUploadProtocol = SelectedTerminalUpload?.Value;
         return model;

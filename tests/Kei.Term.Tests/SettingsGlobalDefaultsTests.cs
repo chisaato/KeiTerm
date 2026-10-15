@@ -20,9 +20,10 @@ namespace Kei.Term.Tests;
 public class SettingsGlobalDefaultsTests
 {
     [Theory]
-    [InlineData(true, CwdFollowMode.OnceOnOpen)]
-    [InlineData(false, CwdFollowMode.Always)]
-    public Task GlobalBehaviorControls_SaveAndReload_AndResolveSessionOverrides(bool followsRemote, CwdFollowMode followMode)
+    [InlineData(true, CwdFollowMode.OnceOnOpen, TerminalMultiplexerMode.Off)]
+    [InlineData(false, CwdFollowMode.Always, TerminalMultiplexerMode.Auto)]
+    public Task GlobalBehaviorControls_SaveAndReload_AndResolveSessionOverrides(
+        bool followsRemote, CwdFollowMode followMode, TerminalMultiplexerMode multiplexerMode)
         => HeadlessAvalonia.RunAsync(async () =>
     {
         UiDesignSystemService.Apply();
@@ -33,7 +34,12 @@ public class SettingsGlobalDefaultsTests
         {
             string path = Path.Combine(directory, "settings.json");
             JsonSettingsService service = new(path);
-            await service.SaveSettingsAsync(new AppSettings { TabTitleFollowsRemote = !followsRemote });
+            await service.SaveSettingsAsync(new AppSettings
+            {
+                TabTitleFollowsRemote = !followsRemote,
+                TerminalMultiplexerMode = multiplexerMode == TerminalMultiplexerMode.Auto
+                    ? TerminalMultiplexerMode.Off : TerminalMultiplexerMode.Auto
+            });
             SettingsViewModel model = new(service, directory);
             window = new SettingsWindow(model);
             window.Show();
@@ -42,7 +48,7 @@ public class SettingsGlobalDefaultsTests
             model.SelectedCategory = model.Categories.Single(c => c.Page is TabBarSettingsProxyPage);
             window.UpdateLayout();
             CheckBox title = Find<CheckBox>(window, "TabTitleFollowsRemoteCheckBox");
-            Assert.True(title.IsVisible);
+            Assert.True(title.IsEffectivelyVisible);
             Assert.True(title.Bounds.Width > 0);
             title.IsChecked = followsRemote;
 
@@ -52,7 +58,11 @@ public class SettingsGlobalDefaultsTests
             ComboBox cwd = Find<ComboBox>(window, "DirectoryFollowModeComboBox");
             Assert.True(cwd.IsVisible);
             cwd.SelectedItem = page.Terminal.CwdFollowModes.Single(option => option.Mode == followMode);
+            ComboBox multiplexer = Find<ComboBox>(window, "TerminalMultiplexerModeComboBox");
+            Assert.True(multiplexer.IsVisible);
+            multiplexer.SelectedItem = page.Terminal.MultiplexerModes.Single(option => option.Mode == multiplexerMode);
             Assert.NotEqual(followsRemote, service.Current.TabTitleFollowsRemote);
+            Assert.NotEqual(multiplexerMode, service.Current.TerminalMultiplexerMode);
             Assert.True(await model.ApplyChangesAsync());
 
             JsonSettingsService reader = new(path);
@@ -62,11 +72,13 @@ public class SettingsGlobalDefaultsTests
             FileTransferSettingsPage files = reopened.Categories.Select(c => c.Page).OfType<FileTransferSettingsPage>().Single();
             Assert.Equal(followsRemote, tabs.Terminal.TabTitleFollowsRemote);
             Assert.Equal(followMode, files.Terminal.SelectedCwdFollow?.Mode);
+            Assert.Equal(multiplexerMode, files.Terminal.SelectedMultiplexer?.Mode);
 
             SessionNode inherited = new() { Host = "host" };
             ResolvedSessionConfig resolved = SessionConfigBuilder.Build(inherited, reader.Current);
             Assert.Equal(followsRemote, resolved.FollowRemoteTitle);
             Assert.Equal(followMode, resolved.CwdFollow);
+            Assert.Equal(multiplexerMode, resolved.MultiplexerMode);
             SessionEditViewModel sessionEditor = new(inherited, null, [], reader.Current);
             Assert.Null(sessionEditor.SelectedTitleFollow?.Value);
             Assert.Null(sessionEditor.SelectedCwdFollow?.Value);

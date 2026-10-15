@@ -15,7 +15,6 @@ using Kei.Term.Core.Models;
 using Kei.Term.Core.Services;
 using Kei.Term.Core.Settings;
 using Kei.Term.Ssh.Services;
-using RoyalTerminal.Terminal;
 
 namespace Kei.Term.App.ViewModels;
 
@@ -27,14 +26,6 @@ public partial class TerminalTabViewModel
     private TerminalFileDropAction? _connectionDropAction;
     private CancellationTokenSource? _dropCancellation;
     private Task? _terminalDropTask;
-    private string? _terminalWorkingDirectory;
-
-    private void OnTerminalShellIntegrationEvent(object? sender, TerminalShellIntegrationEventArgs args)
-    {
-        // 库已经解析 OSC 7；只采用绝对目录，避免把控制序列或命令文本当路径。
-        string? directory = args.Value.WorkingDirectory;
-        if (directory?.StartsWith('/') == true && !directory.Any(char.IsControl)) _terminalWorkingDirectory = directory;
-    }
 
     [ObservableProperty]
     private bool _isHandlingTerminalDrop;
@@ -76,6 +67,8 @@ public partial class TerminalTabViewModel
         try
         {
             TerminalUploadProtocol protocol = EffectiveTerminalUploadProtocol;
+            // 目录跟随与文件拖放共用同一份 OSC7/tracker 结果（见 DirectoryFollow 分部）；
+            // 无有效远端目录时回退到文件管理器当前目录，再退到工作目录。
             string directory = _terminalWorkingDirectory ?? FileManager?.CurrentPath ?? ".";
             TerminalFileDropAction? action = TerminalFileDropPolicy.ResolveAction(
                 _connectionDropAction, _dropSettings?.Current.FileTransfer.TerminalDropAction);

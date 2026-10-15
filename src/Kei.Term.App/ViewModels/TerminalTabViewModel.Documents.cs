@@ -20,17 +20,47 @@ public partial class TerminalTabViewModel
     [ObservableProperty]
     private ConnectionDocumentKind _activeDocument = ConnectionDocumentKind.Shell;
 
+    [ObservableProperty]
+    private bool _isFileManagerMaximized;
+
+    partial void OnIsFileManagerMaximizedChanged(bool value)
+    {
+        if (FileManager is { } manager) manager.IsMaximized = value;
+    }
+
+    public void ToggleFileManagerMaximized()
+    {
+        IsFileManagerMaximized = !IsFileManagerMaximized;
+        IsFileManagerVisible = true;
+        IsShellVisible = !IsFileManagerMaximized;
+        ActiveDocument = ConnectionDocumentKind.FileManager;
+    }
+
+    [RelayCommand]
+    private void ShowFileManagerFullScreen()
+    {
+        if (FileManager == null) return;
+        IsFileManagerVisible = true;
+        IsShellVisible = false;
+        IsFileManagerMaximized = true;
+        ActiveDocument = ConnectionDocumentKind.FileManager;
+    }
+
     public bool HasOpenDocuments => IsShellVisible || IsFileManagerVisible;
 
     partial void OnIsShellVisibleChanged(bool value)
     {
+        if (FileManager is { } manager) manager.IsShellVisible = value && !manager.IsWorkspaceTab;
         if (!value && IsFileManagerVisible) ActiveDocument = ConnectionDocumentKind.FileManager;
+        UpdateTitle();
         WeakReferenceMessenger.Default.Send(new ConnectionDocumentsChangedMessage(this));
     }
 
     partial void OnIsFileManagerVisibleChanged(bool value)
     {
         if (!value && IsShellVisible) ActiveDocument = ConnectionDocumentKind.Shell;
+        UpdateTitle();
+        ScheduleDirectoryFollow();
     }
 
     // 返回是否还有文档；快捷键调用者仅在全部关闭后释放外层标签。
@@ -60,6 +90,13 @@ public partial class TerminalTabViewModel
 
     private void CloseDocument(ConnectionDocumentKind document)
     {
+        // 全屏只是临时切换呈现；关闭当前视图时回到另一块内容，不释放仍在使用的连接。
+        if (IsFileManagerMaximized)
+        {
+            IsFileManagerMaximized = false;
+            if (document == ConnectionDocumentKind.FileManager) IsShellVisible = true;
+            else if (FileManager != null) IsFileManagerVisible = true;
+        }
         if (document == ConnectionDocumentKind.FileManager) IsFileManagerVisible = false;
         else IsShellVisible = false;
     }

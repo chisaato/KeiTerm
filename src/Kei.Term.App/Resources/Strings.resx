@@ -729,19 +729,19 @@
     <value>字体实时预览</value>
   </data>
   <data name="Settings.Appearance.TabBarSection" xml:space="preserve">
-    <value>标签栏 (Tab Bar)</value>
+    <value>布局</value>
   </data>
   <data name="Settings.Appearance.TabPlacement" xml:space="preserve">
-    <value>标签栏位置:</value>
+    <value>标签位置</value>
   </data>
   <data name="Settings.Appearance.TabPlacementTip" xml:space="preserve">
     <value>标签栏在窗口中显示的位置（置顶或置底）</value>
   </data>
   <data name="Settings.Appearance.TabPlacementTop" xml:space="preserve">
-    <value>置顶 (Top)</value>
+    <value>顶部</value>
   </data>
   <data name="Settings.Appearance.TabPlacementBottom" xml:space="preserve">
-    <value>置底 (Bottom)</value>
+    <value>底部</value>
   </data>
   <data name="Settings.Appearance.ProfileBackupSection" xml:space="preserve">
     <value>外观与主题配置备份 (Profile Bundle)</value>
@@ -1680,7 +1680,49 @@
     <value>目录跟随</value>
   </data>
   <data name="Settings.Terminal.CwdFollowTip" xml:space="preserve">
-    <value>远端报告当前目录时，文件管理器同步切换目录。支持 OSC 7 或 tmux 的“主机:路径”标题。</value>
+    <value>选择文件面板何时跟随终端目录。远端需要上报目录；手动同步不受此选项限制。</value>
+  </data>
+  <data name="Behavior.Multiplexer.Off" xml:space="preserve">
+    <value>关闭</value>
+  </data>
+  <data name="Behavior.Multiplexer.Auto" xml:space="preserve">
+    <value>自动检测</value>
+  </data>
+  <data name="Behavior.Multiplexer.Tmux" xml:space="preserve">
+    <value>tmux（含 Byobu）</value>
+  </data>
+  <data name="Behavior.Multiplexer.Screen" xml:space="preserve">
+    <value>GNU Screen（含 Byobu）</value>
+  </data>
+  <data name="Settings.Terminal.Multiplexer" xml:space="preserve">
+    <value>多路复用器兼容</value>
+  </data>
+  <data name="Settings.Terminal.MultiplexerTip" xml:space="preserve">
+    <value>自动检测按远端上报的目录/标题信号识别。Byobu 也可按 tmux 或 GNU Screen 后端手动选择。关闭兼容后仍支持 OSC 7 标准目录上报；远端配置见说明。</value>
+  </data>
+  <data name="Settings.Terminal.CwdFollowHelp" xml:space="preserve">
+    <value>目录上报与 Byobu 配置说明</value>
+  </data>
+  <data name="Settings.Terminal.DirectoryFollowScopeHint" xml:space="preserve">
+    <value>这里设置新连接的全局默认。会话属性 → 会话行为中可分别覆盖目录跟随方式和多路复用器兼容策略；选择“继承全局”即可使用默认值。</value>
+  </data>
+  <data name="FileManager.CwdFollow.Sync" xml:space="preserve">
+    <value>同步终端目录</value>
+  </data>
+  <data name="FileManager.Maximize" xml:space="preserve">
+    <value>在当前标签中全屏显示文件管理</value>
+  </data>
+  <data name="FileManager.RestoreLayout" xml:space="preserve">
+    <value>恢复终端与文件管理分栏</value>
+  </data>
+  <data name="FileManager.CwdFollow.SyncTip" xml:space="preserve">
+    <value>立即跳到终端最近上报的目录（无需开启自动跟随）。远端尚未上报目录时不可用。</value>
+  </data>
+  <data name="FileManager.DirectoryFollow.HostMismatch" xml:space="preserve">
+    <value>终端当前在 {0}，已暂停目录同步</value>
+  </data>
+  <data name="SessionEdit.DirectoryFollowHint" xml:space="preserve">
+    <value>这两项可单独为会话设置。选择“继承全局”时使用设置 → 文件传输中的默认值，选择具体选项则覆盖默认值。</value>
   </data>
   <data name="Settings.Terminal.SessionOverrideHint" xml:space="preserve">
     <value>以上为全局默认，可在会话属性或「批量修改会话」中逐会话覆盖。</value>
@@ -2093,6 +2135,9 @@ Latin: AaBb CcDd GgYy gypq
   <data name="FileManager.ShowShell" xml:space="preserve">
     <value>显示终端</value>
   </data>
+  <data name="FileManager.ShowFiles" xml:space="preserve">
+    <value>切换到文件管理</value>
+  </data>
   <data name="FileManager.Tree.Toggle" xml:space="preserve">
     <value>显示/隐藏目录树</value>
   </data>
@@ -2147,7 +2192,7 @@ Latin: AaBb CcDd GgYy gypq
     <value>实时效果预览</value>
   </data>
   <data name="Settings.TabBar.TitleSection" xml:space="preserve">
-    <value>标签标题</value>
+    <value>命名规则</value>
   </data>
   <data name="Settings.Ssh.IdentitySection" xml:space="preserve">
     <value>默认身份</value>
@@ -2373,4 +2418,25 @@ Latin: AaBb CcDd GgYy gypq
   <data name="VaultQuickUnlock.Unavailable" xml:space="preserve">
     <value>本机验证当前不可用，请使用主密码解锁。</value>
   </data>
+  <data name="Settings.TabBar.TemplateExample" xml:space="preserve"><value>{remote_hostname} | {remote_path}</value></data>
+  <data name="Settings.TabBar.TemplateHint" xml:space="preserve"><value>留空使用默认标题。</value></data>
+  <data name="Settings.TabBar.TemplateError" xml:space="preserve"><value>无法识别 {0}，请检查变量名和花括号。</value></data>
+  <data name="Settings.TabBar.RemoteIpHint" xml:space="preserve"><value>远端主机名和终端目录需要 Shell 上报。目标地址为域名时，remote_ip 暂不可用；缺失值显示 —。</value></data>
+  <data name="Settings.TabBar.Preview" xml:space="preserve"><value>预览</value></data>
+  <data name="Settings.TabBar.VariableReference" xml:space="preserve"><value>变量与规则</value></data>
+  <data name="Settings.TabBar.VariableSources" xml:space="preserve"><value>local_ 为本地会话配置，remote_ 为远端信息。</value></data>
+  <data name="Settings.TabBar.TemplateSyntax" xml:space="preserve"><value>文件标签使用当前浏览目录。用 {{ 和 }} 显示花括号，最多 512 个字符。</value></data>
+  <data name="Settings.TabBar.DefaultRemoteTitle" xml:space="preserve"><value>使用远端标题</value></data>
+  <data name="Settings.TabBar.DefaultHint" xml:space="preserve"><value>未填写命名规则时生效，可在会话属性中覆盖。手动重命名的终端始终保留自定义名称。</value></data>
+  <data name="Settings.TabBar.Variable.local_name" xml:space="preserve"><value>会话名</value></data>
+  <data name="Settings.TabBar.Variable.local_host" xml:space="preserve"><value>连接地址</value></data>
+  <data name="Settings.TabBar.Variable.local_port" xml:space="preserve"><value>连接端口</value></data>
+  <data name="Settings.TabBar.Variable.local_user" xml:space="preserve"><value>登录用户</value></data>
+  <data name="Settings.TabBar.Variable.remote_hostname" xml:space="preserve"><value>远端主机名</value></data>
+  <data name="Settings.TabBar.Variable.remote_path" xml:space="preserve"><value>当前目录的完整路径</value></data>
+  <data name="Settings.TabBar.Variable.remote_dirname" xml:space="preserve"><value>当前目录名</value></data>
+  <data name="Settings.TabBar.Variable.remote_title" xml:space="preserve"><value>远端上报的标题</value></data>
+  <data name="Settings.TabBar.Variable.remote_ip" xml:space="preserve"><value>目标 IP（仅支持 IP 地址连接）</value></data>
+  <data name="Settings.General.TabNavigationModifier" xml:space="preserve"><value>标签页切换修饰键</value></data>
+  <data name="Settings.General.TabNavigationHint" xml:space="preserve"><value>{0} + 1–9：按顺序切换标签页；+ -：上一个；+ =：下一个（首尾循环）。</value></data>
 </root>

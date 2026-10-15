@@ -31,7 +31,7 @@ using Kei.Term.Ssh.Services;
 
 namespace Kei.Term.Tests;
 
-public class FileManagerWorkspaceTests
+public partial class FileManagerWorkspaceTests
 {
     [MonospaceTheory]
     [InlineData(false)]
@@ -43,6 +43,7 @@ public class FileManagerWorkspaceTests
         HeadlessAvalonia.Pump();
         TerminalConnectionView connection = host.Window.GetVisualDescendants().OfType<TerminalConnectionView>().Single(view => view.IsEffectivelyVisible);
         double originalWidth = connection.FindControl<Border>("SftpHost")!.Bounds.Width;
+        Assert.False(VisibleFiles(host).FindControl<Button>("FileManagerShowShellButton")!.IsVisible);
         host.Terminal.Terminal.Focus();
         await CloseShortcutAsync(host);
         Assert.False(host.Terminal.IsShellVisible);
@@ -68,13 +69,13 @@ public class FileManagerWorkspaceTests
     });
 
     [MonospaceFact]
-    public Task ShowShellButton_InFileWorkspaceTabRestoresAndActivatesItsOwner() => HeadlessAvalonia.RunAsync(async () =>
+    public Task ShowShellButton_InFileWorkspaceTabActivatesItsOwner() => HeadlessAvalonia.RunAsync(async () =>
     {
         await using Host host = await Host.CreateAsync();
         host.Terminal.Terminal.Focus();
         await CloseShortcutAsync(host);
         FileManagerTabViewModel filesTab = Promote(host);
-        Assert.False(host.Terminal.IsShellVisible);
+        Assert.True(host.Terminal.IsShellVisible);
 
         Click(host.Window, VisibleFiles(host).FindControl<Button>("FileManagerShowShellButton")!);
         Assert.Same(host.Terminal, host.Model.ActiveWorkspaceTab);
@@ -88,15 +89,48 @@ public class FileManagerWorkspaceTests
     });
 
     [MonospaceFact]
-    public Task ShowShellButton_WhenAlreadyVisibleFocusesShellWithoutOpeningAnotherTab() => HeadlessAvalonia.RunAsync(async () =>
+    public Task FullScreenFiles_SwitchesDocumentsAndTitles_ThenRestoresSplitWithoutReplacingConnection() => HeadlessAvalonia.RunAsync(async () =>
     {
         await using Host host = await Host.CreateAsync();
-        VisibleFiles(host).FindControl<TextBox>("FileManagerPathInput")!.Focus();
+        TerminalConnectionView connection = host.Window.GetVisualDescendants().OfType<TerminalConnectionView>().Single(view => view.IsEffectivelyVisible);
+        double sidebarWidth = connection.FindControl<Border>("SftpHost")!.Bounds.Width;
+        Assert.False(VisibleFiles(host).FindControl<Button>("FileManagerShowShellButton")!.IsEffectivelyVisible);
+        Click(host.Window, VisibleFiles(host).FindControl<Button>("FileManagerMaximizeButton")!);
+        Assert.False(host.Terminal.IsShellVisible);
+        Assert.True(host.Terminal.IsFileManagerMaximized);
+        Assert.Equal("LAN · log", host.Terminal.Title);
+        Assert.Equal(host.Terminal.Title, host.Model.Workspace.FindDocument(host.Terminal)!.Title);
+        Assert.True(connection.FindControl<Border>("SftpHost")!.Bounds.Width > sidebarWidth);
+        Assert.False(connection.FindControl<GridSplitter>("FileManagerSplitter")!.IsVisible);
+
         Click(host.Window, VisibleFiles(host).FindControl<Button>("FileManagerShowShellButton")!);
+        Assert.True(host.Terminal.IsShellVisible);
+        Assert.False(host.Terminal.IsFileManagerVisible);
+        Assert.Equal("LAN", host.Terminal.Title);
         Assert.Same(host.Terminal.Terminal, host.Window.FocusManager!.GetFocusedElement());
-        Assert.Equal(ConnectionDocumentKind.Shell, host.Terminal.ActiveDocument);
+        Click(host.Window, connection.FindControl<Button>("FullScreenFilesButton")!);
+        Assert.False(host.Terminal.IsShellVisible);
+        host.Terminal.Rename("Renamed");
+        Assert.Equal("Renamed · log", host.Model.Workspace.FindDocument(host.Terminal)!.Title);
+        Click(host.Window, VisibleFiles(host).FindControl<Button>("FileManagerMaximizeButton")!);
+        Assert.True(host.Terminal.IsShellVisible);
+        Assert.True(host.Terminal.IsFileManagerVisible);
+        Assert.False(host.Terminal.IsFileManagerMaximized);
+        Assert.Equal("Renamed", host.Terminal.Title);
+        Assert.Equal(sidebarWidth, connection.FindControl<Border>("SftpHost")!.Bounds.Width, precision: 1);
+        Click(host.Window, VisibleFiles(host).FindControl<Button>("FileManagerMaximizeButton")!);
+        Click(host.Window, VisibleFiles(host).FindControl<Button>("FileManagerCloseButton")!);
+        Assert.True(host.Terminal.IsShellVisible);
+        Assert.False(host.Terminal.IsFileManagerVisible);
+        Assert.Equal("Renamed", host.Terminal.Title);
         Assert.Same(host.Terminal, Assert.Single(host.Model.WorkspaceTabs));
+        Assert.Same(host.Files, host.Terminal.FileManager);
         Assert.Equal(0, host.Session.DisposeCount);
+        Assert.Equal(0, host.FileSystem.DisposeCount);
+        host.Files.MaximizeCommand.Execute(null);
+        await host.Terminal.PrepareReconnectAsync();
+        Assert.True(host.Terminal.IsShellVisible);
+        Assert.False(host.Terminal.IsFileManagerMaximized);
     });
 
     [MonospaceTheory]
@@ -258,20 +292,32 @@ public class FileManagerWorkspaceTests
         finally { menu.Close(); }
     });
 
-    [MonospaceFact]
-    public Task ToolbarButton_CreatesAndSelectsAFileDocument_WithTheExistingManager() => HeadlessAvalonia.RunAsync(async () =>
+    [MonospaceTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public Task ToolbarButton_WhileLoading_CreatesFileTabAndPreservesTerminal(bool fromFullscreen) => HeadlessAvalonia.RunAsync(async () =>
     {
         await using Host host = await Host.CreateAsync();
+        TerminalConnectionView connection = host.Window.GetVisualDescendants().OfType<TerminalConnectionView>().Single(view => view.IsEffectivelyVisible);
+        connection.FindControl<Grid>("ConnectionLayout")!.ColumnDefinitions[2].Width = new GridLength(300);
+        host.Files.IsLoading = true;
+        HeadlessAvalonia.Pump();
+        if (fromFullscreen)
+            Click(host.Window, VisibleFiles(host).FindControl<Button>("FileManagerMaximizeButton")!);
         Button promote = host.Window.GetVisualDescendants().OfType<Button>()
             .Single(button => ReferenceEquals(button.Command, host.Files.PromoteToTabCommand) && button.IsEffectivelyVisible);
         Click(host.Window, promote);
 
         Assert.Equal(2, host.Model.WorkspaceTabs.Count);
+        Assert.True(host.Terminal.IsShellVisible);
+        Assert.False(host.Terminal.IsFileManagerMaximized);
+        Assert.Equal("LAN", host.Terminal.Title);
         Assert.NotSame(host.Terminal, host.Model.ActiveWorkspaceTab);
         Assert.Same(host.Terminal, host.Model.SelectedTab);
         Assert.Same(host.Terminal, host.Model.Workspace.ActiveTab);
         Assert.Single(host.Model.Tabs);
         WorkspaceDocument fileDocument = host.Model.Workspace.FindDocument(host.Model.ActiveWorkspaceTab!)!;
+        Assert.Equal("LAN · log", fileDocument.Title);
         DocumentTabStripItem[] headers = host.Window.GetVisualDescendants().OfType<DocumentTabStripItem>().ToArray();
         Assert.Equal(2, headers.Length);
         DocumentTabStripItem fileHeader = headers.Single(header => ReferenceEquals(header.DataContext, fileDocument));
@@ -606,11 +652,12 @@ public class FileManagerWorkspaceTests
     private sealed class RecordingFileSystem : IRemoteFileSystem
     {
         public int DisposeCount;
+        public Func<string, CancellationToken, Task<IReadOnlyList<RemoteFileItem>>>? ListDirectory;
         public bool IsConnected => DisposeCount == 0;
         public string WorkingDirectory => "/home/kei";
         public Task ConnectAsync(CancellationToken ct = default) => Task.CompletedTask;
         public Task<IReadOnlyList<RemoteFileItem>> ListDirectoryAsync(string path, CancellationToken ct = default)
-            => Task.FromResult<IReadOnlyList<RemoteFileItem>>([]);
+            => ListDirectory?.Invoke(path, ct) ?? Task.FromResult<IReadOnlyList<RemoteFileItem>>([]);
         public Task<Stream> OpenReadAsync(string path, CancellationToken ct = default) => Task.FromResult(Stream.Null);
         public Task<Stream> OpenWriteAsync(string path, CancellationToken ct = default) => Task.FromResult(Stream.Null);
         public Task DeleteAsync(string path, bool isDirectory, CancellationToken ct = default) => Task.CompletedTask;

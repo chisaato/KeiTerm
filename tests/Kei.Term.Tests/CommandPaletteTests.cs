@@ -132,15 +132,20 @@ public class CommandPaletteTests
             GeneralSettingsPage page = (GeneralSettingsPage)model.Categories.First(category => category.Page is GeneralSettingsPage).Page;
             string shortcut = AppShortcuts.Serialize(new KeyGesture(Key.P, AppShortcuts.NewTab.KeyModifiers | KeyModifiers.Alt));
             page.SetCommandPaletteShortcut(shortcut);
+            page.SetTabNavigationModifier("Alt+Shift");
             Assert.True(await model.ApplyChangesAsync());
             JsonSettingsService reopened = new(Path.Combine(directory, "settings.json"));
             await reopened.LoadSettingsAsync();
             Assert.Equal(shortcut, reopened.Current.CommandPaletteShortcut);
+            Assert.Equal("Alt+Shift", reopened.Current.TabNavigationModifier);
+            page.SetTabNavigationModifier("Ctrl");
             page.ResetCommandPaletteShortcutCommand.Execute(null);
             await model.CancelCommand.ExecuteAsync(null);
             model.Reload();
             Assert.Equal(shortcut, page.CommandPaletteShortcut);
             Assert.Equal(shortcut, settings.Current.CommandPaletteShortcut);
+            Assert.Equal("Alt+Shift", page.SelectedTabNavigationModifier.Value);
+            Assert.Equal("Alt+Shift", settings.Current.TabNavigationModifier);
         }
         finally { Directory.Delete(directory, recursive: true); }
     }

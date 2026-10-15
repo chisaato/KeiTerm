@@ -56,7 +56,7 @@ public static class TerminalControlFactory
         TerminalControl prototype = _prototype ??= new TerminalControl();
         return new TerminalControl(
             new TerminalSessionService(),
-            new DefaultTerminalInputAdapter(),
+            new AppShortcutAwareInputAdapter(new DefaultTerminalInputAdapter()),
             new DefaultTerminalSelectionService(),
             new DefaultTerminalScrollService(),
             new HookingVtProcessorFactory(prototype.VtProcessorFactory, hooks),

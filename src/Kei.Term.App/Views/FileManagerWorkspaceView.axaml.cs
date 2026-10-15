@@ -20,8 +20,10 @@ public partial class FileManagerWorkspaceView : UserControl
 
     private void Activate(object? sender, RoutedEventArgs args)
     {
-        if (DataContext is FileManagerTabViewModel tab)
-            this.FindAncestorOfType<TerminalWorkspaceView>()?.ActivateItem(tab);
+        if (DataContext is FileManagerTabViewModel tab
+            && this.FindAncestorOfType<TerminalWorkspaceView>() is { } workspace
+            && workspace.IsItemPresented(tab))
+            workspace.ActivateItem(tab);
     }
 
     public void FocusDefaultAction()

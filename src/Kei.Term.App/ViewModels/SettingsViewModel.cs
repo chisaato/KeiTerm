@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using Kei.Term.App.Helpers;
 using Kei.Term.App.Models;
 using Kei.Term.App.Terminals;
@@ -183,6 +184,7 @@ public partial class SettingsViewModel : ViewModelBase
         _general.UseNativeGlobalMenu = current.UseNativeGlobalMenu;
         _general.UseNativeContextMenus = current.UseNativeContextMenus;
         _general.SetCommandPaletteShortcut(current.CommandPaletteShortcut);
+        _general.SetTabNavigationModifier(current.TabNavigationModifier);
         _general.SetTreeSortMode(current.TreeSortMode);
         _general.SessionManagerPinned = current.SessionManagerPinned;
         LoadFileTransferSettings(current);
@@ -240,7 +242,9 @@ public partial class SettingsViewModel : ViewModelBase
             ? "xterm-256color"
             : current.DefaultTerminalType;
         _terminal.TabTitleFollowsRemote = current.TabTitleFollowsRemote;
+        _terminal.TabTitleTemplate = current.TabTitleTemplate ?? string.Empty;
         _terminal.SetCwdFollow(current.CwdFollowMode);
+        _terminal.SetMultiplexerMode(current.TerminalMultiplexerMode);
 
         _ssh.DefaultPort = current.DefaultPort;
         _ssh.DefaultUsername = current.DefaultUsername;
@@ -266,6 +270,7 @@ public partial class SettingsViewModel : ViewModelBase
         {
             return false;
         }
+        if (_terminal.HasTitleTemplateError) return false;
 
         // 以当前设置的完整副本为底稿，只覆盖本窗口编辑的字段：新增设置项无需在此登记也不会被保存重置
         //（曾因整对象重建漏列导致文件侧栏位置、轮询参数等保存后丢失）
@@ -278,6 +283,7 @@ public partial class SettingsViewModel : ViewModelBase
         settings.UseNativeGlobalMenu = _general.UseNativeGlobalMenu;
         settings.UseNativeContextMenus = _general.UseNativeContextMenus;
         settings.CommandPaletteShortcut = _general.CommandPaletteShortcut;
+        settings.TabNavigationModifier = _general.SelectedTabNavigationModifier.Value;
         settings.TreeSortMode = _general.SelectedTreeSort?.Mode ?? "AsciiFirst";
         settings.SessionManagerPinned = _general.SessionManagerPinned;
         settings.SessionManagerVisibilityMode = _general.SelectedSessionManagerMode switch
@@ -330,7 +336,9 @@ public partial class SettingsViewModel : ViewModelBase
             ? "xterm-256color"
             : _terminal.DefaultTerminalType.Trim();
         settings.TabTitleFollowsRemote = _terminal.TabTitleFollowsRemote;
+        settings.TabTitleTemplate = _terminal.TabTitleTemplate.Trim();
         settings.CwdFollowMode = _terminal.SelectedCwdFollow?.Mode ?? CwdFollowMode.Off;
+        settings.TerminalMultiplexerMode = _terminal.SelectedMultiplexer?.Mode ?? TerminalMultiplexerMode.Auto;
 
         // SSH
         settings.DefaultPort = _ssh.DefaultPort is >= 1 and <= 65535 ? _ssh.DefaultPort : 22;
@@ -382,6 +390,7 @@ public partial class SettingsViewModel : ViewModelBase
             _lastAppliedSettings = CloneSettings(settings);
             RememberSyncedFontSize(settings.FontSize);
             NotifyFileDisplaySettings();
+            WeakReferenceMessenger.Default.Send(new TabTitleTemplateChangedMessage(settings.TabTitleTemplate));
             return true;
         }
         finally

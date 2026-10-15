@@ -62,6 +62,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
     partial void OnStateChanged(ConnectionState value)
     {
         OnPropertyChanged(nameof(Status));
+        UpdateTitle();
         AlignGridToBottom();
     }
 #pragma warning restore CS0618
@@ -180,7 +181,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
 
         _session = session;
         _connectionDropAction = null;
-        _terminalWorkingDirectory = null;
+        ResetDirectoryFollow();
         _endpoint = new TerminalSessionEndpoint(session, Terminal);
         Terminal.AttachEndpoint(_endpoint);
         session.Disconnected += OnSessionDisconnected;
@@ -199,6 +200,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         StatusMessage = null;
         _reconnectAttempt = 0;
         _userDisconnect = false;
+        ScheduleDirectoryFollow();
         _logger.LogInformation("终端标签已连接 标题={Title}", Title);
         TrySyncTerminalSize();
         if (IsSelected)
@@ -249,6 +251,8 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
             return;
         }
         _fileManagerInitializationCancellation?.Cancel();
+        ResetDirectoryFollow();
+        await DrainDirectoryFollowAsync();
         await DrainTerminalFileDropAsync();
         _endpoint?.Dispose();
         _terminal?.DetachEndpoint();
@@ -278,6 +282,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
 
             State = ex != null ? ConnectionState.Error : ConnectionState.Disconnected;
             _dropCancellation?.Cancel();
+            ResetDirectoryFollow();
             StatusMessage = ex?.Message ?? Strings.Get("Main.Tab.ConnectionDropped");
             if (ex != null)
             {
@@ -316,6 +321,16 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
     [RelayCommand]
     public void ToggleFileManager()
     {
+        if (IsFileManagerMaximized)
+        {
+            if (IsFileManagerVisible)
+            {
+                IsShellVisible = true;
+                IsFileManagerVisible = false;
+            }
+            else ShowFileManagerFullScreen();
+            return;
+        }
         IsFileManagerVisible = !IsFileManagerVisible;
         Dispatcher.UIThread.Post(() => TrySyncTerminalSize(), DispatcherPriority.Render);
     }
@@ -336,6 +351,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
     {
         IsShellVisible = true;
         _userDisconnect = true;
+        CancelDirectoryFollow();
         CancelReconnect();
         await DetachSessionAsync();
         await CloseFileManagerAsync();
@@ -382,6 +398,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
 
         _userDisconnect = true;
         CancelReconnect();
+        await DrainDirectoryFollowAsync();
         await DetachSessionAsync();
         await CloseFileManagerAsync();
         _logger.LogInformation("终端标签已释放 标题={Title}", Title);

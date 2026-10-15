@@ -1,13 +1,38 @@
 using Avalonia.Input;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Kei.Term.App.Helpers;
 
 namespace Kei.Term.App.ViewModels.Settings;
 
+public record TabNavigationModifierOption(string Value, string Label);
+
 public partial class GeneralSettingsPage
 {
+    public IReadOnlyList<TabNavigationModifierOption> TabNavigationModifiers { get; } =
+    [
+        new("Primary", OperatingSystem.IsMacOS() ? "⌘ (默认)" : "Ctrl (默认)"),
+        new("Ctrl", "Ctrl"), new("Alt", "Alt / ⌥"), new("Meta", "Command / ⌘ / Win"),
+        new("Ctrl+Shift", "Ctrl + Shift"), new("Alt+Shift", "Alt + Shift"),
+        new("Meta+Shift", "⌘ / Win + Shift"), new("Ctrl+Alt", "Ctrl + Alt"),
+        new("Meta+Alt", "⌘ / Win + Alt")
+    ];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TabNavigationShortcutDescription))]
+    private TabNavigationModifierOption _selectedTabNavigationModifier =
+        new("Primary", OperatingSystem.IsMacOS() ? "⌘ (默认)" : "Ctrl (默认)");
+
+    public string TabNavigationShortcutDescription =>
+        Strings.Format("Settings.General.TabNavigationHint", SelectedTabNavigationModifier.Label);
+
+    public void SetTabNavigationModifier(string? value)
+        => SelectedTabNavigationModifier = TabNavigationModifiers.FirstOrDefault(option =>
+            string.Equals(option.Value, value, StringComparison.OrdinalIgnoreCase)) ?? TabNavigationModifiers[0];
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CommandPaletteShortcutLabel))]
     private string _commandPaletteShortcut = AppShortcuts.DefaultCommandPaletteShortcut;
