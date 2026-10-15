@@ -11,6 +11,7 @@ public sealed class TerminalDirectoryTracker
     private string? _reportedHost;
 
     public string? Directory { get; private set; }
+    public string? ReportedHost => RejectedHost == null ? _reportedHost : null;
     public string? RejectedHost { get; private set; }
     public TerminalMultiplexerMode? DetectedMultiplexer { get; private set; }
 

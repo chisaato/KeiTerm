@@ -24,7 +24,7 @@ public partial class FileManagerTabViewModel : ViewModelBase
 
     public TerminalTabViewModel Owner { get; }
     public RemoteFileManagerViewModel FileManager { get; }
-    public string Title => WorkspaceTabTitle.ForDirectory(Owner.TabName, FileManager.CurrentPath);
+    public string Title => Owner.FormatFileTabTitle(FileManager.CurrentPath);
     public string ToolTip => $"{Strings.Format(TitleKey, Owner.TabName)}{Environment.NewLine}{FileManager.CurrentPath}{Environment.NewLine}{Owner.ToolTip}";
     public IRelayCommand RequestCloseCommand => FileManager.CloseCommand;
 
@@ -32,7 +32,7 @@ public partial class FileManagerTabViewModel : ViewModelBase
 
     private void OnOwnerPropertyChanged(object? sender, PropertyChangedEventArgs args)
     {
-        if (args.PropertyName == nameof(TerminalTabViewModel.TabName)) OnPropertyChanged(nameof(Title));
+        if (args.PropertyName == nameof(TerminalTabViewModel.TitleContext)) OnPropertyChanged(nameof(Title));
         if (args.PropertyName == nameof(TerminalTabViewModel.ToolTip)) OnPropertyChanged(nameof(ToolTip));
         // 主动断开或重连卸下旧通道时，不保留一个指向已释放文件系统的文档。
         if (args.PropertyName == nameof(TerminalTabViewModel.FileManager) && !ReferenceEquals(Owner.FileManager, FileManager))

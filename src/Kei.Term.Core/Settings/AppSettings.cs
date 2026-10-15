@@ -117,6 +117,9 @@ public class AppSettings
     // 标签标题跟随远端（OSC 0/2）标题；会话可覆盖
     public bool TabTitleFollowsRemote { get; set; } = true;
 
+    // 空白使用内建命名；终端和文件标签共用 local_* / remote_* 模板。
+    public string TabTitleTemplate { get; set; } = string.Empty;
+
     // 文件侧栏跟随终端目录的全局默认方式；会话可覆盖
     public CwdFollowMode CwdFollowMode { get; set; } = CwdFollowMode.Off;
 

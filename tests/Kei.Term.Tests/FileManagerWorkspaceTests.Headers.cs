@@ -5,6 +5,7 @@ using Avalonia.Media;
 using Avalonia.VisualTree;
 using Dock.Avalonia.Controls;
 using Kei.Term.App.ViewModels;
+using Kei.Term.App.ViewModels.Settings;
 using Kei.Term.App.Workspaces;
 using AvaloniaPath = Avalonia.Controls.Shapes.Path;
 
@@ -12,6 +13,70 @@ namespace Kei.Term.Tests;
 
 public partial class FileManagerWorkspaceTests
 {
+    [MonospaceFact]
+    public Task SavedTemplate_UpdatesAlreadyOpenDocuments_AndClearingRestoresDefault() => HeadlessAvalonia.RunAsync(async () =>
+    {
+        await using Host host = await Host.CreateAsync();
+        FileManagerTabViewModel files = Promote(host);
+        string directory = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "keiterm_title_live_" + System.Guid.NewGuid().ToString("N"));
+        System.IO.Directory.CreateDirectory(directory);
+        try
+        {
+            SettingsViewModel settings = new(new FixedSettingsService(host.Model.CurrentSettings), directory);
+            TerminalSettingsPage page = settings.Categories.Select(category => category.Page)
+                .OfType<TabBarSettingsProxyPage>().Single().Terminal;
+            page.TabTitleTemplate = "{local_name}: {remote_path}";
+            Assert.True(await settings.ApplyChangesAsync());
+            Assert.Equal("LAN: —", host.Terminal.Title);
+            Assert.Equal("LAN: /var/log", files.Title);
+            Assert.Equal(files.Title, host.Model.Workspace.FindDocument(files)!.Title);
+            page.TabTitleTemplate = string.Empty;
+            Assert.True(await settings.ApplyChangesAsync());
+            Assert.Equal("LAN", host.Terminal.Title);
+            Assert.Equal("LAN · log", files.Title);
+        }
+        finally { System.IO.Directory.Delete(directory, true); }
+    });
+
+    [MonospaceFact]
+    public Task RemoteIp_RequiresConnectedNumericTarget_AndNeverDisplaysDomainAsIp() => HeadlessAvalonia.RunAsync(async () =>
+    {
+        await using Host host = await Host.CreateAsync();
+        Core.Models.ResolvedSessionConfig config = new(System.Guid.NewGuid(), "LAN", "203.0.113.5", 22, "ops", null,
+            "xterm-256color", null, null, new System.Collections.Generic.Dictionary<string, string>(), TabTitleTemplate: "{remote_ip}");
+        host.Terminal.BindConfig(config);
+        Assert.Equal("203.0.113.5", host.Terminal.Title);
+        host.Terminal.ApplyTitleTemplate("{local_host} | {remote_ip}");
+        host.Terminal.BindConfig(config);
+        Assert.Equal("203.0.113.5 | 203.0.113.5", host.Terminal.Title);
+        host.Terminal.ApplyTitleTemplate("{remote_ip}");
+        host.Terminal.State = ConnectionState.Connecting;
+        Assert.Equal("—", host.Terminal.Title);
+        host.Terminal.State = ConnectionState.Connected;
+        host.Terminal.BindConfig(config with { Host = "example.com" });
+        Assert.Equal("—", host.Terminal.Title);
+    });
+
+    [MonospaceFact]
+    public Task Template_TracksRemoteReportsAndFileNavigation_AndManualRenameWins() => HeadlessAvalonia.RunAsync(async () =>
+    {
+        await using Host host = await Host.CreateAsync();
+        FileManagerTabViewModel files = Promote(host);
+        host.Terminal.ApplyTitleTemplate("{local_name} | {remote_hostname} | {remote_path}");
+        Assert.Equal("LAN | — | —", host.Terminal.Title);
+        Assert.Equal("LAN | — | /var/log", files.Title);
+        host.Terminal.Terminal.WriteOutput(System.Text.Encoding.UTF8.GetBytes("\u001b]7;file://server/home/ops\u0007"));
+        HeadlessAvalonia.Pump();
+        Assert.Equal("LAN | server | /home/ops", host.Terminal.Title);
+        Assert.Equal("LAN | server | /var/log", files.Title);
+        host.Files.CurrentPath = "/etc";
+        Assert.Equal("LAN | server | /etc", files.Title);
+        host.Terminal.Rename("manual");
+        host.Terminal.ApplyTitleTemplate("{remote_path}");
+        Assert.Equal("manual", host.Terminal.Title);
+        Assert.Equal("/etc", files.Title);
+    });
+
     [MonospaceTheory]
     [InlineData("/", "/")]
     [InlineData("/var/log/", "log")]

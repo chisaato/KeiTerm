@@ -3,6 +3,9 @@ using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Kei.Term.App.ViewModels;
 using Kei.Term.Core.Models;
+using Kei.Term.Core.Services;
+using Kei.Term.App.Helpers;
+using TitleTemplateRenderer = Kei.Term.Core.Services.TabTitleTemplate;
 
 namespace Kei.Term.App.ViewModels.Settings;
 
@@ -20,6 +23,27 @@ public partial class TerminalSettingsPage : ViewModelBase
     // 标签标题跟随远端（OSC 0/2）标题的全局默认；会话可覆盖
     [ObservableProperty]
     private bool _tabTitleFollowsRemote = true;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TerminalTitlePreview))]
+    [NotifyPropertyChangedFor(nameof(FileTitlePreview))]
+    [NotifyPropertyChangedFor(nameof(TitleTemplateError))]
+    [NotifyPropertyChangedFor(nameof(HasTitleTemplateError))]
+    private string _tabTitleTemplate = string.Empty;
+
+    public string TerminalTitlePreview => Preview("/home/ops", "ops@server:~", "production · ops@server:~");
+    public string FileTitlePreview => Preview("/var/log", "ops@server:~", "production · log");
+    public string? TitleTemplateError => TitleTemplateRenderer.TryRender(TabTitleTemplate, PreviewContext("/home/ops", "ops@server:~"), out _, out string? error)
+        ? null : Strings.Format("Settings.TabBar.TemplateError", error);
+    public bool HasTitleTemplateError => TitleTemplateError != null;
+
+    private string Preview(string path, string title, string fallback)
+        => !string.IsNullOrWhiteSpace(TabTitleTemplate)
+            && TitleTemplateRenderer.TryRender(TabTitleTemplate, PreviewContext(path, title), out string result, out _)
+            && !string.IsNullOrWhiteSpace(result) ? result : fallback;
+
+    private static TabTitleContext PreviewContext(string path, string title)
+        => new("production", "server.example.com", "22", "ops", "server", path, "203.0.113.10", title);
 
     // 文件侧栏跟随终端目录的全局默认；会话可覆盖
     public IReadOnlyList<CwdFollowOption> CwdFollowModes => SessionBehaviorOptions.CwdFollowModes;

@@ -211,6 +211,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
 
         Workspace = new WorkspaceCoordinator();
         Tabs = Workspace.AllTabs;
+        InitializeTitleTemplates();
         WeakReferenceMessenger.Default.Register<WorkspaceActiveItemChangedMessage>(this, OnWorkspaceActiveTabChanged);
         WeakReferenceMessenger.Default.Register<WorkspaceItemCloseRequestedMessage>(this, OnWorkspaceCloseRequested);
         WeakReferenceMessenger.Default.Register<FileManagerTabRequestedMessage>(this, OnFileManagerTabRequested);

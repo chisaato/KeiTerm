@@ -200,9 +200,9 @@
                                             Background="{Binding State, Converter={StaticResource ConnectionStateBrush}}"/>
                                     <Viewbox Classes="workspaceTabIcon">
                                         <Grid Width="24" Height="24">
-                                            <Path x:Name="TerminalKindIcon" Classes="kei-icon workspaceTabKind" Data="{StaticResource Kei.Icon.Terminal}"
+                                            <Path x:Name="TerminalKindIcon" Classes="kei-icon workspaceTabKind" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Terminal}"
                                                   IsVisible="{Binding IsShellVisible}"/>
-                                            <Path x:Name="FileManagerKindIcon" Classes="kei-icon workspaceTabKind" Data="{StaticResource Kei.Icon.Folder}"
+                                            <Path x:Name="FileManagerKindIcon" Classes="kei-icon workspaceTabKind" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Folder}"
                                                   IsVisible="{Binding !IsShellVisible}"/>
                                         </Grid>
                                     </Viewbox>
@@ -225,7 +225,7 @@
                                             Background="{Binding Owner.State, Converter={StaticResource ConnectionStateBrush}}"/>
                                     <Viewbox Classes="workspaceTabIcon">
                                         <Grid Width="24" Height="24">
-                                            <Path x:Name="FileManagerKindIcon" Classes="kei-icon workspaceTabKind" Data="{StaticResource Kei.Icon.Folder}"/>
+                                            <Path x:Name="FileManagerKindIcon" Classes="kei-icon workspaceTabKind" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Folder}"/>
                                         </Grid>
                                     </Viewbox>
                                     <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontSize="12"
@@ -245,7 +245,7 @@
                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                     <Viewbox Classes="workspaceTabIcon">
                                         <Grid Width="24" Height="24">
-                                            <Path Classes="kei-icon workspaceTabKind" Data="{StaticResource Kei.Icon.Terminal}"/>
+                                            <Path Classes="kei-icon workspaceTabKind" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Terminal}"/>
                                         </Grid>
                                     </Viewbox>
                                     <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontSize="12"

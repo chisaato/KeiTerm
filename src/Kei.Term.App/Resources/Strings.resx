@@ -2350,4 +2350,13 @@ Latin: AaBb CcDd GgYy gypq
   <data name="VaultQuickUnlock.Unavailable" xml:space="preserve">
     <value>本机验证当前不可用，请使用主密码解锁。</value>
   </data>
+  <data name="Settings.TabBar.TemplateLabel" xml:space="preserve"><value>标签标题模板</value></data>
+  <data name="Settings.TabBar.TemplateExample" xml:space="preserve"><value>{remote_hostname} | {remote_path}</value></data>
+  <data name="Settings.TabBar.TemplateHint" xml:space="preserve"><value>终端与文件标签共用。留空使用默认命名；保存后立即生效。远端值未上报时显示 —。手动重命名的终端优先保留名称；使用 {{ 和 }} 显示花括号。</value></data>
+  <data name="Settings.TabBar.TemplateError" xml:space="preserve"><value>模板无效：{0}。请检查变量名与花括号（最多 512 个字符）。</value></data>
+  <data name="Settings.TabBar.TerminalPreview" xml:space="preserve"><value>终端预览</value></data>
+  <data name="Settings.TabBar.FilePreview" xml:space="preserve"><value>文件预览</value></data>
+  <data name="Settings.TabBar.LocalVariables" xml:space="preserve"><value>本地配置：{local_name} 会话名 · {local_host} 目标地址 · {local_port} 端口 · {local_user} 用户名</value></data>
+  <data name="Settings.TabBar.RemoteVariables" xml:space="preserve"><value>远端信息：{remote_hostname} 主机名 · {remote_path} 当前目录 · {remote_dirname} 目录名 · {remote_title} 上报标题 · {remote_ip} 目标 IP。文件标签使用自身浏览的目录。</value></data>
+  <data name="Settings.TabBar.RemoteIpHint" xml:space="preserve"><value>远端主机名和终端目录来自 Shell 上报。目标地址为 IP 时，连接成功后提供 remote_ip；域名、跳板或代理无法确认的目标 IP 显示 —。</value></data>
 </root>

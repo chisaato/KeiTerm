@@ -86,12 +86,16 @@ public partial class TerminalTabViewModel
     partial void OnTitleChanged(string value) => UpdateToolTip();
 
     private void UpdateTitle()
-        => Title = !IsShellVisible && IsFileManagerVisible
-            ? WorkspaceTabTitle.ForDirectory(TabName, FileManager?.CurrentPath)
-            : FollowRemoteTitle && !string.IsNullOrWhiteSpace(RemoteTitle)
+    {
+        Title = !IsShellVisible && IsFileManagerVisible
+            ? FormatFileTabTitle(FileManager?.CurrentPath ?? string.Empty)
+            : _hasManualTitle ? TabName
+            : RenderTitleTemplate(TitleContext) ?? (FollowRemoteTitle && !string.IsNullOrWhiteSpace(RemoteTitle)
                 && !string.Equals(RemoteTitle, TabName, StringComparison.Ordinal)
                 ? $"{TabName} · {RemoteTitle}"
-                : TabName;
+                : TabName);
+        OnPropertyChanged(nameof(TitleContext));
+    }
 
     private void UpdateToolTip()
     {
@@ -100,6 +104,7 @@ public partial class TerminalTabViewModel
         {
             lines.Add(files.CurrentPath);
         }
+        else if (_terminalWorkingDirectory is { } path) lines.Add(path);
 
         if (Config is { } config)
         {
@@ -121,11 +126,13 @@ public partial class TerminalTabViewModel
         if (Config == null)
         {
             FollowRemoteTitle = config.FollowRemoteTitle;
+            _titleTemplate = config.TabTitleTemplate;
         }
 
         Config = config;
         _directoryFollowMode = config.CwdFollow;
         _directoryMultiplexerMode = config.MultiplexerMode;
+        UpdateTitle();
         UpdateToolTip();
     }
 
@@ -170,12 +177,19 @@ public partial class TerminalTabViewModel
             return;
         }
 
+        _hasManualTitle = true;
         TabName = name.Trim();
         FollowRemoteTitle = false;
+        UpdateTitle();
     }
 
     [RelayCommand]
-    private void ToggleFollowRemoteTitle() => FollowRemoteTitle = !FollowRemoteTitle;
+    private void ToggleFollowRemoteTitle()
+    {
+        _hasManualTitle = false;
+        FollowRemoteTitle = !FollowRemoteTitle;
+        UpdateTitle();
+    }
 
     [RelayCommand]
     private void RequestReconnect() => ActionRequested?.Invoke(this, TabAction.Reconnect);

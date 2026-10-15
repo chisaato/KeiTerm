@@ -62,6 +62,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
     partial void OnStateChanged(ConnectionState value)
     {
         OnPropertyChanged(nameof(Status));
+        UpdateTitle();
         AlignGridToBottom();
     }
 #pragma warning restore CS0618

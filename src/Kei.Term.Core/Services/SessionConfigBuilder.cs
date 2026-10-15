@@ -48,7 +48,8 @@ public static class SessionConfigBuilder
             CwdFollow: node.Overrides.CwdFollow ?? settings.CwdFollowMode,
             ConnectTimeoutSeconds: node.Overrides.ConnectTimeoutSeconds ?? settings.ConnectTimeoutSeconds,
             ProxyProfileId: node.ProxyProfileId,
-            MultiplexerMode: node.Overrides.MultiplexerMode ?? settings.TerminalMultiplexerMode
+            MultiplexerMode: node.Overrides.MultiplexerMode ?? settings.TerminalMultiplexerMode,
+            TabTitleTemplate: settings.TabTitleTemplate
         );
     }
 }

@@ -62,6 +62,8 @@ public partial class TerminalTabViewModel
     private void PublishTerminalDirectory()
     {
         _terminalWorkingDirectory = _directoryTracker.Directory;
+        UpdateTitle();
+        UpdateToolTip();
         if (FileManager == null) return;
         FileManager.TerminalDirectory = _terminalWorkingDirectory;
         FileManager.TerminalDirectoryStatus = _directoryTracker.RejectedHost is { } host

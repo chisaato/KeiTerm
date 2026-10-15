@@ -635,6 +635,26 @@
                                     <Border Classes="settingsSection" x:Name="TabTitleBehaviorSection">
                                         <StackPanel Spacing="8">
                                             <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.TabBar.TitleSection}"/>
+                                            <TextBlock Text="{loc:KeiString Settings.TabBar.TemplateLabel}"/>
+                                            <TextBox x:Name="TabTitleTemplateInput" Text="{Binding Terminal.TabTitleTemplate}"
+                                                     MaxLength="512" PlaceholderText="{loc:KeiString Settings.TabBar.TemplateExample}"/>
+                                            <TextBlock Text="{loc:KeiString Settings.TabBar.TemplateHint}" FontSize="12" TextWrapping="Wrap"
+                                                       Foreground="{DynamicResource Kei.Text.Muted}"/>
+                                            <TextBlock x:Name="TabTitleTemplateError" Text="{Binding Terminal.TitleTemplateError}"
+                                                       IsVisible="{Binding Terminal.HasTitleTemplateError}" FontSize="12" TextWrapping="Wrap"
+                                                       Foreground="{DynamicResource Kei.Status.Error}"/>
+                                            <Grid ColumnDefinitions="100,*" RowDefinitions="Auto,Auto" RowSpacing="6" ColumnSpacing="12">
+                                                <TextBlock Text="{loc:KeiString Settings.TabBar.TerminalPreview}" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                                <TextBlock x:Name="TerminalTitlePreview" Grid.Column="1" Text="{Binding Terminal.TerminalTitlePreview}" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Grid.Row="1" Text="{loc:KeiString Settings.TabBar.FilePreview}" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                                <TextBlock x:Name="FileTitlePreview" Grid.Row="1" Grid.Column="1" Text="{Binding Terminal.FileTitlePreview}" TextTrimming="CharacterEllipsis"/>
+                                            </Grid>
+                                            <TextBlock Text="{loc:KeiString Settings.TabBar.LocalVariables}" FontSize="12" TextWrapping="Wrap"
+                                                       Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                            <TextBlock Text="{loc:KeiString Settings.TabBar.RemoteVariables}" FontSize="12" TextWrapping="Wrap"
+                                                       Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                            <TextBlock Text="{loc:KeiString Settings.TabBar.RemoteIpHint}" FontSize="12" TextWrapping="Wrap"
+                                                       Foreground="{DynamicResource Kei.Text.Muted}"/>
                                             <CheckBox x:Name="TabTitleFollowsRemoteCheckBox" IsChecked="{Binding Terminal.TabTitleFollowsRemote}"
                                                       Content="{loc:KeiString Settings.Terminal.TabTitleFollowsRemote}"
                                                       ToolTip.Tip="{loc:KeiString Settings.Terminal.TabTitleFollowsRemoteTip}"/>
