@@ -169,6 +169,20 @@ KeiTerm.app/Contents/
   Resources/KeiTerm.icns  ← 由 packaging/macos/AppIcon.png 经 sips + iconutil 生成
 ```
 
+### 图标生成与变体
+
+在仓库根目录运行一次即可生成三套 PNG 与分级 ICO：
+
+```bash
+uv run --with pillow packaging/macos/make-icon.py packaging/macos/AppIcon.png src/Kei.Term.App/Assets/KeiTerm.ico
+```
+
+Windows 与 Linux 使用全镂空透明版 `KeiTerm-transparent.ico`；Windows 可执行文件的 `ApplicationIcon` 也引用透明 ICO。macOS 窗口使用标准 `KeiTerm.ico`，bundle 由带深灰圆角底座的 `AppIcon.png` 生成 `.icns`。`MainWindow.axaml` 通过 `OnPlatform` 选择窗口图标，`Assets` 目录通过 `AvaloniaResource` 打包。
+
+保留 `AppIcon.png` / `KeiTerm.ico` 深灰圆角底座版，以及文件名附加 `-transparent-window-fill` 的深色窗口内衬版，供不同桌面背景下对比或后续切换。透明版窗口内部也透明，深色内衬版仅外围透明。
+
+视觉映射为粉色光环层叠终端框、白发提示符 `>`、青蓝领带光标 `_` 与荧光粉内衬斜边。脚本顶部的颜色、框体坐标和 `HALO_TILT` 常量可调整配色、叠压关系与倾角。ICO 包含 16、24、32、48、64、128、256 px：16/24 px 使用零倾角、无留白的简化加粗图形，32 px 使用较小倾角，较大尺寸保留完整框体。
+
 两个签名坑：
 
 1. **`.pdb` 必须移除**。codesign 要求 `Contents/MacOS/` 下全部是可签名的 Mach-O 代码，托管程序集的 `.pdb` 会导致 `code object is not signed at all`。recipe 中 `find … -name '*.pdb' -delete`。
