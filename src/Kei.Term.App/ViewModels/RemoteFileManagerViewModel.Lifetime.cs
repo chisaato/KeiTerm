@@ -58,14 +58,21 @@ public partial class RemoteFileManagerViewModel
     {
         DisposeSizeDisplay();
         DisposeFileActivities();
-        _fileTracker.FileChanged -= OnTrackedFileChanged;
-        _fileTracker.FileUntracked -= OnFileUntracked;
+        if (_resourceOwner == null)
+        {
+            _fileTracker.FileChanged -= OnTrackedFileChanged;
+            _fileTracker.FileUntracked -= OnFileUntracked;
+        }
         _lifetimeCts.Cancel();
         try
         {
             // 停止事件源，并等待已开始的传输退出后才释放文件通道。
-            await _editorLauncher.DisposeAsync().ConfigureAwait(false);
-            await _fileTracker.DisposeAsync().ConfigureAwait(false);
+            await DisposeDirectoryTabsAsync().ConfigureAwait(false);
+            if (_resourceOwner == null)
+            {
+                await _editorLauncher.DisposeAsync().ConfigureAwait(false);
+                await _fileTracker.DisposeAsync().ConfigureAwait(false);
+            }
         }
         finally
         {
@@ -77,7 +84,7 @@ public partial class RemoteFileManagerViewModel
             {
                 try
                 {
-                    await _fileSystem.DisposeAsync().ConfigureAwait(false);
+                    if (_resourceOwner == null) await _fileSystem.DisposeAsync().ConfigureAwait(false);
                 }
                 finally
                 {

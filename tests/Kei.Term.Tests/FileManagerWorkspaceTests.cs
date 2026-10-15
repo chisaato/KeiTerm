@@ -31,7 +31,7 @@ using Kei.Term.Ssh.Services;
 
 namespace Kei.Term.Tests;
 
-public class FileManagerWorkspaceTests
+public partial class FileManagerWorkspaceTests
 {
     [MonospaceTheory]
     [InlineData(false)]
@@ -652,11 +652,12 @@ public class FileManagerWorkspaceTests
     private sealed class RecordingFileSystem : IRemoteFileSystem
     {
         public int DisposeCount;
+        public Func<string, CancellationToken, Task<IReadOnlyList<RemoteFileItem>>>? ListDirectory;
         public bool IsConnected => DisposeCount == 0;
         public string WorkingDirectory => "/home/kei";
         public Task ConnectAsync(CancellationToken ct = default) => Task.CompletedTask;
         public Task<IReadOnlyList<RemoteFileItem>> ListDirectoryAsync(string path, CancellationToken ct = default)
-            => Task.FromResult<IReadOnlyList<RemoteFileItem>>([]);
+            => ListDirectory?.Invoke(path, ct) ?? Task.FromResult<IReadOnlyList<RemoteFileItem>>([]);
         public Task<Stream> OpenReadAsync(string path, CancellationToken ct = default) => Task.FromResult(Stream.Null);
         public Task<Stream> OpenWriteAsync(string path, CancellationToken ct = default) => Task.FromResult(Stream.Null);
         public Task DeleteAsync(string path, bool isDirectory, CancellationToken ct = default) => Task.CompletedTask;

@@ -24,7 +24,9 @@ public partial class FileManagerTabViewModel : ViewModelBase
 
     public TerminalTabViewModel Owner { get; }
     public RemoteFileManagerViewModel FileManager { get; }
-    public string Title => Strings.Format(TitleKey, Owner.TabName);
+    public string Title => FileManager.IsDirectoryTab
+        ? $"{Strings.Format(TitleKey, Owner.TabName)} · {FileManager.CurrentPath}"
+        : Strings.Format(TitleKey, Owner.TabName);
     public string ToolTip => $"{Owner.ToolTip}{Environment.NewLine}{FileManager.CurrentPath}";
     public IRelayCommand RequestCloseCommand => FileManager.CloseCommand;
 
@@ -41,7 +43,11 @@ public partial class FileManagerTabViewModel : ViewModelBase
 
     private void OnFileManagerPropertyChanged(object? sender, PropertyChangedEventArgs args)
     {
-        if (args.PropertyName == nameof(RemoteFileManagerViewModel.CurrentPath)) OnPropertyChanged(nameof(ToolTip));
+        if (args.PropertyName == nameof(RemoteFileManagerViewModel.CurrentPath))
+        {
+            OnPropertyChanged(nameof(ToolTip));
+            OnPropertyChanged(nameof(Title));
+        }
     }
 
     internal void Detach()

@@ -227,6 +227,9 @@
                 <ListBox.ContextMenu>
                     <ContextMenu Opening="OnContextMenuOpening">
                         <MenuItem Header="打开" Command="{Binding EnterOrOpenFileCommand}" CommandParameter="{Binding SelectedItem}"/>
+                        <MenuItem x:Name="OpenDirectoryInTabMenuItem" Header="{loc:KeiString FileManager.OpenInTab}"
+                                  Command="{Binding OpenDirectoryInTabCommand}" CommandParameter="{Binding SelectedItem}"
+                                  IsVisible="{Binding SelectedItem.IsDirectory, FallbackValue=False}"/>
                         <MenuItem Header="打开方式" x:Name="OpenWithSubMenu">
                             <!-- 子项将在 ContextMenu 打开时动态构建 -->
                         </MenuItem>

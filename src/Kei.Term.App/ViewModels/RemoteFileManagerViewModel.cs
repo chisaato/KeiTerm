@@ -85,10 +85,10 @@ public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposabl
     // 目录树根节点列表（通常为根目录 "/" 节点）
     public ObservableCollection<RemoteDirectoryNodeViewModel> DirectoryTreeRoots { get; } = [];
 
-    private readonly Dictionary<string, string> _trackedFileLocalMap = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> _trackedFileLocalMap;
 
     public ObservableCollection<RemoteFileItem> Items { get; } = [];
-    public ObservableCollection<string> ActiveTrackedFiles { get; } = [];
+    public ObservableCollection<string> ActiveTrackedFiles { get; }
     public ObservableCollection<ExternalEditor> AvailableEditors { get; } = [];
 
     // 文件选择委托（单次打开选择其他本地程序）
@@ -101,7 +101,22 @@ public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposabl
         ISettingsService? settingsService = null,
         IExternalEditorRepository? editorRepo = null,
         ILogger? logger = null)
+        : this(sessionId, fileSystem, fileTracker, settingsService, editorRepo, logger, null)
     {
+    }
+
+    private RemoteFileManagerViewModel(
+        Guid sessionId,
+        IRemoteFileSystem fileSystem,
+        ILocalFileTracker fileTracker,
+        ISettingsService? settingsService,
+        IExternalEditorRepository? editorRepo,
+        ILogger? logger,
+        RemoteFileManagerViewModel? resourceOwner)
+    {
+        _resourceOwner = resourceOwner;
+        _trackedFileLocalMap = resourceOwner?._trackedFileLocalMap ?? new(StringComparer.Ordinal);
+        ActiveTrackedFiles = resourceOwner?.ActiveTrackedFiles ?? [];
         _sessionId = sessionId;
         _fileSystem = fileSystem;
         _fileTracker = fileTracker;
@@ -112,11 +127,14 @@ public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposabl
         _logger = logger ?? NullLogger.Instance;
         RemoteDirectoryNodeViewModel.SetLogger(_logger);
         var launcherLogger = _logger;
-        _editorLauncher = new FileEditorLauncher(_fileTracker, settingsService, editorRepo, launcherLogger);
+        _editorLauncher = resourceOwner?._editorLauncher ?? new FileEditorLauncher(_fileTracker, settingsService, editorRepo, launcherLogger);
 
         // 订阅本地文件变动自动回写事件
-        _fileTracker.FileChanged += OnTrackedFileChanged;
-        _fileTracker.FileUntracked += OnFileUntracked;
+        if (resourceOwner == null)
+        {
+            _fileTracker.FileChanged += OnTrackedFileChanged;
+            _fileTracker.FileUntracked += OnFileUntracked;
+        }
     }
 
     private void OnFileUntracked(object? sender, string localFilePath)
@@ -134,7 +152,9 @@ public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposabl
         });
     }
 
-    public async Task InitializeAsync(CancellationToken ct = default)
+    public Task InitializeAsync(CancellationToken ct = default) => InitializeCoreAsync(null, ct);
+
+    private async Task InitializeCoreAsync(string? initialDirectory, CancellationToken ct)
     {
         try
         {
@@ -143,23 +163,24 @@ public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposabl
             {
                 await _fileSystem.ConnectAsync(ct);
             }
-            CurrentPath = _fileSystem.WorkingDirectory;
+            CurrentPath = initialDirectory ?? _fileSystem.WorkingDirectory;
 
             // 初始化左侧目录树根节点 "/"
             DirectoryTreeRoots.Clear();
-            var rootNode = new RemoteDirectoryNodeViewModel("/", "/", _fileSystem, () => ShowHiddenFiles, hasDummyChild: false)
-            {
-                IsExpanded = true
-            };
+            RemoteDirectoryNodeViewModel rootNode = new("/", "/", _fileSystem, () => ShowHiddenFiles, hasDummyChild: false);
             DirectoryTreeRoots.Add(rootNode);
 
             // 根节点先加载一级子目录
             await rootNode.LoadChildrenAsync(ct);
+            ct.ThrowIfCancellationRequested();
+            // 加载后展开，避免 IsExpanded 提前发起不带生命周期令牌的同一次请求。
+            rootNode.IsExpanded = true;
 
             // 像 SecureCRT 一样懒加载展开：沿当前工作目录逐步展开并选中，其它同级不预先全量加载
             await RefreshDirectoryAsync(ct);
             await LoadAvailableEditorsAsync(ct);
         }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
         catch (Exception ex)
         {
             _logger.LogError(ex, "初始化远程文件系统失败");

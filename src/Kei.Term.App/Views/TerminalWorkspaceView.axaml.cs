@@ -9,6 +9,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using Dock.Avalonia.Controls;
+using Dock.Model.Core;
 using Kei.Term.App.ViewModels;
 using Kei.Term.App.Workspaces;
 using TabPlacement = Kei.Term.Core.Models.Profiles.TabPlacement;
@@ -102,6 +103,10 @@ public partial class TerminalWorkspaceView : UserControl
     }
 
     public void ActivateItem(ViewModelBase item) => _bound?.Workspace.Activate(item);
+
+    public bool IsItemPresented(ViewModelBase item)
+        => _bound?.Workspace.FindDocument(item) is { Owner: IDock group } document
+            && ReferenceEquals(group.ActiveDockable, document);
 
     // 关闭前按文档实例移出回收缓存。不清空其他连接。
     public bool ReleaseTab(TerminalTabViewModel tab) => ReleaseItem(tab);

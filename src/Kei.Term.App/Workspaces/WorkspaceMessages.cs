@@ -6,7 +6,7 @@ public sealed record WorkspaceActiveItemChangedMessage(WorkspaceCoordinator Sour
 
 public sealed record WorkspaceItemCloseRequestedMessage(WorkspaceCoordinator Source, ViewModelBase Item);
 
-public sealed record FileManagerTabRequestedMessage(RemoteFileManagerViewModel FileManager);
+public sealed record FileManagerTabRequestedMessage(RemoteFileManagerViewModel FileManager, string? Directory = null);
 
 public sealed record FileManagerTabCloseRequestedMessage(RemoteFileManagerViewModel FileManager);
 
