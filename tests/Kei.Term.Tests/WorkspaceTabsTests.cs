@@ -25,7 +25,7 @@ using Xunit;
 
 namespace Kei.Term.Tests;
 
-public class WorkspaceTabsTests
+public partial class WorkspaceTabsTests
 {
     [Fact]
     public Task ReopenAfterClosingAllTabs_RendersTerminalAndStartPage() => HeadlessAvalonia.RunAsync(async () =>

@@ -184,6 +184,7 @@ public partial class SettingsViewModel : ViewModelBase
         _general.UseNativeGlobalMenu = current.UseNativeGlobalMenu;
         _general.UseNativeContextMenus = current.UseNativeContextMenus;
         _general.SetCommandPaletteShortcut(current.CommandPaletteShortcut);
+        _general.SetTabNavigationModifier(current.TabNavigationModifier);
         _general.SetTreeSortMode(current.TreeSortMode);
         _general.SessionManagerPinned = current.SessionManagerPinned;
         LoadFileTransferSettings(current);
@@ -282,6 +283,7 @@ public partial class SettingsViewModel : ViewModelBase
         settings.UseNativeGlobalMenu = _general.UseNativeGlobalMenu;
         settings.UseNativeContextMenus = _general.UseNativeContextMenus;
         settings.CommandPaletteShortcut = _general.CommandPaletteShortcut;
+        settings.TabNavigationModifier = _general.SelectedTabNavigationModifier.Value;
         settings.TreeSortMode = _general.SelectedTreeSort?.Mode ?? "AsciiFirst";
         settings.SessionManagerPinned = _general.SessionManagerPinned;
         settings.SessionManagerVisibilityMode = _general.SelectedSessionManagerMode switch

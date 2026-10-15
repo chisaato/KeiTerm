@@ -144,6 +144,20 @@
                                                 <TextBlock Grid.Row="2" Grid.ColumnSpan="3" Text="{Binding CommandPaletteShortcutError}"
                                                            FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource Kei.Status.Error}"/>
                                             </Grid>
+                                            <Grid ColumnDefinitions="150,*" ColumnSpacing="8" RowDefinitions="Auto,Auto" RowSpacing="8">
+                                                <TextBlock Text="{loc:KeiString Settings.General.TabNavigationModifier}" VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                                <ComboBox Grid.Column="1" ItemsSource="{Binding TabNavigationModifiers}"
+                                                          SelectedItem="{Binding SelectedTabNavigationModifier}" HorizontalAlignment="Stretch">
+                                                    <ComboBox.ItemTemplate>
+                                                        <DataTemplate x:DataType="settings:TabNavigationModifierOption">
+                                                            <TextBlock Text="{Binding Label}"/>
+                                                        </DataTemplate>
+                                                    </ComboBox.ItemTemplate>
+                                                </ComboBox>
+                                                <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding TabNavigationShortcutDescription}"
+                                                           TextWrapping="Wrap" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                            </Grid>
                                             <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="6">
                                                 <TextBlock Grid.Row="0" Text="{loc:KeiString Menu.File.NewSession}" FontSize="12" Foreground="{DynamicResource Kei.Text.Secondary}"/>
                                                 <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding NewSessionShortcutLabel}" FontSize="12" Foreground="{DynamicResource Kei.Text.Primary}"/>

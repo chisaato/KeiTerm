@@ -12,6 +12,31 @@ public static class AppShortcuts
     public static KeyGesture NewSession { get; } = new(Key.N, PrimaryModifier);
     public static KeyGesture NewTab { get; } = new(Key.T, PrimaryModifier);
     public static KeyGesture CloseTab { get; } = new(Key.W, PrimaryModifier);
+    public static KeyGesture PreviousTab(string? modifier) => new(Key.OemMinus, TabModifier(modifier));
+    public static KeyGesture NextTab(string? modifier) => new(Key.OemPlus, TabModifier(modifier));
+
+    public static bool TryGetTabNumber(KeyEventArgs args, string? modifier, out int index)
+    {
+        index = args.Key - Key.D1;
+        return args.KeyModifiers == TabModifier(modifier) && index is >= 0 and < 9;
+    }
+
+    public static KeyModifiers TabModifier(string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            try
+            {
+                KeyGesture gesture = Parse(value + "+D1");
+                if ((gesture.KeyModifiers & (KeyModifiers.Control | KeyModifiers.Meta | KeyModifiers.Alt)) != 0)
+                    return gesture.KeyModifiers;
+            }
+            catch (FormatException) { }
+            catch (ArgumentException) { }
+        }
+        return PrimaryModifier;
+    }
+
     public static KeyGesture QuitApplication { get; } = new(Key.Q, PrimaryModifier);
     public static KeyGesture ConnectSavedSession { get; } = new(Key.O, PrimaryModifier);
     public const string DefaultCommandPaletteShortcut = "Primary+Shift+P";
@@ -43,6 +68,8 @@ public static class AppShortcuts
             // 保留连接、标签及标准编辑/窗口操作，避免自定义键截走输入框或终端的常用操作。
             if (candidate.KeyModifiers == PrimaryModifier && candidate.Key is
                 Key.N or Key.K or Key.Q or Key.O or Key.T or Key.W or Key.C or Key.X or Key.V or Key.A or Key.Z or Key.Y or Key.F or Key.OemComma)
+                return false;
+            if (candidate.Key is Key.OemMinus or Key.OemPlus or (>= Key.D1 and <= Key.D9))
                 return false;
             gesture = candidate;
             return true;

@@ -2369,4 +2369,6 @@ Latin: AaBb CcDd GgYy gypq
   <data name="Settings.TabBar.Variable.remote_dirname" xml:space="preserve"><value>当前目录名</value></data>
   <data name="Settings.TabBar.Variable.remote_title" xml:space="preserve"><value>远端上报的标题</value></data>
   <data name="Settings.TabBar.Variable.remote_ip" xml:space="preserve"><value>目标 IP（仅支持 IP 地址连接）</value></data>
+  <data name="Settings.General.TabNavigationModifier" xml:space="preserve"><value>标签页切换修饰键</value></data>
+  <data name="Settings.General.TabNavigationHint" xml:space="preserve"><value>{0} + 1–9：按顺序切换标签页；+ -：上一个；+ =：下一个（首尾循环）。</value></data>
 </root>

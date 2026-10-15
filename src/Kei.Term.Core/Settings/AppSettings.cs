@@ -69,6 +69,9 @@ public class AppSettings
     // 支持的平台使用系统原生上下文菜单，其余平台回退应用菜单；默认关闭，保存后立即生效。
     public bool UseNativeContextMenus { get; set; }
 
+    // 标签导航共用的修饰键；Primary 随平台解析，可包含 Shift 等组合。
+    public string TabNavigationModifier { get; set; } = "Primary";
+
     // Primary 在 macOS 表示 Command，在其他平台表示 Ctrl；快捷面板仅在应用前台响应。
     public string CommandPaletteShortcut { get; set; } = "Primary+Shift+P";
 
