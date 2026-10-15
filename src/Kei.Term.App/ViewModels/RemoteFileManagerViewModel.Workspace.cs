@@ -53,8 +53,6 @@ public partial class RemoteFileManagerViewModel
             {
                 CurrentPath = directory,
                 ShowHiddenFiles = ShowHiddenFiles,
-                IsDirectoryTreeVisible = IsDirectoryTreeVisible,
-                DirectoryTreeWidth = DirectoryTreeWidth
             };
             // 先登记再启动 I/O；关闭连接会取消并排空所有独立目录页。
             owner._directoryTabs.Add(browser);
