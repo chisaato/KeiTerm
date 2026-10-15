@@ -729,19 +729,19 @@
     <value>字体实时预览</value>
   </data>
   <data name="Settings.Appearance.TabBarSection" xml:space="preserve">
-    <value>标签栏 (Tab Bar)</value>
+    <value>布局</value>
   </data>
   <data name="Settings.Appearance.TabPlacement" xml:space="preserve">
-    <value>标签栏位置:</value>
+    <value>标签位置</value>
   </data>
   <data name="Settings.Appearance.TabPlacementTip" xml:space="preserve">
     <value>标签栏在窗口中显示的位置（置顶或置底）</value>
   </data>
   <data name="Settings.Appearance.TabPlacementTop" xml:space="preserve">
-    <value>置顶 (Top)</value>
+    <value>顶部</value>
   </data>
   <data name="Settings.Appearance.TabPlacementBottom" xml:space="preserve">
-    <value>置底 (Bottom)</value>
+    <value>底部</value>
   </data>
   <data name="Settings.Appearance.ProfileBackupSection" xml:space="preserve">
     <value>外观与主题配置备份 (Profile Bundle)</value>
@@ -2144,7 +2144,7 @@ Latin: AaBb CcDd GgYy gypq
     <value>实时效果预览</value>
   </data>
   <data name="Settings.TabBar.TitleSection" xml:space="preserve">
-    <value>标签标题</value>
+    <value>命名规则</value>
   </data>
   <data name="Settings.Ssh.IdentitySection" xml:space="preserve">
     <value>默认身份</value>
@@ -2350,13 +2350,24 @@ Latin: AaBb CcDd GgYy gypq
   <data name="VaultQuickUnlock.Unavailable" xml:space="preserve">
     <value>本机验证当前不可用，请使用主密码解锁。</value>
   </data>
-  <data name="Settings.TabBar.TemplateLabel" xml:space="preserve"><value>标签标题模板</value></data>
   <data name="Settings.TabBar.TemplateExample" xml:space="preserve"><value>{remote_hostname} | {remote_path}</value></data>
-  <data name="Settings.TabBar.TemplateHint" xml:space="preserve"><value>终端与文件标签共用。留空使用默认命名；保存后立即生效。远端值未上报时显示 —。手动重命名的终端优先保留名称；使用 {{ 和 }} 显示花括号。</value></data>
-  <data name="Settings.TabBar.TemplateError" xml:space="preserve"><value>模板无效：{0}。请检查变量名与花括号（最多 512 个字符）。</value></data>
-  <data name="Settings.TabBar.TerminalPreview" xml:space="preserve"><value>终端预览</value></data>
-  <data name="Settings.TabBar.FilePreview" xml:space="preserve"><value>文件预览</value></data>
-  <data name="Settings.TabBar.LocalVariables" xml:space="preserve"><value>本地配置：{local_name} 会话名 · {local_host} 目标地址 · {local_port} 端口 · {local_user} 用户名</value></data>
-  <data name="Settings.TabBar.RemoteVariables" xml:space="preserve"><value>远端信息：{remote_hostname} 主机名 · {remote_path} 当前目录 · {remote_dirname} 目录名 · {remote_title} 上报标题 · {remote_ip} 目标 IP。文件标签使用自身浏览的目录。</value></data>
-  <data name="Settings.TabBar.RemoteIpHint" xml:space="preserve"><value>远端主机名和终端目录来自 Shell 上报。目标地址为 IP 时，连接成功后提供 remote_ip；域名、跳板或代理无法确认的目标 IP 显示 —。</value></data>
+  <data name="Settings.TabBar.TemplateHint" xml:space="preserve"><value>留空使用默认标题。</value></data>
+  <data name="Settings.TabBar.TemplateError" xml:space="preserve"><value>无法识别 {0}，请检查变量名和花括号。</value></data>
+  <data name="Settings.TabBar.RemoteIpHint" xml:space="preserve"><value>远端主机名和终端目录需要 Shell 上报。目标地址为域名时，remote_ip 暂不可用；缺失值显示 —。</value></data>
+  <data name="Settings.TabBar.Preview" xml:space="preserve"><value>预览</value></data>
+  <data name="Settings.TabBar.VariableReference" xml:space="preserve"><value>变量与规则</value></data>
+  <data name="Settings.TabBar.VariableSources" xml:space="preserve"><value>local_ 为本地会话配置，remote_ 为远端信息。</value></data>
+  <data name="Settings.TabBar.TemplateSyntax" xml:space="preserve"><value>文件标签使用当前浏览目录。用 {{ 和 }} 显示花括号，最多 512 个字符。</value></data>
+  <data name="Settings.TabBar.DefaultOptions" xml:space="preserve"><value>默认命名</value></data>
+  <data name="Settings.TabBar.DefaultRemoteTitle" xml:space="preserve"><value>使用远端标题</value></data>
+  <data name="Settings.TabBar.DefaultHint" xml:space="preserve"><value>未填写命名规则时生效，可在会话属性中覆盖。手动重命名的终端始终保留自定义名称。</value></data>
+  <data name="Settings.TabBar.Variable.local_name" xml:space="preserve"><value>会话名</value></data>
+  <data name="Settings.TabBar.Variable.local_host" xml:space="preserve"><value>连接地址</value></data>
+  <data name="Settings.TabBar.Variable.local_port" xml:space="preserve"><value>连接端口</value></data>
+  <data name="Settings.TabBar.Variable.local_user" xml:space="preserve"><value>登录用户</value></data>
+  <data name="Settings.TabBar.Variable.remote_hostname" xml:space="preserve"><value>远端主机名</value></data>
+  <data name="Settings.TabBar.Variable.remote_path" xml:space="preserve"><value>当前目录的完整路径</value></data>
+  <data name="Settings.TabBar.Variable.remote_dirname" xml:space="preserve"><value>当前目录名</value></data>
+  <data name="Settings.TabBar.Variable.remote_title" xml:space="preserve"><value>远端上报的标题</value></data>
+  <data name="Settings.TabBar.Variable.remote_ip" xml:space="preserve"><value>目标 IP（仅支持 IP 地址连接）</value></data>
 </root>

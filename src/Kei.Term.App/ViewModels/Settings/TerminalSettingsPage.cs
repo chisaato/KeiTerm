@@ -25,14 +25,14 @@ public partial class TerminalSettingsPage : ViewModelBase
     private bool _tabTitleFollowsRemote = true;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(TerminalTitlePreview))]
-    [NotifyPropertyChangedFor(nameof(FileTitlePreview))]
+    [NotifyPropertyChangedFor(nameof(TitlePreview))]
     [NotifyPropertyChangedFor(nameof(TitleTemplateError))]
     [NotifyPropertyChangedFor(nameof(HasTitleTemplateError))]
     private string _tabTitleTemplate = string.Empty;
 
-    public string TerminalTitlePreview => Preview("/home/ops", "ops@server:~", "production · ops@server:~");
-    public string FileTitlePreview => Preview("/var/log", "ops@server:~", "production · log");
+    public string TitlePreview => Preview("/home/ops", "ops@server:~", "production · ops@server:~");
+    public IReadOnlyList<TabTitleVariable> TitleVariables { get; } = TitleTemplateRenderer.Variables
+        .Select(variable => new TabTitleVariable("{" + variable + "}", Strings.Get("Settings.TabBar.Variable." + variable))).ToArray();
     public string? TitleTemplateError => TitleTemplateRenderer.TryRender(TabTitleTemplate, PreviewContext("/home/ops", "ops@server:~"), out _, out string? error)
         ? null : Strings.Format("Settings.TabBar.TemplateError", error);
     public bool HasTitleTemplateError => TitleTemplateError != null;
@@ -63,3 +63,5 @@ public partial class TerminalSettingsPage : ViewModelBase
         => SelectedMultiplexer = MultiplexerModes.FirstOrDefault(option => option.Mode == mode)
             ?? MultiplexerModes.First(option => option.Mode == TerminalMultiplexerMode.Auto);
 }
+
+public sealed record TabTitleVariable(string Placeholder, string Description);

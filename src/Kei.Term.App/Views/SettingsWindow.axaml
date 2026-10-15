@@ -610,8 +610,6 @@
                             <DataTemplate DataType="settings:TabBarSettingsProxyPage"
                                           x:DataType="settings:TabBarSettingsProxyPage">
                                 <StackPanel MaxWidth="760" HorizontalAlignment="Stretch" Spacing="12">
-                                    <TextBlock Text="{loc:KeiString Settings.Categories.TabBarPageDescription}" FontSize="12" TextWrapping="Wrap"
-                                               Foreground="{DynamicResource Kei.Text.Secondary}" Margin="0,0,0,6"/>
                                     <Border Classes="settingsSection first">
                                         <StackPanel Spacing="8" DataContext="{Binding Appearance}">
                                             <TextBlock Text="{loc:KeiString Settings.Appearance.TabBarSection}" FontSize="13" FontWeight="SemiBold"
@@ -635,7 +633,6 @@
                                     <Border Classes="settingsSection" x:Name="TabTitleBehaviorSection">
                                         <StackPanel Spacing="8">
                                             <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.TabBar.TitleSection}"/>
-                                            <TextBlock Text="{loc:KeiString Settings.TabBar.TemplateLabel}"/>
                                             <TextBox x:Name="TabTitleTemplateInput" Text="{Binding Terminal.TabTitleTemplate}"
                                                      MaxLength="512" PlaceholderText="{loc:KeiString Settings.TabBar.TemplateExample}"/>
                                             <TextBlock Text="{loc:KeiString Settings.TabBar.TemplateHint}" FontSize="12" TextWrapping="Wrap"
@@ -643,23 +640,41 @@
                                             <TextBlock x:Name="TabTitleTemplateError" Text="{Binding Terminal.TitleTemplateError}"
                                                        IsVisible="{Binding Terminal.HasTitleTemplateError}" FontSize="12" TextWrapping="Wrap"
                                                        Foreground="{DynamicResource Kei.Status.Error}"/>
-                                            <Grid ColumnDefinitions="100,*" RowDefinitions="Auto,Auto" RowSpacing="6" ColumnSpacing="12">
-                                                <TextBlock Text="{loc:KeiString Settings.TabBar.TerminalPreview}" Foreground="{DynamicResource Kei.Text.Secondary}"/>
-                                                <TextBlock x:Name="TerminalTitlePreview" Grid.Column="1" Text="{Binding Terminal.TerminalTitlePreview}" TextTrimming="CharacterEllipsis"/>
-                                                <TextBlock Grid.Row="1" Text="{loc:KeiString Settings.TabBar.FilePreview}" Foreground="{DynamicResource Kei.Text.Secondary}"/>
-                                                <TextBlock x:Name="FileTitlePreview" Grid.Row="1" Grid.Column="1" Text="{Binding Terminal.FileTitlePreview}" TextTrimming="CharacterEllipsis"/>
+                                            <Grid ColumnDefinitions="80,*" ColumnSpacing="12">
+                                                <TextBlock Text="{loc:KeiString Settings.TabBar.Preview}" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                                <TextBlock x:Name="TabTitlePreview" Grid.Column="1" Text="{Binding Terminal.TitlePreview}" TextTrimming="CharacterEllipsis"/>
                                             </Grid>
-                                            <TextBlock Text="{loc:KeiString Settings.TabBar.LocalVariables}" FontSize="12" TextWrapping="Wrap"
-                                                       Foreground="{DynamicResource Kei.Text.Secondary}"/>
-                                            <TextBlock Text="{loc:KeiString Settings.TabBar.RemoteVariables}" FontSize="12" TextWrapping="Wrap"
-                                                       Foreground="{DynamicResource Kei.Text.Secondary}"/>
-                                            <TextBlock Text="{loc:KeiString Settings.TabBar.RemoteIpHint}" FontSize="12" TextWrapping="Wrap"
-                                                       Foreground="{DynamicResource Kei.Text.Muted}"/>
-                                            <CheckBox x:Name="TabTitleFollowsRemoteCheckBox" IsChecked="{Binding Terminal.TabTitleFollowsRemote}"
-                                                      Content="{loc:KeiString Settings.Terminal.TabTitleFollowsRemote}"
-                                                      ToolTip.Tip="{loc:KeiString Settings.Terminal.TabTitleFollowsRemoteTip}"/>
-                                            <TextBlock Text="{loc:KeiString Settings.Terminal.SessionOverrideHint}" FontSize="12" TextWrapping="Wrap"
-                                                       Foreground="{DynamicResource Kei.Text.Muted}"/>
+                                            <Expander x:Name="TabTitleVariableReference" Header="{loc:KeiString Settings.TabBar.VariableReference}"
+                                                      IsExpanded="False" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                                <StackPanel Spacing="8" Margin="0,8,0,0">
+                                                    <TextBlock Text="{loc:KeiString Settings.TabBar.VariableSources}" FontSize="12" TextWrapping="Wrap"
+                                                               Foreground="{DynamicResource Kei.Text.Muted}"/>
+                                                    <ItemsControl ItemsSource="{Binding Terminal.TitleVariables}">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate x:DataType="settings:TabTitleVariable">
+                                                                <Grid ColumnDefinitions="190,*" ColumnSpacing="12" Margin="0,3">
+                                                                    <SelectableTextBlock Text="{Binding Placeholder}" FontSize="12"/>
+                                                                    <TextBlock Grid.Column="1" Text="{Binding Description}" FontSize="12" TextWrapping="Wrap"
+                                                                               Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                                                </Grid>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                    <TextBlock Text="{loc:KeiString Settings.TabBar.TemplateSyntax}" FontSize="12" TextWrapping="Wrap"
+                                                               Foreground="{DynamicResource Kei.Text.Muted}"/>
+                                                    <TextBlock Text="{loc:KeiString Settings.TabBar.RemoteIpHint}" FontSize="12" TextWrapping="Wrap"
+                                                               Foreground="{DynamicResource Kei.Text.Muted}"/>
+                                                </StackPanel>
+                                            </Expander>
+                                            <Expander x:Name="TabTitleDefaultOptions" Header="{loc:KeiString Settings.TabBar.DefaultOptions}"
+                                                      IsExpanded="False" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                                <StackPanel Spacing="8" Margin="0,8,0,0">
+                                                    <CheckBox x:Name="TabTitleFollowsRemoteCheckBox" IsChecked="{Binding Terminal.TabTitleFollowsRemote}"
+                                                              Content="{loc:KeiString Settings.TabBar.DefaultRemoteTitle}"/>
+                                                    <TextBlock Text="{loc:KeiString Settings.TabBar.DefaultHint}" FontSize="12" TextWrapping="Wrap"
+                                                               Foreground="{DynamicResource Kei.Text.Muted}"/>
+                                                </StackPanel>
+                                            </Expander>
                                         </StackPanel>
                                     </Border>
                                 </StackPanel>

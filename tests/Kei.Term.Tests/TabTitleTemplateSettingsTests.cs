@@ -36,8 +36,15 @@ public class TabTitleTemplateSettingsTests
             input.Text = "{remote_hostname} | {remote_path} ({remote_ip})";
             HeadlessAvalonia.Pump();
             Assert.True(input.IsEffectivelyVisible);
-            Assert.Equal("server | /home/ops (203.0.113.10)", window.GetVisualDescendants().OfType<TextBlock>().Single(control => control.Name == "TerminalTitlePreview").Text);
-            Assert.Equal("server | /var/log (203.0.113.10)", window.GetVisualDescendants().OfType<TextBlock>().Single(control => control.Name == "FileTitlePreview").Text);
+            Expander reference = window.GetVisualDescendants().OfType<Expander>().Single(control => control.Name == "TabTitleVariableReference");
+            Assert.False(reference.IsExpanded);
+            reference.IsExpanded = true;
+            HeadlessAvalonia.Pump();
+            SelectableTextBlock variable = Assert.Single(reference.GetVisualDescendants().OfType<SelectableTextBlock>(), control => control.Text == "{remote_path}");
+            Assert.True(variable.IsEffectivelyVisible);
+            reference.IsExpanded = false;
+            HeadlessAvalonia.Pump();
+            Assert.Equal("server | /home/ops (203.0.113.10)", window.GetVisualDescendants().OfType<TextBlock>().Single(control => control.Name == "TabTitlePreview").Text);
             Assert.True(await model.ApplyChangesAsync());
 
             JsonSettingsService reader = new(path);
