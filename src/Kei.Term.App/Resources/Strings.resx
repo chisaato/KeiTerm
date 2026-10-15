@@ -1650,7 +1650,49 @@
     <value>目录跟随</value>
   </data>
   <data name="Settings.Terminal.CwdFollowTip" xml:space="preserve">
-    <value>远端报告当前目录时，文件管理器同步切换目录。支持 OSC 7 或 tmux 的“主机:路径”标题。</value>
+    <value>选择文件面板何时跟随终端目录。远端需要上报目录；手动同步不受此选项限制。</value>
+  </data>
+  <data name="Behavior.Multiplexer.Off" xml:space="preserve">
+    <value>关闭</value>
+  </data>
+  <data name="Behavior.Multiplexer.Auto" xml:space="preserve">
+    <value>自动检测</value>
+  </data>
+  <data name="Behavior.Multiplexer.Tmux" xml:space="preserve">
+    <value>tmux（含 Byobu）</value>
+  </data>
+  <data name="Behavior.Multiplexer.Screen" xml:space="preserve">
+    <value>GNU Screen（含 Byobu）</value>
+  </data>
+  <data name="Settings.Terminal.Multiplexer" xml:space="preserve">
+    <value>多路复用器兼容</value>
+  </data>
+  <data name="Settings.Terminal.MultiplexerTip" xml:space="preserve">
+    <value>自动检测按远端上报的目录/标题信号识别。Byobu 也可按 tmux 或 GNU Screen 后端手动选择。关闭兼容后仍支持 OSC 7 标准目录上报；远端配置见说明。</value>
+  </data>
+  <data name="Settings.Terminal.CwdFollowHelp" xml:space="preserve">
+    <value>目录上报与 Byobu 配置说明</value>
+  </data>
+  <data name="Settings.Terminal.DirectoryFollowScopeHint" xml:space="preserve">
+    <value>这里设置新连接的全局默认。会话属性 → 会话行为中可分别覆盖目录跟随方式和多路复用器兼容策略；选择“继承全局”即可使用默认值。</value>
+  </data>
+  <data name="FileManager.CwdFollow.Sync" xml:space="preserve">
+    <value>同步终端目录</value>
+  </data>
+  <data name="FileManager.Maximize" xml:space="preserve">
+    <value>在当前标签中全屏显示文件管理</value>
+  </data>
+  <data name="FileManager.RestoreLayout" xml:space="preserve">
+    <value>恢复终端与文件管理分栏</value>
+  </data>
+  <data name="FileManager.CwdFollow.SyncTip" xml:space="preserve">
+    <value>立即跳到终端最近上报的目录（无需开启自动跟随）。远端尚未上报目录时不可用。</value>
+  </data>
+  <data name="FileManager.DirectoryFollow.HostMismatch" xml:space="preserve">
+    <value>终端当前在 {0}，已暂停目录同步</value>
+  </data>
+  <data name="SessionEdit.DirectoryFollowHint" xml:space="preserve">
+    <value>这两项可单独为会话设置。选择“继承全局”时使用设置 → 文件传输中的默认值，选择具体选项则覆盖默认值。</value>
   </data>
   <data name="Settings.Terminal.SessionOverrideHint" xml:space="preserve">
     <value>以上为全局默认，可在会话属性或「批量修改会话」中逐会话覆盖。</value>
@@ -2044,6 +2086,12 @@ Latin: AaBb CcDd GgYy gypq
   </data>
   <data name="FileManager.ShowShell" xml:space="preserve">
     <value>显示终端</value>
+  </data>
+  <data name="FileManager.ShowFiles" xml:space="preserve">
+    <value>切换到文件管理</value>
+  </data>
+  <data name="FileManager.Tree.Toggle" xml:space="preserve">
+    <value>显示/隐藏目录树</value>
   </data>
   <data name="FileActivity.Transfers" xml:space="preserve">
     <value>传输队列</value>

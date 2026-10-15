@@ -19,8 +19,18 @@ public partial class MainViewModel
         // 恢复原连接的文档和终端缓冲；独立文件标签请求时回到它所属的终端标签。
         owner.ActiveDocument = ConnectionDocumentKind.Shell;
         owner.IsShellVisible = true;
+        if (owner.IsFileManagerMaximized) owner.IsFileManagerVisible = false;
         Workspace.Activate(owner);
         owner.Terminal.Focus();
+    });
+
+    private void OnFileManagerMaximizeRequested(object recipient, FileManagerMaximizeRequestedMessage message) => _uiDispatch(() =>
+    {
+        if (_disposed != 0 || message.FileManager.IsWorkspaceTab) return;
+        TerminalTabViewModel? owner = Tabs.FirstOrDefault(tab => ReferenceEquals(tab.FileManager, message.FileManager));
+        if (owner == null || owner.IsDisposed) return;
+        owner.ToggleFileManagerMaximized();
+        Workspace.Activate(owner);
     });
 
     private void OnFileManagerTabRequested(object recipient, FileManagerTabRequestedMessage message) => _uiDispatch(() =>
@@ -36,6 +46,8 @@ public partial class MainViewModel
 
         // 按请求来源选组，不把另一分屏中的文件管理器加入当前活动组。
         Workspace.Activate(owner);
+        owner.IsFileManagerMaximized = false;
+        owner.IsShellVisible = true;
         owner.IsFileManagerVisible = false;
         Workspace.AddTab(new FileManagerTabViewModel(owner, message.FileManager));
     });

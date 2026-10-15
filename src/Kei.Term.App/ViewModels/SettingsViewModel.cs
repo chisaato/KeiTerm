@@ -241,6 +241,7 @@ public partial class SettingsViewModel : ViewModelBase
             : current.DefaultTerminalType;
         _terminal.TabTitleFollowsRemote = current.TabTitleFollowsRemote;
         _terminal.SetCwdFollow(current.CwdFollowMode);
+        _terminal.SetMultiplexerMode(current.TerminalMultiplexerMode);
 
         _ssh.DefaultPort = current.DefaultPort;
         _ssh.DefaultUsername = current.DefaultUsername;
@@ -331,6 +332,7 @@ public partial class SettingsViewModel : ViewModelBase
             : _terminal.DefaultTerminalType.Trim();
         settings.TabTitleFollowsRemote = _terminal.TabTitleFollowsRemote;
         settings.CwdFollowMode = _terminal.SelectedCwdFollow?.Mode ?? CwdFollowMode.Off;
+        settings.TerminalMultiplexerMode = _terminal.SelectedMultiplexer?.Mode ?? TerminalMultiplexerMode.Auto;
 
         // SSH
         settings.DefaultPort = _ssh.DefaultPort is >= 1 and <= 65535 ? _ssh.DefaultPort : 22;

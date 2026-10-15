@@ -47,7 +47,8 @@ public static class SessionConfigBuilder
             FollowRemoteTitle: node.Overrides.FollowRemoteTitle ?? settings.TabTitleFollowsRemote,
             CwdFollow: node.Overrides.CwdFollow ?? settings.CwdFollowMode,
             ConnectTimeoutSeconds: node.Overrides.ConnectTimeoutSeconds ?? settings.ConnectTimeoutSeconds,
-            ProxyProfileId: node.ProxyProfileId
+            ProxyProfileId: node.ProxyProfileId,
+            MultiplexerMode: node.Overrides.MultiplexerMode ?? settings.TerminalMultiplexerMode
         );
     }
 }

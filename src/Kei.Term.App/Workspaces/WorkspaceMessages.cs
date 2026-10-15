@@ -12,6 +12,8 @@ public sealed record FileManagerTabCloseRequestedMessage(RemoteFileManagerViewMo
 
 public sealed record FileManagerShellRequestedMessage(RemoteFileManagerViewModel FileManager);
 
+public sealed record FileManagerMaximizeRequestedMessage(RemoteFileManagerViewModel FileManager);
+
 public sealed record ConnectionDocumentsChangedMessage(TerminalTabViewModel Tab, bool CloseEmptyTab = false);
 
 // 全局活动连接变化。接收者按 Source 过滤，退出时注销；工具栏失焦不会发空活动项。

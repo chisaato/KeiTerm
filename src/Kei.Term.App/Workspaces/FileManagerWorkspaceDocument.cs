@@ -9,6 +9,7 @@ public sealed class FileManagerWorkspaceDocument : WorkspaceDocument
     {
         Tab = tab;
         Tab.FileManager.IsWorkspaceTab = true;
+        Tab.FileManager.IsShellVisible = false;
         Tab.PropertyChanged += OnTabPropertyChanged;
     }
 

@@ -60,7 +60,13 @@
             <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}"/>
         </Style>
         <Style Selector="TabItem.fileActivityTab.activity">
-            <Setter Property="Foreground" Value="{DynamicResource Kei.Accent}"/>
+            <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}"/>
+            <Setter Property="Background" Value="{DynamicResource Kei.Bg.PanelAlt}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Kei.Text.Muted}"/>
+        </Style>
+        <Style Selector="TabItem.fileActivityTab.activity:selected">
+            <Setter Property="Background" Value="{DynamicResource Kei.Bg.Pressed}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Kei.Text.Secondary}"/>
         </Style>
         <Style Selector="Button.fileActivityToggle">
             <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Secondary}"/>
@@ -68,29 +74,40 @@
         <Style Selector="Button.fileActivityToggle.open">
             <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}"/>
         </Style>
+        <Style Selector="Button.fileMaximize">
+            <Setter Property="ToolTip.Tip" Value="{loc:KeiString FileManager.Maximize}"/>
+            <Setter Property="AutomationProperties.Name" Value="{loc:KeiString FileManager.Maximize}"/>
+        </Style>
+        <Style Selector="Button.fileMaximize.maximized">
+            <Setter Property="ToolTip.Tip" Value="{loc:KeiString FileManager.RestoreLayout}"/>
+            <Setter Property="AutomationProperties.Name" Value="{loc:KeiString FileManager.RestoreLayout}"/>
+            <Setter Property="Background" Value="{DynamicResource Kei.Bg.Pressed}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Kei.Text.Muted}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
     </UserControl.Styles>
 
     <Grid x:Name="FileManagerLayout" RowDefinitions="Auto,Auto,*,Auto,Auto,Auto" DragDrop.AllowDrop="True">
         <!-- 顶部工具条：标题与操作 -->
         <Border Grid.Row="0" Background="{DynamicResource Kei.Bg.PanelAlt}" BorderBrush="{DynamicResource Kei.Border}" BorderThickness="0,0,0,1" Padding="8,4">
-            <Grid ColumnDefinitions="*,Auto">
-                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+            <Grid x:Name="FileManagerToolbar" ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6" Margin="0,0,6,0" VerticalAlignment="Center">
                     <Viewbox Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
                         <Grid Width="24" Height="24">
-                            <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Folder}" Stroke="{DynamicResource Kei.Accent}" Width="24" Height="24" Stretch="None"/>
+                            <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Folder}" Stroke="{DynamicResource Kei.Text.Secondary}" Width="24" Height="24" Stretch="None"/>
                         </Grid>
                     </Viewbox>
-                    <TextBlock Text="文件管理" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource Kei.Text.Primary}" VerticalAlignment="Center"/>
-                    <ProgressBar IsIndeterminate="True" Width="40" Height="4" IsVisible="{Binding IsLoading}" VerticalAlignment="Center"/>
-                </StackPanel>
+                    <TextBlock x:Name="FileManagerHeading" Grid.Column="1" Text="文件管理" FontWeight="SemiBold" FontSize="12"
+                               Foreground="{DynamicResource Kei.Text.Primary}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                </Grid>
 
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
-                    <Button x:Name="FileManagerShowShellButton" Classes="iconBtn" Width="28" Height="28"
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2">
+                    <Button x:Name="FileManagerShowShellButton" Classes="iconBtn" Width="28" Height="28" IsVisible="{Binding !IsShellVisible}"
                             ToolTip.Tip="{loc:KeiString FileManager.ShowShell}" AutomationProperties.Name="{loc:KeiString FileManager.ShowShell}"
                             Command="{Binding ShowShellCommand}">
                         <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
                             <Grid Width="24" Height="24">
-                                <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Terminal}" Stroke="{DynamicResource Kei.Accent}" Width="24" Height="24" Stretch="None"/>
+                                <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Terminal}" Width="24" Height="24" Stretch="None"/>
                             </Grid>
                         </Viewbox>
                     </Button>
@@ -101,11 +118,29 @@
                             </Grid>
                         </Viewbox>
                     </Button>
+                    <Button x:Name="FileManagerMaximizeButton" Classes="iconBtn fileMaximize" Classes.maximized="{Binding IsMaximized}"
+                            Width="28" Height="28" Command="{Binding MaximizeCommand}" IsVisible="{Binding !IsWorkspaceTab}">
+                        <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Grid Width="24" Height="24">
+                                <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Maximize}" IsVisible="{Binding !IsMaximized}" Width="24" Height="24" Stretch="None"/>
+                                <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.SidebarRight}" IsVisible="{Binding IsMaximized}" Width="24" Height="24" Stretch="None"/>
+                            </Grid>
+                        </Viewbox>
+                    </Button>
                     <Button x:Name="FileManagerOpenInTabButton" Classes="iconBtn" Width="28" Height="28" ToolTip.Tip="{loc:KeiString FileManager.OpenInTab}"
                             AutomationProperties.Name="{loc:KeiString FileManager.OpenInTab}" Command="{Binding PromoteToTabCommand}" IsVisible="{Binding !IsWorkspaceTab}">
                         <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
                             <Grid Width="24" Height="24">
-                                <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.ExternalLink}" Stroke="{DynamicResource Kei.Accent}" Width="24" Height="24" Stretch="None"/>
+                                <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.ExternalLink}" Width="24" Height="24" Stretch="None"/>
+                            </Grid>
+                        </Viewbox>
+                    </Button>
+                    <Button x:Name="FileManagerSyncTerminalDirectoryButton" Classes="iconBtn" Width="28" Height="28"
+                            Command="{Binding JumpToTerminalDirectoryCommand}" IsEnabled="{Binding HasTerminalDirectory}"
+                            ToolTip.Tip="{Binding TerminalDirectorySyncHint}" AutomationProperties.Name="{loc:KeiString FileManager.CwdFollow.Sync}">
+                        <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Grid Width="24" Height="24">
+                                <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.FolderOpen}" Width="24" Height="24" Stretch="None"/>
                             </Grid>
                         </Viewbox>
                     </Button>
@@ -125,6 +160,10 @@
                         </Viewbox>
                     </Button>
                 </StackPanel>
+                <!-- 加载状态独占底行；标题列在窄面板中可收缩，不覆盖操作按钮。 -->
+                <ProgressBar x:Name="FileManagerLoadingProgressBar" Grid.Row="1" Grid.ColumnSpan="2" IsIndeterminate="True"
+                             Height="3" MinHeight="3" Margin="0,4,0,0" IsVisible="{Binding IsLoading}"
+                             Foreground="{DynamicResource Kei.Text.Secondary}" Background="{DynamicResource Kei.Bg.Input}"/>
             </Grid>
         </Border>
 
@@ -265,6 +304,8 @@
                                     <TextBlock Text="{Binding TransferTasks.Count}" FontSize="12" Foreground="{Binding $parent[TabItem].Foreground}"
                                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
+                                <Border x:Name="TransferActivityMarker" Width="3" Height="12" CornerRadius="1"
+                                        Background="{DynamicResource Kei.Text.Secondary}" IsVisible="{Binding HasTransferActivity}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </TabItem.Header>
                         <Grid>
@@ -344,6 +385,8 @@
                                     <TextBlock Text="{Binding ActiveTrackedFiles.Count}" FontSize="12" Foreground="{Binding $parent[TabItem].Foreground}"
                                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
+                                <Border x:Name="TrackedActivityMarker" Width="3" Height="12" CornerRadius="1"
+                                        Background="{DynamicResource Kei.Text.Secondary}" IsVisible="{Binding HasTrackedActivity}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </TabItem.Header>
                         <Grid>

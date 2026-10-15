@@ -10,6 +10,12 @@ namespace Kei.Term.App.ViewModels;
 public partial class RemoteFileManagerViewModel
 {
     [ObservableProperty]
+    private bool _isShellVisible = true;
+
+    [ObservableProperty]
+    private bool _isMaximized;
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CloseToolTip))]
     private bool _isWorkspaceTab;
 
@@ -20,6 +26,9 @@ public partial class RemoteFileManagerViewModel
 
     [RelayCommand]
     public void ShowShell() => WeakReferenceMessenger.Default.Send(new FileManagerShellRequestedMessage(this));
+
+    [RelayCommand]
+    public void Maximize() => WeakReferenceMessenger.Default.Send(new FileManagerMaximizeRequestedMessage(this));
 
     [RelayCommand]
     public void Close()

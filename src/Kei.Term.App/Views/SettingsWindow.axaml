@@ -833,7 +833,21 @@
                                                           SelectedItem="{Binding Terminal.SelectedCwdFollow}"
                                                           ToolTip.Tip="{loc:KeiString Settings.Terminal.CwdFollowTip}"/>
                                             </Grid>
-                                            <TextBlock Text="{loc:KeiString Settings.Terminal.SessionOverrideHint}" FontSize="12" TextWrapping="Wrap"
+                                            <TextBlock Text="{loc:KeiString Settings.Terminal.CwdFollowTip}" FontSize="12" TextWrapping="Wrap"
+                                                       Foreground="{DynamicResource Kei.Text.Muted}"/>
+                                            <Grid ColumnDefinitions="150,*" ColumnSpacing="12">
+                                                <TextBlock Text="{loc:KeiString Settings.Terminal.Multiplexer}" VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                                <ComboBox x:Name="TerminalMultiplexerModeComboBox" Grid.Column="1" MinWidth="220" HorizontalAlignment="Stretch"
+                                                          ItemsSource="{Binding Terminal.MultiplexerModes}" SelectedItem="{Binding Terminal.SelectedMultiplexer}"
+                                                          ToolTip.Tip="{loc:KeiString Settings.Terminal.MultiplexerTip}"/>
+                                            </Grid>
+                                            <TextBlock Text="{loc:KeiString Settings.Terminal.MultiplexerTip}" FontSize="12" TextWrapping="Wrap"
+                                                       Foreground="{DynamicResource Kei.Text.Muted}"/>
+                                            <HyperlinkButton x:Name="DirectoryFollowHelpLink" Content="{loc:KeiString Settings.Terminal.CwdFollowHelp}"
+                                                             NavigateUri="https://github.com/chisaato/KeiTerm/blob/main/docs/design/09-cwd-tracking.md"
+                                                             HorizontalAlignment="Left" Height="28" Padding="0"/>
+                                            <TextBlock Text="{loc:KeiString Settings.Terminal.DirectoryFollowScopeHint}" FontSize="12" TextWrapping="Wrap"
                                                        Foreground="{DynamicResource Kei.Text.Muted}"/>
                                         </StackPanel>
                                     </Border>

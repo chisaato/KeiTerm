@@ -44,6 +44,16 @@
                                        Foreground="{DynamicResource Kei.Text.Primary}" VerticalAlignment="Center"/>
                         </StackPanel>
                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+                            <Button x:Name="FullScreenFilesButton" Classes="iconBtn" Width="28" Height="28"
+                                    IsVisible="{Binding IsFileManagerMaximized}"
+                                    Command="{Binding ShowFileManagerFullScreenCommand}"
+                                    ToolTip.Tip="{loc:KeiString FileManager.ShowFiles}" AutomationProperties.Name="{loc:KeiString FileManager.ShowFiles}">
+                                <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Grid Width="24" Height="24">
+                                        <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Folder}"/>
+                                    </Grid>
+                                </Viewbox>
+                            </Button>
                             <Button Classes="iconBtn" Width="28" Height="28" Command="{Binding OpenFindCommand}"
                                     ToolTip.Tip="{Binding FindShortcutToolTip}" AutomationProperties.Name="{loc:KeiString Terminal.Find.Menu}">
                                 <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">

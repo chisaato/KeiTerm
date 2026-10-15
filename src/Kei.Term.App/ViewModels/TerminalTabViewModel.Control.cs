@@ -113,7 +113,14 @@ public partial class TerminalTabViewModel
         {
             Response = data => _ = _session?.SendInputAsync(data),
             Bell = () => Dispatcher.UIThread.Post(OnRemoteBell),
-            Title = title => Dispatcher.UIThread.Post(() => ApplyRemoteTitle(title))
+            Title = title =>
+            {
+                long generation = _directoryConnectionGeneration;
+                Dispatcher.UIThread.Post(() =>
+                {
+                    if (!IsDisposed && generation == _directoryConnectionGeneration) ApplyRemoteTitle(title);
+                });
+            }
         };
         TerminalControl terminal = TerminalControlFactory.Create(hooks);
         terminal.FontLinearMetrics = true;

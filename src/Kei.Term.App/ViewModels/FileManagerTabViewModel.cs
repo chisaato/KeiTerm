@@ -51,5 +51,6 @@ public partial class FileManagerTabViewModel : ViewModelBase
         Owner.PropertyChanged -= OnOwnerPropertyChanged;
         FileManager.PropertyChanged -= OnFileManagerPropertyChanged;
         FileManager.IsWorkspaceTab = false;
+        FileManager.IsShellVisible = Owner.IsShellVisible;
     }
 }

@@ -29,4 +29,13 @@ public partial class TerminalSettingsPage : ViewModelBase
 
     public void SetCwdFollow(CwdFollowMode mode)
         => SelectedCwdFollow = CwdFollowModes.FirstOrDefault(o => o.Mode == mode) ?? CwdFollowModes[0];
+
+    public IReadOnlyList<TerminalMultiplexerOption> MultiplexerModes => SessionBehaviorOptions.MultiplexerModes;
+
+    [ObservableProperty]
+    private TerminalMultiplexerOption? _selectedMultiplexer = SessionBehaviorOptions.MultiplexerModes[1];
+
+    public void SetMultiplexerMode(TerminalMultiplexerMode mode)
+        => SelectedMultiplexer = MultiplexerModes.FirstOrDefault(option => option.Mode == mode)
+            ?? MultiplexerModes.First(option => option.Mode == TerminalMultiplexerMode.Auto);
 }

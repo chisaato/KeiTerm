@@ -86,7 +86,9 @@ public partial class TerminalTabViewModel
     partial void OnTitleChanged(string value) => UpdateToolTip();
 
     private void UpdateTitle()
-        => Title = FollowRemoteTitle && !string.IsNullOrWhiteSpace(RemoteTitle) ? RemoteTitle! : TabName;
+        => Title = !IsShellVisible && IsFileManagerVisible
+            ? Strings.Format("FileManager.Tab.Title", TabName)
+            : FollowRemoteTitle && !string.IsNullOrWhiteSpace(RemoteTitle) ? RemoteTitle! : TabName;
 
     private void UpdateToolTip()
     {
@@ -119,6 +121,8 @@ public partial class TerminalTabViewModel
         }
 
         Config = config;
+        _directoryFollowMode = config.CwdFollow;
+        _directoryMultiplexerMode = config.MultiplexerMode;
         UpdateToolTip();
     }
 
@@ -148,7 +152,12 @@ public partial class TerminalTabViewModel
         return cleaned.Length == 0 ? null : cleaned;
     }
 
-    public void ApplyRemoteTitle(string? raw) => RemoteTitle = SanitizeRemoteTitle(raw);
+    public void ApplyRemoteTitle(string? raw)
+    {
+        RemoteTitle = SanitizeRemoteTitle(raw);
+        // 路径不能使用为标签显示截断过的标题。
+        TrackDirectoryTitle(raw);
+    }
 
     // 重命名：用户给定的名字优先于远端标题，因此同时停止跟随
     public void Rename(string name)

@@ -68,7 +68,11 @@ public partial class TerminalTabViewModel
             await manager.InitializeAsync(cancellation.Token);
             // 初始化可能吞掉取消异常，也可能经过不支持取消的远端操作；完成后仍需核对归属。
             if (IsDisposed || cancellation.IsCancellationRequested || !ReferenceEquals(_session, session)) return;
+            manager.IsShellVisible = IsShellVisible;
+            manager.IsMaximized = IsFileManagerMaximized;
             FileManager = manager;
+            PublishTerminalDirectory();
+            ScheduleDirectoryFollow();
             attached = true;
         }
         finally
@@ -95,11 +99,18 @@ public partial class TerminalTabViewModel
     {
         // 在任何 await 前摘下本次持有的实例；排空旧请求之后不得再清空新连接的属性。
         RemoteFileManagerViewModel? manager = FileManager;
+        if (IsFileManagerMaximized)
+        {
+            IsShellVisible = true;
+            IsFileManagerMaximized = false;
+        }
         IsFileManagerVisible = false;
         FileManager = null;
+        Task directoryFollow = DrainDirectoryFollowAsync();
         _fileManagerInitializationCancellation?.Cancel();
         Task[] initializations = _fileManagerInitializations.ToArray();
         _fileManagerInitializations.Clear();
+        await directoryFollow;
         try { await Task.WhenAll(initializations); }
         catch (Exception ex) { _logger.LogWarning(ex, "等待文件侧栏初始化结束失败 标题={Title}", Title); }
         if (manager == null) return;
