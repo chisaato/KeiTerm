@@ -2358,7 +2358,6 @@ Latin: AaBb CcDd GgYy gypq
   <data name="Settings.TabBar.VariableReference" xml:space="preserve"><value>变量与规则</value></data>
   <data name="Settings.TabBar.VariableSources" xml:space="preserve"><value>local_ 为本地会话配置，remote_ 为远端信息。</value></data>
   <data name="Settings.TabBar.TemplateSyntax" xml:space="preserve"><value>文件标签使用当前浏览目录。用 {{ 和 }} 显示花括号，最多 512 个字符。</value></data>
-  <data name="Settings.TabBar.DefaultOptions" xml:space="preserve"><value>默认命名</value></data>
   <data name="Settings.TabBar.DefaultRemoteTitle" xml:space="preserve"><value>使用远端标题</value></data>
   <data name="Settings.TabBar.DefaultHint" xml:space="preserve"><value>未填写命名规则时生效，可在会话属性中覆盖。手动重命名的终端始终保留自定义名称。</value></data>
   <data name="Settings.TabBar.Variable.local_name" xml:space="preserve"><value>会话名</value></data>

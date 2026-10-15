@@ -666,15 +666,9 @@
                                                                Foreground="{DynamicResource Kei.Text.Muted}"/>
                                                 </StackPanel>
                                             </Expander>
-                                            <Expander x:Name="TabTitleDefaultOptions" Header="{loc:KeiString Settings.TabBar.DefaultOptions}"
-                                                      IsExpanded="False" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
-                                                <StackPanel Spacing="8" Margin="0,8,0,0">
-                                                    <CheckBox x:Name="TabTitleFollowsRemoteCheckBox" IsChecked="{Binding Terminal.TabTitleFollowsRemote}"
-                                                              Content="{loc:KeiString Settings.TabBar.DefaultRemoteTitle}"/>
-                                                    <TextBlock Text="{loc:KeiString Settings.TabBar.DefaultHint}" FontSize="12" TextWrapping="Wrap"
-                                                               Foreground="{DynamicResource Kei.Text.Muted}"/>
-                                                </StackPanel>
-                                            </Expander>
+                                            <CheckBox x:Name="TabTitleFollowsRemoteCheckBox" IsChecked="{Binding Terminal.TabTitleFollowsRemote}"
+                                                      Content="{loc:KeiString Settings.TabBar.DefaultRemoteTitle}"
+                                                      ToolTip.Tip="{loc:KeiString Settings.TabBar.DefaultHint}"/>
                                         </StackPanel>
                                     </Border>
                                 </StackPanel>

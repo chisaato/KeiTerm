@@ -47,10 +47,8 @@ public class SettingsGlobalDefaultsTests
             // 从实际标签栏控件修改全局标题策略，防止只有 VM 字段而设置页缺入口。
             model.SelectedCategory = model.Categories.Single(c => c.Page is TabBarSettingsProxyPage);
             window.UpdateLayout();
-            Find<Expander>(window, "TabTitleDefaultOptions").IsExpanded = true;
-            window.UpdateLayout();
             CheckBox title = Find<CheckBox>(window, "TabTitleFollowsRemoteCheckBox");
-            Assert.True(title.IsVisible);
+            Assert.True(title.IsEffectivelyVisible);
             Assert.True(title.Bounds.Width > 0);
             title.IsChecked = followsRemote;
 
