@@ -20,6 +20,90 @@ public class RemoteFileManagerLayoutTests
     [Theory]
     [InlineData(300)]
     [InlineData(450)]
+    public Task DirectoryTree_CollapseReleasesColumnsAndRestoresDraggedWidth(int width) => HeadlessAvalonia.RunAsync(async () =>
+    {
+        UiDesignSystemService.Apply();
+        LayoutFileServices services = new();
+        await using RemoteFileManagerViewModel model = new(Guid.NewGuid(), services, services);
+        RemoteFileManagerView view = new() { DataContext = model };
+        Window window = new() { Width = width, Height = 600, Content = view };
+        window.Show();
+        try
+        {
+            HeadlessAvalonia.Pump();
+            Grid content = view.FindControl<Grid>("DirectoryContentGrid")!;
+            TreeView tree = view.FindControl<TreeView>("DirectoryTreeView")!;
+            GridSplitter splitter = view.FindControl<GridSplitter>("DirectoryTreeSplitter")!;
+            Button toggle = view.FindControl<Button>("FileManagerTreeToggleButton")!;
+            ListBox files = view.FindControl<ListBox>("FileListBox")!;
+            AssertInsideHorizontally(toggle, window);
+            double initialWidth = tree.Bounds.Width;
+            Point start = splitter.TranslatePoint(new Point(splitter.Bounds.Width / 2, splitter.Bounds.Height / 2), window)!.Value;
+            Point end = start + new Vector(-30, 0);
+            window.MouseDown(start, MouseButton.Left);
+            window.MouseMove(end, RawInputModifiers.LeftMouseButton);
+            HeadlessAvalonia.Pump();
+            window.MouseUp(end, MouseButton.Left);
+            HeadlessAvalonia.Pump();
+            double expandedWidth = tree.Bounds.Width;
+            Assert.True(expandedWidth < initialWidth - 15, "拖动分隔条应缩小目录树");
+            Assert.Equal(expandedWidth, model.DirectoryTreeWidth, precision: 1);
+            double previousFilesWidth = files.Bounds.Width;
+
+            Click(window, toggle);
+            Assert.False(model.IsDirectoryTreeVisible);
+            Assert.False(tree.IsVisible);
+            Assert.False(splitter.IsVisible);
+            Assert.Equal(0, content.ColumnDefinitions[0].ActualWidth);
+            Assert.Equal(0, content.ColumnDefinitions[1].ActualWidth);
+            Assert.Equal(content.Bounds.Width, files.Bounds.Width, precision: 1);
+            Assert.True(files.Bounds.Width > previousFilesWidth + expandedWidth);
+            Assert.DoesNotContain("open", toggle.Classes);
+            await CaptureAsync(window, width, "tree-collapsed");
+
+            Click(window, toggle);
+            Assert.True(tree.IsEffectivelyVisible);
+            Assert.True(splitter.IsEffectivelyVisible);
+            Assert.Equal(expandedWidth, tree.Bounds.Width, precision: 1);
+            Assert.Contains("open", toggle.Classes);
+        }
+        finally { window.Close(); }
+    });
+
+    [Fact]
+    public Task DirectoryTree_RecreatedViewPreservesCollapseAndPreferredWidth() => HeadlessAvalonia.RunAsync(async () =>
+    {
+        UiDesignSystemService.Apply();
+        LayoutFileServices services = new();
+        await using RemoteFileManagerViewModel model = new(Guid.NewGuid(), services, services);
+        model.DirectoryTreeWidth = 220;
+        RemoteFileManagerView original = new() { DataContext = model };
+        Window window = new() { Width = 450, Height = 600, Content = original };
+        window.Show();
+        try
+        {
+            HeadlessAvalonia.Pump();
+            Click(window, original.FindControl<Button>("FileManagerTreeToggleButton")!);
+            RemoteFileManagerView replacement = new() { DataContext = model };
+            window.Content = replacement;
+            window.Width = 300;
+            HeadlessAvalonia.Pump();
+            TreeView tree = replacement.FindControl<TreeView>("DirectoryTreeView")!;
+            Assert.False(tree.IsVisible);
+            Click(window, replacement.FindControl<Button>("FileManagerTreeToggleButton")!);
+            Assert.True(tree.IsEffectivelyVisible);
+            Assert.True(tree.Bounds.Width < 220, "窄面板应给文件列表保留可操作宽度");
+            Assert.Equal(220, model.DirectoryTreeWidth);
+            window.Width = 450;
+            HeadlessAvalonia.Pump();
+            Assert.Equal(220, tree.Bounds.Width, precision: 1);
+        }
+        finally { window.Close(); }
+    });
+
+    [Theory]
+    [InlineData(300)]
+    [InlineData(450)]
     public Task NarrowPanel_KeepsFilesVerticalAndTransferActionsReachable(int width) => HeadlessAvalonia.RunAsync(async () =>
     {
         UiDesignSystemService.Apply();

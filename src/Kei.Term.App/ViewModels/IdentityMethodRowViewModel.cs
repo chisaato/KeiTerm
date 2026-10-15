@@ -27,6 +27,33 @@ public partial class IdentityMethodRowViewModel : ViewModelBase
     // Agent 方法与 Vault 私钥专有字段显隐
     public bool IsAgent { get; }
     public bool IsVaultPrivateKey { get; }
+    public bool IsVaultPassword { get; }
+
+    // 仅暂存用户本次输入；已有密码只回显是否存在，不加载明文。
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(VaultPasswordStatus))]
+    private string _password = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PasswordPlaceholder))]
+    [NotifyPropertyChangedFor(nameof(VaultPasswordStatus))]
+    private bool? _hasSavedPassword = false;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PasswordPlaceholder))]
+    [NotifyPropertyChangedFor(nameof(VaultPasswordStatus))]
+    private bool _isPasswordRemovalRequested;
+
+    public string PasswordPlaceholder => Strings.Get(
+        HasSavedPassword != false && !IsPasswordRemovalRequested
+            ? "IdentityEdit.Password.KeepPlaceholder"
+            : "IdentityEdit.Password.Placeholder");
+
+    public string VaultPasswordStatus => Strings.Get(
+        !string.IsNullOrEmpty(Password) ? "IdentityEdit.Password.PendingSave" :
+        IsPasswordRemovalRequested ? "IdentityEdit.Password.PendingRemove" :
+        HasSavedPassword == true ? "IdentityEdit.Password.Saved" :
+        HasSavedPassword == false ? "IdentityEdit.Password.NotSaved" : "IdentityEdit.Password.Unknown");
 
     [ObservableProperty]
     private string _keyFilePath = string.Empty;
@@ -81,6 +108,7 @@ public partial class IdentityMethodRowViewModel : ViewModelBase
             case VaultPasswordMethod:
                 KindName = Strings.Get("IdentityEdit.Method.VaultPassword");
                 Hint = Strings.Get("IdentityEdit.Method.VaultPasswordHint");
+                IsVaultPassword = true;
                 break;
             case VaultPrivateKeyMethod:
                 KindName = Strings.Get("IdentityEdit.Method.VaultKey");
@@ -108,6 +136,19 @@ public partial class IdentityMethodRowViewModel : ViewModelBase
                 Hint = string.Empty;
                 break;
         }
+    }
+
+    partial void OnPasswordChanged(string value)
+    {
+        // 密码中的空格也是有效字符，绝不 Trim。
+        if (!string.IsNullOrEmpty(value)) IsPasswordRemovalRequested = false;
+    }
+
+    [RelayCommand]
+    private void RemoveVaultPassword()
+    {
+        Password = string.Empty;
+        IsPasswordRemovalRequested = HasSavedPassword != false;
     }
 
     // 浏览私钥文件：选择结果写回 KeyFilePath，随后尝试计算指纹
@@ -246,6 +287,14 @@ public partial class IdentityMethodRowViewModel : ViewModelBase
     // 「应用」成功后调用：把暂存材料固化为已导入状态，并清空暂存标记
     public void MarkApplied()
     {
+        if (IsVaultPassword)
+        {
+            if (!string.IsNullOrEmpty(Password)) HasSavedPassword = true;
+            else if (IsPasswordRemovalRequested) HasSavedPassword = false;
+            Password = string.Empty;
+            IsPasswordRemovalRequested = false;
+        }
+
         if (!IsVaultPrivateKey)
         {
             return;
@@ -271,6 +320,14 @@ public partial class IdentityMethodRowViewModel : ViewModelBase
         StagedPassphrase = null;
         _stagedFingerprint = null;
         IsRemovalRequested = false;
+    }
+
+    // 关闭编辑器或删除行后释放暂存材料，取消不触碰 Vault 中已保存的内容。
+    public void ClearStagedSecrets()
+    {
+        Password = string.Empty;
+        StagedPrivateKeyContent = null;
+        StagedPassphrase = null;
     }
 
     // 把行内编辑字段写回底层模型

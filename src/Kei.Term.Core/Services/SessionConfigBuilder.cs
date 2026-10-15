@@ -41,13 +41,16 @@ public static class SessionConfigBuilder
             // 跳板机为会话级配置，不回退
             JumpHostSessionId: node.JumpHostSessionId,
             EnvironmentVariables: node.EnvironmentVariables,
+            FileTransferProtocol: node.FileTransferProtocol,
+            SftpMode: node.SftpMode,
             // 终端配色：显式 ID 透传，交由 App 层做三级回退解析
             TerminalProfileId: node.TerminalProfileId,
             // 行为覆盖：会话显式值 → 全局设置
             FollowRemoteTitle: node.Overrides.FollowRemoteTitle ?? settings.TabTitleFollowsRemote,
             CwdFollow: node.Overrides.CwdFollow ?? settings.CwdFollowMode,
             ConnectTimeoutSeconds: node.Overrides.ConnectTimeoutSeconds ?? settings.ConnectTimeoutSeconds,
-            ProxyProfileId: node.ProxyProfileId
+            ProxyProfileId: node.ProxyProfileId,
+            TerminalUploadProtocolOverride: node.Overrides.TerminalUploadProtocol
         );
     }
 }

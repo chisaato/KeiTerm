@@ -837,6 +837,18 @@
                                                        Foreground="{DynamicResource Kei.Text.Muted}"/>
                                         </StackPanel>
                                     </Border>
+                                    <Border Classes="settingsSection" x:Name="TerminalDropSettingsSection">
+                                        <StackPanel Spacing="8">
+                                            <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Terminal.Drop.SettingsSection}"/>
+                                            <Grid ColumnDefinitions="150,*" ColumnSpacing="12" RowDefinitions="Auto,Auto" RowSpacing="8">
+                                                <TextBlock Text="{loc:KeiString Terminal.Drop.Protocol}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                                <ComboBox x:Name="TerminalUploadProtocolComboBox" Grid.Column="1" ItemsSource="{Binding TerminalUploadProtocols}" SelectedItem="{Binding SelectedTerminalUploadProtocol}" HorizontalAlignment="Stretch"/>
+                                                <TextBlock Grid.Row="1" Text="{loc:KeiString Terminal.Drop.DefaultAction}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                                <ComboBox x:Name="TerminalDropActionComboBox" Grid.Row="1" Grid.Column="1" ItemsSource="{Binding TerminalDropActions}" SelectedItem="{Binding SelectedTerminalDropAction}" HorizontalAlignment="Stretch"/>
+                                            </Grid>
+                                            <TextBlock Text="{loc:KeiString Terminal.Drop.SettingsHint}" FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource Kei.Text.Muted}"/>
+                                        </StackPanel>
+                                    </Border>
                                     <Border Classes="settingsSection">
                                         <StackPanel Spacing="8">
                                             <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.FileTransfer.CacheWatcherSection}"/>

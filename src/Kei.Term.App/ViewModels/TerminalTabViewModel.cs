@@ -179,6 +179,8 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         Terminal.DetachEndpoint();
 
         _session = session;
+        _connectionDropAction = null;
+        _terminalWorkingDirectory = null;
         _endpoint = new TerminalSessionEndpoint(session, Terminal);
         Terminal.AttachEndpoint(_endpoint);
         session.Disconnected += OnSessionDisconnected;
@@ -247,6 +249,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
             return;
         }
         _fileManagerInitializationCancellation?.Cancel();
+        await DrainTerminalFileDropAsync();
         _endpoint?.Dispose();
         _terminal?.DetachEndpoint();
         _endpoint = null;
@@ -274,6 +277,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
             }
 
             State = ex != null ? ConnectionState.Error : ConnectionState.Disconnected;
+            _dropCancellation?.Cancel();
             StatusMessage = ex?.Message ?? Strings.Get("Main.Tab.ConnectionDropped");
             if (ex != null)
             {
@@ -373,6 +377,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
             _terminal.Loaded -= OnTerminalLoaded;
             _terminal.SizeChanged -= OnTerminalSizeChanged;
             _terminal.TerminalResized -= OnTerminalGridResized;
+            _terminal.ShellIntegrationEventReceived -= OnTerminalShellIntegrationEvent;
         }
 
         _userDisconnect = true;

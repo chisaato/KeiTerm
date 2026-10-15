@@ -28,7 +28,7 @@
                     <MenuItem Header="{loc:KeiString Terminal.Find.Menu}" Command="{Binding OpenFindCommand}"/>
                 </ContextMenu>
             </Border.ContextMenu>
-            <Grid RowDefinitions="Auto,*">
+            <Grid RowDefinitions="Auto,*,Auto">
                 <!-- 28px 命中区域和 16px 图标，与终端查找及文件侧栏共享操作。 -->
                 <Border Grid.Row="0" Height="34"
                         Background="{DynamicResource Kei.Bg.PanelAlt}"
@@ -101,6 +101,12 @@
                                               HorizontalAlignment="Right"
                                               Margin="8"/>
                 </Grid>
+                <Border Grid.Row="2" IsVisible="{Binding IsTerminalUploadActive}" Padding="8,4" Background="{DynamicResource Kei.Bg.PanelAlt}">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <TextBlock Text="{Binding TerminalUploadStatus}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                        <Button Grid.Column="1" Content="{loc:KeiString Common.Cancel}" Command="{Binding CancelTerminalUploadCommand}"/>
+                    </Grid>
+                </Border>
             </Grid>
         </Border>
 

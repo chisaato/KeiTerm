@@ -126,6 +126,7 @@ public partial class SessionEditViewModel : ViewModelBase
         CwdFollowOptions = SessionBehaviorOptions.InheritableCwdFollow(global.CwdFollowMode);
         ConnectTimeoutOptions = SessionBehaviorOptions.InheritableConnectTimeout(global.ConnectTimeoutSeconds);
         SessionOverrides overrides = existing?.Overrides ?? new SessionOverrides();
+        InitializeTerminalUploadPreference(overrides, global);
         SelectedTitleFollow = TitleFollowOptions.First(o => o.Value == overrides.FollowRemoteTitle);
         SelectedCwdFollow = CwdFollowOptions.First(o => o.Value == overrides.CwdFollow);
         SelectedConnectTimeout = ConnectTimeoutOptions.FirstOrDefault(o => o.Value == overrides.ConnectTimeoutSeconds) ?? ConnectTimeoutOptions[0];
@@ -314,6 +315,7 @@ public partial class SessionEditViewModel : ViewModelBase
         model.Overrides.FollowRemoteTitle = SelectedTitleFollow?.Value;
         model.Overrides.CwdFollow = SelectedCwdFollow?.Value;
         model.Overrides.ConnectTimeoutSeconds = SelectedConnectTimeout?.Value;
+        model.Overrides.TerminalUploadProtocol = SelectedTerminalUpload?.Value;
         return model;
     }
 

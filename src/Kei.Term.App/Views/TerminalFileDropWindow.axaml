@@ -1,0 +1,27 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Kei.Term.App.ViewModels"
+        xmlns:loc="using:Kei.Term.App.Helpers"
+        x:Class="Kei.Term.App.Views.TerminalFileDropWindow"
+        x:DataType="vm:TerminalFileDropPromptViewModel"
+        Title="{loc:KeiString Terminal.Drop.Title}"
+        Width="490" SizeToContent="Height" CanResize="False" ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Kei.Bg.Window}" FontFamily="{DynamicResource Kei.Font.UI}" FontSize="13">
+    <StackPanel Margin="16" Spacing="10">
+        <TextBlock Text="{Binding Summary}" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxHeight="72" ToolTip.Tip="{Binding Summary}" Foreground="{DynamicResource Kei.Text.Primary}"/>
+        <Border Padding="12" CornerRadius="4" BorderThickness="1" BorderBrush="{DynamicResource Kei.Border.Subtle}" Background="{DynamicResource Kei.Bg.Card}">
+            <StackPanel Spacing="8">
+                <RadioButton x:Name="UploadAction" GroupName="DropAction" IsChecked="{Binding IsUpload}" Content="{loc:KeiString Terminal.Drop.Upload}"/>
+                <TextBlock Text="{Binding UploadDescription}" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxHeight="54" ToolTip.Tip="{Binding UploadDescription}" FontSize="12" Margin="22,0,0,0" Foreground="{DynamicResource Kei.Text.Muted}"/>
+                <RadioButton x:Name="PastePathAction" GroupName="DropAction" IsChecked="{Binding IsPastePath}" Content="{loc:KeiString Terminal.Drop.PastePath}"/>
+                <RadioButton x:Name="PasteFileNameAction" GroupName="DropAction" IsChecked="{Binding IsPasteFileName}" Content="{loc:KeiString Terminal.Drop.PasteFileName}"/>
+            </StackPanel>
+        </Border>
+        <ComboBox x:Name="RememberScope" ItemsSource="{Binding RememberScopes}" SelectedItem="{Binding SelectedRememberScope}" HorizontalAlignment="Stretch"/>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <Button x:Name="CancelButton" Content="{loc:KeiString Common.Cancel}" MinWidth="76" Click="OnCancel"/>
+            <Button x:Name="ConfirmButton" Classes="accent" Content="{loc:KeiString Common.Confirm}" MinWidth="76" Click="OnConfirm"/>
+        </StackPanel>
+    </StackPanel>
+</Window>

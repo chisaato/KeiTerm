@@ -15,6 +15,8 @@ public enum CwdFollowMode
 // 以 JSON 整体存于 session_details.options_json，新增覆盖项只需在此加可空属性，无需迁移。
 public sealed class SessionOverrides
 {
+    public TerminalUploadProtocol? TerminalUploadProtocol { get; set; }
+
     // 标签标题是否跟随远端（OSC 0/2）标题
     public bool? FollowRemoteTitle { get; set; }
 

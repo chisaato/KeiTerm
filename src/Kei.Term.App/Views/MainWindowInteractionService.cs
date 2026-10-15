@@ -303,6 +303,15 @@ public sealed class MainWindowInteractionService : IInteractionService
     });
 
     // === 反馈 ===
+    public Task<TerminalFileDropChoice?> PromptTerminalFileDropAsync(IReadOnlyList<string> paths, TerminalUploadProtocol protocol, string directory, CancellationToken ct = default)
+        => Safe.RunAsync<TerminalFileDropChoice?>(_log, "选择终端拖入文件操作",
+            async () =>
+            {
+                ct.ThrowIfCancellationRequested();
+                TerminalFileDropWindow dialog = new(new TerminalFileDropPromptViewModel(paths, protocol, directory));
+                using CancellationTokenRegistration registration = ct.Register(() => Avalonia.Threading.Dispatcher.UIThread.Post(() => dialog.Close(null)));
+                return await dialog.ShowDialog<TerminalFileDropChoice?>(_owner);
+            });
 
     // 独立确认框尚未实现：保持现有行为直接放行
     public Task<bool> ConfirmDeleteAsync(string name) => Task.FromResult(true);

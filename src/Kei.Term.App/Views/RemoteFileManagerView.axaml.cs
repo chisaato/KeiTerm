@@ -24,6 +24,7 @@ public partial class RemoteFileManagerView : UserControl
         _pickExecutable = PickExecutableFileAsync;
         InitializeComponent();
         InitializeActivityLayout();
+        InitializeDirectoryTreeLayout();
         AddHandler(DragDrop.DropEvent, OnDrop);
         AddHandler(DragDrop.DragOverEvent, OnDragOver);
         DataContextChanged += OnDataContextChanged;
@@ -34,12 +35,14 @@ public partial class RemoteFileManagerView : UserControl
         base.OnAttachedToVisualTree(e);
         SetupPickExecutableDialog();
         BindFileActivities();
+        BindDirectoryTreeLayout();
     }
 
     private void OnDataContextChanged(object? sender, EventArgs e)
     {
         SetupPickExecutableDialog();
         BindFileActivities();
+        BindDirectoryTreeLayout();
     }
 
     private void SetupPickExecutableDialog()
@@ -56,6 +59,7 @@ public partial class RemoteFileManagerView : UserControl
     {
         ReleasePickExecutableDialog();
         ReleaseFileActivities();
+        ReleaseDirectoryTreeLayout();
         base.OnDetachedFromVisualTree(args);
     }
 

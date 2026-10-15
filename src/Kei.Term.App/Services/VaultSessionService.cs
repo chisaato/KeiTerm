@@ -267,6 +267,46 @@ public sealed class VaultSessionService
             !string.IsNullOrEmpty(payload.Passphrase));
     }
 
+    // 编辑器只查询密码是否存在，不把已保存的明文回填至输入框，也不在打开时要求解锁。
+    // null 表示状态未知（Vault 已锁定），此时留空仍保留原材料。
+    public async Task<HashSet<Guid>?> GetSavedPasswordMethodIdsAsync(Guid identityId)
+    {
+        if (!_vault.IsUnlocked) return null;
+
+        Dictionary<string, SecretPayload> secrets = await _secretStore.GetSecretsAsync(identityId);
+        HashSet<Guid> methodIds = [];
+        foreach (KeyValuePair<string, SecretPayload> entry in secrets)
+        {
+            if (!string.IsNullOrEmpty(entry.Value.Password) && Guid.TryParse(entry.Key, out Guid methodId))
+            {
+                methodIds.Add(methodId);
+            }
+        }
+
+        MarkAccessed();
+        return methodIds;
+    }
+
+    // null 是显式移除；未编辑的密码不出现在 changes 中，整包中的私钥与口令保持原样。
+    public async Task<bool> PersistVaultPasswordsAsync(Guid identityId, IReadOnlyDictionary<Guid, string?> changes)
+    {
+        if (changes.Count == 0) return true;
+        if (!await EnsureReadyForWriteAsync()) return false;
+
+        Dictionary<string, SecretPayload> secrets = await _secretStore.GetSecretsAsync(identityId);
+        foreach (KeyValuePair<Guid, string?> change in changes)
+        {
+            string key = change.Key.ToString();
+            if (change.Value == null) secrets.Remove(key);
+            else secrets[key] = new SecretPayload { Password = change.Value };
+        }
+
+        await _secretStore.SaveSecretsAsync(identityId, secrets);
+        MarkAccessed();
+        _logger.LogInformation("Vault 密码材料更新 身份Id={IdentityId} 方法数={Count}", identityId, changes.Count);
+        return true;
+    }
+
     // 指定 Vault 私钥方法的已存材料信息（字节数 + 指纹）；无材料返回 null。供身份编辑器回显
     public async Task<VaultKeyInfo?> GetVaultKeyInfoAsync(Guid identityId, Guid methodId)
     {

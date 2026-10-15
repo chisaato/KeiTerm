@@ -126,7 +126,7 @@ public class SshSessionFactory : ISshSessionFactory
     }
 }
 
-public class SshNetSession : ISshSession
+public partial class SshNetSession : ISshSession
 {
     private readonly SshDialer _dialer;
     private readonly string _terminalType;
@@ -144,7 +144,7 @@ public class SshNetSession : ISshSession
         Channel.CreateUnbounded<PendingInput>(new UnboundedChannelOptions { SingleReader = true });
     private Task? _writeLoopTask;
 
-    private sealed record PendingInput(byte[] Data, TaskCompletionSource Sent);
+    private sealed record PendingInput(byte[] Data, TaskCompletionSource Sent, bool ThrowOnFailure);
 
     // 释放标志：0 = 未释放，1 = 已释放（幂等 + 线程安全）
     private int _disposed;
@@ -230,16 +230,28 @@ public class SshNetSession : ISshSession
     // 入队即返回的任务在数据真正写出后完成；调用方可不等待（键盘输入），顺序由队列保证
     public Task SendInputAsync(ReadOnlyMemory<byte> data, CancellationToken ct = default)
     {
-        if (_shellStream == null || !IsConnected || data.IsEmpty)
+        lock (_outputGate)
         {
-            return Task.CompletedTask;
+            // 包括 VT 查询应答在内的普通输入都不能进入正在运行的 Modem 接收器。
+            return _binaryChannel == null ? QueueInputAsync(data, ct) : Task.CompletedTask;
+        }
+    }
+
+    private Task QueueInputAsync(ReadOnlyMemory<byte> data, CancellationToken ct = default,
+        bool throwOnFailure = false, bool flushOnly = false)
+    {
+        if (data.IsEmpty && !flushOnly) return Task.CompletedTask;
+        if (_shellStream == null || !IsConnected)
+        {
+            return throwOnFailure ? Task.FromException(new IOException("终端连接已断开")) : Task.CompletedTask;
         }
 
-        var pending = new PendingInput(data.ToArray(), new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously));
+        if (throwOnFailure) ct.ThrowIfCancellationRequested();
+        var pending = new PendingInput(data.ToArray(), new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously), throwOnFailure);
         if (!_inputQueue.Writer.TryWrite(pending))
         {
             // 会话释放中：队列已关闭
-            return Task.CompletedTask;
+            return throwOnFailure ? Task.FromException(new IOException("终端输入通道已关闭")) : Task.CompletedTask;
         }
 
         return pending.Sent.Task.WaitAsync(ct);
@@ -261,6 +273,9 @@ public class SshNetSession : ISshSession
                 {
                     // 写失败即连接已坏，断开由读取循环上报；这里不把异常抛给多为"发出即不管"的调用方（避免未观察异常）
                     _logger.LogWarning(ex, "SSH 输入写出失败 SessionId={SessionId} 字节数={Bytes}", SessionId, input.Data.Length);
+                    if (input.ThrowOnFailure) input.Sent.TrySetException(ex);
+                    else input.Sent.TrySetResult();
+                    continue;
                 }
 
                 input.Sent.TrySetResult();
@@ -310,13 +325,15 @@ public class SshNetSession : ISshSession
 
                 var chunk = new byte[read];
                 Array.Copy(buffer, 0, chunk, 0, read);
-                OutputReceived?.Invoke(chunk);
+                DispatchOutput(chunk);
             }
+            CompleteBinaryChannel(null);
             Disconnected?.Invoke(null);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogError(ex, "SSH 会话读取循环异常 SessionId={SessionId}", SessionId);
+            CompleteBinaryChannel(ex);
             Disconnected?.Invoke(ex);
         }
     }
@@ -332,6 +349,7 @@ public class SshNetSession : ISshSession
         // 1) 关闭输入队列并发出取消信号
         _inputQueue.Writer.TryComplete();
         _readCts?.Cancel();
+        CompleteBinaryChannel(new IOException("终端连接已断开"));
 
         // 2) 立即释放 ShellStream 与断开底层连接，打断阻塞在 ReadAsync 上的底层网络读取
         try
