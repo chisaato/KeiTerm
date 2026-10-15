@@ -55,8 +55,10 @@ public partial class FileManagerWorkspaceTests
         Assert.Equal(directory.FullPath, first.FileManager.CurrentPath);
         Assert.Equal(3, host.Model.WorkspaceTabs.Count);
         AssertFileHeadersAreVisible(host);
-        Assert.Contains(directory.FullPath, first.Title);
-        Assert.Contains(nested.FullPath, second.Title);
+        Assert.Equal("LAN · 备份 files", first.Title);
+        Assert.Equal("LAN · nested", second.Title);
+        Assert.Contains(directory.FullPath, first.ToolTip);
+        Assert.Contains(nested.FullPath, second.ToolTip);
 
         await host.Model.CloseWorkspaceTabCommand.ExecuteAsync(second);
         HeadlessAvalonia.Pump();

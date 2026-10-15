@@ -24,10 +24,8 @@ public partial class FileManagerTabViewModel : ViewModelBase
 
     public TerminalTabViewModel Owner { get; }
     public RemoteFileManagerViewModel FileManager { get; }
-    public string Title => FileManager.IsDirectoryTab
-        ? $"{Strings.Format(TitleKey, Owner.TabName)} · {FileManager.CurrentPath}"
-        : Strings.Format(TitleKey, Owner.TabName);
-    public string ToolTip => $"{Owner.ToolTip}{Environment.NewLine}{FileManager.CurrentPath}";
+    public string Title => WorkspaceTabTitle.ForDirectory(Owner.TabName, FileManager.CurrentPath);
+    public string ToolTip => $"{Strings.Format(TitleKey, Owner.TabName)}{Environment.NewLine}{FileManager.CurrentPath}{Environment.NewLine}{Owner.ToolTip}";
     public IRelayCommand RequestCloseCommand => FileManager.CloseCommand;
 
     [ObservableProperty] private bool _isSelected;

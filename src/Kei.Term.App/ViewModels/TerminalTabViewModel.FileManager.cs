@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
@@ -15,6 +16,22 @@ public partial class TerminalTabViewModel
 {
     private CancellationTokenSource? _fileManagerInitializationCancellation;
     private readonly List<Task> _fileManagerInitializations = [];
+
+    partial void OnFileManagerChanged(RemoteFileManagerViewModel? oldValue, RemoteFileManagerViewModel? newValue)
+    {
+        if (oldValue != null) oldValue.PropertyChanged -= OnFileManagerHeaderChanged;
+        if (newValue != null) newValue.PropertyChanged += OnFileManagerHeaderChanged;
+        UpdateTitle();
+        UpdateToolTip();
+    }
+
+    private void OnFileManagerHeaderChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName != nameof(RemoteFileManagerViewModel.CurrentPath) || IsShellVisible || !IsFileManagerVisible) return;
+        UpdateTitle();
+        // 同名目录之间切换时标题不变，悬停提示仍需更新完整路径。
+        UpdateToolTip();
+    }
 
     // 调用方切回 UI 线程；源会话用于拒绝文件通道创建完成前发生的关闭或重连。
     public Task InitializeFileManagerAsync(

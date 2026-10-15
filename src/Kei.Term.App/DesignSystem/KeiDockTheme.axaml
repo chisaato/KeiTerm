@@ -155,6 +155,23 @@
         <Setter Property="Stroke" Value="{DynamicResource Kei.Status.Error}" />
     </Style>
 
+    <!-- 连接标签共用尺寸与状态标记，类型由 Lucide 图标区分。 -->
+    <Style Selector="Viewbox.workspaceTabIcon">
+        <Setter Property="Width" Value="16"/>
+        <Setter Property="Height" Value="16"/>
+        <Setter Property="Stretch" Value="Uniform"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Border.workspaceTabState">
+        <Setter Property="Width" Value="3"/>
+        <Setter Property="Height" Value="14"/>
+        <Setter Property="CornerRadius" Value="1"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="dc|DocumentTabStripItem:selected Path.workspaceTabKind">
+        <Setter Property="Stroke" Value="{DynamicResource Kei.Text.Primary}"/>
+    </Style>
+
     <!-- 混合工作区的标题按 VM 分发，保留连接状态与原有业务菜单。 -->
     <Style Selector="dc|DocumentControl">
         <Setter Property="HeaderTemplate">
@@ -179,8 +196,16 @@
                                     </ContextMenu>
                                 </Grid.ContextMenu>
                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <Border Width="3" Height="14" CornerRadius="1" VerticalAlignment="Center"
+                                    <Border x:Name="ConnectionStateIndicator" Classes="workspaceTabState"
                                             Background="{Binding State, Converter={StaticResource ConnectionStateBrush}}"/>
+                                    <Viewbox Classes="workspaceTabIcon">
+                                        <Grid Width="24" Height="24">
+                                            <Path x:Name="TerminalKindIcon" Classes="kei-icon workspaceTabKind" Data="{StaticResource Kei.Icon.Terminal}"
+                                                  IsVisible="{Binding IsShellVisible}"/>
+                                            <Path x:Name="FileManagerKindIcon" Classes="kei-icon workspaceTabKind" Data="{StaticResource Kei.Icon.Folder}"
+                                                  IsVisible="{Binding !IsShellVisible}"/>
+                                        </Grid>
+                                    </Viewbox>
                                     <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontSize="12"
                                                MaxWidth="200" TextTrimming="CharacterEllipsis"/>
                                     <Ellipse Width="6" Height="6" VerticalAlignment="Center" Fill="{DynamicResource Kei.Accent}"
@@ -196,9 +221,11 @@
                                     </ContextMenu>
                                 </Grid.ContextMenu>
                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <Viewbox Width="16" Height="16" Stretch="Uniform" VerticalAlignment="Center">
+                                    <Border x:Name="ConnectionStateIndicator" Classes="workspaceTabState"
+                                            Background="{Binding Owner.State, Converter={StaticResource ConnectionStateBrush}}"/>
+                                    <Viewbox Classes="workspaceTabIcon">
                                         <Grid Width="24" Height="24">
-                                            <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Folder}"/>
+                                            <Path x:Name="FileManagerKindIcon" Classes="kei-icon workspaceTabKind" Data="{StaticResource Kei.Icon.Folder}"/>
                                         </Grid>
                                     </Viewbox>
                                     <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontSize="12"
@@ -216,9 +243,9 @@
                                     </ContextMenu>
                                 </Grid.ContextMenu>
                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Viewbox Classes="workspaceTabIcon">
                                         <Grid Width="24" Height="24">
-                                            <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Terminal}"/>
+                                            <Path Classes="kei-icon workspaceTabKind" Data="{StaticResource Kei.Icon.Terminal}"/>
                                         </Grid>
                                     </Viewbox>
                                     <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontSize="12"

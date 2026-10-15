@@ -48,7 +48,7 @@ public partial class TerminalTabViewModel
     // 标签右键菜单动作，由主窗口 VM 订阅处理
     public event Action<TerminalTabViewModel, TabAction>? ActionRequested;
 
-    // 显示在标签上的标题：跟随远端时为远端标题（未设置则回退标签名），否则为标签名
+    // 连接名保持在首位；跟随远端时追加内容标题，避免多个连接的远端标题相同而无法区分。
     [ObservableProperty]
     private string _title = Strings.Get("Main.Tab.DefaultTitle");
 
@@ -87,15 +87,18 @@ public partial class TerminalTabViewModel
 
     private void UpdateTitle()
         => Title = !IsShellVisible && IsFileManagerVisible
-            ? Strings.Format("FileManager.Tab.Title", TabName)
-            : FollowRemoteTitle && !string.IsNullOrWhiteSpace(RemoteTitle) ? RemoteTitle! : TabName;
+            ? WorkspaceTabTitle.ForDirectory(TabName, FileManager?.CurrentPath)
+            : FollowRemoteTitle && !string.IsNullOrWhiteSpace(RemoteTitle)
+                && !string.Equals(RemoteTitle, TabName, StringComparison.Ordinal)
+                ? $"{TabName} · {RemoteTitle}"
+                : TabName;
 
     private void UpdateToolTip()
     {
         var lines = new List<string> { Title };
-        if (!string.Equals(Title, TabName, StringComparison.Ordinal))
+        if (!IsShellVisible && IsFileManagerVisible && FileManager is { } files)
         {
-            lines.Add(Strings.Format("Main.Tab.ToolTip.Session", TabName));
+            lines.Add(files.CurrentPath);
         }
 
         if (Config is { } config)

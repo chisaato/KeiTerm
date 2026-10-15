@@ -98,7 +98,7 @@ public partial class FileManagerWorkspaceTests
         Click(host.Window, VisibleFiles(host).FindControl<Button>("FileManagerMaximizeButton")!);
         Assert.False(host.Terminal.IsShellVisible);
         Assert.True(host.Terminal.IsFileManagerMaximized);
-        Assert.Equal(Strings.Format("FileManager.Tab.Title", "LAN"), host.Terminal.Title);
+        Assert.Equal("LAN · log", host.Terminal.Title);
         Assert.Equal(host.Terminal.Title, host.Model.Workspace.FindDocument(host.Terminal)!.Title);
         Assert.True(connection.FindControl<Border>("SftpHost")!.Bounds.Width > sidebarWidth);
         Assert.False(connection.FindControl<GridSplitter>("FileManagerSplitter")!.IsVisible);
@@ -111,7 +111,7 @@ public partial class FileManagerWorkspaceTests
         Click(host.Window, connection.FindControl<Button>("FullScreenFilesButton")!);
         Assert.False(host.Terminal.IsShellVisible);
         host.Terminal.Rename("Renamed");
-        Assert.Equal(Strings.Format("FileManager.Tab.Title", "Renamed"), host.Model.Workspace.FindDocument(host.Terminal)!.Title);
+        Assert.Equal("Renamed · log", host.Model.Workspace.FindDocument(host.Terminal)!.Title);
         Click(host.Window, VisibleFiles(host).FindControl<Button>("FileManagerMaximizeButton")!);
         Assert.True(host.Terminal.IsShellVisible);
         Assert.True(host.Terminal.IsFileManagerVisible);
@@ -317,7 +317,7 @@ public partial class FileManagerWorkspaceTests
         Assert.Same(host.Terminal, host.Model.Workspace.ActiveTab);
         Assert.Single(host.Model.Tabs);
         WorkspaceDocument fileDocument = host.Model.Workspace.FindDocument(host.Model.ActiveWorkspaceTab!)!;
-        Assert.Equal(Strings.Format("FileManager.Tab.Title", "LAN"), fileDocument.Title);
+        Assert.Equal("LAN · log", fileDocument.Title);
         DocumentTabStripItem[] headers = host.Window.GetVisualDescendants().OfType<DocumentTabStripItem>().ToArray();
         Assert.Equal(2, headers.Length);
         DocumentTabStripItem fileHeader = headers.Single(header => ReferenceEquals(header.DataContext, fileDocument));

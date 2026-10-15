@@ -30,7 +30,7 @@ public class TerminalTabTitleTests
         var tab = Tab(follow: true);
 
         tab.ApplyRemoteTitle("root@gzz-server-gz (192.168.5.25) - byobu");
-        Assert.Equal("root@gzz-server-gz (192.168.5.25) - byobu", tab.Title);
+        Assert.Equal("prod-db · root@gzz-server-gz (192.168.5.25) - byobu", tab.Title);
 
         tab.ApplyRemoteTitle("");
         Assert.Equal("prod-db", tab.Title);
@@ -45,7 +45,20 @@ public class TerminalTabTitleTests
         Assert.Equal("prod-db", tab.Title);
 
         tab.ToggleFollowRemoteTitleCommand.Execute(null);
-        Assert.Equal("vim README.md", tab.Title);
+        Assert.Equal("prod-db · vim README.md", tab.Title);
+    }
+
+    [Fact]
+    public void Following_TracksConnectionRename_WithoutRepeatingMatchingRemoteTitle()
+    {
+        TerminalTabViewModel tab = Tab(follow: true);
+        tab.ApplyRemoteTitle("prod-db");
+        Assert.Equal("prod-db", tab.Title);
+
+        tab.TabName = "production";
+        Assert.Equal("production · prod-db", tab.Title);
+        tab.ApplyRemoteTitle("production");
+        Assert.Equal("production", tab.Title);
     }
 
     [Fact]
@@ -130,7 +143,7 @@ public class TerminalTabTitleHeadlessTests
         tab.Terminal.WriteOutput(Encoding.UTF8.GetBytes("\u001b]2;root@gzz - byobu\u0007"));
         HeadlessAvalonia.Pump();
 
-        Assert.Equal("root@gzz - byobu", tab.Title);
+        Assert.Equal("session · root@gzz - byobu", tab.Title);
         window.Close();
     });
 
