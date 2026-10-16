@@ -1,0 +1,246 @@
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <data name="Common.Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Common.Save" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="Common.Confirm" xml:space="preserve">
+    <value>OK</value>
+  </data>
+  <data name="Common.Close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="Common.Apply" xml:space="preserve">
+    <value>Apply</value>
+  </data>
+  <data name="Common.Delete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="Common.Browse" xml:space="preserve">
+    <value>Browse…</value>
+  </data>
+
+  <!-- File Transfer Settings & Operations -->
+  <data name="Settings.FileTransfer.TransfersSection" xml:space="preserve">
+    <value>Transfers &amp; Queue</value>
+  </data>
+  <data name="Settings.FileTransfer.Concurrency" xml:space="preserve">
+    <value>Concurrent Transfers</value>
+  </data>
+  <data name="Settings.FileTransfer.ConcurrencyTip" xml:space="preserve">
+    <value>Number of files transferred simultaneously per connection. Minimum 1, no upper limit.</value>
+  </data>
+  <data name="Settings.FileTransfer.DefaultDownloadDirectory" xml:space="preserve">
+    <value>Default Download Folder</value>
+  </data>
+  <data name="Settings.FileTransfer.DefaultDownloadDirectoryPlaceholder" xml:space="preserve">
+    <value>Leave empty to use system Downloads folder</value>
+  </data>
+  <data name="Settings.FileTransfer.DefaultDownloadDirectoryTip" xml:space="preserve">
+    <value>Default destination for downloads; defaults to system Downloads when empty.</value>
+  </data>
+  <data name="Settings.FileTransfer.ConflictPolicy" xml:space="preserve">
+    <value>Default Conflict Policy</value>
+  </data>
+  <data name="Settings.FileTransfer.ConflictPolicyTip" xml:space="preserve">
+    <value>How to handle existing files with the same name at destination.</value>
+  </data>
+  <data name="Settings.FileTransfer.ConflictPolicy.Ask" xml:space="preserve">
+    <value>Always ask</value>
+  </data>
+  <data name="Settings.FileTransfer.ConflictPolicy.Overwrite" xml:space="preserve">
+    <value>Overwrite</value>
+  </data>
+  <data name="Settings.FileTransfer.ConflictPolicy.Skip" xml:space="preserve">
+    <value>Skip</value>
+  </data>
+  <data name="Settings.FileTransfer.ConflictPolicy.OverwriteIfOlder" xml:space="preserve">
+    <value>Overwrite if older</value>
+  </data>
+  <data name="Settings.FileTransfer.ConflictPolicy.AutoRename" xml:space="preserve">
+    <value>Auto-rename (name (1).ext)</value>
+  </data>
+  <data name="Settings.FileTransfer.ResumeEnabled" xml:space="preserve">
+    <value>Enable Resume (Experimental)</value>
+  </data>
+  <data name="Settings.FileTransfer.ResumeEnabledTip" xml:space="preserve">
+    <value>Resume from existing partial file length when source is unmodified. SFTP only.</value>
+  </data>
+  <data name="Settings.FileTransfer.RetrySection" xml:space="preserve">
+    <value>Automatic Retry</value>
+  </data>
+  <data name="Settings.FileTransfer.AutoRetryEnabled" xml:space="preserve">
+    <value>Automatically retry transient failures</value>
+  </data>
+  <data name="Settings.FileTransfer.RetryCount" xml:space="preserve">
+    <value>Retry Attempts</value>
+  </data>
+  <data name="Settings.FileTransfer.RetryCountTip" xml:space="preserve">
+    <value>Maximum retry attempts after initial failure.</value>
+  </data>
+  <data name="Settings.FileTransfer.BackoffMode" xml:space="preserve">
+    <value>Backoff Mode</value>
+  </data>
+  <data name="Settings.FileTransfer.BackoffMode.Fixed" xml:space="preserve">
+    <value>Fixed interval</value>
+  </data>
+  <data name="Settings.FileTransfer.BackoffMode.Exponential" xml:space="preserve">
+    <value>Exponential backoff</value>
+  </data>
+  <data name="Settings.FileTransfer.InitialRetryInterval" xml:space="preserve">
+    <value>Initial Interval (seconds)</value>
+  </data>
+  <data name="Settings.FileTransfer.InitialRetryIntervalTip" xml:space="preserve">
+    <value>Wait time before first retry attempt.</value>
+  </data>
+  <data name="Settings.FileTransfer.MaxRetryInterval" xml:space="preserve">
+    <value>Maximum Interval (seconds)</value>
+  </data>
+  <data name="Settings.FileTransfer.MaxRetryIntervalTip" xml:space="preserve">
+    <value>Maximum wait time cap for exponential backoff.</value>
+  </data>
+
+  <!-- File Manager & Activities -->
+  <data name="FileManager.Download" xml:space="preserve">
+    <value>Download</value>
+  </data>
+  <data name="FileManager.DownloadTo" xml:space="preserve">
+    <value>Download to…</value>
+  </data>
+  <data name="FileManager.DownloadToDialogTitle" xml:space="preserve">
+    <value>Select Download Destination Folder</value>
+  </data>
+  <data name="FileTransfer.Conflict.Title" xml:space="preserve">
+    <value>File Already Exists</value>
+  </data>
+  <data name="FileTransfer.Conflict.Header" xml:space="preserve">
+    <value>Destination file already exists: {0}</value>
+  </data>
+  <data name="FileTransfer.Conflict.SourceLabel" xml:space="preserve">
+    <value>Source:</value>
+  </data>
+  <data name="FileTransfer.Conflict.TargetLabel" xml:space="preserve">
+    <value>Target:</value>
+  </data>
+  <data name="FileTransfer.Conflict.FileInfoFormat" xml:space="preserve">
+    <value>{0} · Modified {1}</value>
+  </data>
+  <data name="FileTransfer.Conflict.ApplyToRemaining" xml:space="preserve">
+    <value>Apply to all remaining conflicts in this batch</value>
+  </data>
+  <data name="FileTransfer.Conflict.Overwrite" xml:space="preserve">
+    <value>Overwrite</value>
+  </data>
+  <data name="FileTransfer.Conflict.Skip" xml:space="preserve">
+    <value>Skip</value>
+  </data>
+  <data name="FileTransfer.Conflict.OverwriteIfOlder" xml:space="preserve">
+    <value>Overwrite if older</value>
+  </data>
+  <data name="FileTransfer.Conflict.AutoRename" xml:space="preserve">
+    <value>Auto-rename</value>
+  </data>
+  <data name="FileTransfer.ScpLargeFile.Title" xml:space="preserve">
+    <value>Large SCP Transfer</value>
+  </data>
+  <data name="FileTransfer.ScpLargeFile.Message" xml:space="preserve">
+    <value>{0} is approx. {1} MiB. SCP loads the entire file into memory, which may cause high memory usage. Continue?</value>
+  </data>
+  <data name="FileTransfer.ScpLargeFile.Continue" xml:space="preserve">
+    <value>Continue</value>
+  </data>
+
+  <data name="FileActivity.Retry" xml:space="preserve">
+    <value>Retry</value>
+  </data>
+  <data name="FileActivity.RetryAllFailed" xml:space="preserve">
+    <value>Retry All Failed</value>
+  </data>
+  <data name="FileActivity.CancelOrRemove" xml:space="preserve">
+    <value>Cancel or remove transfer</value>
+  </data>
+  <data name="FileActivity.Status.Pending" xml:space="preserve">
+    <value>Waiting…</value>
+  </data>
+  <data name="FileActivity.Status.Transferring" xml:space="preserve">
+    <value>Transferring…</value>
+  </data>
+  <data name="FileActivity.Status.AwaitingConflict" xml:space="preserve">
+    <value>Awaiting conflict confirmation…</value>
+  </data>
+  <data name="FileActivity.Status.RetryWait" xml:space="preserve">
+    <value>Waiting to retry…</value>
+  </data>
+  <data name="FileActivity.Status.Completed" xml:space="preserve">
+    <value>Completed</value>
+  </data>
+  <data name="FileActivity.Status.Skipped" xml:space="preserve">
+    <value>Skipped</value>
+  </data>
+  <data name="FileActivity.Status.Failed" xml:space="preserve">
+    <value>Failed: {0}</value>
+  </data>
+  <data name="FileActivity.Status.Cancelled" xml:space="preserve">
+    <value>Cancelled</value>
+  </data>
+</root>

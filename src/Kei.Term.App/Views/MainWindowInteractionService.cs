@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Window = Avalonia.Controls.Window;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using Kei.Term.App.Helpers;
 using Kei.Term.App.Logging;
 using Kei.Term.App.Models;
@@ -16,6 +17,7 @@ using Kei.Term.Core.Models.Profiles;
 using Kei.Term.Core.Security;
 using Kei.Term.Core.Services;
 using Kei.Term.Core.Settings;
+using Kei.Term.Core.Transfers;
 using Kei.Term.Core.Vault;
 using Microsoft.Extensions.Logging;
 
@@ -326,6 +328,35 @@ public sealed class MainWindowInteractionService : IInteractionService
     public Task<string?> PromptTextAsync(string title, string label, string? initialText)
         => Safe.RunAsync<string?>(_log, "打开文本输入窗口",
             () => new TextPromptWindow(title, label, initialText).ShowDialog<string?>(_owner));
+
+    public Task<TransferConflictChoice?> PromptTransferConflictAsync(
+        string fileName, TransferFileFacts source, TransferFileFacts target, CancellationToken ct = default)
+        => Safe.RunAsync<TransferConflictChoice?>(_log, "确认传输冲突", async () =>
+        {
+            ct.ThrowIfCancellationRequested();
+            TransferConflictWindow dialog = new(fileName, source, target);
+            using CancellationTokenRegistration registration = ct.Register(() => Dispatcher.UIThread.Post(() => dialog.Close(null)));
+            return await dialog.ShowDialog<TransferConflictChoice?>(DialogOwner);
+        });
+
+    public Task<bool> ConfirmLargeScpTransferAsync(string fileName, long size, CancellationToken ct = default)
+        => Safe.RunAsync(_log, "确认 SCP 大文件", async () =>
+        {
+            ct.ThrowIfCancellationRequested();
+            return await TransferConflictWindow.ConfirmLargeScpAsync(DialogOwner, fileName, size);
+        });
+
+    public Task<string?> PickFolderAsync(string title, CancellationToken ct = default)
+        => Safe.RunAsync<string?>(_log, "选择下载目录", async () =>
+        {
+            ct.ThrowIfCancellationRequested();
+            IReadOnlyList<IStorageFolder> folders = await DialogOwner.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+            {
+                Title = title,
+                AllowMultiple = false,
+            });
+            return folders.Count > 0 ? folders[0].TryGetLocalPath() : null;
+        });
 
     // 统一消息通知：更新主窗口状态提示栏，并在日志留痕
     public Task NotifyAsync(string title, string message)

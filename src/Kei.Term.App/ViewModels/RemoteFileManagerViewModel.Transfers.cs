@@ -2,210 +2,99 @@ namespace Kei.Term.App.ViewModels;
 
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
-using Avalonia.Threading;
-using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
+using Kei.Term.App.Helpers;
 using Kei.Term.App.Services;
-using Kei.Term.Core.Abstractions;
 using Kei.Term.Core.Models;
-using Kei.Term.Core.Services;
 using Kei.Term.Core.Settings;
-using Kei.Term.Core.Storage;
+using Kei.Term.Core.Transfers;
 
 public partial class RemoteFileManagerViewModel
 {
-    [RelayCommand]
-    public async Task DownloadToDesktopAsync(RemoteFileItem? singleItem)
+    private ConnectionTransferBoard? _board;
+    private bool _ownsTransferBoard;
+    private string? _transferUnavailableReason;
+
+    internal ConnectionTransferBoard? TransferBoard => _owningFileView?._board ?? _board;
+
+    internal void UseTransferBoard(ConnectionTransferBoard board, bool owns)
     {
-        var targets = (SelectedItems.Count > 0)
-            ? SelectedItems.Where(x => !x.IsDirectory && x.Name != "..").ToList()
-            : (singleItem != null && !singleItem.IsDirectory && singleItem.Name != ".." ? [singleItem] : []);
-
-        if (targets.Count == 0) return;
-
-        string desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
-        if (string.IsNullOrEmpty(desktop) || !Directory.Exists(desktop))
-        {
-            desktop = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        }
-
-        ShowFileActivities(0);
-
-        foreach (var item in targets)
-        {
-            string localTarget = Path.Combine(desktop, item.Name);
-            var taskVm = new FileTransferTaskItemViewModel(item.Name, localTarget, item.FullPath, FileTransferDirection.Download);
-            taskVm.RemoveRequested = t => TransferTasks.Remove(t);
-            TransferTasks.Add(taskVm);
-
-            StartOperation(() => ExecuteDownloadTaskAsync(taskVm, item, localTarget));
-        }
+        if (_owningFileView != null) return;
+        _board = board;
+        _ownsTransferBoard = owns;
     }
 
-    private async Task ExecuteDownloadTaskAsync(FileTransferTaskItemViewModel taskVm, RemoteFileItem item, string localTarget)
+    internal void NoteTransferUnavailable(string? reason)
     {
-        using CancellationTokenSource transferCts = CancellationTokenSource.CreateLinkedTokenSource(taskVm.Cts.Token, _lifetimeCts.Token);
-        CancellationToken ct = transferCts.Token;
-        taskVm.State = FileTransferState.Transferring;
-        taskVm.StatusText = "下载中...";
-        IsTransferring = true;
-
-        try
+        if (_owningFileView != null)
         {
-            await using var remoteStream = await _fileSystem.OpenReadAsync(item.FullPath, ct);
-            await using var localStream = new FileStream(localTarget, FileMode.Create, FileAccess.Write);
+            _owningFileView.NoteTransferUnavailable(reason);
+            return;
+        }
 
-            long totalBytes = item.Size;
-            long transferred = 0;
-            byte[] buffer = new byte[64 * 1024];
-            int read;
-            var sw = System.Diagnostics.Stopwatch.StartNew();
+        _transferUnavailableReason = reason;
+        if (!string.IsNullOrWhiteSpace(reason)) TransferStatusMessage = reason;
+    }
 
-            while ((read = await remoteStream.ReadAsync(buffer, 0, buffer.Length, ct)) > 0)
-            {
-                await localStream.WriteAsync(buffer.AsMemory(0, read), ct);
-                transferred += read;
-                if (totalBytes > 0)
-                {
-                    taskVm.Progress = Math.Min(100.0, (double)transferred / totalBytes * 100.0);
-                    double elapsedSec = Math.Max(0.001, sw.Elapsed.TotalSeconds);
-                    taskVm.SpeedMBs = (transferred / (1024.0 * 1024.0)) / elapsedSec;
-                    taskVm.StatusText = $"{taskVm.Progress:F1}% ({taskVm.SpeedMBs:F1} MB/s)";
-                }
-            }
-
-            taskVm.Progress = 100;
-            taskVm.State = FileTransferState.Completed;
-            taskVm.StatusText = "完成";
-            TransferStatusMessage = $"已下载: {item.Name}";
-        }
-        catch (OperationCanceledException)
-        {
-            taskVm.State = FileTransferState.Cancelled;
-            taskVm.StatusText = "已取消";
-            if (File.Exists(localTarget))
-            {
-                try { File.Delete(localTarget); } catch { }
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "下载任务失败: {Name}", item.Name);
-            taskVm.State = FileTransferState.Failed;
-            taskVm.StatusText = $"失败: {ex.Message}";
-        }
-        finally
-        {
-            UpdateOverallTransferringState();
-        }
+    private bool EnsureTransfers()
+    {
+        if (TransferBoard != null) return true;
+        TransferStatusMessage = _transferUnavailableReason ?? "传输通道不可用";
+        return false;
     }
 
     [RelayCommand]
-    public async Task UploadLocalFilesAsync(string[] filePaths)
+    public Task DownloadAsync(RemoteFileItem? singleItem)
+        => DownloadToAsync(singleItem, ResolveDownloadDirectory());
+
+    [RelayCommand]
+    public async Task DownloadToAsync(RemoteFileItem? singleItem)
     {
-        if (filePaths == null || filePaths.Length == 0) return;
-
-        ShowFileActivities(0);
-
-        foreach (var localPath in filePaths)
-        {
-            if (!File.Exists(localPath)) continue;
-
-            string fileName = Path.GetFileName(localPath);
-            string remotePath = CurrentPath.TrimEnd('/') + "/" + fileName;
-
-            var taskVm = new FileTransferTaskItemViewModel(fileName, localPath, remotePath, FileTransferDirection.Upload);
-            taskVm.RemoveRequested = t => TransferTasks.Remove(t);
-            TransferTasks.Add(taskVm);
-
-            StartOperation(() => ExecuteUploadTaskAsync(taskVm, localPath, remotePath, fileName));
-        }
+        string? directory = await (_interaction ?? NullInteractionService.Instance).PickFolderAsync(Strings.Get("FileManager.DownloadToDialogTitle"));
+        if (string.IsNullOrWhiteSpace(directory)) return;
+        await DownloadToAsync(singleItem, directory);
     }
 
-    private async Task ExecuteUploadTaskAsync(FileTransferTaskItemViewModel taskVm, string localPath, string remotePath, string fileName)
+    [RelayCommand]
+    public Task UploadLocalFilesAsync(string[] filePaths)
     {
-        using CancellationTokenSource transferCts = CancellationTokenSource.CreateLinkedTokenSource(taskVm.Cts.Token, _lifetimeCts.Token);
-        CancellationToken ct = transferCts.Token;
-        taskVm.State = FileTransferState.Transferring;
-        taskVm.StatusText = "上传中...";
-        IsTransferring = true;
+        if (filePaths == null || filePaths.Length == 0 || _disposed || !EnsureTransfers()) return Task.CompletedTask;
+        ShowFileActivities(0);
+        TransferBoard!.EnqueueUploads(filePaths, CurrentPath);
+        return Task.CompletedTask;
+    }
 
-        try
-        {
-            var fileInfo = new FileInfo(localPath);
-            long totalBytes = fileInfo.Length;
-            long transferred = 0;
+    [RelayCommand]
+    public void RetryAllFailedTransfers() => TransferBoard?.RetryAllFailed();
 
-            await using var localStream = new FileStream(localPath, FileMode.Open, FileAccess.Read);
-            await using var remoteStream = await _fileSystem.OpenWriteAsync(remotePath, ct);
+    private Task DownloadToAsync(RemoteFileItem? singleItem, string directory)
+    {
+        if (_disposed || string.IsNullOrWhiteSpace(directory) || !EnsureTransfers()) return Task.CompletedTask;
+        List<RemoteFileItem> targets = SelectedItems.Count > 0
+            ? SelectedItems.Where(item => item.Name != "..").ToList()
+            : singleItem is { Name: not ".." } ? [singleItem] : [];
+        if (targets.Count == 0) return Task.CompletedTask;
+        ShowFileActivities(0);
+        TransferBoard!.EnqueueDownloads(targets, directory);
+        return Task.CompletedTask;
+    }
 
-            byte[] buffer = new byte[64 * 1024];
-            int read;
-            var sw = System.Diagnostics.Stopwatch.StartNew();
-
-            while ((read = await localStream.ReadAsync(buffer, 0, buffer.Length, ct)) > 0)
-            {
-                await remoteStream.WriteAsync(buffer.AsMemory(0, read), ct);
-                transferred += read;
-                if (totalBytes > 0)
-                {
-                    taskVm.Progress = Math.Min(100.0, (double)transferred / totalBytes * 100.0);
-                    double elapsedSec = Math.Max(0.001, sw.Elapsed.TotalSeconds);
-                    taskVm.SpeedMBs = (transferred / (1024.0 * 1024.0)) / elapsedSec;
-                    taskVm.StatusText = $"{taskVm.Progress:F1}% ({taskVm.SpeedMBs:F1} MB/s)";
-                }
-            }
-
-            await _fileSystem.CommitWriteAsync(remoteStream, ct);
-
-            taskVm.Progress = 100;
-            taskVm.State = FileTransferState.Completed;
-            taskVm.StatusText = "完成";
-            TransferStatusMessage = $"已上传: {fileName}";
-            await RefreshDirectoryAsync();
-        }
-        catch (OperationCanceledException)
-        {
-            taskVm.State = FileTransferState.Cancelled;
-            taskVm.StatusText = "已取消";
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "上传任务失败: {LocalPath} -> {RemotePath}", localPath, remotePath);
-            taskVm.State = FileTransferState.Failed;
-            taskVm.StatusText = $"失败: {ex.Message}";
-        }
-        finally
-        {
-            UpdateOverallTransferringState();
-        }
+    private string ResolveDownloadDirectory()
+    {
+        string directory = _settingsService?.Current.FileTransfer.ResolveDownloadDirectory()
+            ?? DownloadDirectoryResolver.Resolve(null);
+        Directory.CreateDirectory(directory);
+        return directory;
     }
 
     private void UpdateOverallTransferringState()
     {
-        bool anyActive = TransferTasks.Any(t => t.State is FileTransferState.Pending or FileTransferState.Transferring);
-        IsTransferring = anyActive;
-        if (!anyActive)
-        {
-            TransferProgress = 100;
-            _ = Task.Delay(2000).ContinueWith(_ =>
-            {
-                Dispatcher.UIThread.Post(() =>
-                {
-                    if (!_disposed && !TransferTasks.Any(t => t.State is FileTransferState.Pending or FileTransferState.Transferring))
-                    {
-                        TransferProgress = 0;
-                    }
-                });
-            });
-        }
+        IsTransferring = TransferTasks.Any(task => task.State is FileTransferState.Pending
+            or FileTransferState.Transferring
+            or FileTransferState.AwaitingConflict
+            or FileTransferState.RetryWait);
     }
-
 }

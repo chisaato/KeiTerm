@@ -10,6 +10,7 @@ using Kei.Term.Core.Models;
 using Kei.Term.Core.Models.Profiles;
 using Kei.Term.Core.Security;
 using Kei.Term.Core.Services;
+using Kei.Term.Core.Transfers;
 using Kei.Term.Core.Vault;
 
 namespace Kei.Term.App.Services;
@@ -101,6 +102,22 @@ public interface IInteractionService
         => Task.FromResult<TerminalFileDropChoice?>(null);
 
     Task<bool> ConfirmDeleteAsync(string name);
+
+    // 冲突询问。null = 用户取消，不算失败。默认实现按取消处理。
+    Task<TransferConflictChoice?> PromptTransferConflictAsync(
+        string fileName,
+        TransferFileFacts source,
+        TransferFileFacts target,
+        CancellationToken ct = default)
+        => Task.FromResult<TransferConflictChoice?>(null);
+
+    // SCP 超过 512 MiB 时确认是否继续。false = 不传。
+    Task<bool> ConfirmLargeScpTransferAsync(string fileName, long size, CancellationToken ct = default)
+        => Task.FromResult(false);
+
+    // 选择本地下载目录。取消 = null。
+    Task<string?> PickFolderAsync(string title, CancellationToken ct = default)
+        => Task.FromResult<string?>(null);
 
     Task NotifyAsync(string title, string message);
 

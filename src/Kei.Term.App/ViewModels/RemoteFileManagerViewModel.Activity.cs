@@ -61,7 +61,9 @@ public partial class RemoteFileManagerViewModel
     private void OnTransferActivityChanged(object? sender, PropertyChangedEventArgs args)
     {
         // 百分比与速度每一帧都可能变化；只在任务生命周期变化时发出提醒。
-        if (!_disposed && args.PropertyName == nameof(FileTransferTaskItemViewModel.State)) TransferActivityRevision++;
+        if (_disposed || args.PropertyName != nameof(FileTransferTaskItemViewModel.State)) return;
+        TransferActivityRevision++;
+        UpdateOverallTransferringState();
     }
 
     private void UpdateFileActivities(NotifyCollectionChangedEventArgs args, int tab)

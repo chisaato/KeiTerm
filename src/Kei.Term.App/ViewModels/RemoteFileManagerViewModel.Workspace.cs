@@ -10,13 +10,15 @@ using Kei.Term.Core.Services;
 
 namespace Kei.Term.App.ViewModels;
 
-// 工具栏可提升现有侧栏，目录菜单则创建独立浏览状态；文件通道仍由所属连接释放。
+// 提升移动的是侧栏里已有的文件视图；目录标签是另一份浏览状态。
+// 文件通道只由连接创建的那份文件视图持有，目录标签不另建、也不提前释放。
 public partial class RemoteFileManagerViewModel
 {
-    private readonly RemoteFileManagerViewModel? _resourceOwner;
+    // 非空表示本实例是目录标签，指向连接创建的那份文件视图。
+    private readonly RemoteFileManagerViewModel? _owningFileView;
     private readonly List<RemoteFileManagerViewModel> _directoryTabs = [];
 
-    internal bool IsDirectoryTab => _resourceOwner != null;
+    internal bool IsDirectoryTab => _owningFileView != null;
 
     [ObservableProperty]
     private bool _isShellVisible = true;
@@ -26,12 +28,12 @@ public partial class RemoteFileManagerViewModel
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CloseToolTip))]
-    private bool _isWorkspaceTab;
+    private bool _isFileTab;
 
-    public string CloseToolTip => Strings.Get(IsWorkspaceTab ? "Menu.File.CloseTab" : "FileManager.CloseSidebar");
+    public string CloseToolTip => Strings.Get(IsFileTab ? "Menu.File.CloseTab" : "FileManager.CloseSidebar");
 
     [RelayCommand]
-    public void PromoteToTab() => WeakReferenceMessenger.Default.Send(new FileManagerTabRequestedMessage(this));
+    public void PromoteToTab() => WeakReferenceMessenger.Default.Send(new FileViewPromoteRequestedMessage(this));
 
     private bool CanOpenDirectoryInTab(RemoteFileItem? item)
         => !_disposed && item is { IsDirectory: true } && TerminalDirectoryTracker.IsValidDirectory(item.FullPath);
@@ -40,21 +42,21 @@ public partial class RemoteFileManagerViewModel
     private void OpenDirectoryInTab(RemoteFileItem? item)
     {
         if (CanOpenDirectoryInTab(item))
-            WeakReferenceMessenger.Default.Send(new FileManagerTabRequestedMessage(this, item!.FullPath));
+            WeakReferenceMessenger.Default.Send(new DirectoryTabRequestedMessage(this, item!.FullPath));
     }
 
-    internal RemoteFileManagerViewModel? CreateDirectoryTab(string directory)
+    public RemoteFileManagerViewModel? CreateDirectoryTab(string directory)
     {
-        RemoteFileManagerViewModel owner = _resourceOwner ?? this;
+        RemoteFileManagerViewModel owner = _owningFileView ?? this;
         lock (owner._operationLock)
         {
             if (_disposed || owner._disposed || !TerminalDirectoryTracker.IsValidDirectory(directory)) return null;
-            RemoteFileManagerViewModel browser = new(_sessionId, _fileSystem, _fileTracker, _settingsService, _editorRepo, _logger, owner)
+            RemoteFileManagerViewModel browser = new(_sessionId, _fileSystem, _fileTracker, _settingsService, _editorRepo, _logger, owner, owner._board, owner._interaction)
             {
                 CurrentPath = directory,
                 ShowHiddenFiles = ShowHiddenFiles,
             };
-            // 先登记再启动 I/O；关闭连接会取消并排空所有独立目录页。
+            // 先登记再启动 I/O。关闭连接时由所属文件视图取消并排空目录标签。
             owner._directoryTabs.Add(browser);
             browser.StartOperation(() => browser.InitializeCoreAsync(directory, browser._lifetimeCts.Token));
             return browser;
@@ -63,7 +65,7 @@ public partial class RemoteFileManagerViewModel
 
     internal void ReleaseDirectoryTab()
     {
-        if (_resourceOwner is not { } owner) return;
+        if (_owningFileView is not { } owner) return;
         owner.StartOperation(async () =>
         {
             try { await DisposeAsync(); }
@@ -86,8 +88,8 @@ public partial class RemoteFileManagerViewModel
     [RelayCommand]
     public void Close()
     {
-        if (IsWorkspaceTab)
-            WeakReferenceMessenger.Default.Send(new FileManagerTabCloseRequestedMessage(this));
+        if (IsFileTab)
+            WeakReferenceMessenger.Default.Send(new FileTabCloseRequestedMessage(this));
         else
             CloseRequested?.Invoke();
     }

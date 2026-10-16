@@ -45,19 +45,34 @@ internal sealed class ScpShellFileSystem(Func<string, CancellationToken, Task<Re
                 else
                     metadata=$(stat -f '%Sp %z %m %u %g' "$entry") || exit
                 fi
-                printf '%s\000%s\000' "$metadata" "${entry#./}"
+                link=-
+                if [ -L "$entry" ]; then
+                    if [ -d "$entry" ]; then
+                        link=d
+                    elif [ -e "$entry" ]; then
+                        if [ "$stat_kind" = gnu ]; then
+                            followed=$(stat -L -c '%s %Y' -- "$entry") || exit
+                        else
+                            followed=$(stat -L -f '%z %m' "$entry") || exit
+                        fi
+                        link="f $followed"
+                    else
+                        link=b
+                    fi
+                fi
+                printf '%s\000%s\000%s\000' "$metadata" "$link" "${entry#./}"
             done
             """;
         // SSH exec 首先进入账户的默认 shell；显式选择 POSIX shell，避免 zsh 的 NOMATCH 或 fish 语法差异。
         string output = await ExecuteCheckedAsync($"/bin/sh -c {ScpRemoteFileSystem.ShellQuote(command)}", ct);
         string[] fields = output.Split('\0');
-        if (fields.Length % 2 != 1 || fields[^1].Length != 0)
+        if (fields.Length % 3 != 1 || fields[^1].Length != 0)
         {
             throw new IOException("远端目录数据不完整");
         }
 
         List<RemoteFileItem> items = [];
-        for (int i = 0; i < fields.Length - 1; i += 2)
+        for (int i = 0; i < fields.Length - 1; i += 3)
         {
             string[] metadata = fields[i].Split(' ', StringSplitOptions.RemoveEmptyEntries);
             if (metadata.Length != 5
@@ -70,7 +85,8 @@ internal sealed class ScpShellFileSystem(Func<string, CancellationToken, Task<Re
                 throw new IOException("远端目录元数据无效");
             }
 
-            string name = fields[i + 1];
+            string name = fields[i + 2];
+            (bool isLink, bool? targetIsDirectory, long? targetSize, DateTimeOffset? targetModified, bool broken, bool indeterminate) = ParseLink(fields[i + 1]);
             items.Add(new RemoteFileItem(
                 name,
                 directory.TrimEnd('/') + "/" + name,
@@ -79,11 +95,47 @@ internal sealed class ScpShellFileSystem(Func<string, CancellationToken, Task<Re
                 DateTimeOffset.FromUnixTimeSeconds(modified),
                 metadata[0],
                 uid,
-                gid));
+                gid,
+                isLink,
+                targetIsDirectory,
+                targetSize,
+                targetModified,
+                broken,
+                indeterminate));
         }
 
         return items.OrderByDescending(item => item.IsDirectory)
             .ThenBy(item => item.Name, NaturalStringComparer.Instance).ToList();
+    }
+
+    private static (bool IsLink, bool? TargetIsDirectory, long? TargetSize, DateTimeOffset? TargetModified, bool Broken, bool Indeterminate) ParseLink(string link)
+    {
+        if (link == "-" || link.Length == 0)
+        {
+            return (false, null, null, null, false, false);
+        }
+
+        if (link == "d")
+        {
+            return (true, true, null, null, false, false);
+        }
+
+        if (link == "b")
+        {
+            // [ -e ] 对断开和无法 stat 都是假，不能断言已断开。
+            return (true, null, null, null, false, true);
+        }
+
+        string[] parts = link.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 3
+            && parts[0] == "f"
+            && long.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out long size)
+            && long.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out long modified))
+        {
+            return (true, false, size, DateTimeOffset.FromUnixTimeSeconds(modified), false, false);
+        }
+
+        throw new IOException("远端符号链接元数据无效");
     }
 
     public Task DeleteAsync(string path, bool isDirectory, CancellationToken ct)
@@ -91,6 +143,30 @@ internal sealed class ScpShellFileSystem(Func<string, CancellationToken, Task<Re
 
     public Task RenameAsync(string oldPath, string newPath, CancellationToken ct)
         => ExecuteCheckedAsync($"mv -- {ScpRemoteFileSystem.ShellQuote(oldPath)} {ScpRemoteFileSystem.ShellQuote(newPath)}", ct);
+
+    public Task RenameOverwriteAsync(string oldPath, string newPath, CancellationToken ct)
+        => ExecuteCheckedAsync($"mv -f -- {ScpRemoteFileSystem.ShellQuote(oldPath)} {ScpRemoteFileSystem.ShellQuote(newPath)}", ct);
+
+    public Task SetLastWriteTimeUtcAsync(string path, DateTime lastWriteTimeUtc, CancellationToken ct)
+    {
+        DateTime utc = lastWriteTimeUtc.Kind switch
+        {
+            DateTimeKind.Local => lastWriteTimeUtc.ToUniversalTime(),
+            DateTimeKind.Utc => lastWriteTimeUtc,
+            _ => DateTime.SpecifyKind(lastWriteTimeUtc, DateTimeKind.Utc),
+        };
+        long epoch = new DateTimeOffset(utc).ToUnixTimeSeconds();
+        string stamp = utc.ToString("yyyyMMddHHmm.ss", CultureInfo.InvariantCulture);
+        // GNU touch 接受 @epoch；BSD 没有 -d，退回 TZ=UTC touch -t。路径经 ShellQuote，避免文件名被 shell 展开。
+        string command = $$"""
+            path={{ScpRemoteFileSystem.ShellQuote(path)}}
+            if touch -d @{{epoch}} -- "$path" 2>/dev/null; then
+              exit 0
+            fi
+            TZ=UTC touch -t {{stamp}} -- "$path"
+            """;
+        return ExecuteCheckedAsync($"/bin/sh -c {ScpRemoteFileSystem.ShellQuote(command)}", ct);
+    }
 
     public Task CreateDirectoryAsync(string path, CancellationToken ct)
         => ExecuteCheckedAsync($"mkdir -p -- {ScpRemoteFileSystem.ShellQuote(path)}", ct);

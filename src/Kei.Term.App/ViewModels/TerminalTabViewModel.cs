@@ -44,7 +44,7 @@ public enum TabStatus
     Error
 }
 
-// 终端标签：会话生命周期（挂载 / 连接 / 断开 / 重连）与文件侧栏；标签头见 .Header.cs，终端控件见 .Control.cs
+// 连接标签：会话生命周期（挂载 / 连接 / 断开 / 重连）与侧栏中的文件视图；标签头见 .Header.cs，终端控件见 .Control.cs
 public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
 {
     [ObservableProperty]
@@ -346,7 +346,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         Dispatcher.UIThread.Post(() => TrySyncTerminalSize(), DispatcherPriority.Render);
     }
 
-    // 主动断开：只卸下会话与文件侧栏，标签与终端内容保留，可原地重连
+    // 主动断开：只卸下会话与文件视图，标签与终端内容保留，可原地重连
     public async Task DisconnectAsync()
     {
         IsShellVisible = true;
@@ -360,7 +360,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         _logger.LogInformation("终端标签主动断开 标题={Title}", Title);
     }
 
-    // 原地重连前的清理：卸下旧会话与文件侧栏，终端内保留历史并打印分隔提示
+    // 原地重连前的清理：卸下旧会话与文件视图，终端内保留历史并打印分隔提示
     public async Task PrepareReconnectAsync(CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();

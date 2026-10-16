@@ -18,6 +18,7 @@ using Kei.Term.Core.Models;
 using Kei.Term.Core.Services;
 using Kei.Term.Core.Settings;
 using Kei.Term.Core.Storage;
+using Kei.Term.Core.Transfers;
 
 public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposable
 {
@@ -28,6 +29,7 @@ public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposabl
     private readonly IExternalEditorRepository? _editorRepo;
     private readonly FileEditorLauncher _editorLauncher;
     private readonly ILogger _logger;
+    private readonly IInteractionService? _interaction;
 
     public event Action? CloseRequested;
     public event Action? ToggleDockPositionRequested;
@@ -62,8 +64,8 @@ public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposabl
     [ObservableProperty]
     private RemoteDirectoryNodeViewModel? _selectedDirectoryNode;
 
-    // 活跃的传输任务列表
-    public ObservableCollection<FileTransferTaskItemViewModel> TransferTasks { get; } = [];
+    // 活跃的传输任务列表。目录标签与侧栏指向连接上的同一集合。
+    public ObservableCollection<FileTransferTaskItemViewModel> TransferTasks { get; }
 
     // 多选选中的项目列表
     public ObservableCollection<RemoteFileItem> SelectedItems { get; } = [];
@@ -100,8 +102,10 @@ public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposabl
         ILocalFileTracker fileTracker,
         ISettingsService? settingsService = null,
         IExternalEditorRepository? editorRepo = null,
-        ILogger? logger = null)
-        : this(sessionId, fileSystem, fileTracker, settingsService, editorRepo, logger, null)
+        ILogger? logger = null,
+        ConnectionTransferBoard? transfers = null,
+        IInteractionService? interaction = null)
+        : this(sessionId, fileSystem, fileTracker, settingsService, editorRepo, logger, null, transfers, interaction)
     {
     }
 
@@ -112,11 +116,16 @@ public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposabl
         ISettingsService? settingsService,
         IExternalEditorRepository? editorRepo,
         ILogger? logger,
-        RemoteFileManagerViewModel? resourceOwner)
+        RemoteFileManagerViewModel? owningFileView,
+        ConnectionTransferBoard? transfers = null,
+        IInteractionService? interaction = null)
     {
-        _resourceOwner = resourceOwner;
-        _trackedFileLocalMap = resourceOwner?._trackedFileLocalMap ?? new(StringComparer.Ordinal);
-        ActiveTrackedFiles = resourceOwner?.ActiveTrackedFiles ?? [];
+        _owningFileView = owningFileView;
+        _interaction = owningFileView?._interaction ?? interaction;
+        _board = owningFileView?._board ?? transfers;
+        _trackedFileLocalMap = owningFileView?._trackedFileLocalMap ?? new(StringComparer.Ordinal);
+        ActiveTrackedFiles = owningFileView?.ActiveTrackedFiles ?? [];
+        TransferTasks = owningFileView?.TransferTasks ?? transfers?.Tasks ?? [];
         _sessionId = sessionId;
         _fileSystem = fileSystem;
         _fileTracker = fileTracker;
@@ -127,10 +136,10 @@ public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposabl
         _logger = logger ?? NullLogger.Instance;
         RemoteDirectoryNodeViewModel.SetLogger(_logger);
         var launcherLogger = _logger;
-        _editorLauncher = resourceOwner?._editorLauncher ?? new FileEditorLauncher(_fileTracker, settingsService, editorRepo, launcherLogger);
+        _editorLauncher = owningFileView?._editorLauncher ?? new FileEditorLauncher(_fileTracker, settingsService, editorRepo, launcherLogger);
 
         // 订阅本地文件变动自动回写事件
-        if (resourceOwner == null)
+        if (owningFileView == null)
         {
             _fileTracker.FileChanged += OnTrackedFileChanged;
             _fileTracker.FileUntracked += OnFileUntracked;
@@ -213,8 +222,9 @@ public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposabl
     [RelayCommand]
     public void ClearCompletedTransferTasks()
     {
+        TransferBoard?.ClearFinished();
         var toRemove = TransferTasks
-            .Where(t => t.State is FileTransferState.Completed or FileTransferState.Failed or FileTransferState.Cancelled)
+            .Where(t => t.State is FileTransferState.Completed or FileTransferState.Failed or FileTransferState.Cancelled or FileTransferState.Skipped)
             .ToList();
         foreach (var task in toRemove)
         {

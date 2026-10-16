@@ -50,7 +50,7 @@ public partial class TerminalTabViewModel
 
     partial void OnIsShellVisibleChanged(bool value)
     {
-        if (FileManager is { } manager) manager.IsShellVisible = value && !manager.IsWorkspaceTab;
+        if (FileManager is { } manager) manager.IsShellVisible = value && !manager.IsFileTab;
         if (!value && IsFileManagerVisible) ActiveDocument = ConnectionDocumentKind.FileManager;
         UpdateTitle();
         WeakReferenceMessenger.Default.Send(new ConnectionDocumentsChangedMessage(this));

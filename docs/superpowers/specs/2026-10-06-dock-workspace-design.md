@@ -1,5 +1,7 @@
 # Dock 单窗口多连接分屏工作区设计规约
 
+> **部分已被取代**：§1 约束 1（Shell 与 SFTP 作为不可拆分整体、不单独成窗格）与 §4 "单一层级标签"中"不出现 SFTP 标签"的规定，已由 [ADR-0001](../../adr/0001-connection-owns-views.md) 取代——文件视图可提升为文件标签并放入任意分屏组，生命周期仍归所属连接。其余内容仍然有效。
+
 ## 1. 概述与背景
 
 KeiTerm 现阶段主窗口采用扁平的单标签栏与单终端展示区（`ItemsControl` + 依据 `IsSelected` 切换可见性），终端控件 `TerminalControl`（基于 RoyalApps.RoyalTerminal.Avalonia 0.6.0-preview.2）由 `TerminalTabViewModel.Control.cs` 内部惰性创建并强持有，所属 SFTP 文件管理侧栏（`RemoteFileManagerView`）以内嵌在同一标签网格的方式共存。

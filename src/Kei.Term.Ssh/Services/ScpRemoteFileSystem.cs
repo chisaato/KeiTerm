@@ -10,6 +10,9 @@ using Renci.SshNet;
 using Kei.Term.Core.Abstractions;
 using Kei.Term.Core.Models;
 
+// 不能被多个传输任务同时使用。一个实例只持有一个 ScpClient 和一个 exec 用的 SshClient；
+// CreateCommand 会改共享的 ConnectionInfo.Encoding，Session 也没有并发建通道的保证。
+// 读写还会把整个文件放进内存。SCP 主机的传输并发数应为 1。
 public partial class ScpRemoteFileSystem : IRemoteFileSystem
 {
     private readonly SshDialer _dialer;
@@ -21,6 +24,9 @@ public partial class ScpRemoteFileSystem : IRemoteFileSystem
 
     public bool IsConnected => !_isDisposed && _scp is { IsConnected: true } && _exec is { IsConnected: true };
     public string WorkingDirectory { get; private set; } = ".";
+
+    // SCP 把整个文件读进内存，不能从偏移续传。
+    public bool SupportsResume => false;
 
     private ScpClient _scpClient => _scp ?? throw new InvalidOperationException("SCP 客户端尚未连接");
     private SshClient _sshCommandClient => _exec ?? throw new InvalidOperationException("SCP 辅助通道尚未连接");
@@ -80,6 +86,17 @@ public partial class ScpRemoteFileSystem : IRemoteFileSystem
         return await _shell.ListDirectoryAsync(target, ct);
     }
 
+    public Task<Stream> OpenReadAsync(string path, long offset, CancellationToken ct = default)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(offset);
+        if (offset > 0)
+        {
+            throw new NotSupportedException("SCP 不支持从偏移读取");
+        }
+
+        return OpenReadAsync(path, ct);
+    }
+
     public async Task<Stream> OpenReadAsync(string path, CancellationToken ct = default)
     {
         ThrowIfDisposed();
@@ -90,6 +107,17 @@ public partial class ScpRemoteFileSystem : IRemoteFileSystem
         await Task.Run(() => _scpClient.Download(path, ms), ct);
         ms.Position = 0;
         return ms;
+    }
+
+    public Task<Stream> OpenWriteAsync(string path, long offset, CancellationToken ct = default)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(offset);
+        if (offset > 0)
+        {
+            throw new NotSupportedException("SCP 不支持从偏移写入");
+        }
+
+        return OpenWriteAsync(path, ct);
     }
 
     public Task<Stream> OpenWriteAsync(string path, CancellationToken ct = default)
@@ -128,6 +156,14 @@ public partial class ScpRemoteFileSystem : IRemoteFileSystem
         await _shell.RenameAsync(oldPath, newPath, ct);
     }
 
+    public async Task RenameOverwriteAsync(string oldPath, string newPath, CancellationToken ct = default)
+    {
+        ThrowIfDisposed();
+        EnsureConnected();
+
+        await _shell.RenameOverwriteAsync(oldPath, newPath, ct);
+    }
+
     public async Task CreateDirectoryAsync(string path, CancellationToken ct = default)
     {
         ThrowIfDisposed();
@@ -153,6 +189,14 @@ public partial class ScpRemoteFileSystem : IRemoteFileSystem
         var items = await ListDirectoryAsync(parentDir, ct);
         string targetName = Path.GetFileName(path);
         return items.FirstOrDefault(i => string.Equals(i.Name, targetName, StringComparison.Ordinal));
+    }
+
+    public async Task SetLastWriteTimeUtcAsync(string path, DateTime lastWriteTimeUtc, CancellationToken ct = default)
+    {
+        ThrowIfDisposed();
+        EnsureConnected();
+
+        await _shell.SetLastWriteTimeUtcAsync(path, lastWriteTimeUtc, ct);
     }
 
     // POSIX 单引号转义：单引号内 $ ` \ 均不展开，内部单引号以 '\'' 拼接。

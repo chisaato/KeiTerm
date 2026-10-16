@@ -19,6 +19,15 @@ public partial class SettingsViewModel
         _fileTransfer.WriteDebounceMilliseconds = Math.Clamp(transfer.WriteDebounceMilliseconds, 200, 60000);
         _fileTransfer.CustomEditorPath = transfer.CustomEditorPath;
         _fileTransfer.IsFileManagerOnLeft = transfer.IsFileManagerOnLeft;
+        _fileTransfer.Concurrency = transfer.Concurrency;
+        _fileTransfer.DefaultDownloadDirectory = transfer.DefaultDownloadDirectory;
+        _fileTransfer.SetConflictPolicy(transfer.DefaultConflictPolicy);
+        _fileTransfer.ResumeEnabled = transfer.ResumeEnabled;
+        _fileTransfer.AutoRetryEnabled = transfer.AutoRetryEnabled;
+        _fileTransfer.RetryCount = transfer.RetryCount;
+        _fileTransfer.SetBackoffMode(transfer.BackoffMode);
+        _fileTransfer.InitialRetryIntervalSeconds = transfer.InitialRetryIntervalSeconds;
+        _fileTransfer.MaxRetryIntervalSeconds = transfer.MaxRetryIntervalSeconds;
     }
 
     private void ApplyFileTransferSettings(AppSettings settings)
@@ -35,6 +44,15 @@ public partial class SettingsViewModel
         transfer.WriteDebounceMilliseconds = Math.Clamp(_fileTransfer.WriteDebounceMilliseconds, 200, 60000);
         transfer.CustomEditorPath = _fileTransfer.CustomEditorPath.Trim();
         transfer.IsFileManagerOnLeft = _fileTransfer.IsFileManagerOnLeft;
+        transfer.Concurrency = _fileTransfer.Concurrency;
+        transfer.DefaultDownloadDirectory = _fileTransfer.DefaultDownloadDirectory.Trim();
+        transfer.DefaultConflictPolicy = _fileTransfer.SelectedConflictPolicy.Policy;
+        transfer.ResumeEnabled = _fileTransfer.ResumeEnabled;
+        transfer.AutoRetryEnabled = _fileTransfer.AutoRetryEnabled;
+        transfer.RetryCount = _fileTransfer.RetryCount;
+        transfer.BackoffMode = _fileTransfer.SelectedBackoffMode.Mode;
+        transfer.InitialRetryIntervalSeconds = _fileTransfer.InitialRetryIntervalSeconds;
+        transfer.MaxRetryIntervalSeconds = _fileTransfer.MaxRetryIntervalSeconds;
     }
 
     private void NotifyFileDisplaySettings()

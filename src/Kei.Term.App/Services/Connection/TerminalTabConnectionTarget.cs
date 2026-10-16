@@ -6,13 +6,14 @@ using Kei.Term.Core.Abstractions;
 using Kei.Term.Core.Models;
 using Kei.Term.Core.Services;
 using Kei.Term.Core.Settings;
+using Kei.Term.Core.Transfers;
 using Kei.Term.Core.Storage;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kei.Term.App.Services.Connection;
 
-// 终端标签 → 连接目标适配：文件侧栏所需的本地缓存跟踪器在此装配
+// 连接标签 → 连接目标适配：文件视图所需的本地缓存跟踪器在此装配
 public sealed class TerminalTabConnectionTarget : IConnectionTarget
 {
     private readonly TerminalTabViewModel _tab;
@@ -60,18 +61,33 @@ public sealed class TerminalTabConnectionTarget : IConnectionTarget
     }
 
     public Task AttachFileSystemAsync(IRemoteFileSystem fileSystem)
-        => AttachFileSystemCoreAsync(fileSystem, null);
+        => AttachFileSystemCoreAsync(fileSystem, null, null);
 
     public Task AttachFileSystemAsync(IRemoteFileSystem fileSystem, ITerminalSession session)
-        => AttachFileSystemCoreAsync(fileSystem, session);
+        => AttachFileSystemCoreAsync(fileSystem, session, null);
 
-    private async Task AttachFileSystemCoreAsync(IRemoteFileSystem fileSystem, ITerminalSession? session)
+    public Task AttachFileAccessAsync(
+        IRemoteFileSystem browse,
+        ITransferEndpoint? transfers,
+        ITerminalSession session,
+        string? transferUnavailableReason = null)
+        => AttachFileSystemCoreAsync(browse, session, transfers, transferUnavailableReason);
+
+    private async Task AttachFileSystemCoreAsync(
+        IRemoteFileSystem fileSystem,
+        ITerminalSession? session,
+        ITransferEndpoint? transfers,
+        string? transferUnavailableReason = null)
     {
         // 属性变更会同步触发视图的布局处理器，整个 VM 初始化必须从 UI 上下文开始。
-        await Dispatcher.UIThread.InvokeAsync(() => InitializeFileManagerAsync(fileSystem, session));
+        await Dispatcher.UIThread.InvokeAsync(() => InitializeFileManagerAsync(fileSystem, session, transfers, transferUnavailableReason));
     }
 
-    private async Task InitializeFileManagerAsync(IRemoteFileSystem fileSystem, ITerminalSession? session)
+    private async Task InitializeFileManagerAsync(
+        IRemoteFileSystem fileSystem,
+        ITerminalSession? session,
+        ITransferEndpoint? transfers,
+        string? transferUnavailableReason)
     {
         FileTransferSettings transfer = _settings.Current.FileTransfer;
         LocalFileTracker tracker;
@@ -91,6 +107,7 @@ public sealed class TerminalTabConnectionTarget : IConnectionTarget
         }
 
         ILogger fileManagerLogger = (ILogger?)_loggerFactory?.CreateLogger<FileEditorLauncher>() ?? NullLogger.Instance;
-        await _tab.InitializeFileManagerAsync(fileSystem, tracker, _settings, _editorRepo, fileManagerLogger, session);
+        await _tab.InitializeFileManagerAsync(
+            fileSystem, tracker, _settings, _editorRepo, fileManagerLogger, session, transfers, transferUnavailableReason);
     }
 }

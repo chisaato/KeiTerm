@@ -49,6 +49,22 @@ public class SshSessionFactory : ISshSessionFactory
         return Task.FromResult(fileSystem);
     }
 
+    public Task<IRemoteTransferChannel> CreateTransferChannelAsync(
+        ResolvedSessionConfig config,
+        IReadOnlyList<MaterializedAuthMethod> methods,
+        ISshSession? activeSession = null,
+        SshConnectOptions? options = null,
+        CancellationToken ct = default)
+    {
+        options ??= SshConnectOptions.Default;
+
+        // 与浏览用文件通道同一套拨号：主机密钥、保活、跳板链都经 SshDialer。终端已建链时只借用，不重复登录。
+        SshJumpChain? borrowed = (activeSession as SshNetSession)?.JumpChain;
+        SshDialer dialer = CreateDialer(config, methods, options, borrowed);
+        IRemoteTransferChannel channel = SftpTransferConnection.Create(dialer, _logger);
+        return Task.FromResult(channel);
+    }
+
     private SshDialer CreateDialer(
         ResolvedSessionConfig config,
         IReadOnlyList<MaterializedAuthMethod> methods,

@@ -3,6 +3,7 @@ namespace Kei.Term.Core.Settings;
 using Kei.Term.Core.Models;
 using Kei.Term.Core.Models.Profiles;
 using Kei.Term.Core.Security;
+using Kei.Term.Core.Transfers;
 
 public enum PanelVisibilityMode
 {
@@ -164,6 +165,47 @@ public class FileTransferSettings
 
     // 文件管理侧栏停靠位置（false: 停靠在右侧，true: 停靠在左侧）
     public bool IsFileManagerOnLeft { get; set; } = false;
+
+    public const int DefaultConcurrency = 3;
+    public const int MinConcurrency = 1;
+    public const int DefaultRetryCount = 3;
+    public const int DefaultInitialRetryIntervalSeconds = 2;
+    public const int DefaultMaxRetryIntervalSeconds = 60;
+
+    // 同一连接同时传输的文件数。不设上限。小于 1 的值留在字段里，读取时再夹紧，避免保存把用户输入改掉。
+    public int Concurrency { get; set; } = DefaultConcurrency;
+
+    // 下载的默认目标目录。空字符串表示系统「下载」文件夹，由 ResolveDownloadDirectory 解析。
+    public string DefaultDownloadDirectory { get; set; } = string.Empty;
+
+    // 目标已有同名正式文件时的默认处置。枚举 0 是覆盖，缺字段必须靠初始值保持「每次询问」。
+    public TransferConflictPolicy DefaultConflictPolicy { get; set; } = TransferConflictPolicy.Ask;
+
+    // 关：遇到部分文件就删除并从头传。开：满足条件时从部分文件长度处接着传。
+    public bool ResumeEnabled { get; set; } = false;
+
+    // 暂时性失败是否自动重试。无法判断的失败按不重试处理。
+    public bool AutoRetryEnabled { get; set; } = true;
+
+    // 自动重试次数，不含首次传输。
+    public int RetryCount { get; set; } = DefaultRetryCount;
+
+    // 枚举 0 是固定间隔。缺字段必须靠初始值保持指数退避。
+    public RetryBackoffMode BackoffMode { get; set; } = RetryBackoffMode.Exponential;
+
+    // 第 1 次重试前的等待秒数。固定间隔始终用这个值。
+    public int InitialRetryIntervalSeconds { get; set; } = DefaultInitialRetryIntervalSeconds;
+
+    // 指数退避的等待上限（秒）。
+    public int MaxRetryIntervalSeconds { get; set; } = DefaultMaxRetryIntervalSeconds;
+
+    public static int ClampConcurrency(int value)
+        => value < MinConcurrency ? MinConcurrency : value;
+
+    public int EffectiveConcurrency => ClampConcurrency(Concurrency);
+
+    public string ResolveDownloadDirectory()
+        => DownloadDirectoryResolver.Resolve(DefaultDownloadDirectory);
 }
 
 public interface ISettingsService

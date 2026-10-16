@@ -852,7 +852,95 @@
                                 <StackPanel MaxWidth="760" HorizontalAlignment="Stretch" Spacing="12">
                                     <TextBlock Text="{loc:KeiString Settings.Categories.FileTransferPageDescription}" FontSize="12" TextWrapping="Wrap"
                                                Foreground="{DynamicResource Kei.Text.Secondary}" Margin="0,0,0,6"/>
-                                    <Border Classes="settingsSection first" x:Name="FileManagerSettingsSection">
+                                    <Border Classes="settingsSection first" x:Name="FileTransfersSettingsSection">
+                                        <StackPanel Spacing="8">
+                                            <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.FileTransfer.TransfersSection}"/>
+
+                                            <!-- 并发数：最小 1、不设上限 -->
+                                            <Grid ColumnDefinitions="150,*" ColumnSpacing="12">
+                                                <TextBlock Text="{loc:KeiString Settings.FileTransfer.Concurrency}" VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                                <NumericUpDown x:Name="ConcurrencyInput" Grid.Column="1" Value="{Binding Concurrency}" Minimum="1" Maximum="2147483647"
+                                                               FormatString="0" MinWidth="160" HorizontalAlignment="Left"
+                                                               ToolTip.Tip="{loc:KeiString Settings.FileTransfer.ConcurrencyTip}"/>
+                                            </Grid>
+
+                                            <!-- 默认下载目录 -->
+                                            <Grid ColumnDefinitions="150,*" ColumnSpacing="12">
+                                                <TextBlock Text="{loc:KeiString Settings.FileTransfer.DefaultDownloadDirectory}" VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                                <Grid Grid.Column="1" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                                    <TextBox x:Name="DefaultDownloadDirectoryTextBox" Text="{Binding DefaultDownloadDirectory}"
+                                                             PlaceholderText="{loc:KeiString Settings.FileTransfer.DefaultDownloadDirectoryPlaceholder}"
+                                                             ToolTip.Tip="{loc:KeiString Settings.FileTransfer.DefaultDownloadDirectoryTip}"/>
+                                                    <Button x:Name="BrowseDownloadDirectoryButton" Grid.Column="1" Content="{loc:KeiString Common.Browse}"
+                                                            Command="{Binding BrowseDownloadDirectoryCommand}" MinWidth="76"/>
+                                                </Grid>
+                                            </Grid>
+
+                                            <!-- 默认冲突策略 -->
+                                            <Grid ColumnDefinitions="150,*" ColumnSpacing="12">
+                                                <TextBlock Text="{loc:KeiString Settings.FileTransfer.ConflictPolicy}" VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                                <ComboBox x:Name="ConflictPolicyComboBox" Grid.Column="1" MinWidth="220" HorizontalAlignment="Left"
+                                                          ItemsSource="{Binding ConflictPolicyOptions}" SelectedItem="{Binding SelectedConflictPolicy}"
+                                                          ToolTip.Tip="{loc:KeiString Settings.FileTransfer.ConflictPolicyTip}">
+                                                    <ComboBox.ItemTemplate>
+                                                        <DataTemplate x:DataType="settings:ConflictPolicyOption">
+                                                            <TextBlock Text="{Binding Label}"/>
+                                                        </DataTemplate>
+                                                    </ComboBox.ItemTemplate>
+                                                </ComboBox>
+                                            </Grid>
+
+                                            <!-- 续传开关 -->
+                                            <CheckBox x:Name="ResumeEnabledCheckBox" IsChecked="{Binding ResumeEnabled}"
+                                                      Content="{loc:KeiString Settings.FileTransfer.ResumeEnabled}"
+                                                      ToolTip.Tip="{loc:KeiString Settings.FileTransfer.ResumeEnabledTip}"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- 自动重试组 -->
+                                    <Border Classes="settingsSection" x:Name="RetrySettingsSection">
+                                        <StackPanel Spacing="8">
+                                            <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.FileTransfer.RetrySection}"/>
+                                            <CheckBox x:Name="AutoRetryEnabledCheckBox" IsChecked="{Binding AutoRetryEnabled}"
+                                                      Content="{loc:KeiString Settings.FileTransfer.AutoRetryEnabled}"/>
+                                            <Grid ColumnDefinitions="150,*" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="8" ColumnSpacing="12"
+                                                  IsEnabled="{Binding AutoRetryEnabled}">
+                                                <TextBlock Text="{loc:KeiString Settings.FileTransfer.RetryCount}" VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                                <NumericUpDown x:Name="RetryCountInput" Grid.Column="1" Value="{Binding RetryCount}" Minimum="0" Maximum="100"
+                                                               FormatString="0" MinWidth="160" HorizontalAlignment="Left"
+                                                               ToolTip.Tip="{loc:KeiString Settings.FileTransfer.RetryCountTip}"/>
+
+                                                <TextBlock Grid.Row="1" Text="{loc:KeiString Settings.FileTransfer.BackoffMode}" VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                                <ComboBox x:Name="BackoffModeComboBox" Grid.Row="1" Grid.Column="1" MinWidth="220" HorizontalAlignment="Left"
+                                                          ItemsSource="{Binding BackoffModeOptions}" SelectedItem="{Binding SelectedBackoffMode}">
+                                                    <ComboBox.ItemTemplate>
+                                                        <DataTemplate x:DataType="settings:RetryBackoffOption">
+                                                            <TextBlock Text="{Binding Label}"/>
+                                                        </DataTemplate>
+                                                    </ComboBox.ItemTemplate>
+                                                </ComboBox>
+
+                                                <TextBlock Grid.Row="2" Text="{loc:KeiString Settings.FileTransfer.InitialRetryInterval}" VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                                <NumericUpDown x:Name="InitialRetryIntervalInput" Grid.Row="2" Grid.Column="1" Value="{Binding InitialRetryIntervalSeconds}"
+                                                               Minimum="0" Maximum="3600" FormatString="0" MinWidth="160" HorizontalAlignment="Left"
+                                                               ToolTip.Tip="{loc:KeiString Settings.FileTransfer.InitialRetryIntervalTip}"/>
+
+                                                <TextBlock Grid.Row="3" Text="{loc:KeiString Settings.FileTransfer.MaxRetryInterval}" VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                                <NumericUpDown x:Name="MaxRetryIntervalInput" Grid.Row="3" Grid.Column="1" Value="{Binding MaxRetryIntervalSeconds}"
+                                                               Minimum="0" Maximum="3600" FormatString="0" MinWidth="160" HorizontalAlignment="Left"
+                                                               ToolTip.Tip="{loc:KeiString Settings.FileTransfer.MaxRetryIntervalTip}"/>
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Classes="settingsSection" x:Name="FileManagerSettingsSection">
                                         <StackPanel Spacing="8">
                                             <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.FileTransfer.FileManagerSection}"/>
                                             <Grid ColumnDefinitions="150,*" ColumnSpacing="12">

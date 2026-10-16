@@ -379,7 +379,7 @@ public partial class FileManagerWorkspaceTests
         Assert.False(workspace.IsCached(document));
         Assert.Null(TopLevel.GetTopLevel(opened));
         Assert.NotSame(opened, host.Files.PickExecutableFileDialogAsync?.Target);
-        Assert.False(host.Files.IsWorkspaceTab);
+        Assert.False(host.Files.IsFileTab);
         Assert.Same(host.Files, host.Terminal.FileManager);
         Assert.Equal(0, host.FileSystem.DisposeCount);
         Assert.Equal(0, host.Session.DisposeCount);

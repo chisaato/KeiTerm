@@ -76,4 +76,14 @@ public interface ISshSessionFactory
         ISshSession? activeSession = null,
         SshConnectOptions? options = null,
         CancellationToken ct = default);
+
+    // 专用传输连接（ADR-0002）：每个连接一条，首次 Acquire 时才建立。
+    // 传入 activeSession 时复用其跳板链。始终是独立 SFTP 连接，与浏览协议无关。
+    Task<IRemoteTransferChannel> CreateTransferChannelAsync(
+        ResolvedSessionConfig config,
+        IReadOnlyList<MaterializedAuthMethod> methods,
+        ISshSession? activeSession = null,
+        SshConnectOptions? options = null,
+        CancellationToken ct = default)
+        => throw new NotSupportedException("此工厂未实现专用传输连接");
 }

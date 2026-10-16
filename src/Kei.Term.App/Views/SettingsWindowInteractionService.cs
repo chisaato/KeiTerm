@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Threading;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Kei.Term.App.Models;
@@ -9,6 +10,7 @@ using Kei.Term.Core.Models;
 using Kei.Term.Core.Models.Profiles;
 using Kei.Term.Core.Security;
 using Kei.Term.Core.Services;
+using Kei.Term.Core.Transfers;
 using Kei.Term.Core.Vault;
 using Avalonia;
 using Avalonia.Controls;
@@ -189,6 +191,28 @@ internal sealed class SettingsWindowInteractionService(Window owner, SettingsVie
 
     public Task<string?> PromptTextAsync(string title, string label, string? initialText)
         => new TextPromptWindow(title, label, initialText).ShowDialog<string?>(DialogOwner);
+
+    public Task<TransferConflictChoice?> PromptTransferConflictAsync(
+        string fileName, TransferFileFacts source, TransferFileFacts target, CancellationToken ct = default)
+    {
+        TransferConflictWindow dialog = new(fileName, source, target);
+        ct.Register(() => dialog.Close(null));
+        return dialog.ShowDialog<TransferConflictChoice?>(DialogOwner);
+    }
+
+    public Task<bool> ConfirmLargeScpTransferAsync(string fileName, long size, CancellationToken ct = default)
+        => TransferConflictWindow.ConfirmLargeScpAsync(DialogOwner, fileName, size);
+
+    public async Task<string?> PickFolderAsync(string title, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        IReadOnlyList<IStorageFolder> folders = await DialogOwner.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = title,
+            AllowMultiple = false,
+        });
+        return folders.Count > 0 ? folders[0].TryGetLocalPath() : null;
+    }
 
     public Task OpenBatchEditAsync(BatchSessionEditViewModel viewModel) => Task.CompletedTask;
 }

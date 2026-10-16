@@ -12,6 +12,7 @@ using Kei.Term.Core.Models;
 using Kei.Term.Core.Security;
 using Kei.Term.Core.Settings;
 using Kei.Term.Core.Storage;
+using Kei.Term.Core.Transfers;
 using Kei.Term.Core.Vault;
 using Kei.Term.Ssh.Abstractions;
 using Renci.SshNet.Common;
@@ -44,6 +45,67 @@ public partial class ConnectionOrchestratorTests
         => new(AuthPromptMethod.Password, "ops", value, null, null, null);
 
     private static ConnectionRequest WithPassword(string value) => new(Config(), UseIdentity: false, Password(value));
+
+    [Fact]
+    public async Task Scp_DedicatedEndpointConnectsOnAcquireNotInFactory()
+    {
+        ConnectTrackingFileSystem browse = new() { IsConnected = true };
+        ConnectTrackingFileSystem transfer = new();
+        int calls = 0;
+        _factory.FileSystems = _ => Interlocked.Increment(ref calls) == 1 ? browse : transfer;
+        ResolvedSessionConfig config = Config() with { FileTransferProtocol = FileTransferProtocol.Scp };
+        await Create().ConnectAsync(new ConnectionRequest(config, UseIdentity: false, Password("p")), _host);
+        await _factory.WaitForFileSystemAsync();
+        await WaitForAsync(() => _host.Tabs[0].Transfers != null);
+        Assert.Equal(0, transfer.Connects);
+        FileSystemTransferEndpoint endpoint = Assert.IsType<FileSystemTransferEndpoint>(_host.Tabs[0].Transfers);
+        await Task.WhenAll(endpoint.AcquireAsync(), endpoint.AcquireAsync());
+        Assert.Equal(1, transfer.Connects);
+        await endpoint.DisposeAsync();
+        await endpoint.DisposeAsync();
+        Assert.Equal(1, transfer.Disposes);
+    }
+
+    [Fact]
+    public async Task TransferEndpointFailure_ReportsReasonWithoutUsingBrowseChannel()
+    {
+        await Create().ConnectAsync(WithPassword("p1"), _host);
+        await _factory.WaitForFileSystemAsync();
+        await WaitForAsync(() => _host.Tabs[0].Warning != null);
+        Assert.Null(_host.Tabs[0].Transfers);
+        Assert.Contains("传输通道不可用", _host.Tabs[0].Warning);
+        Assert.Equal(1, _host.Tabs[0].FileSystemAttachments);
+    }
+
+    private static async Task WaitForAsync(Func<bool> condition)
+    {
+        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(5));
+        while (!condition()) await Task.Delay(15, timeout.Token);
+    }
+
+    private sealed class ConnectTrackingFileSystem : IRemoteFileSystem
+    {
+        public int Connects;
+        public int Disposes;
+        public bool IsConnected { get; set; }
+        public string WorkingDirectory => "/";
+        public async Task ConnectAsync(CancellationToken ct = default)
+        {
+            Interlocked.Increment(ref Connects);
+            await Task.Delay(30, ct);
+            IsConnected = true;
+        }
+        public Task<IReadOnlyList<RemoteFileItem>> ListDirectoryAsync(string path, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<RemoteFileItem>>([]);
+        public Task<Stream> OpenReadAsync(string path, CancellationToken ct = default) => Task.FromResult<Stream>(new MemoryStream());
+        public Task<Stream> OpenWriteAsync(string path, CancellationToken ct = default) => Task.FromResult<Stream>(new MemoryStream());
+        public Task DeleteAsync(string path, bool isDirectory, CancellationToken ct = default) => Task.CompletedTask;
+        public Task RenameAsync(string oldPath, string newPath, CancellationToken ct = default) => Task.CompletedTask;
+        public Task CreateDirectoryAsync(string path, CancellationToken ct = default) => Task.CompletedTask;
+        public Task ChangePermissionsAsync(string path, int octalPermissions, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<RemoteFileItem?> GetItemAsync(string path, CancellationToken ct = default) => Task.FromResult<RemoteFileItem?>(null);
+        public ValueTask DisposeAsync() { Interlocked.Increment(ref Disposes); return ValueTask.CompletedTask; }
+    }
 
     [Fact]
     public async Task FirstAttemptSucceeds_TabConnected_FileChannelUsesSameMaterials()
@@ -304,6 +366,7 @@ public partial class ConnectionOrchestratorTests
         public List<FakeSession> CreatedSessions { get; } = [];
         public Action? OnCreate { get; set; }
         public Func<ResolvedSessionConfig, SshConnectOptions, Task>? OnConnect { get; set; }
+        public Func<ResolvedSessionConfig, IRemoteFileSystem?>? FileSystems { get; set; }
 
         public Task<ISshSession> CreateSessionAsync(
             ResolvedSessionConfig config,
@@ -326,7 +389,7 @@ public partial class ConnectionOrchestratorTests
             CancellationToken ct = default)
         {
             _fileSystem.TrySetResult(new SessionCall(config, methods, options!));
-            return Task.FromResult<IRemoteFileSystem>(null!);
+            return Task.FromResult<IRemoteFileSystem>(FileSystems?.Invoke(config)!);
         }
 
         // 文件通道在后台任务中创建
@@ -379,7 +442,28 @@ public partial class ConnectionOrchestratorTests
 
         public void ReportError(string message) => Error = message;
 
-        public Task AttachFileSystemAsync(IRemoteFileSystem fileSystem) => Task.CompletedTask;
+        public Task AttachFileSystemAsync(IRemoteFileSystem fileSystem)
+        {
+            FileSystemAttachments++;
+            return Task.CompletedTask;
+        }
+
+        public ITransferEndpoint? Transfers { get; private set; }
+        public string? Warning { get; private set; }
+        public int FileSystemAttachments { get; private set; }
+
+        public void ReportWarning(string message) => Warning = message;
+
+        public Task AttachFileAccessAsync(
+            IRemoteFileSystem browse,
+            ITransferEndpoint? transfers,
+            ITerminalSession session,
+            string? transferUnavailableReason = null)
+        {
+            Transfers = transfers;
+            if (transferUnavailableReason != null) Warning = transferUnavailableReason;
+            return AttachFileSystemAsync(browse);
+        }
 
         public List<ResolvedSessionConfig> Resets { get; } = [];
 

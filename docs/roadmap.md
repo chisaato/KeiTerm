@@ -44,7 +44,7 @@
 | 产品 | 形态 | 值得借鉴 | KeiTerm 的取舍 |
 |---|---|---|---|
 | Xshell / SecureCRT | 原生、闭源、Windows 为主 | 会话树、撰写栏、ZMODEM、脚本 | 保留会话树与撰写栏；不做 VBScript 宏 |
-| MobaXterm | 原生、Windows、一体化 | 多协议、SFTP 侧栏随 cwd、X11 | SFTP 侧栏已有；随 cwd 需 Shell 集成 |
+| MobaXterm | 原生、Windows、一体化 | 多协议、SFTP 侧栏随 cwd、X11 | 文件视图（侧栏 / 文件标签）与 OSC 7 目录跟随已有；不做 Xftp 式独立窗口（ADR-0001） |
 | Termius | 跨端（含移动端）、订阅制 | 加密 Vault + 跨设备同步、Snippets、端口转发 UI | 同步做**用户自选存储**的 E2EE，不绑定自有云 |
 | Tabby | Electron、开源、插件 | 分屏、Zmodem、插件生态 | 原生渲染 + 更低内存 |
 | WindTerm | 原生、开源、极快 | 性能、大输出流畅度 | RoyalTerminal（Skia / Ghostty VT）同路线 |

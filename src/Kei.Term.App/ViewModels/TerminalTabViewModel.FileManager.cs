@@ -8,6 +8,7 @@ using Kei.Term.Core.Abstractions;
 using Kei.Term.Core.Services;
 using Kei.Term.Core.Settings;
 using Kei.Term.Core.Storage;
+using Kei.Term.Core.Transfers;
 using Microsoft.Extensions.Logging;
 
 namespace Kei.Term.App.ViewModels;
@@ -16,6 +17,9 @@ public partial class TerminalTabViewModel
 {
     private CancellationTokenSource? _fileManagerInitializationCancellation;
     private readonly List<Task> _fileManagerInitializations = [];
+    private readonly object _transferBoardLock = new();
+    private ConnectionTransferBoard? _transferBoard;
+    private int _closingFileManager;
 
     partial void OnFileManagerChanged(RemoteFileManagerViewModel? oldValue, RemoteFileManagerViewModel? newValue)
     {
@@ -40,18 +44,20 @@ public partial class TerminalTabViewModel
         ISettingsService? settingsService = null,
         IExternalEditorRepository? editorRepo = null,
         ILogger? logger = null,
-        ITerminalSession? expectedSession = null)
+        ITerminalSession? expectedSession = null,
+        ITransferEndpoint? transfers = null,
+        string? transferUnavailableReason = null)
     {
         ITerminalSession? session = _session;
         if (IsDisposed || session == null || expectedSession != null && !ReferenceEquals(session, expectedSession))
-            return ReleaseUnattachedFileManagerAsync(fileSystem, fileTracker);
+            return ReleaseUnattachedFileManagerAsync(fileSystem, fileTracker, transfers);
 
         _fileManagerInitializationCancellation?.Cancel();
         CancellationTokenSource cancellation = new();
         _fileManagerInitializationCancellation = cancellation;
         _fileManagerInitializations.RemoveAll(task => task.IsCompleted);
         Task initialization = InitializeFileManagerCoreAsync(
-            session, fileSystem, fileTracker, settingsService, editorRepo, logger, cancellation);
+            session, fileSystem, fileTracker, settingsService, editorRepo, logger, cancellation, transfers, transferUnavailableReason);
         _fileManagerInitializations.Add(initialization);
         return initialization;
     }
@@ -63,13 +69,26 @@ public partial class TerminalTabViewModel
         ISettingsService? settingsService,
         IExternalEditorRepository? editorRepo,
         ILogger? logger,
-        CancellationTokenSource cancellation)
+        CancellationTokenSource cancellation,
+        ITransferEndpoint? transfers,
+        string? transferUnavailableReason)
     {
         RemoteFileManagerViewModel? manager = null;
+        ConnectionTransferBoard? ownedBoard = null;
         bool attached = false;
         try
         {
-            manager = new(session.SessionId, fileSystem, fileTracker, settingsService, editorRepo, logger ?? _logger);
+            if (transfers != null)
+            {
+                ownedBoard = ConnectionTransferBoard.Create(
+                    transfers,
+                    () => settingsService?.Current.FileTransfer ?? new FileTransferSettings(),
+                    _dropInteraction,
+                    logger: logger ?? _logger);
+            }
+
+            manager = new(session.SessionId, fileSystem, fileTracker, settingsService, editorRepo, logger ?? _logger, ownedBoard, _dropInteraction);
+            if (ownedBoard == null) manager.NoteTransferUnavailable(transferUnavailableReason);
             manager.CloseRequested += () =>
             {
                 CloseFileManagerDocument();
@@ -84,7 +103,23 @@ public partial class TerminalTabViewModel
 
             await manager.InitializeAsync(cancellation.Token);
             // 初始化可能吞掉取消异常，也可能经过不支持取消的远端操作；完成后仍需核对归属。
-            if (IsDisposed || cancellation.IsCancellationRequested || !ReferenceEquals(_session, session)) return;
+            if (IsDisposed || cancellation.IsCancellationRequested || !ReferenceEquals(_session, session)
+                || Volatile.Read(ref _closingFileManager) != 0)
+            {
+                return;
+            }
+
+            lock (_transferBoardLock)
+            {
+                if (Volatile.Read(ref _closingFileManager) != 0 || cancellation.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                _transferBoard = ownedBoard;
+                ownedBoard = null;
+            }
+
             manager.IsShellVisible = IsShellVisible;
             manager.IsMaximized = IsFileManagerMaximized;
             FileManager = manager;
@@ -97,17 +132,37 @@ public partial class TerminalTabViewModel
             if (ReferenceEquals(_fileManagerInitializationCancellation, cancellation))
                 _fileManagerInitializationCancellation = null;
             cancellation.Dispose();
+            if (ownedBoard != null)
+            {
+                try { await ownedBoard.CloseAsync(); }
+                catch (Exception ex) { _logger.LogWarning(ex, "关闭未挂上的传输队列失败"); }
+            }
+
             if (manager == null) await ReleaseUnattachedFileManagerAsync(fileSystem, fileTracker);
             else if (!attached) await Task.Run(async () => await manager.DisposeAsync());
         }
     }
 
-    private static async Task ReleaseUnattachedFileManagerAsync(IRemoteFileSystem fileSystem, ILocalFileTracker tracker)
+    private static async Task ReleaseUnattachedFileManagerAsync(
+        IRemoteFileSystem fileSystem,
+        ILocalFileTracker tracker,
+        ITransferEndpoint? transfers = null)
     {
         await Task.Run(async () =>
         {
             try { await fileSystem.DisposeAsync(); }
-            finally { await tracker.DisposeAsync(); }
+            finally
+            {
+                try { await tracker.DisposeAsync(); }
+                finally
+                {
+                    if (transfers != null)
+                    {
+                        try { await transfers.DisposeAsync(); }
+                        catch (Exception) { }
+                    }
+                }
+            }
         });
     }
 
@@ -115,6 +170,14 @@ public partial class TerminalTabViewModel
     private async Task CloseFileManagerAsync()
     {
         // 在任何 await 前摘下本次持有的实例；排空旧请求之后不得再清空新连接的属性。
+        Interlocked.Exchange(ref _closingFileManager, 1);
+        ConnectionTransferBoard? board;
+        lock (_transferBoardLock)
+        {
+            board = _transferBoard;
+            _transferBoard = null;
+        }
+
         RemoteFileManagerViewModel? manager = FileManager;
         if (IsFileManagerMaximized)
         {
@@ -129,9 +192,22 @@ public partial class TerminalTabViewModel
         _fileManagerInitializations.Clear();
         await directoryFollow;
         try { await Task.WhenAll(initializations); }
-        catch (Exception ex) { _logger.LogWarning(ex, "等待文件侧栏初始化结束失败 标题={Title}", Title); }
-        if (manager == null) return;
-        try { await Task.Run(async () => await manager.DisposeAsync()); }
-        catch (Exception ex) { _logger.LogWarning(ex, "释放文件侧栏失败 标题={Title}", Title); }
+        catch (Exception ex) { _logger.LogWarning(ex, "等待文件视图初始化结束失败 标题={Title}", Title); }
+        try
+        {
+            if (board != null)
+            {
+                try { await board.CloseAsync(); }
+                catch (Exception ex) { _logger.LogWarning(ex, "关闭传输队列失败 标题={Title}", Title); }
+            }
+
+            if (manager == null) return;
+            try { await Task.Run(async () => await manager.DisposeAsync()); }
+            catch (Exception ex) { _logger.LogWarning(ex, "释放文件视图失败 标题={Title}", Title); }
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _closingFileManager, 0);
+        }
     }
 }

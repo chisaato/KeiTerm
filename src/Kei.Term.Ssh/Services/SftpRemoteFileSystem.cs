@@ -12,17 +12,41 @@ using Renci.SshNet.Common;
 using Renci.SshNet.Sftp;
 using Kei.Term.Core.Abstractions;
 using Kei.Term.Core.Models;
+using Kei.Term.Core.Transfers;
 using Kei.Term.Ssh.Abstractions;
 
 public class SftpRemoteFileSystem : IRemoteFileSystem
 {
-    private readonly SshDialer _dialer;
+    private readonly SshDialer? _dialer;
     private readonly SftpChannelMode _mode;
     private readonly ILogger _logger;
+    private readonly bool _ownsConnection;
+    private readonly Func<Exception?>? _leaseFailure;
     private SftpClient? _client;
     private bool _isDisposed;
 
-    public bool IsConnected => !_isDisposed && _client is { IsConnected: true };
+    public bool SupportsResume => true;
+
+    public bool IsConnected
+    {
+        get
+        {
+            if (_isDisposed || _client == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                return _client.IsConnected;
+            }
+            catch (ObjectDisposedException)
+            {
+                return false;
+            }
+        }
+    }
+
     public string WorkingDirectory => IsConnected ? _client!.WorkingDirectory : "/";
 
     // 连接前访问即为编程错误；方法入口已由 EnsureConnected 保证非空
@@ -49,15 +73,32 @@ public class SftpRemoteFileSystem : IRemoteFileSystem
         _dialer = dialer;
         _mode = mode;
         _logger = logger ?? NullLogger.Instance;
+        _ownsConnection = true;
+    }
+
+    // 借用传输通道上已经连上的客户端：不拨号、不释放。租约失败由 leaseFailure 报告。
+    internal SftpRemoteFileSystem(SftpClient client, Func<Exception?>? leaseFailure, ILogger? logger)
+    {
+        _client = client ?? throw new ArgumentNullException(nameof(client));
+        _leaseFailure = leaseFailure;
+        _mode = SftpChannelMode.Dedicated;
+        _logger = logger ?? NullLogger.Instance;
+        _ownsConnection = false;
     }
 
     public async Task ConnectAsync(CancellationToken ct = default)
     {
+        EnsureLease();
         ThrowIfDisposed();
 
         if (IsConnected)
         {
             return;
+        }
+
+        if (!_ownsConnection || _dialer == null)
+        {
+            throw new IOException("传输连接已断开");
         }
 
         try
@@ -73,68 +114,69 @@ public class SftpRemoteFileSystem : IRemoteFileSystem
         }
     }
 
-    public Task<IReadOnlyList<RemoteFileItem>> ListDirectoryAsync(string path, CancellationToken ct = default)
+    public async Task<IReadOnlyList<RemoteFileItem>> ListDirectoryAsync(string path, CancellationToken ct = default)
     {
-        ThrowIfDisposed();
-        EnsureConnected();
+        EnsureReady();
 
         string targetPath = string.IsNullOrWhiteSpace(path) ? _sftpClient.WorkingDirectory : path;
-
-        return Task.Run<IReadOnlyList<RemoteFileItem>>(() =>
+        List<ISftpFile> files = await Task.Run(() => _sftpClient.ListDirectory(targetPath).ToList(), ct);
+        List<RemoteFileItem> results = [];
+        foreach (ISftpFile file in files)
         {
-            var files = _sftpClient.ListDirectory(targetPath);
-            var results = new List<RemoteFileItem>();
-
-            foreach (var file in files)
+            ct.ThrowIfCancellationRequested();
+            if (file.Name is "." or "..")
             {
-                if (file.Name is "." or "..")
-                {
-                    continue;
-                }
-
-                results.Add(new RemoteFileItem(
-                    file.Name,
-                    file.FullName,
-                    file.IsDirectory,
-                    file.Length,
-                    file.LastWriteTimeUtc,
-                    FormatPermissions(file),
-                    file.UserId,
-                    file.GroupId
-                ));
+                continue;
             }
 
-            return results.OrderByDescending(r => r.IsDirectory).ThenBy(r => r.Name, NaturalStringComparer.Instance).ToList();
-        }, ct);
+            results.Add(await ToItemAsync(file, ct));
+        }
+
+        return results.OrderByDescending(item => item.IsDirectory).ThenBy(item => item.Name, NaturalStringComparer.Instance).ToList();
     }
 
     public Task<Stream> OpenReadAsync(string path, CancellationToken ct = default)
+        => OpenReadAsync(path, 0, ct);
+
+    public Task<Stream> OpenReadAsync(string path, long offset, CancellationToken ct = default)
     {
-        ThrowIfDisposed();
-        EnsureConnected();
+        ArgumentOutOfRangeException.ThrowIfNegative(offset);
+        EnsureReady();
 
         return Task.Run<Stream>(() =>
         {
-            return _sftpClient.OpenRead(path);
+            SftpFileStream stream = _sftpClient.Open(path, FileMode.Open, FileAccess.Read);
+            return SeekOrDispose(stream, offset);
         }, ct);
     }
 
     public Task<Stream> OpenWriteAsync(string path, CancellationToken ct = default)
+        => OpenWriteAsync(path, 0, ct);
+
+    public Task<Stream> OpenWriteAsync(string path, long offset, CancellationToken ct = default)
     {
-        ThrowIfDisposed();
-        EnsureConnected();
+        ArgumentOutOfRangeException.ThrowIfNegative(offset);
+        EnsureReady();
 
         return Task.Run<Stream>(() =>
         {
-            // OpenWrite 使用 OpenOrCreate，短文件覆盖会留下旧尾部；覆盖操作必须截断。
-            return _sftpClient.Open(path, FileMode.Create, FileAccess.Write);
+            // lstat。符号链接即使目标不可读也必须拒绝，不能 Open 跟随覆盖。
+            RejectLinkOrDirectory(path, allowMissing: offset == 0);
+            if (offset == 0)
+            {
+                // OpenWrite 使用 OpenOrCreate，短文件覆盖会留下旧尾部；覆盖操作必须截断。
+                return _sftpClient.Open(path, FileMode.Create, FileAccess.Write);
+            }
+
+            // 续传：打开已有普通文件并定位，不截断。文件不存在时由服务器拒绝。
+            SftpFileStream stream = _sftpClient.Open(path, FileMode.Open, FileAccess.Write);
+            return SeekOrDispose(stream, offset);
         }, ct);
     }
 
     public Task DeleteAsync(string path, bool isDirectory, CancellationToken ct = default)
     {
-        ThrowIfDisposed();
-        EnsureConnected();
+        EnsureReady();
 
         return Task.Run(() =>
         {
@@ -144,6 +186,7 @@ public class SftpRemoteFileSystem : IRemoteFileSystem
             }
             else
             {
+                RejectLinkOrDirectory(path, allowMissing: false);
                 _sftpClient.DeleteFile(path);
             }
         }, ct);
@@ -151,8 +194,7 @@ public class SftpRemoteFileSystem : IRemoteFileSystem
 
     public Task RenameAsync(string oldPath, string newPath, CancellationToken ct = default)
     {
-        ThrowIfDisposed();
-        EnsureConnected();
+        EnsureReady();
 
         return Task.Run(() =>
         {
@@ -160,10 +202,22 @@ public class SftpRemoteFileSystem : IRemoteFileSystem
         }, ct);
     }
 
+    public Task RenameOverwriteAsync(string oldPath, string newPath, CancellationToken ct = default)
+    {
+        EnsureReady();
+
+        return Task.Run(() =>
+        {
+            SftpOverwriteRename.Execute(
+                () => _sftpClient.RenameFile(oldPath, newPath, isPosix: true),
+                () => TargetExists(newPath),
+                () => _sftpClient.RenameFile(oldPath, newPath));
+        }, ct);
+    }
+
     public Task CreateDirectoryAsync(string path, CancellationToken ct = default)
     {
-        ThrowIfDisposed();
-        EnsureConnected();
+        EnsureReady();
 
         return Task.Run(() =>
         {
@@ -173,8 +227,7 @@ public class SftpRemoteFileSystem : IRemoteFileSystem
 
     public Task ChangePermissionsAsync(string path, int octalPermissions, CancellationToken ct = default)
     {
-        ThrowIfDisposed();
-        EnsureConnected();
+        EnsureReady();
 
         return Task.Run(() =>
         {
@@ -183,34 +236,154 @@ public class SftpRemoteFileSystem : IRemoteFileSystem
         }, ct);
     }
 
-    public Task<RemoteFileItem?> GetItemAsync(string path, CancellationToken ct = default)
+    public async Task<RemoteFileItem?> GetItemAsync(string path, CancellationToken ct = default)
     {
-        ThrowIfDisposed();
-        EnsureConnected();
+        EnsureReady();
 
-        return Task.Run<RemoteFileItem?>(() =>
+        ISftpFile? file;
+        try
         {
-            try
-            {
-                var file = _sftpClient.Get(path);
-                if (file == null) return null;
+            file = await Task.Run(() => _sftpClient.Get(path), ct);
+        }
+        catch (SftpPathNotFoundException)
+        {
+            return null;
+        }
 
-                return new RemoteFileItem(
-                    file.Name,
-                    file.FullName,
-                    file.IsDirectory,
-                    file.Length,
-                    file.LastWriteTimeUtc,
-                    FormatPermissions(file),
-                    file.UserId,
-                    file.GroupId
-                );
-            }
-            catch (SftpPathNotFoundException)
-            {
-                return null;
-            }
+        if (file == null)
+        {
+            return null;
+        }
+
+        return await ToItemAsync(file, ct);
+    }
+
+    public async Task<RemoteFileItem?> GetAttributesAsync(string path, CancellationToken ct = default)
+    {
+        EnsureReady();
+        // Get() 会先 realpath，符号链接已经被跟随。必须列父目录，用该目录项自己的 lstat。
+        ISftpFile? file = await Task.Run(() => FindChild(path), ct);
+        return file == null ? null : ToLstatItem(file);
+    }
+
+    public Task SetLastWriteTimeUtcAsync(string path, DateTime lastWriteTimeUtc, CancellationToken ct = default)
+    {
+        EnsureReady();
+        DateTime utc = ToUtc(lastWriteTimeUtc);
+
+        return Task.Run(() =>
+        {
+            _sftpClient.SetLastWriteTimeUtc(path, utc);
         }, ct);
+    }
+
+    private async Task<RemoteFileItem> ToItemAsync(ISftpFile file, CancellationToken ct)
+    {
+        bool isLink = file.IsSymbolicLink;
+        bool? targetIsDirectory = null;
+        long? targetSize = null;
+        bool broken = false;
+        bool indeterminate = false;
+        if (isLink)
+        {
+            // 探测失败只用于区分目标类型，不向外抛。取消除外。
+            SftpLinkFollower.Probe probe = await SftpLinkFollower.ProbeAsync(_sftpClient, file.FullName, ct);
+            if (probe.Kind == SftpLinkTargetKind.Directory)
+            {
+                targetIsDirectory = true;
+            }
+            else if (probe.Kind == SftpLinkTargetKind.File)
+            {
+                targetIsDirectory = false;
+                targetSize = probe.Size;
+            }
+            else if (probe.Kind == SftpLinkTargetKind.Broken)
+            {
+                broken = true;
+            }
+            else
+            {
+                indeterminate = true;
+            }
+        }
+
+        return new RemoteFileItem(
+            file.Name,
+            file.FullName,
+            file.IsDirectory,
+            file.Length,
+            ToUtcOffset(file.LastWriteTimeUtc),
+            FormatPermissions(file),
+            file.UserId,
+            file.GroupId,
+            isLink,
+            targetIsDirectory,
+            targetSize,
+            LinkTargetModified: null,
+            IsBrokenSymbolicLink: broken,
+            IsIndeterminateSymbolicLink: indeterminate);
+    }
+
+    // 不探测、不跟随。安全检查用这个，避免把不可读链接 Open 成普通文件。
+    private static RemoteFileItem ToLstatItem(ISftpFile file)
+        => new(
+            file.Name,
+            file.FullName,
+            file.IsDirectory,
+            file.Length,
+            ToUtcOffset(file.LastWriteTimeUtc),
+            FormatPermissions(file),
+            file.UserId,
+            file.GroupId,
+            file.IsSymbolicLink);
+
+    private void RejectLinkOrDirectory(string path, bool allowMissing)
+    {
+        ISftpFile? file = FindChild(path);
+        if (file == null)
+        {
+            if (allowMissing)
+            {
+                return;
+            }
+
+            throw new SftpPathNotFoundException(path);
+        }
+
+        if (file.IsSymbolicLink)
+        {
+            throw new TransferPathRejectedException($"拒绝跟随符号链接写入或删除：{path}");
+        }
+
+        if (file.IsDirectory)
+        {
+            throw new TransferPathRejectedException($"拒绝把目录当作部分文件：{path}");
+        }
+    }
+
+    private bool TargetExists(string path) => FindChild(path) != null;
+
+    // 不解析路径本身，避免 realpath 跟随最后一段符号链接。
+    private ISftpFile? FindChild(string path)
+    {
+        string normalized = path.Replace('\\', '/');
+        int slash = normalized.LastIndexOf('/');
+        string parent = slash <= 0 ? "/" : normalized[..slash];
+        string name = slash < 0 ? normalized : normalized[(slash + 1)..];
+        if (name.Length == 0)
+        {
+            return null;
+        }
+
+        foreach (ISftpFile file in _sftpClient.ListDirectory(parent))
+        {
+            if (file.Name == name)
+            {
+                return file;
+            }
+        }
+
+        return null;
     }
 
     private static string FormatPermissions(ISftpFile file)
@@ -228,12 +401,60 @@ public class SftpRemoteFileSystem : IRemoteFileSystem
         return $"{type}{r1}{w1}{x1}{r2}{w2}{x2}{r3}{w3}{x3}";
     }
 
+    private void EnsureReady()
+    {
+        EnsureLease();
+        ThrowIfDisposed();
+        EnsureConnected();
+    }
+
+    private void EnsureLease()
+    {
+        Exception? failure = _leaseFailure?.Invoke();
+        if (failure != null)
+        {
+            throw failure;
+        }
+    }
+
     private void EnsureConnected()
     {
         if (!IsConnected)
         {
             throw new InvalidOperationException("SFTP 客户端尚未连接或连接已断开");
         }
+    }
+
+    private static Stream SeekOrDispose(SftpFileStream stream, long offset)
+    {
+        if (offset == 0)
+        {
+            return stream;
+        }
+
+        try
+        {
+            stream.Seek(offset, SeekOrigin.Begin);
+            return stream;
+        }
+        catch
+        {
+            stream.Dispose();
+            throw;
+        }
+    }
+
+    // SFTP 时间戳是 UTC。Kind 未标明时按 UTC 解释，避免 DateTimeOffset 把它当成本地时间。
+    private static DateTimeOffset ToUtcOffset(DateTime value) => new(ToUtc(value));
+
+    private static DateTime ToUtc(DateTime value)
+    {
+        return value.Kind switch
+        {
+            DateTimeKind.Utc => value,
+            DateTimeKind.Local => value.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(value, DateTimeKind.Utc),
+        };
     }
 
     private void ThrowIfDisposed()
@@ -244,6 +465,12 @@ public class SftpRemoteFileSystem : IRemoteFileSystem
     public async ValueTask DisposeAsync()
     {
         if (_isDisposed)
+        {
+            return;
+        }
+
+        // 共享连接由传输通道释放。这里不标记失效，避免调用方误释放视图后租约无法继续。
+        if (!_ownsConnection)
         {
             return;
         }
@@ -262,7 +489,11 @@ public class SftpRemoteFileSystem : IRemoteFileSystem
             // 忽略释放阶段异常
         }
 
-        await _dialer.DisposeAsync();
+        if (_dialer != null)
+        {
+            await _dialer.DisposeAsync();
+        }
+
         GC.SuppressFinalize(this);
     }
 }

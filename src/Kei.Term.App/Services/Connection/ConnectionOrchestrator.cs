@@ -11,6 +11,7 @@ using Kei.Term.Core.Security;
 using Kei.Term.Core.Services;
 using Kei.Term.Core.Settings;
 using Kei.Term.Core.Storage;
+using Kei.Term.Core.Transfers;
 using Kei.Term.Core.Vault;
 using Kei.Term.Ssh.Abstractions;
 using Microsoft.Extensions.Logging;
@@ -18,7 +19,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kei.Term.App.Services.Connection;
 
-// 「怎么连」：收集认证 → 解析跳板 → 开标签 → 后台建连；认证失败回弹重试、主机密钥握手外确认、成功后挂文件侧栏。
+// 「怎么连」：收集认证 → 解析跳板 → 开连接标签 → 后台建连；认证失败回弹重试、主机密钥握手外确认、成功后挂上侧栏中的文件视图。
 // 不依赖 Avalonia：UI 线程切换经注入的 uiDispatch 完成，可在测试中同步执行。
 public sealed partial class ConnectionOrchestrator
 {
@@ -380,7 +381,7 @@ public sealed partial class ConnectionOrchestrator
         }
     }
 
-    // 异步预准备并挂载文件侧栏；失败只记日志，不影响终端
+    // 异步预准备并挂上侧栏中的文件视图；失败只记日志，不影响终端
     private void StartFileSystem(
         IConnectionTarget target,
         ResolvedSessionConfig config,
@@ -393,13 +394,48 @@ public sealed partial class ConnectionOrchestrator
             try
             {
                 IRemoteFileSystem fileSystem = await _sshFactory.CreateFileSystemAsync(config, materials, session, options);
-                await target.AttachFileSystemAsync(fileSystem, session);
+                (ITransferEndpoint? transfers, string? unavailable) = await CreateTransferEndpointAsync(config, materials, session, options);
+                if (transfers == null && unavailable != null)
+                {
+                    target.ReportWarning(unavailable);
+                }
+
+                await target.AttachFileAccessAsync(fileSystem, transfers, session, unavailable);
             }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "初始化远程文件系统侧栏失败");
             }
         });
+    }
+
+    // SFTP 用专用传输连接；SCP 再开一个文件系统，不和浏览共用。失败只记日志，浏览仍可用。
+    private async Task<(ITransferEndpoint? Endpoint, string? Reason)> CreateTransferEndpointAsync(
+        ResolvedSessionConfig config,
+        IReadOnlyList<MaterializedAuthMethod> materials,
+        ISshSession session,
+        SshConnectOptions options)
+    {
+        try
+        {
+            if (config.FileTransferProtocol == FileTransferProtocol.Scp)
+            {
+                IRemoteFileSystem? transferFs = await _sshFactory.CreateFileSystemAsync(config, materials, session, options);
+                if (transferFs == null)
+                {
+                    return (null, "未能建立 SCP 传输通道");
+                }
+
+                return (new FileSystemTransferEndpoint(transferFs, FileTransferProtocol.Scp, owns: true), null);
+            }
+
+            return (new ChannelTransferEndpoint(await _sshFactory.CreateTransferChannelAsync(config, materials, session, options)), null);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "创建专用传输通道失败");
+            return (null, "传输通道不可用：" + ex.Message);
+        }
     }
 
     private SshConnectOptions BuildConnectOptions(

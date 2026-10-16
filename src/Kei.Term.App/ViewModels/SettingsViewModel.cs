@@ -273,7 +273,7 @@ public partial class SettingsViewModel : ViewModelBase
         if (_terminal.HasTitleTemplateError) return false;
 
         // 以当前设置的完整副本为底稿，只覆盖本窗口编辑的字段：新增设置项无需在此登记也不会被保存重置
-        //（曾因整对象重建漏列导致文件侧栏位置、轮询参数等保存后丢失）
+        //（曾因整对象重建漏列导致侧栏停靠位置、轮询参数等保存后丢失）
         AppSettings settings = CloneSettings(_settingsService.Current);
         settings.HostKeyPolicy = _ssh.HostKeyPolicy;
 

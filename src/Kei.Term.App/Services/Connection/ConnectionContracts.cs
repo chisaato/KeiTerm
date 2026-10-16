@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using System.Threading;
 using Kei.Term.Core.Abstractions;
 using Kei.Term.Core.Models;
+using Kei.Term.Core.Transfers;
 
 namespace Kei.Term.App.Services.Connection;
 
@@ -35,12 +36,20 @@ public interface IConnectionTarget
     // 只写到本地终端，不发给远端。默认空，测试替身可忽略。
     void WriteLocalStatus(string message) { }
 
-    // 连接成功后挂载文件侧栏（后台线程调用；实现负责回到 UI 线程与本地缓存跟踪器装配）
+    // 连接成功后挂上侧栏中的文件视图（后台线程调用；实现负责回到 UI 线程与本地缓存跟踪器装配）
     Task AttachFileSystemAsync(IRemoteFileSystem fileSystem);
 
     // 文件通道可能晚于断开/重连完成，必须核对创建它的源会话。
     Task AttachFileSystemAsync(IRemoteFileSystem fileSystem, ITerminalSession session)
         => AttachFileSystemAsync(fileSystem);
+
+    // 浏览通道和专用传输端点一起挂上。默认忽略端点，避免测试替身必须实现。
+    Task AttachFileAccessAsync(
+        IRemoteFileSystem browse,
+        ITransferEndpoint? transfers,
+        ITerminalSession session,
+        string? transferUnavailableReason = null)
+        => AttachFileSystemAsync(browse, session);
 
     // 原地重连：卸下旧会话与侧栏、保留终端历史，并换上本次解析的配置（UI 线程调用）
     Task ResetForReconnectAsync(ResolvedSessionConfig config);

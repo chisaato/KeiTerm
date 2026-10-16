@@ -12,13 +12,31 @@ using Kei.Term.App.ViewModels;
 using Kei.Term.Core.Models;
 using Kei.Term.Core.Storage;
 using Kei.Term.Core.Settings;
+using Kei.Term.Core.Transfers;
 using Kei.Term.App.Helpers;
 
 public record FileSizeDisplayOption(FileSizeDisplayMode Mode, string Label);
+public record ConflictPolicyOption(TransferConflictPolicy Policy, string Label);
+public record RetryBackoffOption(RetryBackoffMode Mode, string Label);
 
 public partial class FileTransferSettingsPage : ViewModelBase
 {
     private readonly IExternalEditorRepository? _editorRepo;
+
+    public IReadOnlyList<ConflictPolicyOption> ConflictPolicyOptions { get; } =
+    [
+        new(TransferConflictPolicy.Ask, Strings.Get("Settings.FileTransfer.ConflictPolicy.Ask")),
+        new(TransferConflictPolicy.Overwrite, Strings.Get("Settings.FileTransfer.ConflictPolicy.Overwrite")),
+        new(TransferConflictPolicy.Skip, Strings.Get("Settings.FileTransfer.ConflictPolicy.Skip")),
+        new(TransferConflictPolicy.OverwriteIfOlder, Strings.Get("Settings.FileTransfer.ConflictPolicy.OverwriteIfOlder")),
+        new(TransferConflictPolicy.AutoRename, Strings.Get("Settings.FileTransfer.ConflictPolicy.AutoRename")),
+    ];
+
+    public IReadOnlyList<RetryBackoffOption> BackoffModeOptions { get; } =
+    [
+        new(RetryBackoffMode.Exponential, Strings.Get("Settings.FileTransfer.BackoffMode.Exponential")),
+        new(RetryBackoffMode.Fixed, Strings.Get("Settings.FileTransfer.BackoffMode.Fixed")),
+    ];
 
     public IReadOnlyList<FileSizeDisplayOption> SizeDisplayOptions { get; } =
     [
@@ -38,6 +56,40 @@ public partial class FileTransferSettingsPage : ViewModelBase
 
     [ObservableProperty]
     private bool _isFileManagerOnLeft;
+
+    // 传输队列与重试设置
+    [ObservableProperty]
+    private int _concurrency = FileTransferSettings.DefaultConcurrency;
+
+    [ObservableProperty]
+    private string _defaultDownloadDirectory = string.Empty;
+
+    [ObservableProperty]
+    private ConflictPolicyOption _selectedConflictPolicy;
+
+    public void SetConflictPolicy(TransferConflictPolicy policy)
+        => SelectedConflictPolicy = ConflictPolicyOptions.FirstOrDefault(opt => opt.Policy == policy) ?? ConflictPolicyOptions[0];
+
+    [ObservableProperty]
+    private bool _resumeEnabled;
+
+    [ObservableProperty]
+    private bool _autoRetryEnabled = true;
+
+    [ObservableProperty]
+    private int _retryCount = FileTransferSettings.DefaultRetryCount;
+
+    [ObservableProperty]
+    private RetryBackoffOption _selectedBackoffMode;
+
+    public void SetBackoffMode(RetryBackoffMode mode)
+        => SelectedBackoffMode = BackoffModeOptions.FirstOrDefault(opt => opt.Mode == mode) ?? BackoffModeOptions[0];
+
+    [ObservableProperty]
+    private int _initialRetryIntervalSeconds = FileTransferSettings.DefaultInitialRetryIntervalSeconds;
+
+    [ObservableProperty]
+    private int _maxRetryIntervalSeconds = FileTransferSettings.DefaultMaxRetryIntervalSeconds;
 
     [ObservableProperty]
     private int _pollingIntervalSeconds = 3;
@@ -83,6 +135,18 @@ public partial class FileTransferSettingsPage : ViewModelBase
         _editorRepo = editorRepo;
         Terminal = terminal ?? new TerminalSettingsPage();
         _selectedSizeDisplay = SizeDisplayOptions[0];
+        _selectedConflictPolicy = ConflictPolicyOptions[0];
+        _selectedBackoffMode = BackoffModeOptions[0];
+    }
+
+    [RelayCommand]
+    private async Task BrowseDownloadDirectoryAsync()
+    {
+        string? folder = await Interaction.PickFolderAsync(Strings.Get("FileManager.DownloadToDialogTitle"));
+        if (!string.IsNullOrWhiteSpace(folder))
+        {
+            DefaultDownloadDirectory = folder;
+        }
     }
 
     partial void OnSelectedEditorChanged(ExternalEditorItemViewModel? value)

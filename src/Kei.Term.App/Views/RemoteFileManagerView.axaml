@@ -24,6 +24,9 @@
         <Style Selector="Border.transferTask.failed TextBlock.transferStatus">
             <Setter Property="Foreground" Value="{DynamicResource Kei.Status.Error}"/>
         </Style>
+        <Style Selector="Border.transferTask.skipped TextBlock.transferStatus">
+            <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Secondary}"/>
+        </Style>
         <Style Selector="Border.transferTask.completed TextBlock.transferStatus">
             <Setter Property="Foreground" Value="{DynamicResource Kei.Status.Connected}"/>
         </Style>
@@ -123,7 +126,7 @@
                             </Grid>
                         </Viewbox>
                     </Button>
-                    <Button x:Name="FileManagerDockButton" Classes="iconBtn" Width="28" Height="28" ToolTip.Tip="切换左/右侧停靠" Command="{Binding ToggleDockPositionCommand}" IsVisible="{Binding !IsWorkspaceTab}">
+                    <Button x:Name="FileManagerDockButton" Classes="iconBtn" Width="28" Height="28" ToolTip.Tip="切换左/右侧停靠" Command="{Binding ToggleDockPositionCommand}" IsVisible="{Binding !IsFileTab}">
                         <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
                             <Grid Width="24" Height="24">
                                 <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.DockSwap}" Width="24" Height="24" Stretch="None"/>
@@ -131,7 +134,7 @@
                         </Viewbox>
                     </Button>
                     <Button x:Name="FileManagerMaximizeButton" Classes="iconBtn fileMaximize" Classes.maximized="{Binding IsMaximized}"
-                            Width="28" Height="28" Command="{Binding MaximizeCommand}" IsVisible="{Binding !IsWorkspaceTab}">
+                            Width="28" Height="28" Command="{Binding MaximizeCommand}" IsVisible="{Binding !IsFileTab}">
                         <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
                             <Grid Width="24" Height="24">
                                 <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Maximize}" IsVisible="{Binding !IsMaximized}" Width="24" Height="24" Stretch="None"/>
@@ -139,8 +142,8 @@
                             </Grid>
                         </Viewbox>
                     </Button>
-                    <Button x:Name="FileManagerOpenInTabButton" Classes="iconBtn" Width="28" Height="28" ToolTip.Tip="{loc:KeiString FileManager.OpenInTab}"
-                            AutomationProperties.Name="{loc:KeiString FileManager.OpenInTab}" Command="{Binding PromoteToTabCommand}" IsVisible="{Binding !IsWorkspaceTab}">
+                    <Button x:Name="FileManagerOpenInTabButton" Classes="iconBtn" Width="28" Height="28" ToolTip.Tip="{loc:KeiString FileManager.PromoteToFileTab}"
+                            AutomationProperties.Name="{loc:KeiString FileManager.PromoteToFileTab}" Command="{Binding PromoteToTabCommand}" IsVisible="{Binding !IsFileTab}">
                         <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
                             <Grid Width="24" Height="24">
                                 <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.ExternalLink}" Width="24" Height="24" Stretch="None"/>
@@ -254,7 +257,8 @@
                                   Command="{Binding OpenWithCustomExecutableCommand}"
                                   CommandParameter="{Binding SelectedItem}"/>
                         <Separator/>
-                        <MenuItem Header="下载到桌面" Command="{Binding DownloadToDesktopCommand}" CommandParameter="{Binding SelectedItem}"/>
+                        <MenuItem Header="{loc:KeiString FileManager.Download}" Command="{Binding DownloadCommand}" CommandParameter="{Binding SelectedItem}"/>
+                        <MenuItem Header="{loc:KeiString FileManager.DownloadTo}" Command="{Binding DownloadToCommand}" CommandParameter="{Binding SelectedItem}"/>
                         <MenuItem Header="{loc:KeiString FileManager.CopyRemotePath}" Click="OnCopyRemotePath"/>
                         <Separator/>
                         <MenuItem Header="删除" Command="{Binding DeleteItemCommand}" CommandParameter="{Binding SelectedItem}"/>
@@ -338,6 +342,7 @@
                                             <Border Classes="transferTask" Background="{DynamicResource Kei.Bg.Card}" CornerRadius="{DynamicResource Kei.Radius.Control}"
                                                     BorderBrush="{DynamicResource Kei.Border.Subtle}" BorderThickness="1" Padding="8,4"
                                                     Classes.failed="{Binding State, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:FileTransferState.Failed}}"
+                                                    Classes.skipped="{Binding State, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:FileTransferState.Skipped}}"
                                                     Classes.completed="{Binding State, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:FileTransferState.Completed}}">
                                                 <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,*,Auto">
                                                     <!-- 方向图标 -->
@@ -363,15 +368,27 @@
                                                                  IsVisible="{Binding State, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:FileTransferState.Transferring}}"
                                                                  Foreground="{DynamicResource Kei.Accent}" Background="{DynamicResource Kei.Bg.PanelAlt}"/>
 
-                                                    <!-- 取消/移除按钮 -->
-                                                    <Button Grid.Column="2" Classes="iconBtn" Width="28" Height="28" Margin="4,0,0,0"
-                                                            Command="{Binding CancelCommand}" ToolTip.Tip="取消或移除任务" AutomationProperties.Name="取消或移除任务">
-                                                        <Viewbox Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                            <Grid Width="24" Height="24">
-                                                                <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Close}" Width="24" Height="24" Stretch="None"/>
-                                                            </Grid>
-                                                        </Viewbox>
-                                                    </Button>
+                                                    <!-- 操作按钮：失败时显示重试，以及取消/移除 -->
+                                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="2" Margin="4,0,0,0" VerticalAlignment="Center">
+                                                        <Button Classes="iconBtn" Width="28" Height="28"
+                                                                Command="{Binding RetryCommand}"
+                                                                IsVisible="{Binding State, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:FileTransferState.Failed}}"
+                                                                ToolTip.Tip="{loc:KeiString FileActivity.Retry}" AutomationProperties.Name="{loc:KeiString FileActivity.Retry}">
+                                                            <Viewbox Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                <Grid Width="24" Height="24">
+                                                                    <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Refresh}" Stroke="{DynamicResource Kei.Text.Primary}" Width="24" Height="24" Stretch="None"/>
+                                                                </Grid>
+                                                            </Viewbox>
+                                                        </Button>
+                                                        <Button Classes="iconBtn" Width="28" Height="28"
+                                                                Command="{Binding CancelCommand}" ToolTip.Tip="{loc:KeiString FileActivity.CancelOrRemove}" AutomationProperties.Name="{loc:KeiString FileActivity.CancelOrRemove}">
+                                                            <Viewbox Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                <Grid Width="24" Height="24">
+                                                                    <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Close}" Width="24" Height="24" Stretch="None"/>
+                                                                </Grid>
+                                                            </Viewbox>
+                                                        </Button>
+                                                    </StackPanel>
                                                 </Grid>
                                             </Border>
                                         </DataTemplate>
@@ -449,6 +466,20 @@
                 </TabControl>
                 <StackPanel x:Name="FileActivityHeaderActions" Orientation="Horizontal" Spacing="2" Margin="0,4,4,0"
                             HorizontalAlignment="Right" VerticalAlignment="Top">
+                    <Button x:Name="RetryAllFailedTasksButton" Classes="iconBtn" Width="28" Height="28" Foreground="{DynamicResource Kei.Text.Secondary}"
+                            ToolTip.Tip="{loc:KeiString FileActivity.RetryAllFailed}" AutomationProperties.Name="{loc:KeiString FileActivity.RetryAllFailed}"
+                            Command="{Binding RetryAllFailedTransfersCommand}">
+                        <Button.IsVisible>
+                            <Binding Path="SelectedActivityTab" Converter="{x:Static ObjectConverters.Equal}">
+                                <Binding.ConverterParameter><x:Int32>0</x:Int32></Binding.ConverterParameter>
+                            </Binding>
+                        </Button.IsVisible>
+                        <Viewbox Width="14" Height="14" Stretch="Uniform">
+                            <Grid Width="24" Height="24">
+                                <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Refresh}" Stroke="{Binding $parent[Button].Foreground}" Width="24" Height="24" Stretch="None"/>
+                            </Grid>
+                        </Viewbox>
+                    </Button>
                     <Button x:Name="ClearTransferTasksButton" Classes="iconBtn" Width="28" Height="28" Foreground="{DynamicResource Kei.Text.Secondary}"
                             ToolTip.Tip="清除已完成、失败或取消的任务" AutomationProperties.Name="清除已结束的任务" Command="{Binding ClearCompletedTransferTasksCommand}">
                         <Button.IsVisible>

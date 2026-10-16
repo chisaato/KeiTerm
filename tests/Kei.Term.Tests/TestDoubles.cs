@@ -10,6 +10,7 @@ using Kei.Term.Core.Models.Profiles;
 using Kei.Term.Core.Security;
 using Kei.Term.Core.Services;
 using Kei.Term.Core.Settings;
+using Kei.Term.Core.Transfers;
 using Kei.Term.Core.Vault;
 
 namespace Kei.Term.Tests;
@@ -136,6 +137,20 @@ internal sealed class ScriptedInteraction : IInteractionService
 
     public Task<string?> PromptTextAsync(string title, string label, string? initialText)
         => Task.FromResult(TextAnswers.Count > 0 ? TextAnswers.Dequeue() : null);
+
+    public Queue<TransferConflictChoice?> ConflictChoices { get; } = new();
+    public Queue<string?> Folders { get; } = new();
+    public Queue<bool> LargeFileAnswers { get; } = new();
+
+    public Task<TransferConflictChoice?> PromptTransferConflictAsync(
+        string fileName, TransferFileFacts source, TransferFileFacts target, CancellationToken ct = default)
+        => Task.FromResult(ConflictChoices.Count > 0 ? ConflictChoices.Dequeue() : null);
+
+    public Task<bool> ConfirmLargeScpTransferAsync(string fileName, long size, CancellationToken ct = default)
+        => Task.FromResult(LargeFileAnswers.Count > 0 && LargeFileAnswers.Dequeue());
+
+    public Task<string?> PickFolderAsync(string title, CancellationToken ct = default)
+        => Task.FromResult(Folders.Count > 0 ? Folders.Dequeue() : null);
 }
 
 // 纯内存设置服务

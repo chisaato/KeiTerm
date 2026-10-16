@@ -2130,7 +2130,10 @@ Latin: AaBb CcDd GgYy gypq
     <value>原始字节数（B）</value>
   </data>
   <data name="FileManager.OpenInTab" xml:space="preserve">
-    <value>在新标签页中打开</value>
+    <value>打开目录标签</value>
+  </data>
+  <data name="FileManager.PromoteToFileTab" xml:space="preserve">
+    <value>提升为文件标签</value>
   </data>
   <data name="FileManager.ShowShell" xml:space="preserve">
     <value>显示终端</value>
@@ -2205,6 +2208,165 @@ Latin: AaBb CcDd GgYy gypq
   </data>
   <data name="Settings.Ssh.VaultSection" xml:space="preserve">
     <value>保险库锁定</value>
+  </data>
+    <data name="Settings.FileTransfer.TransfersSection" xml:space="preserve">
+    <value>传输与排队</value>
+  </data>
+  <data name="Settings.FileTransfer.Concurrency" xml:space="preserve">
+    <value>并发传输数</value>
+  </data>
+  <data name="Settings.FileTransfer.ConcurrencyTip" xml:space="preserve">
+    <value>同一连接同时传输的文件数，最小为 1，不设上限；超出部分在队列中排队。</value>
+  </data>
+  <data name="Settings.FileTransfer.DefaultDownloadDirectory" xml:space="preserve">
+    <value>默认下载目录</value>
+  </data>
+  <data name="Settings.FileTransfer.DefaultDownloadDirectoryPlaceholder" xml:space="preserve">
+    <value>留空使用系统下载文件夹</value>
+  </data>
+  <data name="Settings.FileTransfer.DefaultDownloadDirectoryTip" xml:space="preserve">
+    <value>下载文件的默认保存目录；留空时自动使用系统的“下载”文件夹。</value>
+  </data>
+  <data name="Settings.FileTransfer.ConflictPolicy" xml:space="preserve">
+    <value>默认冲突策略</value>
+  </data>
+  <data name="Settings.FileTransfer.ConflictPolicyTip" xml:space="preserve">
+    <value>目标位置已存在同名正式文件时的处理方式。</value>
+  </data>
+  <data name="Settings.FileTransfer.ConflictPolicy.Ask" xml:space="preserve">
+    <value>每次询问</value>
+  </data>
+  <data name="Settings.FileTransfer.ConflictPolicy.Overwrite" xml:space="preserve">
+    <value>覆盖</value>
+  </data>
+  <data name="Settings.FileTransfer.ConflictPolicy.Skip" xml:space="preserve">
+    <value>跳过</value>
+  </data>
+  <data name="Settings.FileTransfer.ConflictPolicy.OverwriteIfOlder" xml:space="preserve">
+    <value>仅当目标较旧时覆盖</value>
+  </data>
+  <data name="Settings.FileTransfer.ConflictPolicy.AutoRename" xml:space="preserve">
+    <value>自动改名 (name (1).ext)</value>
+  </data>
+  <data name="Settings.FileTransfer.ResumeEnabled" xml:space="preserve">
+    <value>启用断点续传（实验性）</value>
+  </data>
+  <data name="Settings.FileTransfer.ResumeEnabledTip" xml:space="preserve">
+    <value>开启后，当临时部分文件长度小于源文件且源文件未修改时接着传；关闭时清理并从头传输。仅 SFTP 支持。</value>
+  </data>
+  <data name="Settings.FileTransfer.RetrySection" xml:space="preserve">
+    <value>自动重试</value>
+  </data>
+  <data name="Settings.FileTransfer.AutoRetryEnabled" xml:space="preserve">
+    <value>遇到暂时性网络错误时自动重试</value>
+  </data>
+  <data name="Settings.FileTransfer.RetryCount" xml:space="preserve">
+    <value>重试次数</value>
+  </data>
+  <data name="Settings.FileTransfer.RetryCountTip" xml:space="preserve">
+    <value>首次传输失败后的最大重试尝试次数。</value>
+  </data>
+  <data name="Settings.FileTransfer.BackoffMode" xml:space="preserve">
+    <value>退避方式</value>
+  </data>
+  <data name="Settings.FileTransfer.BackoffMode.Fixed" xml:space="preserve">
+    <value>固定间隔</value>
+  </data>
+  <data name="Settings.FileTransfer.BackoffMode.Exponential" xml:space="preserve">
+    <value>指数退避</value>
+  </data>
+  <data name="Settings.FileTransfer.InitialRetryInterval" xml:space="preserve">
+    <value>初始间隔（秒）</value>
+  </data>
+  <data name="Settings.FileTransfer.InitialRetryIntervalTip" xml:space="preserve">
+    <value>首次重试前等待的秒数；固定间隔下每次重试均等待此时长。</value>
+  </data>
+  <data name="Settings.FileTransfer.MaxRetryInterval" xml:space="preserve">
+    <value>最大间隔（秒）</value>
+  </data>
+  <data name="Settings.FileTransfer.MaxRetryIntervalTip" xml:space="preserve">
+    <value>指数退避时的最长等待秒数上限。</value>
+  </data>
+  <data name="FileManager.Download" xml:space="preserve">
+    <value>下载</value>
+  </data>
+  <data name="FileManager.DownloadTo" xml:space="preserve">
+    <value>下载到…</value>
+  </data>
+  <data name="FileManager.DownloadToDialogTitle" xml:space="preserve">
+    <value>选择下载保存目录</value>
+  </data>
+  <data name="FileTransfer.Conflict.Title" xml:space="preserve">
+    <value>文件已存在</value>
+  </data>
+  <data name="FileTransfer.Conflict.Header" xml:space="preserve">
+    <value>目标位置已存在同名文件：{0}</value>
+  </data>
+  <data name="FileTransfer.Conflict.SourceLabel" xml:space="preserve">
+    <value>源文件：</value>
+  </data>
+  <data name="FileTransfer.Conflict.TargetLabel" xml:space="preserve">
+    <value>目标文件：</value>
+  </data>
+  <data name="FileTransfer.Conflict.FileInfoFormat" xml:space="preserve">
+    <value>{0} · 修改于 {1}</value>
+  </data>
+  <data name="FileTransfer.Conflict.ApplyToRemaining" xml:space="preserve">
+    <value>对本批次剩余的冲突都这样处理</value>
+  </data>
+  <data name="FileTransfer.Conflict.Overwrite" xml:space="preserve">
+    <value>覆盖</value>
+  </data>
+  <data name="FileTransfer.Conflict.Skip" xml:space="preserve">
+    <value>跳过</value>
+  </data>
+  <data name="FileTransfer.Conflict.OverwriteIfOlder" xml:space="preserve">
+    <value>仅较旧时覆盖</value>
+  </data>
+  <data name="FileTransfer.Conflict.AutoRename" xml:space="preserve">
+    <value>自动改名</value>
+  </data>
+  <data name="FileTransfer.ScpLargeFile.Title" xml:space="preserve">
+    <value>SCP 大文件确认</value>
+  </data>
+  <data name="FileTransfer.ScpLargeFile.Message" xml:space="preserve">
+    <value>{0} 约 {1} MiB。SCP 协议在传输时会把整个文件读入内存，可能占用大量系统资源。是否继续传输？</value>
+  </data>
+  <data name="FileTransfer.ScpLargeFile.Continue" xml:space="preserve">
+    <value>继续传输</value>
+  </data>
+  <data name="FileActivity.Retry" xml:space="preserve">
+    <value>重试</value>
+  </data>
+  <data name="FileActivity.RetryAllFailed" xml:space="preserve">
+    <value>重试全部失败项</value>
+  </data>
+  <data name="FileActivity.CancelOrRemove" xml:space="preserve">
+    <value>取消或移除任务</value>
+  </data>
+  <data name="FileActivity.Status.Pending" xml:space="preserve">
+    <value>等待中...</value>
+  </data>
+  <data name="FileActivity.Status.Transferring" xml:space="preserve">
+    <value>传输中...</value>
+  </data>
+  <data name="FileActivity.Status.AwaitingConflict" xml:space="preserve">
+    <value>等待确认冲突...</value>
+  </data>
+  <data name="FileActivity.Status.RetryWait" xml:space="preserve">
+    <value>等待重试...</value>
+  </data>
+  <data name="FileActivity.Status.Completed" xml:space="preserve">
+    <value>完成</value>
+  </data>
+  <data name="FileActivity.Status.Skipped" xml:space="preserve">
+    <value>已跳过</value>
+  </data>
+  <data name="FileActivity.Status.Failed" xml:space="preserve">
+    <value>失败: {0}</value>
+  </data>
+  <data name="FileActivity.Status.Cancelled" xml:space="preserve">
+    <value>已取消</value>
   </data>
   <data name="Settings.FileTransfer.FileManagerSection" xml:space="preserve">
     <value>文件管理</value>

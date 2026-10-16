@@ -29,7 +29,9 @@ public enum FileWatcherMode
     Polling = 2
 }
 
-// 远程文件元数据条目
+// 远程文件元数据条目。
+// 符号链接字段有默认值：不填时与以前的 8 参数构造完全一致。
+// IsDirectory 仍表示链接自身（lstat），不会因为目标是目录而变成 true。
 public record RemoteFileItem(
     string Name,
     string FullPath,
@@ -38,7 +40,13 @@ public record RemoteFileItem(
     DateTimeOffset LastModified,
     string Permissions,
     int UserId = 0,
-    int GroupId = 0);
+    int GroupId = 0,
+    bool IsSymbolicLink = false,
+    bool? LinkTargetIsDirectory = null,
+    long? LinkTargetSize = null,
+    DateTimeOffset? LinkTargetModified = null,
+    bool IsBrokenSymbolicLink = false,
+    bool IsIndeterminateSymbolicLink = false);
 
 // 传输任务状态
 public enum FileTransferStatus

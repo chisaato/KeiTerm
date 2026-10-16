@@ -94,7 +94,7 @@ public class RemoteFileManagerLayoutTests
             AssertTokenColor(window, "Kei.Bg.Pressed", fullscreen.Background);
             AssertTokenColor(window, "Kei.Text.Muted", fullscreen.BorderBrush);
             await CaptureAsync(window, 450, "current-page-fullscreen-actions");
-            model.IsWorkspaceTab = true;
+            model.IsFileTab = true;
             HeadlessAvalonia.Pump();
             Assert.False(fullscreen.IsVisible);
             Assert.False(view.FindControl<Button>("FileManagerOpenInTabButton")!.IsVisible);
@@ -294,7 +294,9 @@ public class RemoteFileManagerLayoutTests
                 Point statusOrigin = status.TranslatePoint(default, window)!.Value;
                 Assert.True(statusOrigin.Y >= nameOrigin.Y + name.Bounds.Height, "任务状态必须另起一行以保留长文件名的宽度");
                 Assert.True(name.Bounds.Width > 100, "窄面板也应留出可辨识文件名的宽度");
-                AssertInsideHorizontally(task.GetVisualDescendants().OfType<Button>().Single(), window);
+                Button[] actions = task.GetVisualDescendants().OfType<Button>().Where(button => button.IsEffectivelyVisible).ToArray();
+                Assert.NotEmpty(actions);
+                Assert.All(actions, button => AssertInsideHorizontally(button, window));
             }
             AssertInsideHorizontally(view.FindControl<Button>("ClearTransferTasksButton")!, window);
             Button clear = view.FindControl<Button>("ClearTransferTasksButton")!;

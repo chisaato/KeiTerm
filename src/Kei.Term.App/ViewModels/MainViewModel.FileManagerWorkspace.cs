@@ -16,7 +16,7 @@ public partial class MainViewModel
         if (_disposed != 0) return;
         TerminalTabViewModel? owner = FindFileManagerOwner(message.FileManager);
         if (owner == null || owner.IsDisposed) return;
-        // 恢复原连接的文档和终端缓冲；独立文件标签请求时回到它所属的终端标签。
+        // 恢复原连接的终端视图；文件标签请求显示终端时回到所属连接标签。
         owner.ActiveDocument = ConnectionDocumentKind.Shell;
         owner.IsShellVisible = true;
         if (owner.IsFileManagerMaximized) owner.IsFileManagerVisible = false;
@@ -26,43 +26,46 @@ public partial class MainViewModel
 
     private void OnFileManagerMaximizeRequested(object recipient, FileManagerMaximizeRequestedMessage message) => _uiDispatch(() =>
     {
-        if (_disposed != 0 || message.FileManager.IsWorkspaceTab) return;
+        if (_disposed != 0 || message.FileManager.IsFileTab) return;
         TerminalTabViewModel? owner = FindFileManagerOwner(message.FileManager);
         if (owner == null || owner.IsDisposed) return;
         owner.ToggleFileManagerMaximized();
         Workspace.Activate(owner);
     });
 
-    private void OnFileManagerTabRequested(object recipient, FileManagerTabRequestedMessage message) => _uiDispatch(() =>
+    private void OnFileViewPromoteRequested(object recipient, FileViewPromoteRequestedMessage message) => _uiDispatch(() =>
     {
         if (_disposed != 0) return;
-        TerminalTabViewModel? owner = FindFileManagerOwner(message.FileManager);
+        TerminalTabViewModel? owner = FindFileManagerOwner(message.FileView);
         if (owner == null || owner.IsDisposed) return;
-        if (message.Directory is { } directory)
-        {
-            if (message.FileManager.CreateDirectoryTab(directory) is not { } browser) return;
-            // 始终新增目录文档，保留来源页的路径与选择；新页进入来源连接所在的分组。
-            Workspace.Activate(FindFileManagerTab(message.FileManager) as ViewModelBase ?? owner);
-            Workspace.AddTab(new FileManagerTabViewModel(owner, browser));
-            return;
-        }
-        if (FindFileManagerTab(message.FileManager) is { } existing)
+        if (FindFileManagerTab(message.FileView) is { } existing)
         {
             Workspace.Activate(existing);
             return;
         }
 
-        // 按请求来源选组，不把另一分屏中的文件管理器加入当前活动组。
+        // 提升的是侧栏里已有的文件视图，不新建通道。按来源连接选组。
         Workspace.Activate(owner);
         owner.IsFileManagerMaximized = false;
         owner.IsShellVisible = true;
         owner.IsFileManagerVisible = false;
-        Workspace.AddTab(new FileManagerTabViewModel(owner, message.FileManager));
+        Workspace.AddTab(new FileManagerTabViewModel(owner, message.FileView));
     });
 
-    private void OnFileManagerTabCloseRequested(object recipient, FileManagerTabCloseRequestedMessage message) => _uiDispatch(() =>
+    private void OnDirectoryTabRequested(object recipient, DirectoryTabRequestedMessage message) => _uiDispatch(() =>
     {
-        if (_disposed == 0 && FindFileManagerTab(message.FileManager) is { } tab) CloseFileManagerTab(tab);
+        if (_disposed != 0) return;
+        TerminalTabViewModel? owner = FindFileManagerOwner(message.Source);
+        if (owner == null || owner.IsDisposed) return;
+        if (message.Source.CreateDirectoryTab(message.Directory) is not { } browser) return;
+        // 目录标签是新的浏览位置，不移动来源页。进入来源连接所在的分组。
+        Workspace.Activate(FindFileManagerTab(message.Source) as ViewModelBase ?? owner);
+        Workspace.AddTab(new FileManagerTabViewModel(owner, browser));
+    });
+
+    private void OnFileTabCloseRequested(object recipient, FileTabCloseRequestedMessage message) => _uiDispatch(() =>
+    {
+        if (_disposed == 0 && FindFileManagerTab(message.FileView) is { } tab) CloseFileManagerTab(tab);
     });
 
     private FileManagerTabViewModel? FindFileManagerTab(RemoteFileManagerViewModel fileManager)

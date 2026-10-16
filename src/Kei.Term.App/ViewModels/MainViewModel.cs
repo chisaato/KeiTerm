@@ -148,7 +148,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
     // Vault 会话（懒解锁、材料读写、口令缓存、空闲锁定判定）
     public VaultSessionService VaultSession { get; }
 
-    // 连接编排（认证收集 → 跳板 → 建连重试 → 主机密钥确认 → 文件侧栏）
+    // 连接编排（认证收集 → 跳板 → 建连重试 → 主机密钥确认 → 侧栏中的文件视图）
     private readonly ConnectionOrchestrator _connections;
     private readonly IProxyRepository? _proxyRepo;
     private readonly IPortForwardRepository? _portForwards;
@@ -214,10 +214,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         InitializeTitleTemplates();
         WeakReferenceMessenger.Default.Register<WorkspaceActiveItemChangedMessage>(this, OnWorkspaceActiveTabChanged);
         WeakReferenceMessenger.Default.Register<WorkspaceItemCloseRequestedMessage>(this, OnWorkspaceCloseRequested);
-        WeakReferenceMessenger.Default.Register<FileManagerTabRequestedMessage>(this, OnFileManagerTabRequested);
+        WeakReferenceMessenger.Default.Register<FileViewPromoteRequestedMessage>(this, OnFileViewPromoteRequested);
+        WeakReferenceMessenger.Default.Register<DirectoryTabRequestedMessage>(this, OnDirectoryTabRequested);
         WeakReferenceMessenger.Default.Register<FileManagerShellRequestedMessage>(this, OnFileManagerShellRequested);
         WeakReferenceMessenger.Default.Register<FileManagerMaximizeRequestedMessage>(this, OnFileManagerMaximizeRequested);
-        WeakReferenceMessenger.Default.Register<FileManagerTabCloseRequestedMessage>(this, OnFileManagerTabCloseRequested);
+        WeakReferenceMessenger.Default.Register<FileTabCloseRequestedMessage>(this, OnFileTabCloseRequested);
         WeakReferenceMessenger.Default.Register<ConnectionDocumentsChangedMessage>(this, OnConnectionDocumentsChanged);
         Workspace.AllItems.CollectionChanged += OnWorkspaceItemsChanged;
 

@@ -45,7 +45,7 @@ public partial class TerminalSettingsPage : ViewModelBase
     private static TabTitleContext PreviewContext(string path, string title)
         => new("production", "server.example.com", "22", "ops", "server", path, "203.0.113.10", title);
 
-    // 文件侧栏跟随终端目录的全局默认；会话可覆盖
+    // 侧栏中的文件视图跟随终端目录的全局默认；会话可覆盖
     public IReadOnlyList<CwdFollowOption> CwdFollowModes => SessionBehaviorOptions.CwdFollowModes;
 
     [ObservableProperty]

@@ -29,7 +29,7 @@
                 </ContextMenu>
             </Border.ContextMenu>
             <Grid RowDefinitions="Auto,*,Auto">
-                <!-- 28px 命中区域和 16px 图标，与终端查找及文件侧栏共享操作。 -->
+                <!-- 28px 命中区域和 16px 图标，与终端查找及侧栏共享操作。 -->
                 <Border Grid.Row="0" Height="34"
                         Background="{DynamicResource Kei.Bg.PanelAlt}"
                         BorderBrush="{DynamicResource Kei.Border}" BorderThickness="0,0,0,1" Padding="6,3">

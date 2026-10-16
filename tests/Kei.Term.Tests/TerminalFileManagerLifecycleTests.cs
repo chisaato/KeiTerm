@@ -12,6 +12,7 @@ using Kei.Term.Core.Abstractions;
 using Kei.Term.Core.Models;
 using Kei.Term.Core.Services;
 using Kei.Term.Core.Settings;
+using Kei.Term.Core.Transfers;
 
 namespace Kei.Term.Tests;
 
@@ -142,6 +143,81 @@ public class TerminalFileManagerLifecycleTests
         await tab.DisposeAsync();
     });
 
+    [Fact]
+    public Task OverlappingInitialization_DoesNotCloseTheNewerTransferEndpoint() => HeadlessAvalonia.RunAsync(async () =>
+    {
+        TerminalTabViewModel tab = new("overlap", "monospace", 14);
+        tab.AttachSession(new IdleSession());
+        FixedSettingsService settings = new();
+        RecordingFileSystem firstFiles = new() { BlockListings = true };
+        RecordingFileSystem secondFiles = new();
+        TrackingEndpoint first = new();
+        TrackingEndpoint second = new();
+        Task initializeFirst = tab.InitializeFileManagerAsync(firstFiles, new RecordingTracker(), settings, transfers: first);
+        await firstFiles.ListingStarted.Task;
+        Task initializeSecond = tab.InitializeFileManagerAsync(secondFiles, new RecordingTracker(), settings, transfers: second);
+        firstFiles.ResumeListings.TrySetResult();
+        await Task.WhenAll(initializeFirst, initializeSecond);
+        Assert.Equal(1, first.Disposes);
+        Assert.Equal(0, second.Disposes);
+        Assert.NotNull(tab.FileManager);
+        await tab.DisposeAsync();
+        Assert.Equal(1, second.Disposes);
+    });
+
+    [Fact]
+    public Task LateSession_DisposesIncomingTransferEndpoint() => HeadlessAvalonia.RunAsync(async () =>
+    {
+        TerminalTabViewModel tab = new("late-transfer", "monospace", 14);
+        IdleSession oldSession = new();
+        tab.AttachSession(oldSession);
+        await tab.PrepareReconnectAsync();
+        tab.AttachSession(new IdleSession());
+        TrackingEndpoint late = new();
+        await tab.InitializeFileManagerAsync(new RecordingFileSystem(), new RecordingTracker(), new FixedSettingsService(), expectedSession: oldSession, transfers: late);
+        Assert.Equal(1, late.Disposes);
+        await tab.DisposeAsync();
+    });
+
+    [Fact]
+    public Task MissingTransferEndpoint_DoesNotUseBrowseFileSystem() => HeadlessAvalonia.RunAsync(async () =>
+    {
+        TerminalTabViewModel tab = new("no-fallback", "monospace", 14);
+        tab.AttachSession(new IdleSession());
+        RecordingFileSystem remote = new();
+        await tab.InitializeFileManagerAsync(
+            remote, new RecordingTracker(), new FixedSettingsService(), transferUnavailableReason: "传输通道不可用：测试");
+        string directory = Path.Combine(Path.GetTempPath(), "keiterm-no-fallback-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            string file = Path.Combine(directory, "a.txt");
+            await File.WriteAllTextAsync(file, "nope");
+            await tab.FileManager!.UploadLocalFilesAsync([file]);
+            Assert.Equal(0, remote.OpenWrites);
+            Assert.Contains("传输通道不可用", tab.FileManager.TransferStatusMessage);
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+            await tab.DisposeAsync();
+        }
+    });
+
+    private sealed class TrackingEndpoint : ITransferEndpoint
+    {
+        public int Disposes;
+        public FileTransferProtocol Protocol => FileTransferProtocol.Sftp;
+        public Task<IRemoteTransferLease> AcquireAsync(CancellationToken ct = default)
+            => Task.FromResult<IRemoteTransferLease>(new Lease());
+        public ValueTask DisposeAsync() { Disposes++; return ValueTask.CompletedTask; }
+        private sealed class Lease : IRemoteTransferLease
+        {
+            public IRemoteFileSystem FileSystem { get; } = new RecordingFileSystem();
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
+    }
+
     private sealed class GatedDisposalSession : IdleSession
     {
         public TaskCompletionSource DisposalStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -172,6 +248,7 @@ public class TerminalFileManagerLifecycleTests
         public TaskCompletionSource ListingStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource ResumeListings { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public int DisposeCount { get; private set; }
+        public int OpenWrites { get; private set; }
         public bool IsConnected => true;
         public string WorkingDirectory => "/";
         public Task ConnectAsync(CancellationToken ct = default) => Task.CompletedTask;
@@ -183,7 +260,11 @@ public class TerminalFileManagerLifecycleTests
             return [new RemoteFileItem("file.txt", "/file.txt", false, 1, DateTimeOffset.UnixEpoch, "-rw-r--r--")];
         }
         public Task<Stream> OpenReadAsync(string path, CancellationToken ct = default) => Task.FromResult(Stream.Null);
-        public Task<Stream> OpenWriteAsync(string path, CancellationToken ct = default) => Task.FromResult(Stream.Null);
+        public Task<Stream> OpenWriteAsync(string path, CancellationToken ct = default)
+        {
+            OpenWrites++;
+            return Task.FromResult(Stream.Null);
+        }
         public Task DeleteAsync(string path, bool isDirectory, CancellationToken ct = default) => Task.CompletedTask;
         public Task RenameAsync(string oldPath, string newPath, CancellationToken ct = default) => Task.CompletedTask;
         public Task CreateDirectoryAsync(string path, CancellationToken ct = default) => Task.CompletedTask;

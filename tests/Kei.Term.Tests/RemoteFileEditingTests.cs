@@ -5,6 +5,8 @@ using Kei.Term.App.ViewModels;
 using Kei.Term.Core.Abstractions;
 using Kei.Term.Core.Models;
 using Kei.Term.Core.Services;
+using Kei.Term.Core.Settings;
+using Kei.Term.Core.Transfers;
 
 namespace Kei.Term.Tests;
 
@@ -215,15 +217,16 @@ public class RemoteFileEditingTests
     {
         string directory = NewDirectory();
         BufferedFileSystem remote = new() { PauseCommit = true };
-        await using RemoteFileManagerViewModel manager = new(Guid.NewGuid(), remote, new ManualTracker());
+        await using RemoteFileManagerViewModel manager = ManagerWithEndpoint(remote);
         try
         {
             string file = Path.Combine(directory, "upload.txt");
             await File.WriteAllTextAsync(file, "replacement");
             await manager.UploadLocalFilesAsync([file]);
             await remote.CommitStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await WaitUntilAsync(() => manager.TransferTasks.Count == 1);
             FileTransferTaskItemViewModel transfer = Assert.Single(manager.TransferTasks);
-            Assert.Equal(FileTransferState.Transferring, transfer.State);
+            await WaitUntilAsync(() => transfer.State == FileTransferState.Transferring);
             Assert.Equal("original", remote.Contents);
 
             remote.AllowCommit.TrySetResult();
@@ -242,12 +245,13 @@ public class RemoteFileEditingTests
     {
         string directory = NewDirectory();
         BufferedFileSystem remote = new() { FailCommit = true };
-        await using RemoteFileManagerViewModel manager = new(Guid.NewGuid(), remote, new ManualTracker());
+        await using RemoteFileManagerViewModel manager = ManagerWithEndpoint(remote);
         try
         {
             string file = Path.Combine(directory, "upload.txt");
             await File.WriteAllTextAsync(file, "replacement");
             await manager.UploadLocalFilesAsync([file]);
+            await WaitUntilAsync(() => manager.TransferTasks.Count == 1);
             FileTransferTaskItemViewModel transfer = Assert.Single(manager.TransferTasks);
             await WaitUntilAsync(() => transfer.State == FileTransferState.Failed);
             Assert.Equal("original", remote.Contents);
@@ -317,6 +321,18 @@ public class RemoteFileEditingTests
         finally { Directory.Delete(directory, recursive: true); }
     });
 
+    private static RemoteFileManagerViewModel ManagerWithEndpoint(IRemoteFileSystem remote)
+        => new(
+            Guid.NewGuid(),
+            remote,
+            new ManualTracker(),
+            transfers: ConnectionTransferBoard.Create(
+                new FileSystemTransferEndpoint(remote, FileTransferProtocol.Sftp, owns: false),
+                () => new FileTransferSettings { AutoRetryEnabled = false },
+                NullInteractionService.Instance,
+                DotNetTransferFailureClassifier.Instance,
+                ownsEndpoint: false));
+
     private static string NewDirectory()
     {
         string directory = Path.Combine(Path.GetTempPath(), "keiterm-editing-" + Guid.NewGuid().ToString("N"));
@@ -338,6 +354,7 @@ public class RemoteFileEditingTests
         public bool FailCommit { get; init; }
         public int Disposals { get; private set; }
         public int OpenWrites { get; private set; }
+        private bool _committed;
         public TaskCompletionSource CommitStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource AllowCommit { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public bool IsConnected => Disposals == 0;
@@ -360,12 +377,18 @@ public class RemoteFileEditingTests
             if (FailCommit) throw new IOException("commit denied");
             Assert.Equal(0, Disposals);
             Contents = Encoding.UTF8.GetString(((MemoryStream)stream).ToArray());
+            _committed = true;
         }
         public Task DeleteAsync(string path, bool isDirectory, CancellationToken ct = default) => Task.CompletedTask;
         public Task RenameAsync(string oldPath, string newPath, CancellationToken ct = default) => Task.CompletedTask;
         public Task CreateDirectoryAsync(string path, CancellationToken ct = default) => Task.CompletedTask;
         public Task ChangePermissionsAsync(string path, int octalPermissions, CancellationToken ct = default) => Task.CompletedTask;
-        public Task<RemoteFileItem?> GetItemAsync(string path, CancellationToken ct = default) => Task.FromResult<RemoteFileItem?>(null);
+        public Task<RemoteFileItem?> GetItemAsync(string path, CancellationToken ct = default)
+            => Task.FromResult<RemoteFileItem?>(_committed
+                ? new RemoteFileItem(System.IO.Path.GetFileName(path), path, false, Encoding.UTF8.GetByteCount(Contents), DateTimeOffset.UtcNow, "")
+                : null);
+        public Task RenameOverwriteAsync(string oldPath, string newPath, CancellationToken ct = default) => Task.CompletedTask;
+        public Task SetLastWriteTimeUtcAsync(string path, DateTime lastWriteTimeUtc, CancellationToken ct = default) => Task.CompletedTask;
         public ValueTask DisposeAsync() { Disposals++; return ValueTask.CompletedTask; }
     }
 
