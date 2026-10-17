@@ -1,0 +1,27 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Kei.Term.App.Views.Settings.Controls"
+             x:Class="Kei.Term.App.Views.Settings.Controls.SettingRow"
+             x:DataType="controls:SettingRow">
+    <Grid ColumnDefinitions="*,Auto" MinHeight="32">
+        <!-- 左侧：标题与说明行 -->
+        <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2" Margin="0,2,16,2">
+            <TextBlock Text="{Binding Title, RelativeSource={RelativeSource AncestorType=controls:SettingRow}}"
+                       FontSize="13"
+                       FontWeight="Normal"
+                       Foreground="{DynamicResource Kei.Text.Primary}"
+                       TextWrapping="Wrap"/>
+            <TextBlock Text="{Binding Description, RelativeSource={RelativeSource AncestorType=controls:SettingRow}}"
+                       FontSize="12"
+                       Foreground="{DynamicResource Kei.Text.Muted}"
+                       TextWrapping="Wrap"
+                       IsVisible="{Binding HasDescription, RelativeSource={RelativeSource AncestorType=controls:SettingRow}}"/>
+        </StackPanel>
+
+        <!-- 右侧：控件区（右对齐） -->
+        <ContentPresenter Grid.Column="1"
+                          HorizontalAlignment="Right"
+                          VerticalAlignment="Center"
+                          Content="{Binding Content, RelativeSource={RelativeSource AncestorType=controls:SettingRow}}"/>
+    </Grid>
+</UserControl>

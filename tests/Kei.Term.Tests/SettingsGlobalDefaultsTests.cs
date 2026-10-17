@@ -52,9 +52,9 @@ public class SettingsGlobalDefaultsTests
             Assert.True(title.Bounds.Width > 0);
             title.IsChecked = followsRemote;
 
-            model.SelectedCategory = model.Categories.Single(c => c.Page is FileTransferSettingsPage);
+            model.SelectedCategory = model.Categories.Single(c => c.Page is FileManagerSettingsPage);
             window.UpdateLayout();
-            FileTransferSettingsPage page = (FileTransferSettingsPage)model.SelectedCategory.Page;
+            FileManagerSettingsPage page = (FileManagerSettingsPage)model.SelectedCategory.Page;
             ComboBox cwd = Find<ComboBox>(window, "DirectoryFollowModeComboBox");
             Assert.True(cwd.IsVisible);
             cwd.SelectedItem = page.Terminal.CwdFollowModes.Single(option => option.Mode == followMode);
@@ -69,7 +69,7 @@ public class SettingsGlobalDefaultsTests
             await reader.LoadSettingsAsync();
             SettingsViewModel reopened = new(reader, directory);
             TabBarSettingsProxyPage tabs = reopened.Categories.Select(c => c.Page).OfType<TabBarSettingsProxyPage>().Single();
-            FileTransferSettingsPage files = reopened.Categories.Select(c => c.Page).OfType<FileTransferSettingsPage>().Single();
+            FileManagerSettingsPage files = reopened.Categories.Select(c => c.Page).OfType<FileManagerSettingsPage>().Single();
             Assert.Equal(followsRemote, tabs.Terminal.TabTitleFollowsRemote);
             Assert.Equal(followMode, files.Terminal.SelectedCwdFollow?.Mode);
             Assert.Equal(multiplexerMode, files.Terminal.SelectedMultiplexer?.Mode);
@@ -104,17 +104,19 @@ public class SettingsGlobalDefaultsTests
             SettingsViewModel model = new(service, directory);
             window = new SettingsWindow(model);
             window.Show();
-            model.SelectedCategory = model.Categories.Single(c => c.Page is FileTransferSettingsPage);
+            model.SelectedCategory = model.Categories.Single(c => c.Page is FileManagerSettingsPage);
             window.UpdateLayout();
-            foreach (Expander advanced in window.GetVisualDescendants().OfType<Expander>().ToArray()) advanced.IsExpanded = true;
+            Expander advancedExpander = Find<Expander>(window, "AdvancedWatcherExpander");
+            advancedExpander.IsExpanded = true;
             window.UpdateLayout();
+            HeadlessAvalonia.Pump();
             NumericUpDown polling = Find<NumericUpDown>(window, "PollingIntervalSecondsInput");
             NumericUpDown debounce = Find<NumericUpDown>(window, "WriteDebounceMillisecondsInput");
             Button editPath = Find<Button>(window, "CustomEditorPathEditButton");
             CheckBox left = Find<CheckBox>(window, "FileManagerDockLeftCheckBox");
             polling.Value = 7;
             debounce.Value = 1200;
-            Assert.Same(((FileTransferSettingsPage)model.SelectedCategory.Page).EditCustomEditorPathCommand, editPath.Command);
+            Assert.Same(((FileManagerSettingsPage)model.SelectedCategory.Page).EditCustomEditorPathCommand, editPath.Command);
             editPath.Command!.Execute(null);
             HeadlessAvalonia.Pump();
             TextPromptWindow dialog = Assert.IsType<TextPromptWindow>(Assert.Single(window.OwnedWindows));
@@ -123,14 +125,14 @@ public class SettingsGlobalDefaultsTests
             Assert.True(editor.Focus());
             dialog.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
             HeadlessAvalonia.Pump();
-            await ((FileTransferSettingsPage)model.SelectedCategory.Page).EditCustomEditorPathCommand.ExecutionTask!;
+            await ((FileManagerSettingsPage)model.SelectedCategory.Page).EditCustomEditorPathCommand.ExecutionTask!;
             left.IsChecked = true;
             Assert.True(await model.ApplyChangesAsync());
 
             JsonSettingsService reader = new(path);
             await reader.LoadSettingsAsync();
             SettingsViewModel reopened = new(reader, directory);
-            FileTransferSettingsPage reloaded = reopened.Categories.Select(c => c.Page).OfType<FileTransferSettingsPage>().Single();
+            FileManagerSettingsPage reloaded = reopened.Categories.Select(c => c.Page).OfType<FileManagerSettingsPage>().Single();
             Assert.Equal(7, reloaded.PollingIntervalSeconds);
             Assert.Equal(1200, reloaded.WriteDebounceMilliseconds);
             Assert.Equal("code", reloaded.CustomEditorPath);
@@ -164,7 +166,7 @@ public class SettingsGlobalDefaultsTests
             SettingsViewModel model = new(service, directory);
             window = new SettingsWindow(model);
             window.Show();
-            FileTransferSettingsPage page = model.Categories.Select(category => category.Page).OfType<FileTransferSettingsPage>().Single();
+            FileManagerSettingsPage page = model.Categories.Select(category => category.Page).OfType<FileManagerSettingsPage>().Single();
             Task editing = page.EditCustomEditorPathCommand.ExecuteAsync(null);
             HeadlessAvalonia.Pump();
             TextPromptWindow dialog = Assert.IsType<TextPromptWindow>(Assert.Single(window.OwnedWindows));
@@ -194,7 +196,7 @@ public class SettingsGlobalDefaultsTests
         {
             JsonSettingsService service = new(Path.Combine(directory, "settings.json"));
             SettingsViewModel model = new(service, directory);
-            FileTransferSettingsPage page = model.Categories.Select(c => c.Page).OfType<FileTransferSettingsPage>().Single();
+            FileManagerSettingsPage page = model.Categories.Select(c => c.Page).OfType<FileManagerSettingsPage>().Single();
             page.PollingIntervalSeconds = polling;
             page.WriteDebounceMilliseconds = debounce;
             Assert.True(await model.ApplyChangesAsync());

@@ -1,0 +1,161 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:settings="using:Kei.Term.App.ViewModels.Settings"
+             xmlns:controls="using:Kei.Term.App.Views.Settings.Controls"
+             xmlns:loc="using:Kei.Term.App.Helpers"
+             x:Class="Kei.Term.App.Views.Settings.GeneralSettingsPageView"
+             x:DataType="settings:GeneralSettingsPage">
+
+    <StackPanel MaxWidth="760" HorizontalAlignment="Stretch" Spacing="16">
+        <!-- 页头：面包屑 + 标题 + 描述 -->
+        <controls:SettingsPageHeader Group="{loc:KeiString Settings.Groups.App}"
+                                     Title="{loc:KeiString Settings.Categories.General}"
+                                     Description="{loc:KeiString Settings.Categories.GeneralDesc}"/>
+
+        <!-- 1. 窗口与面板卡片 -->
+        <Border Classes="settingsCard">
+            <StackPanel Spacing="10">
+                <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.General.WindowBehavior}"/>
+
+                <!-- 确认关闭 -->
+                <CheckBox x:Name="ConfirmBeforeCloseCheckBox"
+                          IsChecked="{Binding ConfirmBeforeClose}"
+                          Content="{loc:KeiString Settings.General.ConfirmBeforeClose}"
+                          ToolTip.Tip="{loc:KeiString Settings.General.ConfirmBeforeCloseTip}"/>
+
+                <Border Classes="settingRowDivider"/>
+
+                <!-- 固定会话管理器 -->
+                <CheckBox x:Name="SessionManagerPinnedCheckBox"
+                          Content="{loc:KeiString Settings.General.SessionManagerPinned}"
+                          IsChecked="{Binding SessionManagerPinned}"/>
+
+                <Border Classes="settingRowDivider"/>
+
+                <!-- 组合输入条显示模式 -->
+                <controls:SettingRow Title="{loc:KeiString Settings.General.ComposeBarMode}">
+                    <ComboBox MinWidth="220"
+                              HorizontalAlignment="Right"
+                              ItemsSource="{Binding VisibilityModes}"
+                              SelectedItem="{Binding SelectedComposeBarMode}"/>
+                </controls:SettingRow>
+            </StackPanel>
+        </Border>
+
+        <!-- 2. 系统原生菜单卡片（高级项） -->
+        <Border Classes="settingsCard">
+            <StackPanel Spacing="10">
+                <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.General.NativeMenusSection}"/>
+
+                <CheckBox IsChecked="{Binding IsGlobalMenuChecked}"
+                          Content="{loc:KeiString Settings.General.UseNativeGlobalMenu}"
+                          IsEnabled="{Binding IsGlobalMenuOptionSupported}"/>
+                <TextBlock Text="{loc:KeiString Settings.General.UseNativeGlobalMenuTip}"
+                           IsVisible="{Binding IsGlobalMenuOptionSupported}"
+                           FontSize="12" TextWrapping="Wrap" Margin="24,0,0,0"
+                           Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                <TextBlock Text="{loc:KeiString Settings.General.UseNativeGlobalMenuUnsupportedTip}"
+                           IsVisible="{Binding !IsGlobalMenuOptionSupported}"
+                           FontSize="12" TextWrapping="Wrap" Margin="24,0,0,0"
+                           Foreground="{DynamicResource Kei.Text.Muted}"/>
+
+                <Border Classes="settingRowDivider"/>
+
+                <CheckBox IsChecked="{Binding UseNativeContextMenus}"
+                          Content="{loc:KeiString Settings.General.UseNativeContextMenus}"/>
+                <TextBlock Text="{loc:KeiString Settings.General.UseNativeContextMenusTip}"
+                           FontSize="12" TextWrapping="Wrap" Margin="24,0,0,0"
+                           Foreground="{DynamicResource Kei.Text.Secondary}"/>
+            </StackPanel>
+        </Border>
+
+        <!-- 3. 快捷键卡片 -->
+        <Border Classes="settingsCard">
+            <StackPanel Spacing="10">
+                <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.General.ShortcutsSection}"/>
+
+                <!-- 命令面板快捷键录制 -->
+                <Grid ColumnDefinitions="*,Auto" MinHeight="32">
+                    <StackPanel VerticalAlignment="Center" Spacing="2" Margin="0,2,16,2">
+                        <TextBlock Text="{loc:KeiString Menu.Tools.CommandPalette}"
+                                   FontSize="13"
+                                   Foreground="{DynamicResource Kei.Text.Primary}"/>
+                        <TextBlock Text="{loc:KeiString Settings.General.RecordShortcutTip}"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource Kei.Text.Muted}"/>
+                    </StackPanel>
+                    <Grid Grid.Column="1" ColumnDefinitions="140,Auto" ColumnSpacing="8" HorizontalAlignment="Right">
+                        <Button x:Name="CommandPaletteShortcutRecorder"
+                                Content="{Binding CommandPaletteShortcutLabel}"
+                                Classes.accent="{Binding IsRecordingCommandPaletteShortcut}"
+                                Command="{Binding StartRecordingCommandPaletteShortcutCommand}"
+                                KeyDown="CommandPaletteShortcutRecorder_KeyDown"
+                                HorizontalAlignment="Stretch"
+                                Height="28"
+                                Padding="8,4"/>
+                        <Button Grid.Column="1"
+                                Content="{loc:KeiString Settings.General.ResetShortcut}"
+                                Command="{Binding ResetCommandPaletteShortcutCommand}"
+                                Height="28"
+                                Padding="8,4"/>
+                    </Grid>
+                </Grid>
+
+                <TextBlock Text="{Binding CommandPaletteShortcutError}"
+                           FontSize="12"
+                           TextWrapping="Wrap"
+                           Foreground="{DynamicResource Kei.Status.Error}"
+                           IsVisible="{Binding CommandPaletteShortcutError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
+                <Border Classes="settingRowDivider"/>
+
+                <!-- 标签页切换修饰键 -->
+                <controls:SettingRow Title="{loc:KeiString Settings.General.TabNavigationModifier}"
+                                     Description="{Binding TabNavigationShortcutDescription}">
+                    <ComboBox MinWidth="220"
+                              HorizontalAlignment="Right"
+                              ItemsSource="{Binding TabNavigationModifiers}"
+                              SelectedItem="{Binding SelectedTabNavigationModifier}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="settings:TabNavigationModifierOption">
+                                <TextBlock Text="{Binding Label}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </controls:SettingRow>
+
+                <Border Classes="settingRowDivider"/>
+
+                <!-- 内置只读快捷键概览 -->
+                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="6" Margin="0,4,0,0">
+                    <TextBlock Grid.Row="0" Text="{loc:KeiString Menu.File.NewSession}" FontSize="12" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding NewSessionShortcutLabel}" FontSize="12" Foreground="{DynamicResource Kei.Text.Primary}"/>
+                    <TextBlock Grid.Row="1" Text="{loc:KeiString Menu.File.QuickConnect}" FontSize="12" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding QuickConnectShortcutLabel}" FontSize="12" Foreground="{DynamicResource Kei.Text.Primary}"/>
+                    <TextBlock Grid.Row="2" Text="{loc:KeiString Menu.File.ConnectSavedSession}" FontSize="12" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ConnectSavedSessionShortcutLabel}" FontSize="12" Foreground="{DynamicResource Kei.Text.Primary}"/>
+                    <TextBlock Grid.Row="3" Text="{loc:KeiString Menu.File.NewTab}" FontSize="12" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                    <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding NewTabShortcutLabel}" FontSize="12" Foreground="{DynamicResource Kei.Text.Primary}"/>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- 4. 数据存储卡片 -->
+        <Border Classes="settingsCard">
+            <StackPanel Spacing="10">
+                <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.General.DataDirectory}"/>
+
+                <controls:SettingRow Title="{loc:KeiString Settings.General.DataDirectory}"
+                                     Description="{loc:KeiString Settings.General.DataDirectoryTip}">
+                    <Grid ColumnDefinitions="260,Auto" ColumnSpacing="8" HorizontalAlignment="Right">
+                        <TextBox Text="{Binding DataDirectory}" IsReadOnly="True" VerticalAlignment="Center"/>
+                        <Button Grid.Column="1"
+                                Content="{loc:KeiString Settings.General.OpenDirectory}"
+                                Command="{Binding OpenDataDirectoryCommand}"
+                                MinWidth="70"/>
+                    </Grid>
+                </controls:SettingRow>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

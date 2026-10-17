@@ -1,0 +1,26 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Kei.Term.App.Views.Settings.Controls"
+             x:Class="Kei.Term.App.Views.Settings.Controls.SettingsCard"
+             x:DataType="controls:SettingsCard">
+    <Border Classes="settingsCard">
+        <StackPanel Spacing="10">
+            <!-- 卡片标题 -->
+            <TextBlock Text="{Binding Title, RelativeSource={RelativeSource AncestorType=controls:SettingsCard}}"
+                       Classes="settingsSectionTitle"
+                       IsVisible="{Binding HasTitle, RelativeSource={RelativeSource AncestorType=controls:SettingsCard}}"/>
+
+            <!-- 主内容区：设置行集合 -->
+            <ContentPresenter Content="{Binding Content, RelativeSource={RelativeSource AncestorType=controls:SettingsCard}}"/>
+
+            <!-- 高级选项折叠区 -->
+            <Expander Header="{Binding AdvancedHeader, RelativeSource={RelativeSource AncestorType=controls:SettingsCard}}"
+                      IsVisible="{Binding HasAdvancedContent, RelativeSource={RelativeSource AncestorType=controls:SettingsCard}}"
+                      IsExpanded="{Binding IsAdvancedExpanded, RelativeSource={RelativeSource AncestorType=controls:SettingsCard}, Mode=TwoWay}"
+                      Margin="0,4,0,0"
+                      Padding="0,8,0,0">
+                <ContentPresenter Content="{Binding AdvancedContent, RelativeSource={RelativeSource AncestorType=controls:SettingsCard}}"/>
+            </Expander>
+        </StackPanel>
+    </Border>
+</UserControl>

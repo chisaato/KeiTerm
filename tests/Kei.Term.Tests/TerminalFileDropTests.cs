@@ -135,7 +135,7 @@ public class TerminalFileDropTests
             Assert.Equal("'file.txt'", Encoding.UTF8.GetString(Assert.Single(session.Input)));
 
             SettingsViewModel editor = new(reopened, directory);
-            FileTransferSettingsPage page = editor.Categories.Select(category => category.Page).OfType<FileTransferSettingsPage>().Single();
+            FileManagerSettingsPage page = editor.Categories.Select(category => category.Page).OfType<FileManagerSettingsPage>().Single();
             page.SelectedTerminalDropAction = page.TerminalDropActions.Single(option => option.Action == null);
             Assert.True(await editor.ApplyChangesAsync());
             await second.HandleTerminalFileDropAsync([path]);
@@ -196,9 +196,9 @@ public class TerminalFileDropTests
             SettingsViewModel model = new(service, directory);
             window = new(model);
             window.Show();
-            model.SelectedCategory = model.Categories.Single(category => category.Page is FileTransferSettingsPage);
+            model.SelectedCategory = model.Categories.Single(category => category.Page is FileManagerSettingsPage);
             window.UpdateLayout();
-            FileTransferSettingsPage page = (FileTransferSettingsPage)model.SelectedCategory.Page;
+            FileManagerSettingsPage page = (FileManagerSettingsPage)model.SelectedCategory.Page;
             ComboBox selector = window.GetVisualDescendants().OfType<ComboBox>().Single(control => control.Name == "TerminalUploadProtocolComboBox");
             selector.SelectedItem = page.TerminalUploadProtocols.Single(option => option.Protocol == protocol);
             Assert.True(await model.ApplyChangesAsync());

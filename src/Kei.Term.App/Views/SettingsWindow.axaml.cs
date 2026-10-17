@@ -1,13 +1,9 @@
 using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using Avalonia.Controls;
-using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Kei.Term.App.Helpers;
 using Kei.Term.App.ViewModels;
-using Kei.Term.App.ViewModels.Settings;
-using Kei.Term.Core.Models;
 using Kei.Term.Core.Vault;
 
 namespace Kei.Term.App.Views;
@@ -20,7 +16,6 @@ public partial class SettingsWindow : Window
     public SettingsWindow()
     {
         InitializeComponent();
-        AddHandler(KeyDownEvent, CommandPaletteShortcutRecorder_KeyDown, Avalonia.Interactivity.RoutingStrategies.Tunnel, handledEventsToo: true);
     }
 
     public SettingsWindow(SettingsViewModel vm) : this()
@@ -176,19 +171,6 @@ public partial class SettingsWindow : Window
 
             await TriggerCancelAndCloseAsync(vm);
         }
-    }
-
-    private async void OnOpenFontDialogClick(object? sender, RoutedEventArgs e)
-    {
-        // 按钮落在外观页的 DataContext 上，不是窗口的 SettingsViewModel
-        if (sender is not Control { DataContext: AppearanceSettingsPage page } || page.SelectedTerminalProfile is not { } profile)
-        {
-            return;
-        }
-
-        // 改正在编辑的终端方案。设置窗口取消会用已提交副本覆盖，不会落盘。
-        var dialogVm = new FontDialogViewModel(profile);
-        await new FontDialogWindow(dialogVm).ShowDialog(this);
     }
 
     private async Task TriggerCancelAndCloseAsync(SettingsViewModel vm)

@@ -55,7 +55,7 @@ public class TransferConflictUiContractTests
 
         // 1. 设置窗口中的文件传输页
         AppSettings settings = new();
-        FileTransferSettingsPage transferPage = new();
+        TransferSettingsPage transferPage = new();
         transferPage.InitializeTransferPreferences(
             verifyHashEnabled: true,
             hashOrder: [TransferHashAlgorithm.Sha256, TransferHashAlgorithm.Md5],
@@ -81,12 +81,20 @@ public class TransferConflictUiContractTests
         SettingsViewModel settingsVm = new(new DummySettingsService(settings));
         SettingsWindow settingsWindow = new(settingsVm);
         settingsWindow.Show();
-        settingsVm.SelectedCategory = settingsVm.Categories.Single(c => c.Page is FileTransferSettingsPage);
+        settingsVm.SelectedCategory = settingsVm.Categories.Single(c => c.Page is TransferSettingsPage);
         settingsWindow.UpdateLayout();
 
+        TransferSettingsPage pageInVm = (TransferSettingsPage)settingsVm.SelectedCategory.Page;
+        pageInVm.DrillDownHashAlgorithmsCommand.Execute(null);
+        settingsWindow.UpdateLayout();
+        HeadlessAvalonia.Pump();
         var hashList = settingsWindow.GetVisualDescendants().OfType<ListBox>().FirstOrDefault(l => l.Name == "HashAlgorithmsListBox");
         Assert.NotNull(hashList);
         Assert.Contains("compactReorderList", hashList.Classes);
+
+        pageInVm.DrillDownArchiveFormatsCommand.Execute(null);
+        settingsWindow.UpdateLayout();
+        HeadlessAvalonia.Pump();
 
         var archiveList = settingsWindow.GetVisualDescendants().OfType<ListBox>().FirstOrDefault(l => l.Name == "ArchiveFormatsListBox");
         Assert.NotNull(archiveList);

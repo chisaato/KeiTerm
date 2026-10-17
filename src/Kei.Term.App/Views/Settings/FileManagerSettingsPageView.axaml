@@ -1,0 +1,407 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Kei.Term.App.ViewModels"
+             xmlns:settings="using:Kei.Term.App.ViewModels.Settings"
+             xmlns:controls="using:Kei.Term.App.Views.Settings.Controls"
+             xmlns:loc="using:Kei.Term.App.Helpers"
+             x:Class="Kei.Term.App.Views.Settings.FileManagerSettingsPageView"
+             x:DataType="settings:FileManagerSettingsPage">
+
+    <StackPanel MaxWidth="760" HorizontalAlignment="Stretch" Spacing="16">
+        <!-- 页头：面包屑 + 标题 + 描述 -->
+        <controls:SettingsPageHeader Group="{loc:KeiString Settings.Groups.Files}"
+                                     Title="{loc:KeiString Settings.Categories.FileManager}"
+                                     Description="{loc:KeiString Settings.Categories.FileManagerDesc}"/>
+
+        <!-- 1. 文件管理器常规选项卡片 -->
+        <Border Classes="settingsCard">
+            <StackPanel Spacing="10">
+                <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.FileTransfer.FileManagerSection}"/>
+
+                <!-- 大小显示模式 -->
+                <Grid ColumnDefinitions="*,Auto" MinHeight="32">
+                    <StackPanel VerticalAlignment="Center" Spacing="2" Margin="0,2,16,2">
+                        <TextBlock Text="{loc:KeiString Settings.FileTransfer.SizeDisplay}"
+                                   FontSize="13"
+                                   Foreground="{DynamicResource Kei.Text.Primary}"/>
+                        <TextBlock Text="{loc:KeiString Settings.FileTransfer.SizeDisplayTip}"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource Kei.Text.Muted}"/>
+                    </StackPanel>
+                    <ComboBox x:Name="FileSizeDisplayComboBox"
+                              Grid.Column="1"
+                              MinWidth="220"
+                              HorizontalAlignment="Right"
+                              ItemsSource="{Binding SizeDisplayOptions}"
+                              SelectedItem="{Binding SelectedSizeDisplay}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="settings:FileSizeDisplayOption">
+                                <TextBlock Text="{Binding Label}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </Grid>
+
+                <Border Classes="settingRowDivider"/>
+
+                <!-- 默认停靠在左侧 -->
+                <CheckBox x:Name="FileManagerDockLeftCheckBox"
+                          IsChecked="{Binding IsFileManagerOnLeft}"
+                          Content="{loc:KeiString Settings.FileTransfer.DockLeft}"/>
+
+                <Border Classes="settingRowDivider"/>
+
+                <!-- 目录跟随模式 -->
+                <Grid ColumnDefinitions="*,Auto" MinHeight="32">
+                    <StackPanel VerticalAlignment="Center" Spacing="2" Margin="0,2,16,2">
+                        <TextBlock Text="{loc:KeiString Settings.Terminal.CwdFollow}"
+                                   FontSize="13"
+                                   Foreground="{DynamicResource Kei.Text.Primary}"/>
+                        <TextBlock Text="{loc:KeiString Settings.Terminal.CwdFollowTip}"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource Kei.Text.Muted}"/>
+                    </StackPanel>
+                    <ComboBox x:Name="DirectoryFollowModeComboBox"
+                              Grid.Column="1"
+                              MinWidth="220"
+                              HorizontalAlignment="Right"
+                              ItemsSource="{Binding Terminal.CwdFollowModes}"
+                              SelectedItem="{Binding Terminal.SelectedCwdFollow}"/>
+                </Grid>
+
+                <Border Classes="settingRowDivider"/>
+
+                <!-- 复用器感知 -->
+                <Grid ColumnDefinitions="*,Auto" MinHeight="32">
+                    <StackPanel VerticalAlignment="Center" Spacing="2" Margin="0,2,16,2">
+                        <TextBlock Text="{loc:KeiString Settings.Terminal.Multiplexer}"
+                                   FontSize="13"
+                                   Foreground="{DynamicResource Kei.Text.Primary}"/>
+                        <TextBlock Text="{loc:KeiString Settings.Terminal.MultiplexerTip}"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource Kei.Text.Muted}"/>
+                    </StackPanel>
+                    <ComboBox x:Name="TerminalMultiplexerModeComboBox"
+                              Grid.Column="1"
+                              MinWidth="220"
+                              HorizontalAlignment="Right"
+                              ItemsSource="{Binding Terminal.MultiplexerModes}"
+                              SelectedItem="{Binding Terminal.SelectedMultiplexer}"/>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- 2. 终端文件拖放行为卡片 -->
+        <Border Classes="settingsCard">
+            <StackPanel Spacing="10">
+                <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Terminal.Drop.SettingsSection}"/>
+
+                <Grid ColumnDefinitions="*,Auto" MinHeight="32">
+                    <StackPanel VerticalAlignment="Center" Spacing="2" Margin="0,2,16,2">
+                        <TextBlock Text="{loc:KeiString Terminal.Drop.Protocol}"
+                                   FontSize="13"
+                                   Foreground="{DynamicResource Kei.Text.Primary}"/>
+                        <TextBlock Text="{loc:KeiString Terminal.Drop.ProtocolTip}"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource Kei.Text.Muted}"/>
+                    </StackPanel>
+                    <ComboBox x:Name="TerminalUploadProtocolComboBox"
+                              Grid.Column="1"
+                              MinWidth="220"
+                              HorizontalAlignment="Right"
+                              ItemsSource="{Binding TerminalUploadProtocols}"
+                              SelectedItem="{Binding SelectedTerminalUploadProtocol}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:TerminalUploadOption">
+                                <TextBlock Text="{Binding DisplayName}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </Grid>
+
+                <Border Classes="settingRowDivider"/>
+
+                <Grid ColumnDefinitions="*,Auto" MinHeight="32">
+                    <StackPanel VerticalAlignment="Center" Spacing="2" Margin="0,2,16,2">
+                        <TextBlock Text="{loc:KeiString Terminal.Drop.DefaultAction}"
+                                   FontSize="13"
+                                   Foreground="{DynamicResource Kei.Text.Primary}"/>
+                        <TextBlock Text="{loc:KeiString Terminal.Drop.DefaultActionTip}"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource Kei.Text.Muted}"/>
+                    </StackPanel>
+                    <ComboBox x:Name="TerminalDropActionComboBox"
+                              Grid.Column="1"
+                              MinWidth="220"
+                              HorizontalAlignment="Right"
+                              ItemsSource="{Binding TerminalDropActions}"
+                              SelectedItem="{Binding SelectedTerminalDropAction}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:TerminalDropActionOption">
+                                <TextBlock Text="{Binding DisplayName}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- 3. 缓存与文件监视卡片（含高级选项折叠区） -->
+        <Border Classes="settingsCard">
+            <StackPanel Spacing="10">
+                <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.FileTransfer.CacheWatcherSection}"/>
+
+                <controls:SettingRow Title="{loc:KeiString Settings.FileTransfer.CacheDirectory}"
+                                     Description="{loc:KeiString Settings.FileTransfer.CacheDirectoryTip}">
+                    <Grid ColumnDefinitions="260,Auto" ColumnSpacing="8" HorizontalAlignment="Right">
+                        <TextBox Text="{Binding CacheDirectory}"
+                                 PlaceholderText="{loc:KeiString Settings.FileTransfer.CacheDirectoryPlaceholder}"/>
+                        <Button Content="{loc:KeiString Settings.FileTransfer.ClearCache}"
+                                Command="{Binding ClearCacheDirectoryCommand}"
+                                MinWidth="70"/>
+                    </Grid>
+                </controls:SettingRow>
+
+                <Border Classes="settingRowDivider"/>
+
+                <controls:SettingRow Title="{loc:KeiString Settings.FileTransfer.WatcherMode}"
+                                     Description="{loc:KeiString Settings.FileTransfer.WatcherModeTip}">
+                    <ComboBox MinWidth="220"
+                              HorizontalAlignment="Right"
+                              ItemsSource="{Binding WatcherModes}"
+                              SelectedItem="{Binding SelectedWatcherMode}"/>
+                </controls:SettingRow>
+
+                <Expander x:Name="AdvancedWatcherExpander"
+                          Header="{loc:KeiString Settings.FileTransfer.AdvancedWatcherSection}"
+                          IsExpanded="False"
+                          Margin="0,4,0,0"
+                          Padding="0,8,0,0">
+                    <StackPanel Spacing="10">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="{loc:KeiString Settings.FileTransfer.PollingInterval}" FontSize="13" Foreground="{DynamicResource Kei.Text.Primary}"/>
+                                <TextBlock Text="{loc:KeiString Settings.FileTransfer.PollingIntervalTip}" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}"/>
+                            </StackPanel>
+                            <NumericUpDown x:Name="PollingIntervalSecondsInput"
+                                           Grid.Column="1"
+                                           Value="{Binding PollingIntervalSeconds}"
+                                           Minimum="1" Maximum="3600"
+                                           FormatString="0"
+                                           MinWidth="160"
+                                           HorizontalAlignment="Right"/>
+                        </Grid>
+
+                        <Border Classes="settingRowDivider"/>
+
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="{loc:KeiString Settings.FileTransfer.WriteDebounce}" FontSize="13" Foreground="{DynamicResource Kei.Text.Primary}"/>
+                                <TextBlock Text="{loc:KeiString Settings.FileTransfer.WriteDebounceTip}" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}"/>
+                            </StackPanel>
+                            <NumericUpDown x:Name="WriteDebounceMillisecondsInput"
+                                           Grid.Column="1"
+                                           Value="{Binding WriteDebounceMilliseconds}"
+                                           Minimum="200" Maximum="60000"
+                                           Increment="100"
+                                           FormatString="0"
+                                           MinWidth="160"
+                                           HorizontalAlignment="Right"/>
+                        </Grid>
+                    </StackPanel>
+                </Expander>
+            </StackPanel>
+        </Border>
+
+        <!-- 4. 外部编辑器主从列表卡片（整页式，不下钻） -->
+        <Border Classes="settingsCard">
+            <StackPanel Spacing="10">
+                <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.FileTransfer.EditorsSection}"/>
+
+                <Border Background="Transparent"
+                        BorderBrush="{DynamicResource Kei.Border.Subtle}"
+                        BorderThickness="1"
+                        CornerRadius="{DynamicResource Kei.Radius.Control}"
+                        Padding="8">
+                    <Grid MinHeight="80">
+                        <ListBox x:Name="ExternalEditorList"
+                                 Classes="popupList"
+                                 ItemsSource="{Binding Editors}"
+                                 SelectedItem="{Binding SelectedEditor}"
+                                 MaxHeight="160"
+                                 Background="Transparent"
+                                 IsVisible="{Binding HasEditors}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="settings:ExternalEditorItemViewModel">
+                                    <Grid ColumnDefinitions="140,*,Auto" ColumnSpacing="10">
+                                        <TextBlock Classes="popupPrimary"
+                                                   Text="{Binding Name}"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="12"
+                                                   VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   ToolTip.Tip="{Binding Name}"/>
+                                        <TextBlock Classes="popupSecondary"
+                                                   Grid.Column="1"
+                                                   Text="{Binding DisplayPath}"
+                                                   FontSize="12"
+                                                   VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   ToolTip.Tip="{Binding DisplayPath}"/>
+                                        <Border x:Name="DefaultEditorBadge"
+                                                Grid.Column="2"
+                                                IsVisible="{Binding IsDefault}"
+                                                Height="20" MinWidth="40" Padding="6,0"
+                                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                BorderBrush="{DynamicResource Kei.Border.Subtle}"
+                                                BorderThickness="1"
+                                                CornerRadius="{DynamicResource Kei.Radius.Control}">
+                                            <TextBlock Classes="popupSecondary"
+                                                       Text="{loc:KeiString Settings.FileTransfer.DefaultBadge}"
+                                                       FontSize="12"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"/>
+                                        </Border>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                        <TextBlock Text="{loc:KeiString Settings.FileTransfer.NoEditorsConfigured}"
+                                   FontSize="12"
+                                   IsVisible="{Binding !HasEditors}"
+                                   Foreground="{DynamicResource Kei.Text.Secondary}"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"/>
+                    </Grid>
+                </Border>
+
+                <!-- 编辑器操作按钮条 -->
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button x:Name="AddExternalEditorButton"
+                            Content="{loc:KeiString Common.Add}"
+                            Command="{Binding AddEditorCommand}"
+                            MinWidth="70"/>
+                    <Button x:Name="EditExternalEditorButton"
+                            Content="{loc:KeiString Common.Edit}"
+                            Command="{Binding EditEditorCommand}"
+                            MinWidth="70"
+                            IsEnabled="{Binding SelectedEditor, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                    <Button x:Name="DeleteExternalEditorButton"
+                            Classes="danger"
+                            Content="{loc:KeiString Common.Delete}"
+                            Command="{Binding DeleteEditorCommand}"
+                            MinWidth="70"
+                            IsEnabled="{Binding SelectedEditor, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                </StackPanel>
+
+                <Border Classes="settingRowDivider"/>
+
+                <!-- 自定义临时命令行 -->
+                <Grid ColumnDefinitions="*,Auto" MinHeight="32">
+                    <StackPanel VerticalAlignment="Center" Spacing="2" Margin="0,2,16,2">
+                        <TextBlock Text="{loc:KeiString Settings.FileTransfer.CustomEditorPath}"
+                                   FontSize="13"
+                                   Foreground="{DynamicResource Kei.Text.Primary}"/>
+                        <TextBlock Text="{loc:KeiString Settings.FileTransfer.CustomEditorPathTip}"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource Kei.Text.Muted}"/>
+                    </StackPanel>
+                    <Grid Grid.Column="1" ColumnDefinitions="260,Auto" ColumnSpacing="8" HorizontalAlignment="Right">
+                        <TextBlock x:Name="CustomEditorPathSummary"
+                                   Text="{Binding DisplayCustomEditorPath}"
+                                   VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"
+                                   TextWrapping="NoWrap"
+                                   Foreground="{DynamicResource Kei.Text.Secondary}"
+                                   ToolTip.Tip="{Binding CustomEditorPath}"/>
+                        <Button x:Name="CustomEditorPathEditButton"
+                                Grid.Column="1"
+                                Content="{loc:KeiString Settings.FileTransfer.EditCustomEditorPath}"
+                                Command="{Binding EditCustomEditorPathCommand}"
+                                MinWidth="70"/>
+                    </Grid>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- 5. 文件关联规则主从列表卡片（整页式，不下钻） -->
+        <Border Classes="settingsCard">
+            <StackPanel Spacing="10">
+                <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.FileTransfer.AssociationsSection}"/>
+
+                <Border Background="Transparent"
+                        BorderBrush="{DynamicResource Kei.Border.Subtle}"
+                        BorderThickness="1"
+                        CornerRadius="{DynamicResource Kei.Radius.Control}"
+                        Padding="8">
+                    <Grid MinHeight="80">
+                        <ListBox x:Name="FileAssociationList"
+                                 Classes="popupList"
+                                 ItemsSource="{Binding Associations}"
+                                 SelectedItem="{Binding SelectedAssociation}"
+                                 MaxHeight="160"
+                                 Background="Transparent"
+                                 IsVisible="{Binding HasAssociations}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="settings:FileAssociationItemViewModel">
+                                    <Grid ColumnDefinitions="140,*,Auto" ColumnSpacing="10">
+                                        <TextBlock Classes="popupPrimary"
+                                                   Text="{Binding Pattern}"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="12"
+                                                   VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   ToolTip.Tip="{Binding Pattern}"/>
+                                        <TextBlock Classes="popupSecondary"
+                                                   Grid.Column="1"
+                                                   Text="{Binding EditorName}"
+                                                   FontSize="12"
+                                                   VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   ToolTip.Tip="{Binding EditorName}"/>
+                                        <TextBlock Classes="popupSecondary"
+                                                   Grid.Column="2"
+                                                   Text="{Binding Priority, StringFormat='优先级 {0}'}"
+                                                   FontSize="12"
+                                                   VerticalAlignment="Center"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                        <TextBlock Text="{loc:KeiString Settings.FileTransfer.NoAssociationsConfigured}"
+                                   FontSize="12"
+                                   IsVisible="{Binding !HasAssociations}"
+                                   Foreground="{DynamicResource Kei.Text.Secondary}"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"/>
+                    </Grid>
+                </Border>
+
+                <!-- 关联操作按钮条 -->
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button x:Name="AddFileAssociationButton"
+                            Content="{loc:KeiString Common.Add}"
+                            Command="{Binding AddAssociationCommand}"
+                            MinWidth="70"/>
+                    <Button x:Name="EditFileAssociationButton"
+                            Content="{loc:KeiString Common.Edit}"
+                            Command="{Binding EditAssociationCommand}"
+                            MinWidth="70"
+                            IsEnabled="{Binding SelectedAssociation, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                    <Button x:Name="DeleteFileAssociationButton"
+                            Classes="danger"
+                            Content="{loc:KeiString Common.Delete}"
+                            Command="{Binding DeleteAssociationCommand}"
+                            MinWidth="70"
+                            IsEnabled="{Binding SelectedAssociation, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <SelectableTextBlock Text="{Binding ErrorMessage}"
+                             IsVisible="{Binding HasError}"
+                             FontSize="12"
+                             Foreground="{DynamicResource Kei.Status.Error}"
+                             TextWrapping="Wrap"/>
+    </StackPanel>
+</UserControl>

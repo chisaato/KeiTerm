@@ -125,7 +125,7 @@ public class TransferSettingsTests
     [Fact]
     public void FileTransferSettingsPage_ReorderingAndEnablingAlgorithmsAndFormats()
     {
-        FileTransferSettingsPage page = new();
+        TransferSettingsPage page = new();
         page.InitializeTransferPreferences(
             verifyHashEnabled: true,
             hashOrder: [TransferHashAlgorithm.Sha1, TransferHashAlgorithm.Sha256],
@@ -242,9 +242,9 @@ public class TransferSettingsTests
             window = new SettingsWindow(model);
             window.Show();
 
-            model.SelectedCategory = model.Categories.Single(c => c.Page is FileTransferSettingsPage);
+            model.SelectedCategory = model.Categories.Single(c => c.Page is TransferSettingsPage);
             window.UpdateLayout();
-            FileTransferSettingsPage page = (FileTransferSettingsPage)model.SelectedCategory.Page;
+            TransferSettingsPage page = (TransferSettingsPage)model.SelectedCategory.Page;
 
             Assert.Equal(5, page.Concurrency);
             Assert.Equal("/custom/downloads", page.DefaultDownloadDirectory);

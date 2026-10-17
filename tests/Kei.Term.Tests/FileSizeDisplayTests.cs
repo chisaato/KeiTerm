@@ -68,14 +68,14 @@ public class FileSizeDisplayTests
                 }
             });
             SettingsViewModel settings = new(service, directory);
-            FileTransferSettingsPage page = settings.Categories.Select(c => c.Page).OfType<FileTransferSettingsPage>().Single();
+            FileManagerSettingsPage page = settings.Categories.Select(c => c.Page).OfType<FileManagerSettingsPage>().Single();
             page.SelectedSizeDisplay = page.SizeDisplayOptions.Single(option => option.Mode == mode);
             Assert.True(await settings.ApplyChangesAsync());
 
             JsonSettingsService reader = new(path);
             await reader.LoadSettingsAsync();
             SettingsViewModel reopened = new(reader, directory);
-            FileTransferSettingsPage reloaded = reopened.Categories.Select(c => c.Page).OfType<FileTransferSettingsPage>().Single();
+            FileManagerSettingsPage reloaded = reopened.Categories.Select(c => c.Page).OfType<FileManagerSettingsPage>().Single();
             Assert.Equal(mode, reloaded.SelectedSizeDisplay.Mode);
             Assert.True(reader.Current.FileTransfer.IsFileManagerOnLeft);
             Assert.Equal(17, reader.Current.FileTransfer.PollingIntervalSeconds);
@@ -105,7 +105,7 @@ public class FileSizeDisplayTests
             Assert.Contains("1 KiB", Texts());
 
             SettingsViewModel settings = new(service, directory);
-            FileTransferSettingsPage page = settings.Categories.Select(c => c.Page).OfType<FileTransferSettingsPage>().Single();
+            FileManagerSettingsPage page = settings.Categories.Select(c => c.Page).OfType<FileManagerSettingsPage>().Single();
             page.SetSizeDisplayMode(FileSizeDisplayMode.Si);
             HeadlessAvalonia.Pump();
             Assert.Contains("1 KiB", Texts());

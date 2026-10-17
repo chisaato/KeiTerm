@@ -1,0 +1,69 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:settings="using:Kei.Term.App.ViewModels.Settings"
+             xmlns:controls="using:Kei.Term.App.Views.Settings.Controls"
+             xmlns:loc="using:Kei.Term.App.Helpers"
+             x:Class="Kei.Term.App.Views.Settings.ProxySettingsPageView"
+             x:DataType="settings:ProxySettingsPage">
+
+    <StackPanel MaxWidth="760" HorizontalAlignment="Stretch" Spacing="16">
+        <!-- 页头：面包屑 + 标题 + 描述 -->
+        <controls:SettingsPageHeader Group="{loc:KeiString Settings.Groups.Connection}"
+                                     Title="{loc:KeiString Settings.Categories.Proxy}"
+                                     Description="{loc:KeiString Settings.Categories.ProxyDesc}"/>
+
+        <!-- 1. 代理档案管理卡片（整页式主从列表，不下钻） -->
+        <Border Classes="settingsCard">
+            <StackPanel Spacing="10">
+                <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.Categories.Proxy}"/>
+
+                <Border Background="Transparent"
+                        BorderBrush="{DynamicResource Kei.Border.Subtle}"
+                        BorderThickness="1"
+                        CornerRadius="{DynamicResource Kei.Radius.Control}"
+                        Padding="8">
+                    <DockPanel>
+                        <Grid DockPanel.Dock="Top" ColumnDefinitions="130,80,*,60" ColumnSpacing="10" Margin="9,0,9,6">
+                            <TextBlock Grid.Column="0" Text="{loc:KeiString Proxy.Name}" FontSize="12"
+                                       Foreground="{DynamicResource Kei.Text.Muted}"/>
+                            <TextBlock Grid.Column="1" Text="{loc:KeiString Proxy.Type}" FontSize="12"
+                                       Foreground="{DynamicResource Kei.Text.Muted}"/>
+                            <TextBlock Grid.Column="2" Text="{loc:KeiString Proxy.Host}" FontSize="12"
+                                       Foreground="{DynamicResource Kei.Text.Muted}"/>
+                            <TextBlock Grid.Column="3" Text="{loc:KeiString Proxy.Port}" FontSize="12"
+                                       Foreground="{DynamicResource Kei.Text.Muted}"/>
+                        </Grid>
+                        <ListBox x:Name="ProxyList" Classes="popupList" ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow}"
+                                 MinHeight="100" MaxHeight="220" Background="Transparent">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="settings:ProxyRow">
+                                    <Grid ColumnDefinitions="130,80,*,60" ColumnSpacing="10">
+                                        <TextBlock Classes="popupPrimary" Text="{Binding Name}" FontSize="12" FontWeight="SemiBold"
+                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}"/>
+                                        <TextBlock Classes="popupSecondary" Grid.Column="1" Text="{Binding TypeLabel}" FontSize="12"
+                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Classes="popupSecondary" Grid.Column="2" Text="{Binding Host}" FontSize="12"
+                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Host}"/>
+                                        <TextBlock Classes="popupSecondary" Grid.Column="3" Text="{Binding Port}" FontSize="12" VerticalAlignment="Center"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </DockPanel>
+                </Border>
+
+                <!-- 操作按钮工具栏 -->
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button x:Name="AddProxyButton" Content="{loc:KeiString Proxy.Add}" Command="{Binding AddCommand}" MinWidth="76"/>
+                    <Button x:Name="EditProxyButton" Content="{loc:KeiString Proxy.Edit}" Command="{Binding EditCommand}" MinWidth="76"
+                            IsEnabled="{Binding SelectedRow, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                    <Button x:Name="DeleteProxyButton" Classes="danger" Content="{loc:KeiString Common.Delete}" Command="{Binding DeleteCommand}" MinWidth="76"
+                            IsEnabled="{Binding SelectedRow, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <SelectableTextBlock Text="{Binding ErrorMessage}" IsVisible="{Binding HasError}" FontSize="12"
+                             Foreground="{DynamicResource Kei.Status.Error}" TextWrapping="Wrap"/>
+    </StackPanel>
+</UserControl>

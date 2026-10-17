@@ -189,6 +189,7 @@ public class SettingsProfileAndTabPlacementTests
             await HeadlessAvalonia.RunAsync(() =>
             {
                 SettingsViewModel vm = new(service, tempDir);
+                vm.SelectedCategory = vm.Categories.Single(c => c.Page is GeneralSettingsPage);
                 GeneralSettingsPage general = vm.Categories.Select(c => c.Page).OfType<GeneralSettingsPage>().Single();
                 SettingsWindow window = new(vm);
                 try

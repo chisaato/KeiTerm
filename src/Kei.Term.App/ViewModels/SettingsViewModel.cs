@@ -46,6 +46,24 @@ public partial class SettingsViewModel : ViewModelBase
     [ObservableProperty]
     private SettingsCategoryItem _selectedCategory;
 
+    partial void OnSelectedCategoryChanged(SettingsCategoryItem? oldValue, SettingsCategoryItem newValue)
+    {
+        if (newValue != null && newValue.IsHeader)
+        {
+            var next = Categories.SkipWhile(c => c != newValue).Skip(1).FirstOrDefault(c => !c.IsHeader)
+                       ?? Categories.FirstOrDefault(c => !c.IsHeader);
+            if (next != null)
+            {
+                SelectedCategory = next;
+                return;
+            }
+        }
+
+        // 切换分类时复位所有下钻子页面
+        _fileTransfer.TransferPage.NavigateBack();
+        _appearance.NavigateBack();
+    }
+
     public bool IsConfirmed { get; private set; }
     public event Action? RequestClose;
 
@@ -100,62 +118,94 @@ public partial class SettingsViewModel : ViewModelBase
 
         Categories = new[]
         {
+            // 应用
+            SettingsCategoryItem.CreateHeader(Strings.Get("Settings.Groups.App")),
             new SettingsCategoryItem(
                 Strings.Get("Settings.Categories.General"),
                 Strings.Get("Settings.Categories.GeneralDesc"),
                 _general,
-                SettingsIcons.General),
+                SettingsIcons.General,
+                Strings.Get("Settings.Groups.App")),
             new SettingsCategoryItem(
                 Strings.Get("Settings.Categories.Appearance"),
                 Strings.Get("Settings.Categories.AppearanceDesc"),
                 _appearance,
-                SettingsIcons.Appearance),
+                SettingsIcons.Appearance,
+                Strings.Get("Settings.Groups.App")),
             new SettingsCategoryItem(
                 Strings.Get("Settings.Categories.Tree"),
                 Strings.Get("Settings.Categories.TreeDesc"),
                 new TreeSettingsProxyPage(_appearance, _general),
-                SettingsIcons.Tree),
+                SettingsIcons.Tree,
+                Strings.Get("Settings.Groups.App")),
+
+            // 终端
+            SettingsCategoryItem.CreateHeader(Strings.Get("Settings.Groups.Terminal")),
             new SettingsCategoryItem(
                 Strings.Get("Settings.Categories.Terminal"),
                 Strings.Get("Settings.Categories.TerminalDesc"),
                 new TerminalSettingsCombinedPage(_terminal),
-                SettingsIcons.Terminal),
+                SettingsIcons.Terminal,
+                Strings.Get("Settings.Groups.Terminal")),
             new SettingsCategoryItem(
                 Strings.Get("Settings.Categories.TerminalAppearance"),
                 Strings.Get("Settings.Categories.TerminalAppearanceDesc"),
                 new TerminalAppearanceSettingsPage(_appearance),
-                SettingsIcons.Appearance),
+                SettingsIcons.Appearance,
+                Strings.Get("Settings.Groups.Terminal")),
             new SettingsCategoryItem(
                 Strings.Get("Settings.Categories.TabBar"),
                 Strings.Get("Settings.Categories.TabBarDesc"),
                 new TabBarSettingsProxyPage(_appearance, _terminal),
-                SettingsIcons.TabBar),
+                SettingsIcons.TabBar,
+                Strings.Get("Settings.Groups.Terminal")),
+
+            // 连接
+            SettingsCategoryItem.CreateHeader(Strings.Get("Settings.Groups.Connection")),
             new SettingsCategoryItem(
                 Strings.Get("Settings.Categories.Ssh"),
                 Strings.Get("Settings.Categories.SshDesc"),
                 _ssh,
-                SettingsIcons.Ssh),
-            new SettingsCategoryItem(
-                Strings.Get("Settings.Categories.Security"),
-                Strings.Get("Settings.Categories.SecurityDesc"),
-                _security,
-                SettingsIcons.Ssh),
-            new SettingsCategoryItem(
-                Strings.Get("Settings.Categories.FileTransfer"),
-                Strings.Get("Settings.Categories.FileTransferDesc"),
-                _fileTransfer,
-                SettingsIcons.FileTransfer),
+                SettingsIcons.Ssh,
+                Strings.Get("Settings.Groups.Connection")),
         };
+
         if (ProxyPage != null)
         {
             Categories = Categories.Append(new SettingsCategoryItem(
                 Strings.Get("Settings.Categories.Proxy"),
                 Strings.Get("Settings.Categories.ProxyDesc"),
                 ProxyPage,
-                SettingsIcons.Ssh)).ToArray();
+                SettingsIcons.Ssh,
+                Strings.Get("Settings.Groups.Connection"))).ToArray();
         }
 
-        SelectedCategory = Categories[0];
+        Categories = Categories.Concat(new[]
+        {
+            new SettingsCategoryItem(
+                Strings.Get("Settings.Categories.Security"),
+                Strings.Get("Settings.Categories.SecurityDesc"),
+                _security,
+                SettingsIcons.Ssh,
+                Strings.Get("Settings.Groups.Connection")),
+
+            // 文件
+            SettingsCategoryItem.CreateHeader(Strings.Get("Settings.Groups.Files")),
+            new SettingsCategoryItem(
+                Strings.Get("Settings.Categories.Transfer"),
+                Strings.Get("Settings.Categories.TransferDesc"),
+                _fileTransfer.TransferPage,
+                SettingsIcons.FileTransfer,
+                Strings.Get("Settings.Groups.Files")),
+            new SettingsCategoryItem(
+                Strings.Get("Settings.Categories.FileManager"),
+                Strings.Get("Settings.Categories.FileManagerDesc"),
+                _fileTransfer.FileManagerPage,
+                SettingsIcons.FileTransfer,
+                Strings.Get("Settings.Groups.Files")),
+        }).ToArray();
+
+        SelectedCategory = Categories.First(c => !c.IsHeader);
 
         // 选择即草稿预览：选择回调交回本 VM 统一广播，但不落盘
         _appearance.SetDraftPreviewHandler(OnTerminalProfileDraftPreview);

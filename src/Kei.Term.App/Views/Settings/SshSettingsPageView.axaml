@@ -1,0 +1,144 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:settings="using:Kei.Term.App.ViewModels.Settings"
+             xmlns:controls="using:Kei.Term.App.Views.Settings.Controls"
+             xmlns:loc="using:Kei.Term.App.Helpers"
+             x:Class="Kei.Term.App.Views.Settings.SshSettingsPageView"
+             x:DataType="settings:SshSettingsPage">
+
+    <StackPanel MaxWidth="760" HorizontalAlignment="Stretch" Spacing="16">
+        <!-- 页头：面包屑 + 标题 + 描述 -->
+        <controls:SettingsPageHeader Group="{loc:KeiString Settings.Groups.Connection}"
+                                     Title="{loc:KeiString Settings.Categories.Ssh}"
+                                     Description="{loc:KeiString Settings.Categories.SshDesc}"/>
+
+        <!-- 1. 默认连接参数卡片 -->
+        <Border Classes="settingsCard">
+            <StackPanel Spacing="10">
+                <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.Ssh.ConnectionSection}"/>
+
+                <controls:SettingRow Title="{loc:KeiString Settings.Ssh.DefaultPort}"
+                                     Description="{loc:KeiString Settings.Ssh.DefaultPortTip}">
+                    <NumericUpDown HorizontalAlignment="Right" MinWidth="180"
+                                   Value="{Binding DefaultPort}" Minimum="1" Maximum="65535" FormatString="0"/>
+                </controls:SettingRow>
+
+                <Border Classes="settingRowDivider"/>
+
+                <controls:SettingRow Title="{loc:KeiString Settings.Ssh.DefaultUsername}"
+                                     Description="{loc:KeiString Settings.Ssh.DefaultUsernameTip}">
+                    <TextBox Text="{Binding DefaultUsername}"
+                             PlaceholderText="{loc:KeiString Settings.Ssh.DefaultUsernamePlaceholder}"
+                             MinWidth="200"
+                             HorizontalAlignment="Right"/>
+                </controls:SettingRow>
+
+                <Border Classes="settingRowDivider"/>
+
+                <controls:SettingRow Title="{loc:KeiString Settings.Ssh.ConnectTimeout}"
+                                     Description="{loc:KeiString Settings.Ssh.ConnectTimeoutTip}">
+                    <NumericUpDown HorizontalAlignment="Right" MinWidth="180"
+                                   Value="{Binding ConnectTimeoutSeconds}" Minimum="3" Maximum="300" FormatString="0"/>
+                </controls:SettingRow>
+            </StackPanel>
+        </Border>
+
+        <!-- 2. 默认身份卡片 -->
+        <Border Classes="settingsCard">
+            <StackPanel Spacing="10">
+                <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.Ssh.IdentitySection}"/>
+
+                <controls:SettingRow Title="{loc:KeiString Settings.Ssh.DefaultIdentity}"
+                                     Description="{loc:KeiString Settings.Ssh.DefaultIdentityTip}">
+                    <ComboBox HorizontalAlignment="Right" MinWidth="220"
+                              ItemsSource="{Binding Identities}" SelectedItem="{Binding SelectedIdentity}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="settings:IdentityOption">
+                                <TextBlock Text="{Binding DisplayName}" FontFamily="{DynamicResource Kei.Font.UI}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </controls:SettingRow>
+            </StackPanel>
+        </Border>
+
+        <!-- 3. 保活与重连卡片 -->
+        <Border Classes="settingsCard">
+            <StackPanel Spacing="10">
+                <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.Ssh.RecoverySection}"/>
+
+                <controls:SettingRow Title="{loc:KeiString Settings.Ssh.KeepAliveInterval}"
+                                     Description="{loc:KeiString Settings.Ssh.KeepAliveIntervalTip}">
+                    <NumericUpDown HorizontalAlignment="Right" MinWidth="180"
+                                   Value="{Binding KeepAliveIntervalSeconds}" Minimum="0" Maximum="300" FormatString="0"/>
+                </controls:SettingRow>
+
+                <Border Classes="settingRowDivider"/>
+
+                <controls:SettingRow Title="{loc:KeiString Settings.General.AutoReconnect}"
+                                     Description="{loc:KeiString Settings.General.AutoReconnectTip}">
+                    <ToggleSwitch IsChecked="{Binding General.AutoReconnectOnDisconnect}"
+                                  OnContent="" OffContent=""
+                                  HorizontalAlignment="Right"/>
+                </controls:SettingRow>
+            </StackPanel>
+        </Border>
+
+        <!-- 4. SSH Agent 与安全选项卡片（含高级路径折叠） -->
+        <Border Classes="settingsCard">
+            <StackPanel Spacing="10">
+                <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.Ssh.AgentSection}"/>
+
+                <controls:SettingRow Title="{loc:KeiString Settings.Ssh.PreferSystemAgent}"
+                                     Description="{loc:KeiString Settings.Ssh.PreferSystemAgentTip}">
+                    <ToggleSwitch IsChecked="{Binding PreferSystemAgent}"
+                                  OnContent="" OffContent=""
+                                  HorizontalAlignment="Right"/>
+                </controls:SettingRow>
+
+                <Border Classes="settingRowDivider"/>
+
+                <controls:SettingRow Title="{loc:KeiString Settings.Ssh.EnableAgentForwarding}"
+                                     Description="{loc:KeiString Settings.Ssh.EnableAgentForwardingTip}">
+                    <ToggleSwitch IsChecked="{Binding EnableAgentForwarding}"
+                                  OnContent="" OffContent=""
+                                  HorizontalAlignment="Right"/>
+                </controls:SettingRow>
+
+                <Border Classes="settingRowDivider"/>
+
+                <Expander Header="{loc:KeiString Settings.Common.ShowAdvancedOptions}"
+                          IsExpanded="False"
+                          Margin="0,4,0,0"
+                          Padding="0,8,0,0">
+                    <controls:SettingRow Title="{loc:KeiString Settings.Ssh.CustomAgentPath}"
+                                         Description="{loc:KeiString Settings.Ssh.CustomAgentPathTip}">
+                        <TextBox Text="{Binding CustomAgentSocketPath}"
+                                 PlaceholderText="{loc:KeiString Settings.Ssh.CustomAgentPathPlaceholder}"
+                                 MinWidth="220"
+                                 HorizontalAlignment="Right"/>
+                    </controls:SettingRow>
+                </Expander>
+            </StackPanel>
+        </Border>
+
+        <!-- 5. 主机密钥策略卡片 -->
+        <Border Classes="settingsCard">
+            <StackPanel Spacing="10">
+                <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.Ssh.HostKeySection}"/>
+
+                <controls:SettingRow Title="{loc:KeiString Settings.Ssh.HostKeyPolicy}"
+                                     Description="{loc:KeiString Settings.Ssh.HostKeyPolicyTip}">
+                    <ComboBox HorizontalAlignment="Right" MinWidth="260"
+                              ItemsSource="{Binding HostKeyPolicies}" SelectedItem="{Binding SelectedHostKeyPolicy}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="settings:HostKeyPolicyOption">
+                                <TextBlock Text="{Binding DisplayName}" FontFamily="{DynamicResource Kei.Font.UI}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </controls:SettingRow>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

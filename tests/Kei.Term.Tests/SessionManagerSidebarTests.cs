@@ -267,6 +267,7 @@ public class SessionManagerSidebarTests
         JsonSettingsService service = new(path);
         await service.SaveSettingsAsync(new AppSettings { SessionManagerPinned = !pinned });
         SettingsViewModel settings = new(service, directory);
+        settings.SelectedCategory = settings.Categories.Single(c => c.Page is GeneralSettingsPage);
         SettingsWindow window = new(settings);
         MainViewModel model = CreateModel(service);
         try

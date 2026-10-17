@@ -1,0 +1,77 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:settings="using:Kei.Term.App.ViewModels.Settings"
+             xmlns:controls="using:Kei.Term.App.Views.Settings.Controls"
+             xmlns:loc="using:Kei.Term.App.Helpers"
+             x:Class="Kei.Term.App.Views.Settings.SecuritySettingsPageView"
+             x:DataType="settings:SecuritySettingsPage">
+
+    <StackPanel MaxWidth="760" HorizontalAlignment="Stretch" Spacing="16">
+        <!-- 页头：面包屑 + 标题 + 描述 -->
+        <controls:SettingsPageHeader Group="{loc:KeiString Settings.Groups.Connection}"
+                                     Title="{loc:KeiString Settings.Categories.Security}"
+                                     Description="{loc:KeiString Settings.Categories.SecurityDesc}"/>
+
+        <!-- 1. 主密码卡片 -->
+        <Border Classes="settingsCard" IsVisible="{Binding HasVault}">
+            <StackPanel Spacing="10">
+                <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.Security.MasterPasswordSection}"/>
+
+                <TextBlock Text="{Binding MasterPasswordStatus}" TextWrapping="Wrap" FontSize="12"
+                           Foreground="{DynamicResource Kei.Text.Secondary}"/>
+
+                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                    <Button x:Name="SetMasterPasswordButton" MinWidth="130"
+                            Content="{Binding PasswordButtonText}"
+                            Command="{Binding SetMasterPasswordCommand}"/>
+                    <Button x:Name="RemoveMasterPasswordButton" MinWidth="130"
+                            Content="{loc:KeiString Settings.Security.RemoveMasterPassword}"
+                            Command="{Binding RemoveMasterPasswordCommand}"
+                            IsVisible="{Binding CanRemoveMasterPassword}"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- 2. 保管库锁定与本机快速解锁卡片 -->
+        <Border Classes="settingsCard">
+            <StackPanel Spacing="10">
+                <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.Ssh.VaultSection}"/>
+
+                <!-- 自动锁定超时 -->
+                <controls:SettingRow Title="{loc:KeiString Settings.Ssh.LockTimeout}"
+                                     Description="{loc:KeiString Settings.Ssh.LockTimeoutTip}">
+                    <NumericUpDown HorizontalAlignment="Right" MinWidth="180"
+                                   Value="{Binding LockTimeoutMinutes}" Minimum="0" Maximum="120" FormatString="0"/>
+                </controls:SettingRow>
+
+                <Border Classes="settingRowDivider"/>
+
+                <!-- 本机快捷解锁部分 -->
+                <ContentControl Content="{Binding QuickUnlock}">
+                    <ContentControl.ContentTemplate>
+                        <DataTemplate x:DataType="settings:VaultQuickUnlockSettingsViewModel">
+                            <StackPanel Spacing="8" Margin="0,2,0,0">
+                                <TextBlock Text="{loc:KeiString VaultQuickUnlock.Title}"
+                                           Foreground="{DynamicResource Kei.Text.Primary}" FontWeight="SemiBold" FontSize="13"/>
+                                <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap" FontSize="12"
+                                           Foreground="{DynamicResource Kei.Text.Secondary}"/>
+
+                                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                                    <Button x:Name="EnableQuickUnlockButton" Content="{Binding EnableButtonText}"
+                                            Command="{Binding EnableCommand}" IsVisible="{Binding ShowEnable}" MinWidth="120"/>
+                                    <Button x:Name="DisableQuickUnlockButton" Content="{loc:KeiString VaultQuickUnlock.Disable}"
+                                            Command="{Binding DisableCommand}" IsVisible="{Binding IsEnabled}" MinWidth="120"/>
+                                </StackPanel>
+
+                                <TextBlock Text="{loc:KeiString VaultQuickUnlock.LocalOnlyHint}" TextWrapping="Wrap" FontSize="12"
+                                           Foreground="{DynamicResource Kei.Text.Muted}"/>
+                                <TextBlock Text="{Binding ErrorMessage}" IsVisible="{Binding HasError}" TextWrapping="Wrap" FontSize="12"
+                                           Foreground="{DynamicResource Kei.Status.Error}"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ContentControl.ContentTemplate>
+                </ContentControl>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

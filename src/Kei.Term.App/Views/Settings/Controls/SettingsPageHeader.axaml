@@ -1,0 +1,84 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Kei.Term.App.Views.Settings.Controls"
+             xmlns:loc="using:Kei.Term.App.Helpers"
+             x:Class="Kei.Term.App.Views.Settings.Controls.SettingsPageHeader"
+             x:DataType="controls:SettingsPageHeader">
+    <StackPanel Spacing="6" Margin="0,0,0,16">
+        <!-- 面包屑导航 -->
+        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+            <!-- 分组名 -->
+            <TextBlock Text="{Binding Group, RelativeSource={RelativeSource AncestorType=controls:SettingsPageHeader}}"
+                       FontSize="12"
+                       Foreground="{DynamicResource Kei.Text.Muted}"
+                       IsVisible="{Binding HasGroup, RelativeSource={RelativeSource AncestorType=controls:SettingsPageHeader}}"/>
+
+            <TextBlock Text="/"
+                       FontSize="12"
+                       Foreground="{DynamicResource Kei.Text.Muted}"
+                       IsVisible="{Binding HasGroup, RelativeSource={RelativeSource AncestorType=controls:SettingsPageHeader}}"/>
+
+            <!-- 页面名（如果在子页状态，点击可返回主页） -->
+            <Button Content="{Binding Title, RelativeSource={RelativeSource AncestorType=controls:SettingsPageHeader}}"
+                    Command="{Binding BackCommand, RelativeSource={RelativeSource AncestorType=controls:SettingsPageHeader}}"
+                    IsVisible="{Binding HasSubPage, RelativeSource={RelativeSource AncestorType=controls:SettingsPageHeader}}"
+                    Classes="hyperlink"
+                    Padding="0"
+                    Height="18"
+                    FontSize="12"
+                    Foreground="{DynamicResource Kei.Accent}"/>
+
+            <TextBlock Text="{Binding Title, RelativeSource={RelativeSource AncestorType=controls:SettingsPageHeader}}"
+                       FontSize="12"
+                       Foreground="{DynamicResource Kei.Text.Secondary}"
+                       IsVisible="{Binding !HasSubPage, RelativeSource={RelativeSource AncestorType=controls:SettingsPageHeader}}"/>
+
+            <!-- 子页面名 -->
+            <TextBlock Text="/"
+                       FontSize="12"
+                       Foreground="{DynamicResource Kei.Text.Muted}"
+                       IsVisible="{Binding HasSubPage, RelativeSource={RelativeSource AncestorType=controls:SettingsPageHeader}}"/>
+
+            <TextBlock Text="{Binding SubPageTitle, RelativeSource={RelativeSource AncestorType=controls:SettingsPageHeader}}"
+                       FontSize="12"
+                       Foreground="{DynamicResource Kei.Text.Primary}"
+                       FontWeight="SemiBold"
+                       IsVisible="{Binding HasSubPage, RelativeSource={RelativeSource AncestorType=controls:SettingsPageHeader}}"/>
+        </StackPanel>
+
+        <!-- 标题行（如果在子页面，显示返回按钮与子页标题） -->
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" VerticalAlignment="Center">
+            <!-- 子页返回箭头按钮 -->
+            <Button Grid.Column="0"
+                    Classes="iconBtn"
+                    Command="{Binding BackCommand, RelativeSource={RelativeSource AncestorType=controls:SettingsPageHeader}}"
+                    IsVisible="{Binding HasSubPage, RelativeSource={RelativeSource AncestorType=controls:SettingsPageHeader}}"
+                    Width="24" Height="24"
+                    Padding="0"
+                    ToolTip.Tip="{loc:KeiString Settings.Common.Back}">
+                <Viewbox Width="12" Height="12" Stretch="Uniform">
+                    <Grid Width="24" Height="24">
+                        <Path Classes="kei-icon" Width="24" Height="24" Stretch="None"
+                              Data="{StaticResource Kei.Icon.ChevronLeft}"
+                              Stroke="{DynamicResource Kei.Text.Primary}"/>
+                    </Grid>
+                </Viewbox>
+            </Button>
+
+            <!-- 主标题：子页状态显示子页标题，否则显示主页面标题 -->
+            <TextBlock Grid.Column="1"
+                       Text="{Binding CurrentDisplayTitle, RelativeSource={RelativeSource AncestorType=controls:SettingsPageHeader}}"
+                       FontSize="18"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource Kei.Text.Primary}"
+                       VerticalAlignment="Center"/>
+        </Grid>
+
+        <!-- 描述（子页不显示主页描述） -->
+        <TextBlock Text="{Binding Description, RelativeSource={RelativeSource AncestorType=controls:SettingsPageHeader}}"
+                   FontSize="12"
+                   Foreground="{DynamicResource Kei.Text.Secondary}"
+                   TextWrapping="Wrap"
+                   IsVisible="{Binding ShouldShowDescription, RelativeSource={RelativeSource AncestorType=controls:SettingsPageHeader}}"/>
+    </StackPanel>
+</UserControl>

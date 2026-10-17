@@ -1,0 +1,49 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:settings="using:Kei.Term.App.ViewModels.Settings"
+             xmlns:controls="using:Kei.Term.App.Views.Settings.Controls"
+             xmlns:loc="using:Kei.Term.App.Helpers"
+             x:Class="Kei.Term.App.Views.Settings.TerminalSettingsPageView"
+             x:DataType="settings:TerminalSettingsCombinedPage">
+
+    <StackPanel MaxWidth="760" HorizontalAlignment="Stretch" Spacing="16">
+        <!-- 页头：面包屑 + 标题 + 描述 -->
+        <controls:SettingsPageHeader Group="{loc:KeiString Settings.Groups.Terminal}"
+                                     Title="{loc:KeiString Settings.Categories.Terminal}"
+                                     Description="{loc:KeiString Settings.Categories.TerminalDesc}"/>
+
+        <!-- 1. 终端仿真与回滚卡片 -->
+        <Border Classes="settingsCard">
+            <StackPanel Spacing="10">
+                <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.Terminal.ScrollbackSection}"/>
+
+                <!-- 回滚缓冲区行数 -->
+                <controls:SettingRow Title="{loc:KeiString Settings.Terminal.ScrollbackLines}"
+                                     Description="{loc:KeiString Settings.Terminal.ScrollbackLinesTip}">
+                    <NumericUpDown HorizontalAlignment="Right" MinWidth="180"
+                                   Value="{Binding Terminal.ScrollbackLines}" Minimum="500" Maximum="50000" FormatString="0"/>
+                </controls:SettingRow>
+
+                <Border Classes="settingRowDivider"/>
+
+                <!-- 默认终端仿真类型（低频高级项） -->
+                <Expander Header="{loc:KeiString Settings.Terminal.EmulationSection}"
+                          IsExpanded="False"
+                          Margin="0,4,0,0"
+                          Padding="0,8,0,0">
+                    <controls:SettingRow Title="{loc:KeiString Settings.Terminal.DefaultTerminalType}"
+                                         Description="{loc:KeiString Settings.Terminal.DefaultTerminalTypeTip}">
+                        <TextBox Text="{Binding Terminal.DefaultTerminalType}"
+                                 PlaceholderText="{loc:KeiString Settings.Terminal.DefaultTerminalTypePlaceholder}"
+                                 MinWidth="180"
+                                 HorizontalAlignment="Right"/>
+                    </controls:SettingRow>
+                </Expander>
+            </StackPanel>
+        </Border>
+
+        <TextBlock Text="{loc:KeiString Settings.Terminal.SessionOverrideHint}"
+                   FontSize="12" TextWrapping="Wrap"
+                   Foreground="{DynamicResource Kei.Text.Muted}"/>
+    </StackPanel>
+</UserControl>

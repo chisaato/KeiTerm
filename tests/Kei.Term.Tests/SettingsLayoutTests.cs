@@ -39,6 +39,7 @@ public class SettingsLayoutTests
             window.Show();
             foreach (SettingsCategoryItem category in model.Categories)
             {
+                if (category.IsHeader) continue;
                 model.SelectedCategory = category;
                 window.UpdateLayout();
                 HeadlessAvalonia.Pump();

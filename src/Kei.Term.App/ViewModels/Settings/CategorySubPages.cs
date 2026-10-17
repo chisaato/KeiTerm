@@ -1,5 +1,9 @@
 namespace Kei.Term.App.ViewModels.Settings;
 
+using System;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+
 // 树设置分类项容器（直接代理 AppearanceSettingsPage 的树密度设置）
 public sealed class TreeSettingsProxyPage : ViewModelBase
 {
@@ -32,15 +36,49 @@ public sealed class TerminalAppearanceSettingsPage(AppearanceSettingsPage appear
 }
 
 // 标签栏设置分类项容器：位置与全局标题行为共用原页面草稿。
-public sealed class TabBarSettingsProxyPage : ViewModelBase
+public sealed partial class TabBarSettingsProxyPage : ViewModelBase, ISettingsDrillDownHost
 {
     public AppearanceSettingsPage Appearance { get; }
 
     public TerminalSettingsPage Terminal { get; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsInSubPage))]
+    private SettingsSubPageViewModel? _currentSubPage;
+
+    public bool IsInSubPage => CurrentSubPage != null;
+
+    public void NavigateToSubPage(string title, object content, Action? onClosed = null)
+    {
+        CurrentSubPage = new SettingsSubPageViewModel(title, content, onClosed);
+    }
+
+    [RelayCommand]
+    public void NavigateBack()
+    {
+        if (CurrentSubPage != null)
+        {
+            Action? callback = CurrentSubPage.OnClosed;
+            CurrentSubPage = null;
+            callback?.Invoke();
+        }
+    }
+
+    [RelayCommand]
+    private void DrillDownVariables()
+    {
+        NavigateToSubPage(Helpers.Strings.Get("Settings.TabBar.VariableReference"), new TabBarVariablesSubPage(this));
+    }
 
     public TabBarSettingsProxyPage(AppearanceSettingsPage appearance, TerminalSettingsPage? terminal = null)
     {
         Appearance = appearance;
         Terminal = terminal ?? new TerminalSettingsPage();
     }
+}
+
+public class TabBarVariablesSubPage : ViewModelBase
+{
+    public TabBarSettingsProxyPage Parent { get; }
+    public TabBarVariablesSubPage(TabBarSettingsProxyPage parent) => Parent = parent;
 }

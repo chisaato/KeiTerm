@@ -45,228 +45,249 @@ public partial class FileTransferSettingsPage : ViewModelBase
         new(FileSizeDisplayMode.Bytes, Strings.Get("Settings.FileTransfer.SizeBytes"))
     ];
 
-    [ObservableProperty]
-    private FileSizeDisplayOption _selectedSizeDisplay;
+    public FileSizeDisplayOption SelectedSizeDisplay
+    {
+        get => FileManagerPage.SelectedSizeDisplay;
+        set => FileManagerPage.SelectedSizeDisplay = value;
+    }
 
     public void SetSizeDisplayMode(FileSizeDisplayMode mode)
-        => SelectedSizeDisplay = SizeDisplayOptions.FirstOrDefault(option => option.Mode == mode) ?? SizeDisplayOptions[0];
+        => FileManagerPage.SetSizeDisplayMode(mode);
 
     // 会话覆盖的目录跟随默认值，复用设置窗口的同一份草稿。
     public TerminalSettingsPage Terminal { get; }
 
-    [ObservableProperty]
-    private bool _isFileManagerOnLeft;
+    // 转发属性到 _transferPage 与 _fileManagerPage 以保持测试与向后兼容性
+    public TransferSettingsPage TransferPage { get; }
+    public FileManagerSettingsPage FileManagerPage { get; }
 
-    // 传输队列与重试设置
-    [ObservableProperty]
-    private int _concurrency = FileTransferSettings.DefaultConcurrency;
+    public int Concurrency
+    {
+        get => TransferPage.Concurrency;
+        set => TransferPage.Concurrency = value;
+    }
 
-    [ObservableProperty]
-    private string _defaultDownloadDirectory = string.Empty;
+    public string DefaultDownloadDirectory
+    {
+        get => TransferPage.DefaultDownloadDirectory;
+        set => TransferPage.DefaultDownloadDirectory = value;
+    }
 
-    [ObservableProperty]
-    private ConflictPolicyOption _selectedConflictPolicy;
+    public ConflictPolicyOption SelectedConflictPolicy
+    {
+        get => TransferPage.SelectedConflictPolicy;
+        set => TransferPage.SelectedConflictPolicy = value;
+    }
 
     public void SetConflictPolicy(TransferConflictPolicy policy)
-        => SelectedConflictPolicy = ConflictPolicyOptions.FirstOrDefault(opt => opt.Policy == policy) ?? ConflictPolicyOptions[0];
+        => TransferPage.SetConflictPolicy(policy);
 
-    [ObservableProperty]
-    private bool _resumeEnabled;
+    public bool ResumeEnabled
+    {
+        get => TransferPage.ResumeEnabled;
+        set => TransferPage.ResumeEnabled = value;
+    }
 
-    [ObservableProperty]
-    private bool _autoRetryEnabled = true;
+    public bool AutoRetryEnabled
+    {
+        get => TransferPage.AutoRetryEnabled;
+        set => TransferPage.AutoRetryEnabled = value;
+    }
 
-    [ObservableProperty]
-    private int _retryCount = FileTransferSettings.DefaultRetryCount;
+    public int RetryCount
+    {
+        get => TransferPage.RetryCount;
+        set => TransferPage.RetryCount = value;
+    }
 
-    [ObservableProperty]
-    private RetryBackoffOption _selectedBackoffMode;
+    public RetryBackoffOption SelectedBackoffMode
+    {
+        get => TransferPage.SelectedBackoffMode;
+        set => TransferPage.SelectedBackoffMode = value;
+    }
 
     public void SetBackoffMode(RetryBackoffMode mode)
-        => SelectedBackoffMode = BackoffModeOptions.FirstOrDefault(opt => opt.Mode == mode) ?? BackoffModeOptions[0];
+        => TransferPage.SetBackoffMode(mode);
 
-    [ObservableProperty]
-    private int _initialRetryIntervalSeconds = FileTransferSettings.DefaultInitialRetryIntervalSeconds;
+    public int InitialRetryIntervalSeconds
+    {
+        get => TransferPage.InitialRetryIntervalSeconds;
+        set => TransferPage.InitialRetryIntervalSeconds = value;
+    }
 
-    [ObservableProperty]
-    private int _maxRetryIntervalSeconds = FileTransferSettings.DefaultMaxRetryIntervalSeconds;
+    public int MaxRetryIntervalSeconds
+    {
+        get => TransferPage.MaxRetryIntervalSeconds;
+        set => TransferPage.MaxRetryIntervalSeconds = value;
+    }
 
-    [ObservableProperty]
-    private int _pollingIntervalSeconds = 3;
+    public bool IsFileManagerOnLeft
+    {
+        get => FileManagerPage.IsFileManagerOnLeft;
+        set => FileManagerPage.IsFileManagerOnLeft = value;
+    }
 
-    [ObservableProperty]
-    private int _writeDebounceMilliseconds = 800;
+    public int PollingIntervalSeconds
+    {
+        get => FileManagerPage.PollingIntervalSeconds;
+        set => FileManagerPage.PollingIntervalSeconds = value;
+    }
 
-    [ObservableProperty, NotifyPropertyChangedFor(nameof(DisplayCustomEditorPath))]
-    private string _customEditorPath = string.Empty;
+    public int WriteDebounceMilliseconds
+    {
+        get => FileManagerPage.WriteDebounceMilliseconds;
+        set => FileManagerPage.WriteDebounceMilliseconds = value;
+    }
 
-    public string DisplayCustomEditorPath => string.IsNullOrWhiteSpace(CustomEditorPath)
-        ? Strings.Get("Settings.FileTransfer.CustomEditorPathPlaceholder") : CustomEditorPath;
+    public string CustomEditorPath
+    {
+        get => FileManagerPage.CustomEditorPath;
+        set => FileManagerPage.CustomEditorPath = value;
+    }
 
-    // 文件传输缓存目录与监视模式
-    [ObservableProperty]
-    private string _cacheDirectory = string.Empty;
+    public string DisplayCustomEditorPath => FileManagerPage.DisplayCustomEditorPath;
 
-    public IReadOnlyList<string> WatcherModes { get; } = ["Auto", "OSNative", "Polling"];
+    public string CacheDirectory
+    {
+        get => FileManagerPage.CacheDirectory;
+        set => FileManagerPage.CacheDirectory = value;
+    }
 
-    [ObservableProperty]
-    private string _selectedWatcherMode = "Auto";
+    public IReadOnlyList<string> WatcherModes => FileManagerPage.WatcherModes;
 
-    // 外部编辑器列表与关联规则列表
-    public ObservableCollection<ExternalEditorItemViewModel> Editors { get; } = [];
-    public ObservableCollection<FileAssociationItemViewModel> Associations { get; } = [];
+    public string SelectedWatcherMode
+    {
+        get => FileManagerPage.SelectedWatcherMode;
+        set => FileManagerPage.SelectedWatcherMode = value;
+    }
 
-    [ObservableProperty]
-    private ExternalEditorItemViewModel? _selectedEditor;
+    public IReadOnlyList<TerminalUploadOption> TerminalUploadProtocols => FileManagerPage.TerminalUploadProtocols;
+    public IReadOnlyList<TerminalDropActionOption> TerminalDropActions => FileManagerPage.TerminalDropActions;
 
-    [ObservableProperty]
-    private FileAssociationItemViewModel? _selectedAssociation;
+    public TerminalUploadOption SelectedTerminalUploadProtocol
+    {
+        get => FileManagerPage.SelectedTerminalUploadProtocol;
+        set => FileManagerPage.SelectedTerminalUploadProtocol = value;
+    }
 
-    public Services.IInteractionService Interaction { get; set; } = Services.NullInteractionService.Instance;
+    public TerminalDropActionOption SelectedTerminalDropAction
+    {
+        get => FileManagerPage.SelectedTerminalDropAction;
+        set => FileManagerPage.SelectedTerminalDropAction = value;
+    }
 
-    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasError))]
-    private string _errorMessage = string.Empty;
-    public bool HasError => !string.IsNullOrEmpty(ErrorMessage);
-    public bool HasEditors => Editors.Count > 0;
-    public bool HasAssociations => Associations.Count > 0;
+    public void SetTerminalDropPreferences(TerminalUploadProtocol protocol, TerminalFileDropAction? action)
+        => FileManagerPage.SetTerminalDropPreferences(protocol, action);
+
+    public ObservableCollection<ExternalEditorItemViewModel> Editors => FileManagerPage.Editors;
+    public ObservableCollection<FileAssociationItemViewModel> Associations => FileManagerPage.Associations;
+
+    public ExternalEditorItemViewModel? SelectedEditor
+    {
+        get => FileManagerPage.SelectedEditor;
+        set => FileManagerPage.SelectedEditor = value;
+    }
+
+    public FileAssociationItemViewModel? SelectedAssociation
+    {
+        get => FileManagerPage.SelectedAssociation;
+        set => FileManagerPage.SelectedAssociation = value;
+    }
+
+    public Services.IInteractionService Interaction
+    {
+        get => FileManagerPage.Interaction;
+        set
+        {
+            FileManagerPage.Interaction = value;
+            TransferPage.Interaction = value;
+        }
+    }
+
+    public string ErrorMessage
+    {
+        get => FileManagerPage.ErrorMessage;
+        set => FileManagerPage.ErrorMessage = value;
+    }
+
+    public bool HasError => FileManagerPage.HasError;
+    public bool HasEditors => FileManagerPage.HasEditors;
+    public bool HasAssociations => FileManagerPage.HasAssociations;
+
+    public IAsyncRelayCommand EditCustomEditorPathCommand => (IAsyncRelayCommand)FileManagerPage.EditCustomEditorPathCommand;
+    public IAsyncRelayCommand AddEditorCommand => (IAsyncRelayCommand)FileManagerPage.AddEditorCommand;
+    public IAsyncRelayCommand EditEditorCommand => (IAsyncRelayCommand)FileManagerPage.EditEditorCommand;
+    public IAsyncRelayCommand DeleteEditorCommand => (IAsyncRelayCommand)FileManagerPage.DeleteEditorCommand;
+    public IAsyncRelayCommand AddAssociationCommand => (IAsyncRelayCommand)FileManagerPage.AddAssociationCommand;
+    public IAsyncRelayCommand EditAssociationCommand => (IAsyncRelayCommand)FileManagerPage.EditAssociationCommand;
+    public IAsyncRelayCommand DeleteAssociationCommand => (IAsyncRelayCommand)FileManagerPage.DeleteAssociationCommand;
+    public IRelayCommand ClearCacheDirectoryCommand => (IRelayCommand)FileManagerPage.ClearCacheDirectoryCommand;
+    public IAsyncRelayCommand BrowseDownloadDirectoryCommand => (IAsyncRelayCommand)TransferPage.BrowseDownloadDirectoryCommand;
+
+    public bool VerifyHashEnabled
+    {
+        get => TransferPage.VerifyHashEnabled;
+        set => TransferPage.VerifyHashEnabled = value;
+    }
+
+    public bool ArchiveDirectoriesEnabled
+    {
+        get => TransferPage.ArchiveDirectoriesEnabled;
+        set => TransferPage.ArchiveDirectoriesEnabled = value;
+    }
+
+    public ObservableCollection<TransferOrderedItemViewModel<TransferHashAlgorithm>> HashAlgorithms => TransferPage.HashAlgorithms;
+    public ObservableCollection<TransferOrderedItemViewModel<TransferArchiveFormat>> ArchiveFormats => TransferPage.ArchiveFormats;
+
+    public TransferOrderedItemViewModel<TransferHashAlgorithm>? SelectedHashAlgorithm
+    {
+        get => TransferPage.SelectedHashAlgorithm;
+        set => TransferPage.SelectedHashAlgorithm = value;
+    }
+
+    public TransferOrderedItemViewModel<TransferArchiveFormat>? SelectedArchiveFormat
+    {
+        get => TransferPage.SelectedArchiveFormat;
+        set => TransferPage.SelectedArchiveFormat = value;
+    }
+
+    public void InitializeTransferPreferences(
+        bool verifyHashEnabled,
+        IReadOnlyList<TransferHashAlgorithm>? hashOrder,
+        bool archiveDirectoriesEnabled,
+        IReadOnlyList<TransferArchiveFormat>? archiveOrder)
+        => TransferPage.InitializeTransferPreferences(verifyHashEnabled, hashOrder, archiveDirectoriesEnabled, archiveOrder);
+
+    public List<TransferHashAlgorithm> CollectHashAlgorithmOrder() => TransferPage.CollectHashAlgorithmOrder();
+    public List<TransferArchiveFormat> CollectArchiveFormatOrder() => TransferPage.CollectArchiveFormatOrder();
+
+    public IRelayCommand MoveUpHashAlgorithmCommand => (IRelayCommand)TransferPage.MoveUpHashAlgorithmCommand;
+    public IRelayCommand MoveDownHashAlgorithmCommand => (IRelayCommand)TransferPage.MoveDownHashAlgorithmCommand;
+    public IRelayCommand MoveUpArchiveFormatCommand => (IRelayCommand)TransferPage.MoveUpArchiveFormatCommand;
+    public IRelayCommand MoveDownArchiveFormatCommand => (IRelayCommand)TransferPage.MoveDownArchiveFormatCommand;
 
     public FileTransferSettingsPage(IExternalEditorRepository? editorRepo = null, TerminalSettingsPage? terminal = null)
     {
         _editorRepo = editorRepo;
         Terminal = terminal ?? new TerminalSettingsPage();
-        _selectedSizeDisplay = SizeDisplayOptions[0];
-        _selectedConflictPolicy = ConflictPolicyOptions[0];
-        _selectedBackoffMode = BackoffModeOptions[0];
-    }
+        TransferPage = new TransferSettingsPage();
+        FileManagerPage = new FileManagerSettingsPage(editorRepo, Terminal);
 
-    [RelayCommand]
-    private async Task BrowseDownloadDirectoryAsync()
-    {
-        string? folder = await Interaction.PickFolderAsync(Strings.Get("FileManager.DownloadToDialogTitle"));
-        if (!string.IsNullOrWhiteSpace(folder))
+        TransferPage.PropertyChanged += (_, e) =>
         {
-            DefaultDownloadDirectory = folder;
-        }
-    }
-
-    partial void OnSelectedEditorChanged(ExternalEditorItemViewModel? value)
-    {
-        EditEditorCommand.NotifyCanExecuteChanged();
-        DeleteEditorCommand.NotifyCanExecuteChanged();
-    }
-
-    partial void OnSelectedAssociationChanged(FileAssociationItemViewModel? value)
-    {
-        EditAssociationCommand.NotifyCanExecuteChanged();
-        DeleteAssociationCommand.NotifyCanExecuteChanged();
+            if (e.PropertyName != null) OnPropertyChanged(e.PropertyName);
+        };
+        FileManagerPage.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName != null) OnPropertyChanged(e.PropertyName);
+        };
     }
 
     public async Task ReloadAsync()
     {
-        if (_editorRepo == null) return;
-
-        var editors = await _editorRepo.GetAllEditorsAsync();
-        var rules = await _editorRepo.GetAllAssociationsAsync();
-
-        Guid? editorId = SelectedEditor?.Id;
-        Guid? associationId = SelectedAssociation?.Id;
-        Editors.Clear();
-        foreach (var e in editors)
-        {
-            Editors.Add(new ExternalEditorItemViewModel(e));
-        }
-
-        Associations.Clear();
-        foreach (var r in rules)
-        {
-            var editor = Editors.FirstOrDefault(e => e.Id == r.EditorId);
-            Associations.Add(new FileAssociationItemViewModel(r, editor?.Name ?? "未知编辑器"));
-        }
-        SelectedEditor = Editors.FirstOrDefault(e => e.Id == editorId) ?? Editors.FirstOrDefault();
-        SelectedAssociation = Associations.FirstOrDefault(a => a.Id == associationId) ?? Associations.FirstOrDefault();
+        await FileManagerPage.ReloadAsync();
         OnPropertyChanged(nameof(HasEditors));
         OnPropertyChanged(nameof(HasAssociations));
-        AddAssociationCommand.NotifyCanExecuteChanged();
-    }
-
-    [RelayCommand]
-    private void ClearCacheDirectory()
-    {
-        if (string.IsNullOrWhiteSpace(CacheDirectory) || !Directory.Exists(CacheDirectory)) return;
-        try
-        {
-            var dir = new DirectoryInfo(CacheDirectory);
-            foreach (var file in dir.GetFiles()) file.Delete();
-            foreach (var sub in dir.GetDirectories()) sub.Delete(true);
-        }
-        catch { }
-    }
-
-    private bool HasSelectedEditor() => SelectedEditor != null;
-    private bool HasSelectedAssociation() => SelectedAssociation != null;
-    private bool CanAddAssociation() => HasEditors;
-
-    [RelayCommand]
-    private Task EditCustomEditorPathAsync() => RunAsync(async () =>
-    {
-        string? path = await Interaction.PromptTextAsync(
-            Strings.Get("Settings.FileTransfer.CustomEditorPath"),
-            Strings.Get("Settings.FileTransfer.CustomEditorPathTip"), CustomEditorPath);
-        // null 是取消，空字符串则明确恢复系统关联；这里只改草稿，统一应用后才落盘。
-        if (path != null) CustomEditorPath = path.Trim();
-    });
-
-    [RelayCommand]
-    private Task AddEditorAsync() => EditEditorCoreAsync(null);
-
-    [RelayCommand(CanExecute = nameof(HasSelectedEditor))]
-    private Task EditEditorAsync() => EditEditorCoreAsync(SelectedEditor?.Model);
-
-    private Task EditEditorCoreAsync(ExternalEditor? existing) => RunAsync(async () =>
-    {
-        ExternalEditor? result = await Interaction.EditExternalEditorAsync(existing);
-        if (result == null || _editorRepo == null) return;
-        await _editorRepo.SaveEditorAsync(result);
-        await ReloadAsync();
-        SelectedEditor = Editors.FirstOrDefault(e => e.Id == result.Id);
-    });
-
-    [RelayCommand(CanExecute = nameof(HasSelectedEditor))]
-    private Task DeleteEditorAsync() => RunAsync(async () =>
-    {
-        if (SelectedEditor == null || _editorRepo == null) return;
-        await _editorRepo.DeleteEditorAsync(SelectedEditor.Id);
-        await ReloadAsync();
-    });
-
-    [RelayCommand(CanExecute = nameof(CanAddAssociation))]
-    private Task AddAssociationAsync() => EditAssociationCoreAsync(null);
-
-    [RelayCommand(CanExecute = nameof(HasSelectedAssociation))]
-    private Task EditAssociationAsync() => EditAssociationCoreAsync(SelectedAssociation?.Model);
-
-    private Task EditAssociationCoreAsync(FileAssociationRule? existing) => RunAsync(async () =>
-    {
-        FileAssociationRule? result = await Interaction.EditFileAssociationAsync(existing, Editors.Select(e => e.Model).ToArray());
-        if (result == null || _editorRepo == null) return;
-        await _editorRepo.SaveAssociationAsync(result);
-        await ReloadAsync();
-        SelectedAssociation = Associations.FirstOrDefault(a => a.Id == result.Id);
-    });
-
-    [RelayCommand(CanExecute = nameof(HasSelectedAssociation))]
-    private Task DeleteAssociationAsync() => RunAsync(async () =>
-    {
-        if (SelectedAssociation == null || _editorRepo == null) return;
-        await _editorRepo.DeleteAssociationAsync(SelectedAssociation.Id);
-        await ReloadAsync();
-    });
-
-    private async Task RunAsync(Func<Task> operation)
-    {
-        ErrorMessage = string.Empty;
-        try { await operation(); }
-        catch (Exception) { ErrorMessage = "操作失败，请检查本地配置数据库后重试。"; }
     }
 
 }

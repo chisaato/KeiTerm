@@ -285,11 +285,11 @@ public partial class SessionEditViewModel : ViewModelBase
     {
         Categories =
         [
-            new SettingsCategoryItem(Strings.Get("SessionEdit.Category.Connection"), null, "Connection", SettingsIcons.Ssh),
-            new SettingsCategoryItem(Strings.Get("SessionEdit.Category.Terminal"), null, "Terminal", SettingsIcons.Terminal),
-            new SettingsCategoryItem(Strings.Get("SessionEdit.Category.FileTransfer"), null, "FileTransfer", SettingsIcons.FileTransfer),
-            new SettingsCategoryItem(Strings.Get("SessionEdit.Category.Behavior"), null, "Behavior", SettingsIcons.General),
-            new SettingsCategoryItem(Strings.Get("SessionEdit.Category.Ports"), null, "Ports", SettingsIcons.Ssh)
+            new SettingsCategoryItem(Strings.Get("SessionEdit.Category.Connection"), null, "Connection", SettingsIcons.Ssh, Strings.Get("SessionEdit.Category.Connection")),
+            new SettingsCategoryItem(Strings.Get("SessionEdit.Category.Terminal"), null, "Terminal", SettingsIcons.Terminal, Strings.Get("SessionEdit.Category.Terminal")),
+            new SettingsCategoryItem(Strings.Get("SessionEdit.Category.FileTransfer"), null, "FileTransfer", SettingsIcons.FileTransfer, Strings.Get("SessionEdit.Category.FileTransfer")),
+            new SettingsCategoryItem(Strings.Get("SessionEdit.Category.Behavior"), null, "Behavior", SettingsIcons.General, Strings.Get("SessionEdit.Category.Behavior")),
+            new SettingsCategoryItem(Strings.Get("SessionEdit.Category.Ports"), null, "Ports", SettingsIcons.Ssh, Strings.Get("SessionEdit.Category.Ports"))
         ];
         SelectedCategory = Categories[0];
     }

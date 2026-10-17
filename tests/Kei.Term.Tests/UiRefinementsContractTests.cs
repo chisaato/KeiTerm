@@ -22,7 +22,7 @@ namespace Kei.Term.Tests;
 public class UiRefinementsContractTests
 {
     [Fact]
-    public Task Settings_TabTitleVariableReference_IsExpandedByDefault() => HeadlessAvalonia.RunAsync(async () =>
+    public Task Settings_TabTitleVariableReference_IsAccessibleViaDrillDown() => HeadlessAvalonia.RunAsync(async () =>
     {
         UiDesignSystemService.Apply();
         string directory = Path.Combine(Path.GetTempPath(), "keiterm_tabtitle_" + Guid.NewGuid().ToString("N"));
@@ -36,10 +36,15 @@ public class UiRefinementsContractTests
             model.SelectedCategory = model.Categories.Single(category => category.Page is TabBarSettingsProxyPage);
             window = new(model);
             window.Show();
+            window.UpdateLayout();
             HeadlessAvalonia.Pump();
 
-            Expander reference = window.GetVisualDescendants().OfType<Expander>().Single(control => control.Name == "TabTitleVariableReference");
-            Assert.True(reference.IsExpanded);
+            TabBarSettingsProxyPage page = (TabBarSettingsProxyPage)model.SelectedCategory.Page;
+            page.DrillDownVariablesCommand.Execute(null);
+            window.UpdateLayout();
+            HeadlessAvalonia.Pump();
+            SelectableTextBlock variable = Assert.Single(window.GetVisualDescendants().OfType<SelectableTextBlock>(), control => control.Text == "{remote_path}");
+            Assert.True(variable.IsEffectivelyVisible);
         }
         finally
         {

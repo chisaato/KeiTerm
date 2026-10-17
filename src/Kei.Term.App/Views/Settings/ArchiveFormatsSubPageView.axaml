@@ -1,0 +1,66 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:settings="using:Kei.Term.App.ViewModels.Settings"
+             xmlns:transfers="using:Kei.Term.Core.Transfers"
+             xmlns:controls="using:Kei.Term.App.Views.Settings.Controls"
+             xmlns:loc="using:Kei.Term.App.Helpers"
+             x:Class="Kei.Term.App.Views.Settings.ArchiveFormatsSubPageView"
+             x:DataType="settings:ArchiveFormatsSubPage">
+
+    <StackPanel Spacing="16">
+        <Border Classes="settingsCard">
+            <StackPanel Spacing="12">
+                <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.FileTransfer.ArchiveFormatOrder}"/>
+
+                <TextBlock Text="{loc:KeiString Settings.FileTransfer.ArchiveDirectoriesHint}"
+                           FontSize="12"
+                           Foreground="{DynamicResource Kei.Text.Secondary}"
+                           TextWrapping="Wrap"/>
+
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" VerticalAlignment="Top">
+                    <Border Background="Transparent"
+                            BorderBrush="{DynamicResource Kei.Border.Subtle}"
+                            BorderThickness="1"
+                            CornerRadius="{DynamicResource Kei.Radius.Control}"
+                            Padding="2">
+                        <ListBox x:Name="ArchiveFormatsListBox"
+                                 Classes="compactReorderList"
+                                 ItemsSource="{Binding Parent.ArchiveFormats}"
+                                 SelectedItem="{Binding Parent.SelectedArchiveFormat}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <CheckBox IsChecked="{Binding IsEnabled}" Content="{Binding DisplayName}"/>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Border>
+
+                    <StackPanel Grid.Column="1" VerticalAlignment="Top" Spacing="6">
+                        <Button Classes="iconBtn"
+                                Command="{Binding Parent.MoveUpArchiveFormatCommand}"
+                                ToolTip.Tip="{loc:KeiString Common.MoveUp}"
+                                AutomationProperties.Name="{loc:KeiString Common.MoveUp}"
+                                Width="28" Height="28">
+                            <Viewbox Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Grid Width="24" Height="24">
+                                    <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.ArrowUp}"/>
+                                </Grid>
+                            </Viewbox>
+                        </Button>
+                        <Button Classes="iconBtn"
+                                Command="{Binding Parent.MoveDownArchiveFormatCommand}"
+                                ToolTip.Tip="{loc:KeiString Common.MoveDown}"
+                                AutomationProperties.Name="{loc:KeiString Common.MoveDown}"
+                                Width="28" Height="28">
+                            <Viewbox Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Grid Width="24" Height="24">
+                                    <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.ArrowDown}"/>
+                                </Grid>
+                            </Viewbox>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

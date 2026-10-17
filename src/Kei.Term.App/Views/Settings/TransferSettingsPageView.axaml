@@ -1,0 +1,188 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:settings="using:Kei.Term.App.ViewModels.Settings"
+             xmlns:controls="using:Kei.Term.App.Views.Settings.Controls"
+             xmlns:loc="using:Kei.Term.App.Helpers"
+             x:Class="Kei.Term.App.Views.Settings.TransferSettingsPageView"
+             x:DataType="settings:TransferSettingsPage">
+
+    <StackPanel MaxWidth="760" HorizontalAlignment="Stretch" Spacing="16">
+        <!-- 页头：面包屑 + 标题 + 描述 -->
+        <controls:SettingsPageHeader Group="{loc:KeiString Settings.Groups.Files}"
+                                     Title="{loc:KeiString Settings.Categories.Transfer}"
+                                     Description="{loc:KeiString Settings.Categories.TransferDesc}"
+                                     SubPageTitle="{Binding CurrentSubPage.Title}"
+                                     BackCommand="{Binding NavigateBackCommand}"/>
+
+        <!-- 下钻宿主：主页与下钻子页切换 -->
+        <Panel>
+            <!-- 主内容区：未进入子页时显示 -->
+            <StackPanel Spacing="16" IsVisible="{Binding !IsInSubPage}">
+                <!-- 1. 传输队列与冲突处理卡片 -->
+                <controls:SettingsCard Title="{loc:KeiString Settings.FileTransfer.TransfersSection}">
+                    <StackPanel Spacing="10">
+                        <!-- 并发传输数 -->
+                        <controls:SettingRow Title="{loc:KeiString Settings.FileTransfer.Concurrency}"
+                                             Description="{loc:KeiString Settings.FileTransfer.ConcurrencyTip}">
+                            <NumericUpDown x:Name="ConcurrencyInput"
+                                           Value="{Binding Concurrency}"
+                                           Minimum="1" Maximum="2147483647"
+                                           FormatString="0"
+                                           MinWidth="160"
+                                           HorizontalAlignment="Right"/>
+                        </controls:SettingRow>
+
+                        <Border Classes="settingRowDivider"/>
+
+                        <!-- 默认下载目录 -->
+                        <controls:SettingRow Title="{loc:KeiString Settings.FileTransfer.DefaultDownloadDirectory}"
+                                             Description="{loc:KeiString Settings.FileTransfer.DefaultDownloadDirectoryTip}">
+                            <Grid ColumnDefinitions="260,Auto" ColumnSpacing="8" HorizontalAlignment="Right">
+                                <TextBox x:Name="DefaultDownloadDirectoryTextBox"
+                                         Text="{Binding DefaultDownloadDirectory}"
+                                         PlaceholderText="{loc:KeiString Settings.FileTransfer.DefaultDownloadDirectoryPlaceholder}"/>
+                                <Button x:Name="BrowseDownloadDirectoryButton"
+                                        Grid.Column="1"
+                                        Content="{loc:KeiString Common.Browse}"
+                                        Command="{Binding BrowseDownloadDirectoryCommand}"
+                                        MinWidth="70"/>
+                            </Grid>
+                        </controls:SettingRow>
+
+                        <Border Classes="settingRowDivider"/>
+
+                        <!-- 默认冲突策略 -->
+                        <controls:SettingRow Title="{loc:KeiString Settings.FileTransfer.ConflictPolicy}"
+                                             Description="{loc:KeiString Settings.FileTransfer.ConflictPolicyTip}">
+                            <ComboBox x:Name="ConflictPolicyComboBox"
+                                      MinWidth="220"
+                                      HorizontalAlignment="Right"
+                                      ItemsSource="{Binding ConflictPolicyOptions}"
+                                      SelectedItem="{Binding SelectedConflictPolicy}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="settings:ConflictPolicyOption">
+                                        <TextBlock Text="{Binding Label}"/>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </controls:SettingRow>
+
+                        <Border Classes="settingRowDivider"/>
+
+                        <!-- 断点续传 -->
+                        <controls:SettingRow Title="{loc:KeiString Settings.FileTransfer.ResumeEnabled}"
+                                             Description="{loc:KeiString Settings.FileTransfer.ResumeEnabledTip}">
+                            <ToggleSwitch x:Name="ResumeEnabledCheckBox"
+                                          IsChecked="{Binding ResumeEnabled}"
+                                          OnContent="" OffContent=""
+                                          HorizontalAlignment="Right"/>
+                        </controls:SettingRow>
+                    </StackPanel>
+                </controls:SettingsCard>
+
+                <!-- 2. 自动重试卡片（含高级选项折叠区） -->
+                <controls:SettingsCard Title="{loc:KeiString Settings.FileTransfer.RetrySection}"
+                                       AdvancedHeader="{loc:KeiString Settings.FileTransfer.AdvancedRetryHeader}">
+                    <!-- 卡片常规区：自动重试总开关与重试次数 -->
+                    <controls:SettingsCard.Content>
+                        <StackPanel Spacing="10">
+                            <controls:SettingRow Title="{loc:KeiString Settings.FileTransfer.AutoRetryEnabled}"
+                                                 Description="{loc:KeiString Settings.FileTransfer.AutoRetryEnabledTip}">
+                                <ToggleSwitch x:Name="AutoRetryEnabledCheckBox"
+                                              IsChecked="{Binding AutoRetryEnabled}"
+                                              OnContent="" OffContent=""
+                                              HorizontalAlignment="Right"/>
+                            </controls:SettingRow>
+
+                            <Border Classes="settingRowDivider"/>
+
+                            <controls:SettingRow Title="{loc:KeiString Settings.FileTransfer.RetryCount}"
+                                                 Description="{loc:KeiString Settings.FileTransfer.RetryCountTip}">
+                                <NumericUpDown x:Name="RetryCountInput"
+                                               IsEnabled="{Binding AutoRetryEnabled}"
+                                               Value="{Binding RetryCount}"
+                                               Minimum="0" Maximum="100"
+                                               FormatString="0"
+                                               MinWidth="160"
+                                               HorizontalAlignment="Right"/>
+                            </controls:SettingRow>
+                        </StackPanel>
+                    </controls:SettingsCard.Content>
+
+                    <!-- 高级折叠区：退避模式、初始间隔、最大重试间隔 -->
+                    <controls:SettingsCard.AdvancedContent>
+                        <StackPanel Spacing="10" IsEnabled="{Binding AutoRetryEnabled}">
+                            <controls:SettingRow Title="{loc:KeiString Settings.FileTransfer.BackoffMode}"
+                                                 Description="{loc:KeiString Settings.FileTransfer.BackoffModeTip}">
+                                <ComboBox x:Name="BackoffModeComboBox"
+                                          MinWidth="220"
+                                          HorizontalAlignment="Right"
+                                          ItemsSource="{Binding BackoffModeOptions}"
+                                          SelectedItem="{Binding SelectedBackoffMode}">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="settings:RetryBackoffOption">
+                                            <TextBlock Text="{Binding Label}"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </controls:SettingRow>
+
+                            <Border Classes="settingRowDivider"/>
+
+                            <controls:SettingRow Title="{loc:KeiString Settings.FileTransfer.InitialRetryInterval}"
+                                                 Description="{loc:KeiString Settings.FileTransfer.InitialRetryIntervalTip}">
+                                <NumericUpDown x:Name="InitialRetryIntervalInput"
+                                               Value="{Binding InitialRetryIntervalSeconds}"
+                                               Minimum="0" Maximum="3600"
+                                               FormatString="0"
+                                               MinWidth="160"
+                                               HorizontalAlignment="Right"/>
+                            </controls:SettingRow>
+
+                            <Border Classes="settingRowDivider"/>
+
+                            <controls:SettingRow Title="{loc:KeiString Settings.FileTransfer.MaxRetryInterval}"
+                                                 Description="{loc:KeiString Settings.FileTransfer.MaxRetryIntervalTip}">
+                                <NumericUpDown x:Name="MaxRetryIntervalInput"
+                                               Value="{Binding MaxRetryIntervalSeconds}"
+                                               Minimum="0" Maximum="3600"
+                                               FormatString="0"
+                                               MinWidth="160"
+                                               HorizontalAlignment="Right"/>
+                            </controls:SettingRow>
+                        </StackPanel>
+                    </controls:SettingsCard.AdvancedContent>
+                </controls:SettingsCard>
+
+                <!-- 3. 完整性与归档传输卡片（带行内开关与下钻） -->
+                <controls:SettingsCard Title="{loc:KeiString Settings.FileTransfer.CapabilitiesSection}">
+                    <StackPanel Spacing="10">
+                        <!-- 完整性校验：行内开关 + 摘要 + 下钻编辑 -->
+                        <controls:DrillDownRow Title="{loc:KeiString Settings.FileTransfer.VerifyHash}"
+                                               Description="{loc:KeiString Settings.FileTransfer.VerifyHashTip}"
+                                               Summary="{Binding HashAlgorithmSummary}"
+                                               HasSwitch="True"
+                                               SwitchChecked="{Binding VerifyHashEnabled}"
+                                               IsActionEnabled="{Binding VerifyHashEnabled}"
+                                               Command="{Binding DrillDownHashAlgorithmsCommand}"/>
+
+                        <Border Classes="settingRowDivider"/>
+
+                        <!-- 目录归档：行内开关 + 摘要 + 下钻编辑 -->
+                        <controls:DrillDownRow Title="{loc:KeiString Settings.FileTransfer.ArchiveDirectories}"
+                                               Description="{loc:KeiString Settings.FileTransfer.ArchiveDirectoriesTip}"
+                                               Summary="{Binding ArchiveFormatSummary}"
+                                               HasSwitch="True"
+                                               SwitchChecked="{Binding ArchiveDirectoriesEnabled}"
+                                               IsActionEnabled="{Binding ArchiveDirectoriesEnabled}"
+                                               Command="{Binding DrillDownArchiveFormatsCommand}"/>
+                    </StackPanel>
+                </controls:SettingsCard>
+            </StackPanel>
+
+            <!-- 子页面内容区：进入子页后显示 -->
+            <ContentControl Content="{Binding CurrentSubPage.Content}"
+                            IsVisible="{Binding IsInSubPage}"/>
+        </Panel>
+    </StackPanel>
+</UserControl>

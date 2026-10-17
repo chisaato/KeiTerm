@@ -11,25 +11,25 @@ public class SettingsFontListContractTests
     [Fact]
     public void SettingsWindow_AllSixFontLists_RenderWithTheirOwnFontFamily()
     {
-        XDocument doc = LoadSettingsWindowDocument();
+        XDocument doc = LoadSettingsPageDocuments();
 
         // 1. 界面主字体 AutoCompleteBox (SelectedItem="{Binding SelectedUiFont}")
         AssertAutoCompleteBoxFontBinding(doc, "{Binding SelectedUiFont}", "services:FontFamilyOption", "{Binding FontFamily}");
 
-        // 2. 界面回退字体候选 AutoCompleteBox (SelectedItem="{Binding UiFallbackFontCandidate}")
-        AssertAutoCompleteBoxFontBinding(doc, "{Binding UiFallbackFontCandidate}", "services:FontFamilyOption", "{Binding FontFamily}");
+        // 2. 界面回退字体候选 AutoCompleteBox (SelectedItem="{Binding Parent.UiFallbackFontCandidate}")
+        AssertAutoCompleteBoxFontBinding(doc, "{Binding Parent.UiFallbackFontCandidate}", "services:FontFamilyOption", "{Binding FontFamily}");
 
-        // 3. 界面已选回退 ListBox (ItemsSource="{Binding UiFallbackFonts}")
-        AssertListBoxFontBinding(doc, "{Binding UiFallbackFonts}", "x:String", "{Binding}");
+        // 3. 界面已选回退 ListBox (ItemsSource="{Binding Parent.UiFallbackFonts}")
+        AssertListBoxFontBinding(doc, "{Binding Parent.UiFallbackFonts}", "x:String", "{Binding}");
 
         // 4. 终端主等宽字体 AutoCompleteBox (SelectedItem="{Binding SelectedFont}")
         AssertAutoCompleteBoxFontBinding(doc, "{Binding SelectedFont}", "services:FontFamilyOption", "{Binding FontFamily}");
 
-        // 5. 终端回退候选 AutoCompleteBox (SelectedItem="{Binding TerminalFallbackFontCandidate}")
-        AssertAutoCompleteBoxFontBinding(doc, "{Binding TerminalFallbackFontCandidate}", "services:FontFamilyOption", "{Binding FontFamily}");
+        // 5. 终端回退候选 AutoCompleteBox (SelectedItem="{Binding Parent.TerminalFallbackFontCandidate}")
+        AssertAutoCompleteBoxFontBinding(doc, "{Binding Parent.TerminalFallbackFontCandidate}", "services:FontFamilyOption", "{Binding FontFamily}");
 
-        // 6. 终端已选回退 ListBox (ItemsSource="{Binding TerminalFallbackFonts}")
-        AssertListBoxFontBinding(doc, "{Binding TerminalFallbackFonts}", "x:String", "{Binding}");
+        // 6. 终端已选回退 ListBox (ItemsSource="{Binding Parent.TerminalFallbackFonts}")
+        AssertListBoxFontBinding(doc, "{Binding Parent.TerminalFallbackFonts}", "x:String", "{Binding}");
     }
 
     private static void AssertAutoCompleteBoxFontBinding(
@@ -102,12 +102,13 @@ public class SettingsFontListContractTests
         return listBox!;
     }
 
-    private static XDocument LoadSettingsWindowDocument()
+    private static XDocument LoadSettingsPageDocuments()
     {
         string solutionDir = FindSolutionRoot();
-        string settingsWindowFile = Path.Combine(solutionDir, "src", "Kei.Term.App", "Views", "SettingsWindow.axaml");
-        Assert.True(File.Exists(settingsWindowFile), "SettingsWindow.axaml 应存在");
-        return XDocument.Load(settingsWindowFile);
+        string pagesDirectory = Path.Combine(solutionDir, "src", "Kei.Term.App", "Views", "Settings");
+        string[] pageFiles = Directory.GetFiles(pagesDirectory, "*PageView.axaml");
+        Assert.NotEmpty(pageFiles);
+        return new XDocument(new XElement("SettingsPages", pageFiles.Select(file => XDocument.Load(file).Root!)));
     }
 
     private static string FindSolutionRoot()

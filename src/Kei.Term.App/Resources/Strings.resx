@@ -383,10 +383,10 @@
     <value>界面主题、字体与外观配置备份</value>
   </data>
   <data name="Settings.Categories.Tree" xml:space="preserve">
-    <value>会话树</value>
+    <value>会话管理器</value>
   </data>
   <data name="Settings.Categories.TreeDesc" xml:space="preserve">
-    <value>排序、密度与尺寸</value>
+    <value>会话树排序、显示密度与尺寸微调</value>
   </data>
   <data name="Settings.Categories.TreePageDescription" xml:space="preserve">
     <value>会话树排序、显示密度与尺寸微调</value>
@@ -1929,13 +1929,91 @@
     <value>快速连接到远程主机，或新建一个会话以保存连接配置。</value>
   </data>
   <data name="Settings.Categories.FileTransfer" xml:space="preserve">
-    <value>文件传输</value>
+    <value>传输</value>
   </data>
   <data name="Settings.Categories.FileTransferDesc" xml:space="preserve">
-    <value>文件管理与编辑器</value>
+    <value>传输队列、冲突策略、断点续传、自动重试、完整性校验与目录归档</value>
   </data>
   <data name="Settings.Categories.FileTransferPageDescription" xml:space="preserve">
-    <value>文件管理的全局默认行为、缓存与文件监视、外部编辑器和文件关联</value>
+    <value>传输队列、冲突策略、断点续传、自动重试、完整性校验与目录归档</value>
+  </data>
+  <data name="Settings.Categories.Transfer" xml:space="preserve">
+    <value>传输</value>
+  </data>
+  <data name="Settings.Categories.TransferDesc" xml:space="preserve">
+    <value>传输队列、冲突策略、断点续传、自动重试、完整性校验与目录归档</value>
+  </data>
+  <data name="Settings.Categories.FileManager" xml:space="preserve">
+    <value>文件管理与编辑器</value>
+  </data>
+  <data name="Settings.Categories.FileManagerDesc" xml:space="preserve">
+    <value>文件管理器选项、缓存与监视、外部编辑器与文件关联规则</value>
+  </data>
+  <data name="Settings.Groups.App" xml:space="preserve">
+    <value>应用</value>
+  </data>
+  <data name="Settings.Groups.Terminal" xml:space="preserve">
+    <value>终端</value>
+  </data>
+  <data name="Settings.Groups.Connection" xml:space="preserve">
+    <value>连接</value>
+  </data>
+  <data name="Settings.Groups.Files" xml:space="preserve">
+    <value>文件</value>
+  </data>
+  <data name="Settings.FileTransfer.AdvancedRetryHeader" xml:space="preserve">
+    <value>显示重试退避与间隔选项</value>
+  </data>
+  <data name="Settings.FileTransfer.CapabilitiesSection" xml:space="preserve">
+    <value>完整性校验与目录归档</value>
+  </data>
+  <data name="Settings.FileTransfer.HashAlgorithmOrderTitle" xml:space="preserve">
+    <value>哈希算法优先级</value>
+  </data>
+  <data name="Settings.FileTransfer.HashAlgorithmHint" xml:space="preserve">
+    <value>按顺序尝试使用两端均支持的算法；可调整上下顺序或勾选/取消勾选启用。</value>
+  </data>
+  <data name="Settings.FileTransfer.ArchiveFormatOrderTitle" xml:space="preserve">
+    <value>归档格式优先级</value>
+  </data>
+  <data name="Settings.FileTransfer.AutoRetryEnabledTip" xml:space="preserve">
+    <value>网络出现偶发中断或超时错误时，按设定的策略自动重新发起传输。</value>
+  </data>
+  <data name="Settings.FileTransfer.BackoffModeTip" xml:space="preserve">
+    <value>指数退避每次重试等待时间翻倍，固定间隔每次等待相同时间。</value>
+  </data>
+  <data name="Settings.FileTransfer.SizeDisplayTip" xml:space="preserve">
+    <value>远程文件管理器列表中文件大小的格式化标准（IEC: KiB/MiB，SI: KB/MB，Bytes: 原始字节数）。</value>
+  </data>
+  <data name="Settings.FileTransfer.DockLeftTip" xml:space="preserve">
+    <value>打开远程文件管理器时，默认停靠在左侧还是右侧工作区。</value>
+  </data>
+  <data name="Terminal.Drop.ProtocolTip" xml:space="preserve">
+    <value>拖拽文件到终端区域触发上传时默认采用的传输协议（SCP 或 SFTP）。</value>
+  </data>
+  <data name="Terminal.Drop.DefaultActionTip" xml:space="preserve">
+    <value>将文件拖到终端区域时的默认操作（上传文件或仅粘贴文件路径）。</value>
+  </data>
+  <data name="Settings.FileTransfer.CacheDirectoryPlaceholder" xml:space="preserve">
+    <value>留空使用系统标准临时缓存目录</value>
+  </data>
+  <data name="Settings.FileTransfer.ClearCache" xml:space="preserve">
+    <value>清空缓存</value>
+  </data>
+  <data name="Settings.FileTransfer.CacheDirectoryTip" xml:space="preserve">
+    <value>远程文件双击临时编辑时下载到本机的临时缓存路径。</value>
+  </data>
+  <data name="Settings.FileTransfer.WatcherModeTip" xml:space="preserve">
+    <value>检测本地编辑器保存文件变动的方式（自动检测、系统原生事件、定时轮询）。</value>
+  </data>
+  <data name="Settings.FileTransfer.DefaultBadge" xml:space="preserve">
+    <value>默认</value>
+  </data>
+  <data name="Settings.FileTransfer.NoEditorsConfigured" xml:space="preserve">
+    <value>尚未配置外部编辑器</value>
+  </data>
+  <data name="Settings.FileTransfer.NoAssociationsConfigured" xml:space="preserve">
+    <value>尚未配置文件类型关联</value>
   </data>
   <data name="Settings.Appearance.AdvancedFallbackFonts" xml:space="preserve">
     <value>高级：回退字体</value>
@@ -2661,7 +2739,46 @@ Latin: AaBb CcDd GgYy gypq
   <data name="Common.Disabled" xml:space="preserve">
     <value>关</value>
   </data>
-  <data name="Common.None" xml:space="preserve">
+  <data name="Common.EditArrow" xml:space="preserve">
+    <value>编辑 ›</value>
+  </data>
+  <data name="Settings.Common.ShowAdvancedOptions" xml:space="preserve">
+    <value>显示高级选项</value>
+  </data>
+  <data name="Settings.FileTransfer.NoAlgorithmsEnabled" xml:space="preserve">
+    <value>未启用算法</value>
+  </data>
+  <data name="Settings.FileTransfer.NoFormatsEnabled" xml:space="preserve">
+    <value>未启用格式</value>
+  </data>
+  <data name="Settings.FileTransfer.ArchiveFormat.Tar" xml:space="preserve">
+    <value>tar (无压缩)</value>
+  </data>
+  <data name="Settings.FileTransfer.UnknownEditor" xml:space="preserve">
+    <value>未知编辑器</value>
+  </data>
+  <data name="Settings.FileTransfer.DatabaseOperationFailed" xml:space="preserve">
+    <value>操作失败，请检查本地配置数据库后重试。</value>
+  </data>
+  <data name="Settings.Appearance.ImportKonsole" xml:space="preserve">
+    <value>从 Konsole 导入…</value>
+  </data>
+  <data name="Settings.Appearance.ImportITerm" xml:space="preserve">
+    <value>从 iTerm 导入…</value>
+  </data>
+  <data name="Settings.Appearance.ImportWindowsTerminal" xml:space="preserve">
+    <value>从 Windows Terminal 导入…</value>
+  </data>
+  <data name="Settings.Appearance.ExportJson" xml:space="preserve">
+    <value>导出 JSON…</value>
+  </data>
+  <data name="Settings.Appearance.ImportJson" xml:space="preserve">
+    <value>导入 JSON…</value>
+  </data>
+  <data name="Settings.Common.Back" xml:space="preserve">
+    <value>返回</value>
+  </data>
+  <data name="Settings.Common.NoSelection" xml:space="preserve">
     <value>无</value>
   </data>
   <data name="FileActivity.Status.Packing" xml:space="preserve">

@@ -24,12 +24,14 @@ public class CommandPaletteTests
     {
         UiDesignSystemService.Apply();
         SettingsViewModel model = new(new FixedSettingsService());
-        GeneralSettingsPage page = (GeneralSettingsPage)model.SelectedCategory.Page;
+        GeneralSettingsPage page = (GeneralSettingsPage)model.Categories.Single(c => c.Page is GeneralSettingsPage).Page;
         SettingsWindow window = new(model);
         try
         {
             window.Show();
+            model.SelectedCategory = model.Categories.Single(c => c.Page is GeneralSettingsPage);
             window.UpdateLayout();
+            HeadlessAvalonia.Pump();
             Button recorder = window.GetVisualDescendants().OfType<Button>().Single(button => button.Name == "CommandPaletteShortcutRecorder");
             recorder.Command!.Execute(null);
             recorder.Focus();

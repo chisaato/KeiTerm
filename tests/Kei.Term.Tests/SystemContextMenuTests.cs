@@ -47,6 +47,7 @@ public class SystemContextMenuTests
             await HeadlessAvalonia.RunAsync(() =>
             {
                 viewModel = new SettingsViewModel(service, directory);
+                viewModel.SelectedCategory = viewModel.Categories.Single(c => c.Page is GeneralSettingsPage);
                 GeneralSettingsPage page = viewModel.Categories.Select(c => c.Page).OfType<GeneralSettingsPage>().Single();
                 SettingsWindow window = new(viewModel);
                 try

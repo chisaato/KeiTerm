@@ -1,0 +1,92 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:settings="using:Kei.Term.App.ViewModels.Settings"
+             xmlns:controls="using:Kei.Term.App.Views.Settings.Controls"
+             xmlns:loc="using:Kei.Term.App.Helpers"
+             x:Class="Kei.Term.App.Views.Settings.TreeSettingsPageView"
+             x:DataType="settings:TreeSettingsProxyPage">
+
+    <StackPanel MaxWidth="760" HorizontalAlignment="Stretch" Spacing="16">
+        <!-- 页头：面包屑 + 标题 + 描述 -->
+        <controls:SettingsPageHeader Group="{loc:KeiString Settings.Groups.App}"
+                                     Title="{loc:KeiString Settings.Categories.Tree}"
+                                     Description="{loc:KeiString Settings.Categories.TreeDesc}"/>
+
+        <!-- 1. 会话管理器排序卡片（从常规迁入） -->
+        <Border Classes="settingsCard" x:Name="TreeSortingSection" DataContext="{Binding General}">
+            <StackPanel Spacing="10">
+                <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.General.TreeSortSection}"/>
+
+                <controls:SettingRow Title="{loc:KeiString Settings.General.TreeSortMode}"
+                                     Description="{loc:KeiString Settings.General.TreeSortModeTip}">
+                    <ComboBox MinWidth="220"
+                              HorizontalAlignment="Right"
+                              ItemsSource="{Binding TreeSortOptions}"
+                              SelectedItem="{Binding SelectedTreeSort}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="settings:TreeSortOption">
+                                <TextBlock Text="{Binding Label}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </controls:SettingRow>
+            </StackPanel>
+        </Border>
+
+        <!-- 2. 会话树显示密度与几何尺寸卡片（含高级几何微调折叠） -->
+        <Border Classes="settingsCard" DataContext="{Binding Appearance}">
+            <StackPanel Spacing="10">
+                <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.Appearance.TreeDensitySection}"/>
+
+                <!-- 密度预设 -->
+                <controls:SettingRow Title="{loc:KeiString Settings.Appearance.TreeDensityPreset}"
+                                     Description="{loc:KeiString Settings.Appearance.TreeDensityPresetTip}">
+                    <ComboBox MinWidth="220"
+                              HorizontalAlignment="Right"
+                              ItemsSource="{Binding DensityPresetOptions}"
+                              SelectedItem="{Binding SelectedDensityPreset}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="settings:TreeDensityPresetOption">
+                                <TextBlock Text="{Binding Label}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </controls:SettingRow>
+
+                <!-- 高级尺寸微调（仅在自定义模式或需要精确调整时展开） -->
+                <Expander Header="{loc:KeiString Settings.Appearance.TreeGeometrySection}"
+                          IsExpanded="False"
+                          Margin="0,4,0,0"
+                          Padding="0,8,0,0">
+                    <StackPanel Spacing="10">
+                        <controls:SettingRow Title="{loc:KeiString Settings.Appearance.TreeItemHeight}">
+                            <NumericUpDown HorizontalAlignment="Right" MinWidth="160"
+                                           Value="{Binding TreeItemHeight}" Minimum="16" Maximum="40" Increment="1" FormatString="0"/>
+                        </controls:SettingRow>
+
+                        <Border Classes="settingRowDivider"/>
+
+                        <controls:SettingRow Title="{loc:KeiString Settings.Appearance.TreeFontSize}">
+                            <NumericUpDown HorizontalAlignment="Right" MinWidth="160"
+                                           Value="{Binding TreeFontSize}" Minimum="9" Maximum="18" Increment="0.5" FormatString="0.0"/>
+                        </controls:SettingRow>
+
+                        <Border Classes="settingRowDivider"/>
+
+                        <controls:SettingRow Title="{loc:KeiString Settings.Appearance.TreeIconSize}">
+                            <NumericUpDown HorizontalAlignment="Right" MinWidth="160"
+                                           Value="{Binding TreeIconSize}" Minimum="10" Maximum="24" Increment="1" FormatString="0"/>
+                        </controls:SettingRow>
+
+                        <Border Classes="settingRowDivider"/>
+
+                        <controls:SettingRow Title="{loc:KeiString Settings.Appearance.TreeIndent}">
+                            <NumericUpDown HorizontalAlignment="Right" MinWidth="160"
+                                           Value="{Binding TreeIndent}" Minimum="6" Maximum="32" Increment="1" FormatString="0"/>
+                        </controls:SettingRow>
+                    </StackPanel>
+                </Expander>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

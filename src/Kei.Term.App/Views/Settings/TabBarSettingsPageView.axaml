@@ -1,0 +1,114 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:settings="using:Kei.Term.App.ViewModels.Settings"
+             xmlns:controls="using:Kei.Term.App.Views.Settings.Controls"
+             xmlns:loc="using:Kei.Term.App.Helpers"
+             x:Class="Kei.Term.App.Views.Settings.TabBarSettingsPageView"
+             x:DataType="settings:TabBarSettingsProxyPage">
+
+    <StackPanel MaxWidth="760" HorizontalAlignment="Stretch" Spacing="16">
+        <!-- 页头：面包屑 + 标题 + 描述 -->
+        <controls:SettingsPageHeader Group="{loc:KeiString Settings.Groups.Terminal}"
+                                     Title="{loc:KeiString Settings.Categories.TabBar}"
+                                     Description="{loc:KeiString Settings.Categories.TabBarDesc}"
+                                     SubPageTitle="{Binding CurrentSubPage.Title}"
+                                     BackCommand="{Binding NavigateBackCommand}"/>
+
+        <Panel>
+            <!-- 主内容区：未在子页时显示 -->
+            <StackPanel Spacing="16" IsVisible="{Binding !IsInSubPage}">
+                <!-- 1. 标签栏位置卡片 -->
+                <Border Classes="settingsCard" DataContext="{Binding Appearance}">
+                    <StackPanel Spacing="10">
+                        <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.Appearance.TabBarSection}"/>
+
+                        <controls:SettingRow Title="{loc:KeiString Settings.Appearance.TabPlacement}"
+                                             Description="{loc:KeiString Settings.Appearance.TabPlacementTip}">
+                            <ComboBox MinWidth="220"
+                                      HorizontalAlignment="Right"
+                                      ItemsSource="{Binding TabPlacementOptions}"
+                                      SelectedItem="{Binding SelectedTabPlacement}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="settings:TabPlacementOption">
+                                        <TextBlock Text="{Binding Label}"/>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </controls:SettingRow>
+                    </StackPanel>
+                </Border>
+
+                <!-- 2. 标签标题行为卡片（含下钻变量参考） -->
+                <Border Classes="settingsCard" x:Name="TabTitleBehaviorSection">
+                    <StackPanel Spacing="10">
+                        <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.TabBar.TitleSection}"/>
+
+                        <!-- 模板输入行 -->
+                        <Grid ColumnDefinitions="*,Auto" MinHeight="32">
+                            <StackPanel VerticalAlignment="Center" Spacing="2" Margin="0,2,16,2">
+                                <TextBlock Text="{loc:KeiString Settings.TabBar.TitleSection}"
+                                           FontSize="13"
+                                           Foreground="{DynamicResource Kei.Text.Primary}"/>
+                                <TextBlock Text="{loc:KeiString Settings.TabBar.TemplateHint}"
+                                           FontSize="12"
+                                           Foreground="{DynamicResource Kei.Text.Muted}"/>
+                            </StackPanel>
+                            <TextBox x:Name="TabTitleTemplateInput"
+                                     Grid.Column="1"
+                                     Text="{Binding Terminal.TabTitleTemplate}"
+                                     MaxLength="512"
+                                     PlaceholderText="{loc:KeiString Settings.TabBar.TemplateExample}"
+                                     MinWidth="240"
+                                     HorizontalAlignment="Right"/>
+                        </Grid>
+
+                        <!-- 校验错误提示 -->
+                        <TextBlock x:Name="TabTitleTemplateError"
+                                   Text="{Binding Terminal.TitleTemplateError}"
+                                   IsVisible="{Binding Terminal.HasTitleTemplateError}"
+                                   FontSize="12" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource Kei.Status.Error}"/>
+
+                        <Border Classes="settingRowDivider"/>
+
+                        <!-- 标题预览行 -->
+                        <Grid ColumnDefinitions="*,Auto" MinHeight="32">
+                            <TextBlock Text="{loc:KeiString Settings.TabBar.Preview}"
+                                       VerticalAlignment="Center"
+                                       FontSize="13"
+                                       Foreground="{DynamicResource Kei.Text.Primary}"/>
+                            <TextBlock x:Name="TabTitlePreview"
+                                       Grid.Column="1"
+                                       Text="{Binding Terminal.TitlePreview}"
+                                       TextTrimming="CharacterEllipsis"
+                                       Foreground="{DynamicResource Kei.Text.Primary}"
+                                       FontWeight="SemiBold"
+                                       VerticalAlignment="Center"
+                                       HorizontalAlignment="Right"/>
+                        </Grid>
+
+                        <Border Classes="settingRowDivider"/>
+
+                        <!-- 变量参考下钻行 -->
+                        <controls:DrillDownRow Title="{loc:KeiString Settings.TabBar.VariableReference}"
+                                               Description="{loc:KeiString Settings.TabBar.VariableSources}"
+                                               ActionLabel="{loc:KeiString Common.EditArrow}"
+                                               Command="{Binding DrillDownVariablesCommand}"/>
+
+                        <Border Classes="settingRowDivider"/>
+
+                        <!-- 远端标题跟随开关 -->
+                        <CheckBox x:Name="TabTitleFollowsRemoteCheckBox"
+                                  IsChecked="{Binding Terminal.TabTitleFollowsRemote}"
+                                  Content="{loc:KeiString Settings.TabBar.DefaultRemoteTitle}"
+                                  ToolTip.Tip="{loc:KeiString Settings.TabBar.DefaultHint}"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <!-- 子页面内容区：进入子页后显示 -->
+            <ContentControl Content="{Binding CurrentSubPage.Content}"
+                            IsVisible="{Binding IsInSubPage}"/>
+        </Panel>
+    </StackPanel>
+</UserControl>

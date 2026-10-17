@@ -1,0 +1,38 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:settings="using:Kei.Term.App.ViewModels.Settings"
+             xmlns:controls="using:Kei.Term.App.Views.Settings.Controls"
+             xmlns:loc="using:Kei.Term.App.Helpers"
+             x:Class="Kei.Term.App.Views.Settings.TabBarVariablesSubPageView"
+             x:DataType="settings:TabBarVariablesSubPage">
+
+    <StackPanel Spacing="16">
+        <Border Classes="settingsCard">
+            <StackPanel Spacing="12">
+                <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.TabBar.VariableReference}"/>
+
+                <TextBlock Text="{loc:KeiString Settings.TabBar.VariableSources}" FontSize="12" TextWrapping="Wrap"
+                           Foreground="{DynamicResource Kei.Text.Secondary}"/>
+
+                <ItemsControl ItemsSource="{Binding Parent.Terminal.TitleVariables}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="settings:TabTitleVariable">
+                            <Grid ColumnDefinitions="190,*" ColumnSpacing="12" Margin="0,3">
+                                <SelectableTextBlock Text="{Binding Placeholder}" FontSize="12" FontFamily="{DynamicResource Kei.Font.Mono}"/>
+                                <TextBlock Grid.Column="1" Text="{Binding Description}" FontSize="12" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <Border Classes="settingRowDivider"/>
+
+                <TextBlock Text="{loc:KeiString Settings.TabBar.TemplateSyntax}" FontSize="12" TextWrapping="Wrap"
+                           Foreground="{DynamicResource Kei.Text.Muted}"/>
+                <TextBlock Text="{loc:KeiString Settings.TabBar.RemoteIpHint}" FontSize="12" TextWrapping="Wrap"
+                           Foreground="{DynamicResource Kei.Text.Muted}"/>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

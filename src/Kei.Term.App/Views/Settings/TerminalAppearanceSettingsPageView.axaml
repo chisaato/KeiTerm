@@ -1,0 +1,159 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Kei.Term.App.ViewModels"
+             xmlns:settings="using:Kei.Term.App.ViewModels.Settings"
+             xmlns:services="using:Kei.Term.App.Services"
+             xmlns:profiles="using:Kei.Term.Core.Models.Profiles"
+             xmlns:controls="using:Kei.Term.App.Views.Controls"
+             xmlns:scontrols="using:Kei.Term.App.Views.Settings.Controls"
+             xmlns:loc="using:Kei.Term.App.Helpers"
+             x:Class="Kei.Term.App.Views.Settings.TerminalAppearanceSettingsPageView"
+             x:DataType="settings:TerminalAppearanceSettingsPage">
+
+    <StackPanel MaxWidth="760" HorizontalAlignment="Stretch" Spacing="16">
+        <!-- 页头：面包屑 + 标题 + 描述 -->
+        <scontrols:SettingsPageHeader Group="{loc:KeiString Settings.Groups.Terminal}"
+                                     Title="{loc:KeiString Settings.Categories.TerminalAppearance}"
+                                     Description="{loc:KeiString Settings.Categories.TerminalAppearanceDesc}"
+                                     SubPageTitle="{Binding Appearance.CurrentSubPage.Title}"
+                                     BackCommand="{Binding Appearance.NavigateBackCommand}"/>
+
+        <Panel>
+            <!-- 主内容区：未在子页时显示 -->
+            <Grid ColumnDefinitions="1.1*,*" ColumnSpacing="16" IsVisible="{Binding !Appearance.IsInSubPage}">
+                <!-- 左列：设置卡片 -->
+                <StackPanel Grid.Column="0" Spacing="16">
+                    <!-- 1. 终端配色方案档案卡片 -->
+                    <Border Classes="settingsCard" DataContext="{Binding Appearance}">
+                        <StackPanel Spacing="10">
+                            <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.Appearance.TerminalProfile}"/>
+
+                            <scontrols:SettingRow Title="{loc:KeiString Settings.Appearance.TerminalProfile}"
+                                                 Description="{loc:KeiString Settings.Appearance.TerminalProfileTip}">
+                                <ComboBox MinWidth="200"
+                                          HorizontalAlignment="Right"
+                                          ItemsSource="{Binding TerminalProfiles}"
+                                          SelectedItem="{Binding SelectedTerminalProfile}">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="profiles:TerminalProfile">
+                                            <TextBlock Text="{Binding Name}"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </scontrols:SettingRow>
+
+                            <WrapPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,0,0">
+                                <Button Content="{loc:KeiString Settings.Appearance.NewTerminalProfile}"
+                                        Command="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).NewTerminalProfileCommand}"
+                                        Height="28" Padding="10,0" Margin="0,0,8,0"/>
+                                <Button Content="{loc:KeiString Settings.Appearance.EditTerminalProfile}"
+                                        Command="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).EditTerminalProfileCommand}"
+                                        Height="28" Padding="10,0"/>
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 2. 终端等宽字体与字号卡片（含回退字体下钻） -->
+                    <Border Classes="settingsCard" DataContext="{Binding Appearance}">
+                        <StackPanel Spacing="10">
+                            <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.Appearance.FontSection}"/>
+
+                            <!-- 主字体 -->
+                            <scontrols:SettingRow Title="{loc:KeiString Settings.Appearance.FontFamily}"
+                                                 Description="{loc:KeiString Settings.Appearance.FontFamilyTip}">
+                                <AutoCompleteBox MinWidth="200"
+                                                 HorizontalAlignment="Right"
+                                                 ItemsSource="{Binding AvailableFonts}"
+                                                 SelectedItem="{Binding SelectedFont}"
+                                                 ItemFilter="{Binding FontItemFilter}"
+                                                 FilterMode="Custom"
+                                                 MinimumPrefixLength="0"
+                                                 ValueMemberBinding="{CompiledBinding DisplayName, DataType=services:FontFamilyOption}">
+                                    <AutoCompleteBox.ItemTemplate>
+                                        <DataTemplate x:DataType="services:FontFamilyOption">
+                                            <TextBlock Text="{Binding DisplayName}" FontFamily="{Binding FontFamily}"/>
+                                        </DataTemplate>
+                                    </AutoCompleteBox.ItemTemplate>
+                                </AutoCompleteBox>
+                            </scontrols:SettingRow>
+
+                            <Border Classes="settingRowDivider"/>
+
+                            <!-- 字号 -->
+                            <scontrols:SettingRow Title="{loc:KeiString Settings.Appearance.FontSize}"
+                                                 Description="{loc:KeiString Settings.Appearance.FontSizeTip}">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" HorizontalAlignment="Right">
+                                    <NumericUpDown MinWidth="130"
+                                                   Value="{Binding FontSize}" Minimum="8" Maximum="36" FormatString="0.0"/>
+                                    <Button Grid.Column="1"
+                                            Content="{loc:KeiString FontDialog.Open}"
+                                            Click="OnOpenFontDialogClick"
+                                            Height="28"
+                                            Padding="10,0"/>
+                                </Grid>
+                            </scontrols:SettingRow>
+
+                            <Border Classes="settingRowDivider"/>
+
+                            <!-- 光标闪烁 -->
+                            <scontrols:SettingRow Title="{loc:KeiString Settings.Appearance.CursorBlink}"
+                                                 Description="{loc:KeiString Settings.Appearance.CursorBlinkTip}">
+                                <ToggleSwitch IsChecked="{Binding CursorBlink}"
+                                              OnContent="" OffContent=""
+                                              HorizontalAlignment="Right"/>
+                            </scontrols:SettingRow>
+
+                            <Border Classes="settingRowDivider"/>
+
+                            <!-- 回退字体下钻行 -->
+                            <scontrols:DrillDownRow Title="{loc:KeiString Settings.Appearance.AdvancedFallbackFonts}"
+                                                   Description="{loc:KeiString Settings.Appearance.FallbackFontsHint}"
+                                                   Summary="{Binding TerminalFallbackFontsSummary}"
+                                                   Command="{Binding DrillDownTerminalFallbackFontsCommand}"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 3. 外部配色导入卡片 -->
+                    <Border Classes="settingsCard">
+                        <StackPanel Spacing="10">
+                            <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.Appearance.ExternalSchemesSection}"/>
+
+                            <WrapPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                                <Button Content="{loc:KeiString Settings.Appearance.ImportKonsole}"
+                                        Command="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).ImportKonsoleSchemeCommand}"
+                                        Height="28" Padding="10,0" Margin="0,0,8,6"/>
+                                <Button x:Name="ImportTerminalThemeJsonButton"
+                                        Content="{loc:KeiString TerminalThemeJsonImport.Open}"
+                                        Command="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).ImportTerminalThemeJsonCommand}"
+                                        Height="28" Padding="10,0" Margin="0,0,8,6"/>
+                                <Button Content="{loc:KeiString Settings.Appearance.ImportITerm}"
+                                        IsEnabled="False"
+                                        Height="28" Padding="10,0" Margin="0,0,8,6"/>
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- 右列：终端实时渲染预览 -->
+                <Border x:Name="TerminalPreviewBorder" Grid.Column="1" VerticalAlignment="Stretch"
+                        Background="{DynamicResource Kei.Bg.Card}" BorderBrush="{DynamicResource Kei.Border.Subtle}"
+                        BorderThickness="1" CornerRadius="{DynamicResource Kei.Radius.Card}" Padding="12">
+                    <Grid RowDefinitions="Auto, *" RowSpacing="10">
+                        <TextBlock Grid.Row="0" Text="{loc:KeiString Settings.Appearance.LivePreview}" FontSize="13" FontWeight="Bold"
+                                   Foreground="{DynamicResource Kei.Text.Primary}"/>
+                        <controls:TerminalShellPreviewView Grid.Row="1"
+                                                           MinHeight="360"
+                                                           VerticalAlignment="Stretch"
+                                                           HorizontalAlignment="Stretch"
+                                                           Profile="{Binding Appearance.SelectedTerminalProfile}"
+                                                           Font="{Binding Appearance.DraftFontSnapshot}"/>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- 子页面内容区：进入子页后显示 -->
+            <ContentControl Content="{Binding Appearance.CurrentSubPage.Content}"
+                            IsVisible="{Binding Appearance.IsInSubPage}"/>
+        </Panel>
+    </StackPanel>
+</UserControl>

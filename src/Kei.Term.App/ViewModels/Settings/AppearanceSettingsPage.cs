@@ -5,6 +5,7 @@ using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using Kei.Term.App.Helpers;
 using Kei.Term.App.Models;
 using Kei.Term.App.Services;
@@ -18,8 +19,41 @@ public record TabPlacementOption(string Key, string Label, Kei.Term.Core.Models.
 public record LayoutModeOption(string Key, string Label, LayoutMode Mode);
 
 // 「外观」分类页：界面主题、会话树显示密度与终端字体
-public partial class AppearanceSettingsPage : ViewModelBase
+public partial class AppearanceSettingsPage : ViewModelBase, ISettingsDrillDownHost
 {
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsInSubPage))]
+    private SettingsSubPageViewModel? _currentSubPage;
+
+    public bool IsInSubPage => CurrentSubPage != null;
+
+    public void NavigateToSubPage(string title, object content, Action? onClosed = null)
+    {
+        CurrentSubPage = new SettingsSubPageViewModel(title, content, onClosed);
+    }
+
+    [RelayCommand]
+    public void NavigateBack()
+    {
+        if (CurrentSubPage != null)
+        {
+            Action? callback = CurrentSubPage.OnClosed;
+            CurrentSubPage = null;
+            callback?.Invoke();
+        }
+    }
+
+    [RelayCommand]
+    private void DrillDownUiFallbackFonts()
+    {
+        NavigateToSubPage(Helpers.Strings.Get("Settings.Appearance.AdvancedFallbackFonts"), new UiFallbackFontsSubPage(this));
+    }
+
+    [RelayCommand]
+    private void DrillDownTerminalFallbackFonts()
+    {
+        NavigateToSubPage(Helpers.Strings.Get("Settings.Appearance.AdvancedFallbackFonts"), new TerminalFallbackFontsSubPage(this));
+    }
     private bool _isSyncingPreset;
     private bool _isSyncingFont;
 
@@ -354,6 +388,7 @@ public partial class AppearanceSettingsPage : ViewModelBase
                 }
             }
         }
+        OnPropertyChanged(nameof(UiFallbackFontsSummary));
     }
 
     public string GetUiFallbackFontsString() => string.Join(", ", UiFallbackFonts);
@@ -363,6 +398,7 @@ public partial class AppearanceSettingsPage : ViewModelBase
         if (UiFallbackFontCandidate != null && !UiFallbackFonts.Contains(UiFallbackFontCandidate.Name))
         {
             UiFallbackFonts.Add(UiFallbackFontCandidate.Name);
+            OnPropertyChanged(nameof(UiFallbackFontsSummary));
         }
     }
 
@@ -371,6 +407,7 @@ public partial class AppearanceSettingsPage : ViewModelBase
         if (SelectedUiFallbackFont != null)
         {
             UiFallbackFonts.Remove(SelectedUiFallbackFont);
+            OnPropertyChanged(nameof(UiFallbackFontsSummary));
         }
     }
 
@@ -381,6 +418,7 @@ public partial class AppearanceSettingsPage : ViewModelBase
         if (idx > 0)
         {
             UiFallbackFonts.Move(idx, idx - 1);
+            OnPropertyChanged(nameof(UiFallbackFontsSummary));
         }
     }
 
@@ -391,8 +429,17 @@ public partial class AppearanceSettingsPage : ViewModelBase
         if (idx >= 0 && idx < UiFallbackFonts.Count - 1)
         {
             UiFallbackFonts.Move(idx, idx + 1);
+            OnPropertyChanged(nameof(UiFallbackFontsSummary));
         }
     }
+
+    public string UiFallbackFontsSummary => UiFallbackFonts.Count > 0
+        ? string.Join(" › ", UiFallbackFonts)
+        : Helpers.Strings.Get("Settings.Common.NoSelection");
+
+    public string TerminalFallbackFontsSummary => TerminalFallbackFonts.Count > 0
+        ? string.Join(" › ", TerminalFallbackFonts)
+        : Helpers.Strings.Get("Settings.Common.NoSelection");
 
     // 终端主字体（Terminal Primary Font）
     [ObservableProperty]
@@ -435,6 +482,7 @@ public partial class AppearanceSettingsPage : ViewModelBase
         }
         OnPropertyChanged(nameof(PreviewFontFamily));
         NotifyDraftFontSnapshotChanged();
+        OnPropertyChanged(nameof(TerminalFallbackFontsSummary));
     }
 
     public string GetTerminalFallbackFontsString() => string.Join(", ", TerminalFallbackFonts);
@@ -446,6 +494,7 @@ public partial class AppearanceSettingsPage : ViewModelBase
             TerminalFallbackFonts.Add(TerminalFallbackFontCandidate.Name);
             OnPropertyChanged(nameof(PreviewFontFamily));
             NotifyDraftFontSnapshotChanged();
+            OnPropertyChanged(nameof(TerminalFallbackFontsSummary));
         }
     }
 
@@ -456,6 +505,7 @@ public partial class AppearanceSettingsPage : ViewModelBase
             TerminalFallbackFonts.Remove(SelectedTerminalFallbackFont);
             OnPropertyChanged(nameof(PreviewFontFamily));
             NotifyDraftFontSnapshotChanged();
+            OnPropertyChanged(nameof(TerminalFallbackFontsSummary));
         }
     }
 
@@ -468,6 +518,7 @@ public partial class AppearanceSettingsPage : ViewModelBase
             TerminalFallbackFonts.Move(idx, idx - 1);
             OnPropertyChanged(nameof(PreviewFontFamily));
             NotifyDraftFontSnapshotChanged();
+            OnPropertyChanged(nameof(TerminalFallbackFontsSummary));
         }
     }
 
@@ -480,6 +531,7 @@ public partial class AppearanceSettingsPage : ViewModelBase
             TerminalFallbackFonts.Move(idx, idx + 1);
             OnPropertyChanged(nameof(PreviewFontFamily));
             NotifyDraftFontSnapshotChanged();
+            OnPropertyChanged(nameof(TerminalFallbackFontsSummary));
         }
     }
 

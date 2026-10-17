@@ -1,0 +1,76 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- 设计系统与紧凑桌面密度令牌引用 -->
+
+    <!-- 单层分组：细线划分职责，不叠加卡片背景。 -->
+    <Style Selector="Border.settingsSection">
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Border.Subtle}"/>
+        <Setter Property="BorderThickness" Value="0,1,0,0"/>
+        <Setter Property="Padding" Value="0,10,0,0"/>
+    </Style>
+    <Style Selector="Border.settingsSection.first">
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+    </Style>
+    <Style Selector="TextBlock.settingsSectionTitle">
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}"/>
+    </Style>
+
+    <!-- 紧凑排序列表：桌面级紧凑内边距与行高 -->
+    <Style Selector="ListBox.compactReorderList">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+        <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Disabled"/>
+    </Style>
+    <Style Selector="ListBox.compactReorderList ListBoxItem">
+        <Setter Property="MinHeight" Value="24"/>
+        <Setter Property="Padding" Value="6,2"/>
+        <Setter Property="Margin" Value="0,1"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource Kei.Radius.Control}"/>
+    </Style>
+    <Style Selector="ListBox.compactReorderList ListBoxItem CheckBox">
+        <Setter Property="MinHeight" Value="20"/>
+        <Setter Property="Padding" Value="6,0,0,0"/>
+        <Setter Property="Margin" Value="0"/>
+        <Setter Property="FontSize" Value="12"/>
+    </Style>
+
+    <!-- 表单字段名居中标签提升为一级文字，增强暗色对比 -->
+    <Style Selector="Grid > TextBlock[VerticalAlignment=Center]">
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}"/>
+    </Style>
+
+    <!-- 保存按钮：常态 Accent，悬停 AccentHover，按下回落 -->
+    <Style Selector="Button.save /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource Kei.Accent}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Accent.Foreground}"/>
+    </Style>
+    <Style Selector="Button.save:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource Kei.Accent.Hover}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Accent.Foreground}"/>
+    </Style>
+    <Style Selector="Button.save:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource Kei.Accent}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Accent.Foreground}"/>
+    </Style>
+
+    <!-- SettingsCard 卡片容器样式 -->
+    <Style Selector="Border.settingsCard">
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Card}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Border.Subtle}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource Kei.Radius.Card}"/>
+        <Setter Property="Padding" Value="16,12"/>
+    </Style>
+
+    <!-- SettingsRow 细分隔线样式 -->
+    <Style Selector="Border.settingRowDivider">
+        <Setter Property="Background" Value="{DynamicResource Kei.Border.Subtle}"/>
+        <Setter Property="Height" Value="1"/>
+        <Setter Property="Margin" Value="0,8"/>
+    </Style>
+</Styles>

@@ -1,0 +1,65 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:settings="using:Kei.Term.App.ViewModels.Settings"
+             xmlns:services="using:Kei.Term.App.Services"
+             xmlns:controls="using:Kei.Term.App.Views.Settings.Controls"
+             xmlns:loc="using:Kei.Term.App.Helpers"
+             x:Class="Kei.Term.App.Views.Settings.UiFallbackFontsSubPageView"
+             x:DataType="settings:UiFallbackFontsSubPage">
+
+    <StackPanel Spacing="16">
+        <Border Classes="settingsCard">
+            <StackPanel Spacing="12">
+                <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.Appearance.AdvancedFallbackFonts}"/>
+
+                <TextBlock Text="{loc:KeiString Settings.Appearance.FallbackFontsHint}"
+                           FontSize="12" TextWrapping="Wrap"
+                           Foreground="{DynamicResource Kei.Text.Secondary}"/>
+
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                    <AutoCompleteBox HorizontalAlignment="Stretch"
+                                     ItemsSource="{Binding Parent.AvailableFonts}"
+                                     SelectedItem="{Binding Parent.UiFallbackFontCandidate}"
+                                     ItemFilter="{Binding Parent.FontItemFilter}"
+                                     FilterMode="Custom" MinimumPrefixLength="0"
+                                     ValueMemberBinding="{CompiledBinding DisplayName, DataType=services:FontFamilyOption}"
+                                     PlaceholderText="{loc:KeiString Settings.Appearance.SelectFallbackFontToAdd}">
+                        <AutoCompleteBox.ItemTemplate>
+                            <DataTemplate x:DataType="services:FontFamilyOption">
+                                <TextBlock Text="{Binding DisplayName}" FontFamily="{Binding FontFamily}"/>
+                            </DataTemplate>
+                        </AutoCompleteBox.ItemTemplate>
+                    </AutoCompleteBox>
+                    <Button Grid.Column="1" Classes="iconBtn" Width="28" Height="28"
+                            AutomationProperties.Name="{loc:KeiString Settings.Appearance.AddFallbackFont}"
+                            ToolTip.Tip="{loc:KeiString Settings.Appearance.AddFallbackFont}"
+                            IsEnabled="{Binding Parent.UiFallbackFontCandidate, Converter={x:Static ObjectConverters.IsNotNull}}"
+                            Command="{Binding Parent.AddUiFallbackFont}">
+                        <Viewbox Width="16" Height="16">
+                            <Grid Width="24" Height="24">
+                                <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Add}"/>
+                            </Grid>
+                        </Viewbox>
+                    </Button>
+                </Grid>
+
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                    <ListBox Classes="popupList" MinHeight="100" MaxHeight="220"
+                             ItemsSource="{Binding Parent.UiFallbackFonts}"
+                             SelectedItem="{Binding Parent.SelectedUiFallbackFont}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="x:String">
+                                <TextBlock Text="{Binding}" FontFamily="{Binding}" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                    <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
+                        <Button Content="{loc:KeiString Settings.Appearance.MoveUp}" MinWidth="60" Command="{Binding Parent.MoveUpUiFallbackFont}"/>
+                        <Button Content="{loc:KeiString Settings.Appearance.MoveDown}" MinWidth="60" Command="{Binding Parent.MoveDownUiFallbackFont}"/>
+                        <Button Content="{loc:KeiString Settings.Appearance.RemoveFallbackFont}" MinWidth="60" Command="{Binding Parent.RemoveUiFallbackFont}"/>
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

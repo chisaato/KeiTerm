@@ -80,8 +80,263 @@
     <value>Browse…</value>
   </data>
 
-  <data name="Common.MoveUp" xml:space="preserve">
-    <value>Move Up</value>
+  <data name="Common.Add" xml:space="preserve">
+    <value>Add</value>
+  </data>
+  <data name="Common.Edit" xml:space="preserve">
+    <value>Edit</value>
+  </data>
+  <data name="Settings.Categories.General" xml:space="preserve">
+    <value>General</value>
+  </data>
+  <data name="Settings.Categories.GeneralDesc" xml:space="preserve">
+    <value>Window display, menus, shortcuts and data storage</value>
+  </data>
+  <data name="Settings.Categories.Appearance" xml:space="preserve">
+    <value>Appearance</value>
+  </data>
+  <data name="Settings.Categories.AppearanceDesc" xml:space="preserve">
+    <value>UI theme, font and appearance profiles</value>
+  </data>
+  <data name="Settings.Categories.Tree" xml:space="preserve">
+    <value>Session Manager</value>
+  </data>
+  <data name="Settings.Categories.TreeDesc" xml:space="preserve">
+    <value>Session tree sorting, display density and size</value>
+  </data>
+  <data name="Settings.Categories.Terminal" xml:space="preserve">
+    <value>Behavior</value>
+  </data>
+  <data name="Settings.Categories.TerminalDesc" xml:space="preserve">
+    <value>Scrollback buffer and terminal emulation</value>
+  </data>
+  <data name="Settings.Categories.TerminalAppearance" xml:space="preserve">
+    <value>Color Scheme &amp; Fonts</value>
+  </data>
+  <data name="Settings.Categories.TerminalAppearanceDesc" xml:space="preserve">
+    <value>Terminal color schemes, primary and fallback fonts</value>
+  </data>
+  <data name="Settings.Categories.TabBar" xml:space="preserve">
+    <value>Tab Bar</value>
+  </data>
+  <data name="Settings.Categories.TabBarDesc" xml:space="preserve">
+    <value>Tab placement and title behavior</value>
+  </data>
+  <data name="Settings.Categories.Ssh" xml:space="preserve">
+    <value>SSH</value>
+  </data>
+  <data name="Settings.Categories.SshDesc" xml:space="preserve">
+    <value>Default connection parameters, identities, keep-alive and host keys</value>
+  </data>
+  <data name="Settings.Categories.Proxy" xml:space="preserve">
+    <value>Proxy</value>
+  </data>
+  <data name="Settings.Categories.ProxyDesc" xml:space="preserve">
+    <value>SOCKS5 and HTTP proxy profiles</value>
+  </data>
+  <data name="Settings.Categories.Security" xml:space="preserve">
+    <value>Security</value>
+  </data>
+  <data name="Settings.Categories.SecurityDesc" xml:space="preserve">
+    <value>Master password, auto-lock and quick unlock</value>
+  </data>
+  <data name="Settings.Categories.FileTransfer" xml:space="preserve">
+    <value>Transfers</value>
+  </data>
+  <data name="Settings.Categories.FileTransferDesc" xml:space="preserve">
+    <value>Transfer queues, conflict policies, retry, verification and archive</value>
+  </data>
+  <data name="Settings.Categories.Transfer" xml:space="preserve">
+    <value>Transfers</value>
+  </data>
+  <data name="Settings.Categories.TransferDesc" xml:space="preserve">
+    <value>Transfer queues, conflict policies, retry, verification and archive</value>
+  </data>
+  <data name="Settings.Categories.FileManager" xml:space="preserve">
+    <value>File Management &amp; Editors</value>
+  </data>
+  <data name="Settings.Categories.FileManagerDesc" xml:space="preserve">
+    <value>File manager options, cache &amp; watchers, external editors and associations</value>
+  </data>
+  <data name="Settings.Groups.App" xml:space="preserve">
+    <value>Application</value>
+  </data>
+  <data name="Settings.Groups.Terminal" xml:space="preserve">
+    <value>Terminal</value>
+  </data>
+  <data name="Settings.Groups.Connection" xml:space="preserve">
+    <value>Connection</value>
+  </data>
+  <data name="Settings.Groups.Files" xml:space="preserve">
+    <value>Files</value>
+  </data>
+  <data name="Settings.FileTransfer.AdvancedRetryHeader" xml:space="preserve">
+    <value>Show retry backoff and interval options</value>
+  </data>
+  <data name="Settings.FileTransfer.CapabilitiesSection" xml:space="preserve">
+    <value>Integrity Verification &amp; Archive Transfer</value>
+  </data>
+  <data name="Settings.FileTransfer.HashAlgorithmOrderTitle" xml:space="preserve">
+    <value>Hash Algorithm Priority</value>
+  </data>
+  <data name="Settings.FileTransfer.HashAlgorithmHint" xml:space="preserve">
+    <value>Algorithms are tried in order; reorder or toggle to enable/disable.</value>
+  </data>
+  <data name="Settings.FileTransfer.ArchiveFormatOrderTitle" xml:space="preserve">
+    <value>Archive Format Priority</value>
+  </data>
+  <data name="Settings.FileTransfer.AutoRetryEnabledTip" xml:space="preserve">
+    <value>Automatically retry failed transfers on network glitches or timeouts.</value>
+  </data>
+  <data name="Settings.FileTransfer.BackoffModeTip" xml:space="preserve">
+    <value>Exponential backoff doubles wait time on each retry; fixed uses identical intervals.</value>
+  </data>
+  <data name="Settings.FileTransfer.SizeDisplay" xml:space="preserve">
+    <value>File Size Format</value>
+  </data>
+  <data name="Settings.FileTransfer.SizeDisplayTip" xml:space="preserve">
+    <value>Format standard used in remote file manager (IEC: KiB/MiB, SI: KB/MB, Bytes: raw byte count).</value>
+  </data>
+  <data name="Settings.FileTransfer.SizeIec" xml:space="preserve">
+    <value>Binary (KiB, MiB, GiB - 1024)</value>
+  </data>
+  <data name="Settings.FileTransfer.SizeSi" xml:space="preserve">
+    <value>Decimal (KB, MB, GB - 1000)</value>
+  </data>
+  <data name="Settings.FileTransfer.SizeBytes" xml:space="preserve">
+    <value>Exact Bytes</value>
+  </data>
+  <data name="Settings.FileTransfer.DockLeftTip" xml:space="preserve">
+    <value>Whether remote file manager docks to the left side by default.</value>
+  </data>
+  <data name="Settings.Terminal.CwdFollow" xml:space="preserve">
+    <value>Working Directory Tracking</value>
+  </data>
+  <data name="Settings.Terminal.CwdFollowTip" xml:space="preserve">
+    <value>Synchronize remote file manager path when terminal working directory changes.</value>
+  </data>
+  <data name="Settings.Terminal.Multiplexer" xml:space="preserve">
+    <value>Multiplexer Awareness</value>
+  </data>
+  <data name="Settings.Terminal.MultiplexerTip" xml:space="preserve">
+    <value>Directory tracking mode under tmux/screen sessions.</value>
+  </data>
+  <data name="Terminal.Drop.SettingsSection" xml:space="preserve">
+    <value>Terminal Drag &amp; Drop</value>
+  </data>
+  <data name="Terminal.Drop.Protocol" xml:space="preserve">
+    <value>Upload Protocol</value>
+  </data>
+  <data name="Terminal.Drop.ProtocolTip" xml:space="preserve">
+    <value>Transfer protocol used when dropping files onto terminal (SCP or SFTP).</value>
+  </data>
+  <data name="Terminal.Drop.DefaultAction" xml:space="preserve">
+    <value>Default Drop Action</value>
+  </data>
+  <data name="Terminal.Drop.DefaultActionTip" xml:space="preserve">
+    <value>Action when dropping files onto terminal (upload or paste path).</value>
+  </data>
+  <data name="Settings.FileTransfer.CacheWatcherSection" xml:space="preserve">
+    <value>Cache &amp; File Watchers</value>
+  </data>
+  <data name="Settings.FileTransfer.CacheDirectory" xml:space="preserve">
+    <value>Local Cache Folder</value>
+  </data>
+  <data name="Settings.FileTransfer.CacheDirectoryPlaceholder" xml:space="preserve">
+    <value>Leave empty to use default app cache folder</value>
+  </data>
+  <data name="Settings.FileTransfer.ClearCache" xml:space="preserve">
+    <value>Clear Cache</value>
+  </data>
+  <data name="Settings.FileTransfer.CacheDirectoryTip" xml:space="preserve">
+    <value>Folder where remote files are cached when opened in external editors.</value>
+  </data>
+  <data name="Settings.FileTransfer.WatcherMode" xml:space="preserve">
+    <value>File Change Detection Mode</value>
+  </data>
+  <data name="Settings.FileTransfer.WatcherModeTip" xml:space="preserve">
+    <value>Method for detecting local edits (Auto, OS-native events, or polling).</value>
+  </data>
+  <data name="Settings.FileTransfer.AdvancedWatcherSection" xml:space="preserve">
+    <value>Advanced File Watcher Options</value>
+  </data>
+  <data name="Settings.FileTransfer.PollingInterval" xml:space="preserve">
+    <value>Polling Interval (seconds)</value>
+  </data>
+  <data name="Settings.FileTransfer.PollingIntervalTip" xml:space="preserve">
+    <value>Interval for checking file changes in polling mode.</value>
+  </data>
+  <data name="Settings.FileTransfer.WriteDebounce" xml:space="preserve">
+    <value>Write Debounce (ms)</value>
+  </data>
+  <data name="Settings.FileTransfer.WriteDebounceTip" xml:space="preserve">
+    <value>Delay before uploading after last local modification.</value>
+  </data>
+  <data name="Settings.FileTransfer.EditorsSection" xml:space="preserve">
+    <value>External Editors</value>
+  </data>
+  <data name="Settings.FileTransfer.DefaultBadge" xml:space="preserve">
+    <value>Default</value>
+  </data>
+  <data name="Settings.FileTransfer.NoEditorsConfigured" xml:space="preserve">
+    <value>No external editors configured</value>
+  </data>
+  <data name="Settings.FileTransfer.CustomEditorPath" xml:space="preserve">
+    <value>Fallback Editor Command/Path</value>
+  </data>
+  <data name="Settings.FileTransfer.CustomEditorPathPlaceholder" xml:space="preserve">
+    <value>Leave empty to use system default</value>
+  </data>
+  <data name="Settings.FileTransfer.EditCustomEditorPath" xml:space="preserve">
+    <value>Edit…</value>
+  </data>
+  <data name="Settings.FileTransfer.CustomEditorPathTip" xml:space="preserve">
+    <value>Used when configured editors are unavailable.</value>
+  </data>
+  <data name="Settings.FileTransfer.AssociationsSection" xml:space="preserve">
+    <value>File Associations</value>
+  </data>
+  <data name="Common.EditArrow" xml:space="preserve">
+    <value>Edit ›</value>
+  </data>
+  <data name="Settings.Common.ShowAdvancedOptions" xml:space="preserve">
+    <value>Show Advanced Options</value>
+  </data>
+  <data name="Settings.FileTransfer.NoAlgorithmsEnabled" xml:space="preserve">
+    <value>No algorithms enabled</value>
+  </data>
+  <data name="Settings.FileTransfer.NoFormatsEnabled" xml:space="preserve">
+    <value>No formats enabled</value>
+  </data>
+  <data name="Settings.FileTransfer.ArchiveFormat.Tar" xml:space="preserve">
+    <value>tar (uncompressed)</value>
+  </data>
+  <data name="Settings.FileTransfer.UnknownEditor" xml:space="preserve">
+    <value>Unknown Editor</value>
+  </data>
+  <data name="Settings.FileTransfer.DatabaseOperationFailed" xml:space="preserve">
+    <value>Operation failed. Please check local database and try again.</value>
+  </data>
+  <data name="Settings.Appearance.ImportKonsole" xml:space="preserve">
+    <value>Import from Konsole…</value>
+  </data>
+  <data name="Settings.Appearance.ImportITerm" xml:space="preserve">
+    <value>Import from iTerm…</value>
+  </data>
+  <data name="Settings.Appearance.ImportWindowsTerminal" xml:space="preserve">
+    <value>Import from Windows Terminal…</value>
+  </data>
+  <data name="Settings.Appearance.ExportJson" xml:space="preserve">
+    <value>Export JSON…</value>
+  </data>
+  <data name="Settings.Appearance.ImportJson" xml:space="preserve">
+    <value>Import JSON…</value>
+  </data>
+  <data name="Settings.Common.Back" xml:space="preserve">
+    <value>Back</value>
+  </data>
+  <data name="Settings.Common.NoSelection" xml:space="preserve">
+    <value>None</value>
   </data>
   <data name="Common.MoveDown" xml:space="preserve">
     <value>Move Down</value>
