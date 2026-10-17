@@ -23,9 +23,16 @@ public partial class AppearanceSettingsPage : ViewModelBase, ISettingsDrillDownH
 {
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsInSubPage))]
+    [NotifyPropertyChangedFor(nameof(SubPageTitle))]
+    [NotifyPropertyChangedFor(nameof(SubPageContent))]
     private SettingsSubPageViewModel? _currentSubPage;
 
     public bool IsInSubPage => CurrentSubPage != null;
+
+    // 视图绑定用的非空路径，避免未下钻时 CurrentSubPage 为 null 产生绑定警告
+    public string SubPageTitle => CurrentSubPage?.Title ?? string.Empty;
+
+    public object? SubPageContent => CurrentSubPage?.Content;
 
     public void NavigateToSubPage(string title, object content, Action? onClosed = null)
     {

@@ -15,12 +15,12 @@
         <scontrols:SettingsPageHeader Group="{loc:KeiString Settings.Groups.Terminal}"
                                      Title="{loc:KeiString Settings.Categories.TerminalAppearance}"
                                      Description="{loc:KeiString Settings.Categories.TerminalAppearanceDesc}"
-                                     SubPageTitle="{Binding Appearance.CurrentSubPage.Title}"
+                                     SubPageTitle="{Binding Appearance.SubPageTitle}"
                                      BackCommand="{Binding Appearance.NavigateBackCommand}"/>
 
         <Panel>
             <!-- 主内容区：未在子页时显示 -->
-            <Grid ColumnDefinitions="1.1*,*" ColumnSpacing="16" IsVisible="{Binding !Appearance.IsInSubPage}">
+            <scontrols:AdaptiveColumnsGrid ColumnDefinitions="1.1*,*" ColumnSpacing="16" IsVisible="{Binding !Appearance.IsInSubPage}">
                 <!-- 左列：设置卡片 -->
                 <StackPanel Grid.Column="0" Spacing="16">
                     <!-- 1. 终端配色方案档案卡片 -->
@@ -149,10 +149,10 @@
                                                            Font="{Binding Appearance.DraftFontSnapshot}"/>
                     </Grid>
                 </Border>
-            </Grid>
+            </scontrols:AdaptiveColumnsGrid>
 
             <!-- 子页面内容区：进入子页后显示 -->
-            <ContentControl Content="{Binding Appearance.CurrentSubPage.Content}"
+            <ContentControl Content="{Binding Appearance.SubPageContent}"
                             IsVisible="{Binding Appearance.IsInSubPage}"/>
         </Panel>
     </StackPanel>

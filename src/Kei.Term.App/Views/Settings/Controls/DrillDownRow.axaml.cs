@@ -1,10 +1,12 @@
 using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 
 namespace Kei.Term.App.Views.Settings.Controls;
 
-public partial class DrillDownRow : UserControl
+// 下钻行：标题/说明占剩余宽度，摘要可截断，操作按钮始终完整；模板见 SettingsStyles.axaml
+public class DrillDownRow : TemplatedControl
 {
     public static readonly StyledProperty<string?> TitleProperty =
         AvaloniaProperty.Register<DrillDownRow, string?>(nameof(Title));
@@ -100,7 +102,6 @@ public partial class DrillDownRow : UserControl
 
     public DrillDownRow()
     {
-        InitializeComponent();
         ActionLabel = Helpers.Strings.Get("Common.EditArrow");
     }
 }

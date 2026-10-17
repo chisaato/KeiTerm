@@ -36,7 +36,7 @@
             <!-- 右侧：分类内容区，按页面 VM 类型分发模板（受 IsBusy 控制禁用交互） -->
             <Border Grid.Column="1" Background="{DynamicResource Kei.Bg.Window}">
                 <ScrollViewer IsEnabled="{Binding !IsBusy}" HorizontalScrollBarVisibility="Disabled">
-                    <ContentControl Content="{Binding SelectedCategory.Page}" Margin="26,22" MaxWidth="760" HorizontalAlignment="Left">
+                    <ContentControl Content="{Binding SelectedCategory.Page}" Margin="26,22" MaxWidth="760" HorizontalAlignment="Stretch">
                         <ContentControl.DataTemplates>
 
                             <!-- 常规页 -->

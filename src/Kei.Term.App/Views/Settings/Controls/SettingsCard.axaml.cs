@@ -1,10 +1,10 @@
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Metadata;
 
 namespace Kei.Term.App.Views.Settings.Controls;
 
-public partial class SettingsCard : UserControl
+// 卡片：标题 + 内容（Content）+ 可折叠高级区；模板见 SettingsStyles.axaml
+public class SettingsCard : ContentControl
 {
     public static readonly StyledProperty<string?> TitleProperty =
         AvaloniaProperty.Register<SettingsCard, string?>(nameof(Title));
@@ -23,9 +23,6 @@ public partial class SettingsCard : UserControl
 
     public static readonly StyledProperty<bool> IsAdvancedExpandedProperty =
         AvaloniaProperty.Register<SettingsCard, bool>(nameof(IsAdvancedExpanded), false);
-
-    public static new readonly StyledProperty<object?> ContentProperty =
-        AvaloniaProperty.Register<SettingsCard, object?>(nameof(Content));
 
     public string? Title
     {
@@ -55,13 +52,6 @@ public partial class SettingsCard : UserControl
         set => SetValue(IsAdvancedExpandedProperty, value);
     }
 
-    [Content]
-    public new object? Content
-    {
-        get => GetValue(ContentProperty);
-        set => SetValue(ContentProperty, value);
-    }
-
     static SettingsCard()
     {
         TitleProperty.Changed.AddClassHandler<SettingsCard>((x, _) =>
@@ -73,7 +63,6 @@ public partial class SettingsCard : UserControl
 
     public SettingsCard()
     {
-        InitializeComponent();
         AdvancedHeader = Helpers.Strings.Get("Settings.Common.ShowAdvancedOptions");
     }
 }

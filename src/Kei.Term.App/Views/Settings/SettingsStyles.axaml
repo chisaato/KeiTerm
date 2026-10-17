@@ -1,5 +1,6 @@
 <Styles xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="using:Kei.Term.App.Views.Settings.Controls">
     <!-- 设计系统与紧凑桌面密度令牌引用 -->
 
     <!-- 单层分组：细线划分职责，不叠加卡片背景。 -->
@@ -58,6 +59,27 @@
         <Setter Property="Foreground" Value="{DynamicResource Kei.Accent.Foreground}"/>
     </Style>
 
+    <!-- 面包屑链接式按钮：无背景，悬停时文字加下划线并换为悬停强调色 -->
+    <Style Selector="Button.hyperlink">
+        <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+    <Style Selector="Button.hyperlink /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Accent}"/>
+    </Style>
+    <Style Selector="Button.hyperlink:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Accent.Hover}"/>
+    </Style>
+    <Style Selector="Button.hyperlink:pointerover /template/ ContentPresenter#PART_ContentPresenter > TextBlock">
+        <Setter Property="TextDecorations" Value="Underline"/>
+    </Style>
+    <Style Selector="Button.hyperlink:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Accent}"/>
+    </Style>
+
     <!-- SettingsCard 卡片容器样式 -->
     <Style Selector="Border.settingsCard">
         <Setter Property="Background" Value="{DynamicResource Kei.Bg.Card}"/>
@@ -72,5 +94,116 @@
         <Setter Property="Background" Value="{DynamicResource Kei.Border.Subtle}"/>
         <Setter Property="Height" Value="1"/>
         <Setter Property="Margin" Value="0,8"/>
+    </Style>
+
+    <!-- SettingRow：标题与说明在左，控件（Content）右对齐 -->
+    <Style Selector="controls|SettingRow">
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" MinHeight="32">
+                    <StackPanel x:Name="PART_Text" Grid.Column="0" VerticalAlignment="Center" Spacing="2" Margin="0,2,16,2">
+                        <TextBlock Text="{TemplateBinding Title}"
+                                   FontSize="13"
+                                   Foreground="{DynamicResource Kei.Text.Primary}"
+                                   TextWrapping="Wrap"/>
+                        <TextBlock Text="{TemplateBinding Description}"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource Kei.Text.Muted}"
+                                   TextWrapping="Wrap"
+                                   IsVisible="{TemplateBinding HasDescription}"/>
+                    </StackPanel>
+                    <ContentPresenter x:Name="PART_Control" Grid.Column="1"
+                                      HorizontalAlignment="Right"
+                                      VerticalAlignment="Center"
+                                      Content="{TemplateBinding Content}"
+                                      ContentTemplate="{TemplateBinding ContentTemplate}"/>
+                </Grid>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <!-- 窄行：控件区落到标题说明下方并占满整行 -->
+    <Style Selector="controls|SettingRow:narrow /template/ StackPanel#PART_Text">
+        <Setter Property="Grid.ColumnSpan" Value="2"/>
+        <Setter Property="Margin" Value="0,2,0,6"/>
+    </Style>
+    <Style Selector="controls|SettingRow:narrow /template/ ContentPresenter#PART_Control">
+        <Setter Property="Grid.Row" Value="1"/>
+        <Setter Property="Grid.Column" Value="0"/>
+        <Setter Property="Grid.ColumnSpan" Value="2"/>
+        <!-- 左对齐：呈现为自然宽度，避免调用方控件的右对齐把它推到行尾 -->
+        <Setter Property="HorizontalAlignment" Value="Left"/>
+    </Style>
+
+    <!-- SettingsCard：标题 + 内容 + 高级折叠区 -->
+    <Style Selector="controls|SettingsCard">
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Classes="settingsCard">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="{TemplateBinding Title}"
+                                   Classes="settingsSectionTitle"
+                                   IsVisible="{TemplateBinding HasTitle}"/>
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"/>
+                        <Expander Header="{TemplateBinding AdvancedHeader}"
+                                  IsVisible="{TemplateBinding HasAdvancedContent}"
+                                  IsExpanded="{TemplateBinding IsAdvancedExpanded, Mode=TwoWay}"
+                                  Margin="0,4,0,0"
+                                  Padding="0,8,0,0">
+                            <ContentPresenter Content="{TemplateBinding AdvancedContent}"/>
+                        </Expander>
+                    </StackPanel>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+
+    <!-- DrillDownRow：标题/说明占剩余宽度，摘要可截断，"编辑 ›" 按钮始终完整显示 -->
+    <Style Selector="controls|DrillDownRow">
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Grid MinHeight="32">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="3*"/>
+                        <!-- 摘要列按比例分剩余宽度并设上限，窄宽度下被截断而不是挤压标题 -->
+                        <ColumnDefinition Width="2*" MaxWidth="200"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <CheckBox Grid.Column="0"
+                              IsVisible="{TemplateBinding HasSwitch}"
+                              IsChecked="{TemplateBinding SwitchChecked, Mode=TwoWay}"
+                              VerticalAlignment="Center"
+                              Margin="0,0,10,0"/>
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2" Margin="0,2,16,2">
+                        <TextBlock Text="{TemplateBinding Title}"
+                                   FontSize="13"
+                                   Foreground="{DynamicResource Kei.Text.Primary}"
+                                   TextWrapping="Wrap"/>
+                        <TextBlock Text="{TemplateBinding Description}"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource Kei.Text.Muted}"
+                                   TextWrapping="Wrap"
+                                   IsVisible="{TemplateBinding HasDescription}"/>
+                    </StackPanel>
+                    <TextBlock Grid.Column="2"
+                               Text="{TemplateBinding Summary}"
+                               FontSize="12"
+                               Foreground="{DynamicResource Kei.Text.Secondary}"
+                               VerticalAlignment="Center"
+                               HorizontalAlignment="Right"
+                               TextTrimming="CharacterEllipsis"
+                               Margin="0,0,8,0"/>
+                    <Button Grid.Column="3"
+                            Content="{TemplateBinding ActionLabel}"
+                            Command="{TemplateBinding Command}"
+                            CommandParameter="{TemplateBinding CommandParameter}"
+                            IsEnabled="{TemplateBinding IsActionEnabled}"
+                            Padding="10,4"
+                            Height="28"
+                            VerticalAlignment="Center"/>
+                </Grid>
+            </ControlTemplate>
+        </Setter>
     </Style>
 </Styles>

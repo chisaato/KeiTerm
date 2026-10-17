@@ -21,10 +21,10 @@
                 <!-- 大小显示模式 -->
                 <Grid ColumnDefinitions="*,Auto" MinHeight="32">
                     <StackPanel VerticalAlignment="Center" Spacing="2" Margin="0,2,16,2">
-                        <TextBlock Text="{loc:KeiString Settings.FileTransfer.SizeDisplay}"
+                        <TextBlock TextWrapping="Wrap" Text="{loc:KeiString Settings.FileTransfer.SizeDisplay}"
                                    FontSize="13"
                                    Foreground="{DynamicResource Kei.Text.Primary}"/>
-                        <TextBlock Text="{loc:KeiString Settings.FileTransfer.SizeDisplayTip}"
+                        <TextBlock TextWrapping="Wrap" Text="{loc:KeiString Settings.FileTransfer.SizeDisplayTip}"
                                    FontSize="12"
                                    Foreground="{DynamicResource Kei.Text.Muted}"/>
                     </StackPanel>
@@ -54,10 +54,10 @@
                 <!-- 目录跟随模式 -->
                 <Grid ColumnDefinitions="*,Auto" MinHeight="32">
                     <StackPanel VerticalAlignment="Center" Spacing="2" Margin="0,2,16,2">
-                        <TextBlock Text="{loc:KeiString Settings.Terminal.CwdFollow}"
+                        <TextBlock TextWrapping="Wrap" Text="{loc:KeiString Settings.Terminal.CwdFollow}"
                                    FontSize="13"
                                    Foreground="{DynamicResource Kei.Text.Primary}"/>
-                        <TextBlock Text="{loc:KeiString Settings.Terminal.CwdFollowTip}"
+                        <TextBlock TextWrapping="Wrap" Text="{loc:KeiString Settings.Terminal.CwdFollowTip}"
                                    FontSize="12"
                                    Foreground="{DynamicResource Kei.Text.Muted}"/>
                     </StackPanel>
@@ -74,10 +74,10 @@
                 <!-- 复用器感知 -->
                 <Grid ColumnDefinitions="*,Auto" MinHeight="32">
                     <StackPanel VerticalAlignment="Center" Spacing="2" Margin="0,2,16,2">
-                        <TextBlock Text="{loc:KeiString Settings.Terminal.Multiplexer}"
+                        <TextBlock TextWrapping="Wrap" Text="{loc:KeiString Settings.Terminal.Multiplexer}"
                                    FontSize="13"
                                    Foreground="{DynamicResource Kei.Text.Primary}"/>
-                        <TextBlock Text="{loc:KeiString Settings.Terminal.MultiplexerTip}"
+                        <TextBlock TextWrapping="Wrap" Text="{loc:KeiString Settings.Terminal.MultiplexerTip}"
                                    FontSize="12"
                                    Foreground="{DynamicResource Kei.Text.Muted}"/>
                     </StackPanel>
@@ -98,10 +98,10 @@
 
                 <Grid ColumnDefinitions="*,Auto" MinHeight="32">
                     <StackPanel VerticalAlignment="Center" Spacing="2" Margin="0,2,16,2">
-                        <TextBlock Text="{loc:KeiString Terminal.Drop.Protocol}"
+                        <TextBlock TextWrapping="Wrap" Text="{loc:KeiString Terminal.Drop.Protocol}"
                                    FontSize="13"
                                    Foreground="{DynamicResource Kei.Text.Primary}"/>
-                        <TextBlock Text="{loc:KeiString Terminal.Drop.ProtocolTip}"
+                        <TextBlock TextWrapping="Wrap" Text="{loc:KeiString Terminal.Drop.ProtocolTip}"
                                    FontSize="12"
                                    Foreground="{DynamicResource Kei.Text.Muted}"/>
                     </StackPanel>
@@ -123,10 +123,10 @@
 
                 <Grid ColumnDefinitions="*,Auto" MinHeight="32">
                     <StackPanel VerticalAlignment="Center" Spacing="2" Margin="0,2,16,2">
-                        <TextBlock Text="{loc:KeiString Terminal.Drop.DefaultAction}"
+                        <TextBlock TextWrapping="Wrap" Text="{loc:KeiString Terminal.Drop.DefaultAction}"
                                    FontSize="13"
                                    Foreground="{DynamicResource Kei.Text.Primary}"/>
-                        <TextBlock Text="{loc:KeiString Terminal.Drop.DefaultActionTip}"
+                        <TextBlock TextWrapping="Wrap" Text="{loc:KeiString Terminal.Drop.DefaultActionTip}"
                                    FontSize="12"
                                    Foreground="{DynamicResource Kei.Text.Muted}"/>
                     </StackPanel>
@@ -299,10 +299,10 @@
                 <!-- 自定义临时命令行 -->
                 <Grid ColumnDefinitions="*,Auto" MinHeight="32">
                     <StackPanel VerticalAlignment="Center" Spacing="2" Margin="0,2,16,2">
-                        <TextBlock Text="{loc:KeiString Settings.FileTransfer.CustomEditorPath}"
+                        <TextBlock TextWrapping="Wrap" Text="{loc:KeiString Settings.FileTransfer.CustomEditorPath}"
                                    FontSize="13"
                                    Foreground="{DynamicResource Kei.Text.Primary}"/>
-                        <TextBlock Text="{loc:KeiString Settings.FileTransfer.CustomEditorPathTip}"
+                        <TextBlock TextWrapping="Wrap" Text="{loc:KeiString Settings.FileTransfer.CustomEditorPathTip}"
                                    FontSize="12"
                                    Foreground="{DynamicResource Kei.Text.Muted}"/>
                     </StackPanel>

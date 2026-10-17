@@ -11,7 +11,7 @@
         <controls:SettingsPageHeader Group="{loc:KeiString Settings.Groups.Files}"
                                      Title="{loc:KeiString Settings.Categories.Transfer}"
                                      Description="{loc:KeiString Settings.Categories.TransferDesc}"
-                                     SubPageTitle="{Binding CurrentSubPage.Title}"
+                                     SubPageTitle="{Binding SubPageTitle}"
                                      BackCommand="{Binding NavigateBackCommand}"/>
 
         <!-- 下钻宿主：主页与下钻子页切换 -->
@@ -181,7 +181,7 @@
             </StackPanel>
 
             <!-- 子页面内容区：进入子页后显示 -->
-            <ContentControl Content="{Binding CurrentSubPage.Content}"
+            <ContentControl Content="{Binding SubPageContent}"
                             IsVisible="{Binding IsInSubPage}"/>
         </Panel>
     </StackPanel>

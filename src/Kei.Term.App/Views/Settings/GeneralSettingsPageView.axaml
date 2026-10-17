@@ -77,10 +77,10 @@
                 <!-- 命令面板快捷键录制 -->
                 <Grid ColumnDefinitions="*,Auto" MinHeight="32">
                     <StackPanel VerticalAlignment="Center" Spacing="2" Margin="0,2,16,2">
-                        <TextBlock Text="{loc:KeiString Menu.Tools.CommandPalette}"
+                        <TextBlock TextWrapping="Wrap" Text="{loc:KeiString Menu.Tools.CommandPalette}"
                                    FontSize="13"
                                    Foreground="{DynamicResource Kei.Text.Primary}"/>
-                        <TextBlock Text="{loc:KeiString Settings.General.RecordShortcutTip}"
+                        <TextBlock TextWrapping="Wrap" Text="{loc:KeiString Settings.General.RecordShortcutTip}"
                                    FontSize="12"
                                    Foreground="{DynamicResource Kei.Text.Muted}"/>
                     </StackPanel>

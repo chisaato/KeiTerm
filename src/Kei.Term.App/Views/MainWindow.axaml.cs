@@ -10,6 +10,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using Avalonia.Platform;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Kei.Term.App.Helpers;
@@ -44,6 +45,7 @@ public partial class MainWindow : Window
     {
         _deferStartupLayout = deferStartupLayout;
         InitializeComponent();
+        ApplyInitialSize();
 
         SetUpPlatformKeyBindings();
         SetUpSessionManager();
@@ -69,6 +71,19 @@ public partial class MainWindow : Window
 
         // DataContext 变化时挂接 VM 属性监听（侧栏收起/恢复需要联动列宽）
         PropertyChanged += OnWindowPropertyChanged;
+    }
+
+    // 按主屏工作区放大初始尺寸；拿不到屏幕信息（如 headless）时保留 XAML 声明值
+    private void ApplyInitialSize()
+    {
+        Screen? screen = Screens?.Primary;
+        Size? workArea = screen is null
+            ? null
+            : screen.WorkingArea.Size.ToSize(screen.Scaling);
+        Size size = InitialWindowSize.Compute(workArea, new Size(Width, Height));
+        Width = size.Width;
+        Height = size.Height;
+        WindowStartupLocation = WindowStartupLocation.CenterScreen;
     }
 
     // NativeMenuItem 不是 Control，XAML 编译器不支持在其上写 Click="方法名"（只能在代码里订阅）。

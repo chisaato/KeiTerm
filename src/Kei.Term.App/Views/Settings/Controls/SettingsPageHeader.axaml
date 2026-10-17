@@ -24,7 +24,9 @@
                     IsVisible="{Binding HasSubPage, RelativeSource={RelativeSource AncestorType=controls:SettingsPageHeader}}"
                     Classes="hyperlink"
                     Padding="0"
-                    Height="18"
+                    MinHeight="0"
+                    VerticalAlignment="Top"
+                    VerticalContentAlignment="Top"
                     FontSize="12"
                     Foreground="{DynamicResource Kei.Accent}"/>
 
