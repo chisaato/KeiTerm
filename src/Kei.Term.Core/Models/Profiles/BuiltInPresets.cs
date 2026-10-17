@@ -15,6 +15,8 @@ public static class BuiltInPresets
     public const string GuiVeritasChihiroId = VeritasChihiroGuiPreset.Id;
     public const string GuiVeritasMakiId = VeritasMakiGuiPreset.Id;
     public const string GuiVeritasKotamaId = VeritasKotamaGuiPreset.Id;
+    public const string GuiTendouKeiId = TendouKeiGuiPreset.Id;
+    public const string GuiTendouAliceId = TendouAliceGuiPreset.Id;
 
     // 内置 Terminal 终端预置 ID（向后兼容常量）
     public const string TerminalMonokaiId = MonokaiTerminalPreset.Id;
@@ -27,6 +29,8 @@ public static class BuiltInPresets
     public const string TerminalVeritasChihiroId = VeritasChihiroTerminalPreset.Id;
     public const string TerminalVeritasMakiId = VeritasMakiTerminalPreset.Id;
     public const string TerminalVeritasKotamaId = VeritasKotamaTerminalPreset.Id;
+    public const string TerminalTendouKeiId = TendouKeiTerminalPreset.Id;
+    public const string TerminalTendouAliceId = TendouAliceTerminalPreset.Id;
 
     // 默认内置 GUI 主题聚合列表
     public static IReadOnlyList<GuiProfile> DefaultGuiProfiles { get; } = new List<GuiProfile>
@@ -38,7 +42,9 @@ public static class BuiltInPresets
         VeritasHareGuiPreset.Instance,
         VeritasChihiroGuiPreset.Instance,
         VeritasMakiGuiPreset.Instance,
-        VeritasKotamaGuiPreset.Instance
+        VeritasKotamaGuiPreset.Instance,
+        TendouKeiGuiPreset.Instance,
+        TendouAliceGuiPreset.Instance
     }.AsReadOnly();
 
     // 默认内置 Terminal 终端主题聚合列表
@@ -53,7 +59,9 @@ public static class BuiltInPresets
         VeritasHareTerminalPreset.Instance,
         VeritasChihiroTerminalPreset.Instance,
         VeritasMakiTerminalPreset.Instance,
-        VeritasKotamaTerminalPreset.Instance
+        VeritasKotamaTerminalPreset.Instance,
+        TendouKeiTerminalPreset.Instance,
+        TendouAliceTerminalPreset.Instance
     }.AsReadOnly();
 
     public static GuiProfile GetDefaultGuiProfile() => DefaultGuiProfiles[0];

@@ -132,6 +132,9 @@
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="VerticalContentAlignment" Value="Center"/>
     </Style>
+    <Style Selector="TextBox /template/ TextBlock#PART_Watermark, TextBox /template/ TextBlock#PART_PlaceholderTextPresenter">
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Secondary}"/>
+    </Style>
     <!-- 多行文本框：取消固定 28px 高度限制，内容靠顶对齐，舒适编辑内边距 -->
     <Style Selector="TextBox.multiline, TextBox[AcceptsReturn=True]">
         <Setter Property="Height" Value="NaN"/>
@@ -277,6 +280,12 @@
         <Setter Property="FontSize" Value="13"/>
         <Setter Property="Background" Value="{DynamicResource Kei.Bg.PanelAlt}"/>
         <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}"/>
+    </Style>
+    <Style Selector="Expander /template/ ToggleButton#ExpanderHeader Path#ExpandCollapseChevron">
+        <Setter Property="Stroke" Value="{DynamicResource Kei.Text.Primary}"/>
+    </Style>
+    <Style Selector="Expander /template/ ToggleButton#ExpanderHeader:pointerover Path#ExpandCollapseChevron">
+        <Setter Property="Stroke" Value="{DynamicResource Kei.Text.Primary}"/>
     </Style>
     <Style Selector="Expander /template/ ToggleButton#ExpanderHeader /template/ Border#ExpandCollapseChevronBorder">
         <!-- 模板的 Width/Height 是局部资源值，上限约束才能缩小其实际布局尺寸。 -->

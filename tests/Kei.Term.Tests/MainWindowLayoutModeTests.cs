@@ -165,17 +165,15 @@ public sealed class MainWindowLayoutModeTests
                 .Single(b => Equals(b.Command, model.ConnectSelectedSessionCommand));
             Button disconnectTabBtn = topToolbar.GetVisualDescendants().OfType<Button>()
                 .Single(b => Equals(b.Command, model.DisconnectCurrentTabCommand));
+            // 视图切换按钮已从全局 ModernToolbar 下移至终端工具栏
             Button cmdPaletteBtn = topToolbar.GetVisualDescendants().OfType<Button>()
                 .Single(b => Equals(b.Command, model.OpenCommandPaletteCommand));
-            Button fileManagerBtn = topToolbar.GetVisualDescendants().OfType<Button>()
-                .Single(b => Equals(b.Command, model.ToggleFileManagerCommand));
 
             Assert.NotNull(newTabBtn);
             Assert.NotNull(quickConnectBtn);
             Assert.NotNull(connectSelectedBtn);
             Assert.NotNull(disconnectTabBtn);
             Assert.NotNull(cmdPaletteBtn);
-            Assert.NotNull(fileManagerBtn);
 
             // 验证顶部工具栏中绝不包含树专用的操作（CreateFolderCommand、CollapseAllCommand等）
             var topCommands = topToolbar.GetVisualDescendants().OfType<Button>().Select(b => b.Command).ToArray();
@@ -529,7 +527,7 @@ public sealed class MainWindowLayoutModeTests
             ScrollViewer scroll = Assert.Single(toolbar.GetVisualDescendants().OfType<ScrollViewer>());
             ScrollContentPresenter viewport = Assert.Single(scroll.GetVisualDescendants().OfType<ScrollContentPresenter>());
             Button files = toolbar.GetVisualDescendants().OfType<Button>()
-                .Single(button => Equals(button.Command, model.ToggleFileManagerCommand));
+                .Single(button => Equals(button.Command, model.OpenCommandPaletteCommand));
             TerminalWorkspaceView host = window.FindControl<TerminalWorkspaceView>("WorkspaceHost")!;
             TerminalTabViewModel tab = Assert.Single(model.Tabs);
             TerminalControl terminal = tab.Terminal;
@@ -562,12 +560,11 @@ public sealed class MainWindowLayoutModeTests
                 }
             }
 
-            Assert.True(click.HasValue, "滚动后的文件按钮没有可命中的窗口坐标");
+            Assert.True(click.HasValue, "滚动后的按钮没有可命中的窗口坐标");
             window.MouseMove(click.Value, RawInputModifiers.None);
             window.MouseDown(click.Value, MouseButton.Left, RawInputModifiers.None);
             window.MouseUp(click.Value, MouseButton.Left, RawInputModifiers.None);
             HeadlessAvalonia.Pump();
-            Assert.True(tab.IsFileManagerVisible);
             AssertAttachedWorkspace(window, host, connection, tab, terminal);
         }
         finally

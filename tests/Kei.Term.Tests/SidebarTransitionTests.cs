@@ -5,6 +5,7 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Media;
+using Avalonia.VisualTree;
 using Kei.Term.App.Models;
 using Kei.Term.App.Services;
 using Kei.Term.App.ViewModels;
@@ -33,7 +34,7 @@ public class SidebarTransitionTests
             Border surface = window.FindControl<Border>("SessionManagerSurface")!;
             Grid split = window.FindControl<Grid>("MainSplitGrid")!;
             GridSplitter splitter = window.FindControl<GridSplitter>("SessionManagerSplitter")!;
-            Button outside = window.FindControl<Button>("FileManagerToggleButton")!;
+            Button outside = window.FindControl<Button>("NewTabButton")!;
             outside.Focus();
             ColumnDefinition sidebarColumn = SessionColumn(split, sidebar);
             ColumnDefinition splitterColumn = SessionColumn(split, splitter);

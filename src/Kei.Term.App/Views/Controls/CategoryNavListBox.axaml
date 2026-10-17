@@ -48,6 +48,15 @@
             <Style Selector="ListBoxItem:selected">
                 <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}"/>
             </Style>
+            <Style Selector="ListBoxItem:not(:selected)">
+                <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Secondary}"/>
+            </Style>
+            <Style Selector="ListBoxItem:not(:selected) TextBlock">
+                <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Secondary}"/>
+            </Style>
+            <Style Selector="ListBoxItem:selected TextBlock">
+                <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}"/>
+            </Style>
         </ListBox.Styles>
         <ListBox.ItemTemplate>
             <DataTemplate x:DataType="settings:SettingsCategoryItem">
@@ -60,9 +69,9 @@
                         </Grid>
                     </Viewbox>
                     <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
-                        <TextBlock Text="{Binding Title}" FontSize="13"/>
+                        <TextBlock Text="{Binding Title}" FontSize="13" Foreground="{Binding $parent[ListBoxItem].Foreground}"/>
                         <TextBlock Text="{Binding Description}" FontSize="12"
-                                   Foreground="{DynamicResource Kei.Text.Muted}"
+                                   Foreground="{DynamicResource Kei.Text.Secondary}"
                                    TextWrapping="Wrap"
                                    IsVisible="{Binding HasDescription}"/>
                     </StackPanel>

@@ -11,6 +11,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using RoyalTerminal.Avalonia.Controls;
@@ -160,6 +161,28 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         _terminalFactory = terminalFactory ?? CreateHookedTerminal;
         // 生产默认绑定真实控件（惰性）；测试可注入无控件实现以验证纯状态
         _themeSink = themeSink ?? new TerminalControlThemeSink(() => Terminal);
+
+        WeakReferenceMessenger.Default.Register<TerminalTabViewModel, FileManagerDockChangedMessage>(this, static (recipient, message) =>
+        {
+            void Apply()
+            {
+                recipient.IsFileManagerOnLeft = message.IsOnLeft;
+                if (recipient.FileManager != null)
+                {
+                    recipient.FileManager.IsOnLeft = message.IsOnLeft;
+                }
+                recipient.TrySyncTerminalSize();
+            }
+
+            if (Dispatcher.UIThread.CheckAccess())
+            {
+                Apply();
+            }
+            else
+            {
+                Dispatcher.UIThread.Post(Apply, DispatcherPriority.Render);
+            }
+        });
     }
 
 
@@ -396,6 +419,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
             _terminal.ShellIntegrationEventReceived -= OnTerminalShellIntegrationEvent;
         }
 
+        WeakReferenceMessenger.Default.Unregister<FileManagerDockChangedMessage>(this);
         _userDisconnect = true;
         CancelReconnect();
         await DrainDirectoryFollowAsync();

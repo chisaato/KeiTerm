@@ -37,9 +37,7 @@ public class TabTitleTemplateSettingsTests
             HeadlessAvalonia.Pump();
             Assert.True(input.IsEffectivelyVisible);
             Expander reference = window.GetVisualDescendants().OfType<Expander>().Single(control => control.Name == "TabTitleVariableReference");
-            Assert.False(reference.IsExpanded);
-            reference.IsExpanded = true;
-            HeadlessAvalonia.Pump();
+            Assert.True(reference.IsExpanded);
             SelectableTextBlock variable = Assert.Single(reference.GetVisualDescendants().OfType<SelectableTextBlock>(), control => control.Text == "{remote_path}");
             Assert.True(variable.IsEffectivelyVisible);
             reference.IsExpanded = false;

@@ -126,13 +126,6 @@
                             </Grid>
                         </Viewbox>
                     </Button>
-                    <Button x:Name="FileManagerDockButton" Classes="iconBtn" Width="28" Height="28" ToolTip.Tip="切换左/右侧停靠" Command="{Binding ToggleDockPositionCommand}" IsVisible="{Binding !IsFileTab}">
-                        <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <Grid Width="24" Height="24">
-                                <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.DockSwap}" Width="24" Height="24" Stretch="None"/>
-                            </Grid>
-                        </Viewbox>
-                    </Button>
                     <Button x:Name="FileManagerMaximizeButton" Classes="iconBtn fileMaximize" Classes.maximized="{Binding IsMaximized}"
                             Width="28" Height="28" Command="{Binding MaximizeCommand}" IsVisible="{Binding !IsFileTab}">
                         <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">

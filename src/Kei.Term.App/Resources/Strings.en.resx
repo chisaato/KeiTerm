@@ -81,6 +81,12 @@
   </data>
 
   <!-- File Transfer Settings & Operations -->
+  <data name="Settings.FileTransfer.FileManagerSection" xml:space="preserve">
+    <value>File Management</value>
+  </data>
+  <data name="Settings.FileTransfer.DockLeft" xml:space="preserve">
+    <value>Dock on left side by default</value>
+  </data>
   <data name="Settings.FileTransfer.TransfersSection" xml:space="preserve">
     <value>Transfers &amp; Queue</value>
   </data>

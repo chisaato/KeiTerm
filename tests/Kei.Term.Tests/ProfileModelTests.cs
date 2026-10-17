@@ -19,6 +19,8 @@ public class ProfileModelTests
         Assert.Contains(presets, p => p.Id == BuiltInPresets.GetDefaultGuiProfile().Id);
         // Id 作为设置与会话的引用键，必须唯一
         Assert.Equal(presets.Count, presets.Select(p => p.Id).Distinct().Count());
+        Assert.Contains(presets, p => p.Id == BuiltInPresets.GuiTendouKeiId);
+        Assert.Contains(presets, p => p.Id == BuiltInPresets.GuiTendouAliceId);
 
         foreach (var profile in presets)
         {
@@ -45,6 +47,8 @@ public class ProfileModelTests
         Assert.Contains(presets, p => p.Id == BuiltInPresets.GetDefaultTerminalProfile().Id);
         // Id 作为设置与会话的引用键，必须唯一
         Assert.Equal(presets.Count, presets.Select(p => p.Id).Distinct().Count());
+        Assert.Contains(presets, p => p.Id == BuiltInPresets.TerminalTendouKeiId);
+        Assert.Contains(presets, p => p.Id == BuiltInPresets.TerminalTendouAliceId);
 
         foreach (var profile in presets)
         {

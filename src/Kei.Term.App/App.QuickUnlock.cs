@@ -1,4 +1,5 @@
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Threading;
@@ -14,6 +15,7 @@ public partial class App
 {
     private static IDeviceQuickUnlockStore CreateQuickUnlockStore()
     {
+
         if (System.OperatingSystem.IsMacOS()) return new MacOsDeviceQuickUnlockStore();
         if (System.OperatingSystem.IsWindows()) return new WindowsDeviceQuickUnlockStore(QuickUnlockWindowHandleAsync);
         if (System.OperatingSystem.IsLinux()) return new LinuxSecretServiceQuickUnlockStore();

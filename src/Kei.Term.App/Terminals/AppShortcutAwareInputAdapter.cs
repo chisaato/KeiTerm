@@ -13,33 +13,27 @@ using RoyalTerminal.Terminal.Services;
 // 报告为已消费而不再发送；其余一切（普通字符、Enter、Tab/Shift+Tab、Ctrl+C/U 等未被应用消费的输入）
 // 原样下传，避免误吞终端输入。
 // 同时透传默认适配器实现的组合输入与重置接口，保证 IME 组合、输入状态重置等行为不丢失。
-public sealed class AppShortcutAwareInputAdapter :
+public sealed class AppShortcutAwareInputAdapter(ITerminalInputAdapter inner) :
     ITerminalInputAdapter,
     IResettableTerminalInputAdapter,
     ITerminalCompositionInputAdapter
 {
-    private readonly ITerminalInputAdapter _inner;
-
-    public AppShortcutAwareInputAdapter(ITerminalInputAdapter inner) => _inner = inner;
-
     public bool HandleKeyDown(KeyEventArgs e, ITerminalSessionService sessionService, IVtProcessor? vtProcessor)
-        => e.Handled && AppShortcuts.IsAppOwnedKey(e.Key, e.KeyModifiers)
-            ? true
-            : _inner.HandleKeyDown(e, sessionService, vtProcessor);
+        => e.Handled && AppShortcuts.IsAppOwnedKey(e.Key, e.KeyModifiers) || inner.HandleKeyDown(e, sessionService, vtProcessor);
 
     public bool HandleKeyUp(KeyEventArgs e, ITerminalSessionService sessionService)
-        => _inner.HandleKeyUp(e, sessionService);
+        => inner.HandleKeyUp(e, sessionService);
 
     public bool HandleTextInput(TextInputEventArgs e, ITerminalSessionService sessionService)
-        => _inner.HandleTextInput(e, sessionService);
+        => inner.HandleTextInput(e, sessionService);
 
     public void ResetInputState()
     {
-        if (_inner is IResettableTerminalInputAdapter resettable) resettable.ResetInputState();
+        if (inner is IResettableTerminalInputAdapter resettable) resettable.ResetInputState();
     }
 
     public void SetComposing(bool composing)
     {
-        if (_inner is ITerminalCompositionInputAdapter composition) composition.SetComposing(composing);
+        if (inner is ITerminalCompositionInputAdapter composition) composition.SetComposing(composing);
     }
 }

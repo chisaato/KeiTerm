@@ -7,7 +7,7 @@ using Kei.Term.Core.Services;
 namespace Kei.Term.App.Services;
 
 // GUI 配置只存基础色；表面层次与交互状态统一从当前基础色派生。
-internal static class GuiThemeTokens
+public static class GuiThemeTokens
 {
     public static IReadOnlyDictionary<string, Color> FromProfile(GuiProfile profile)
     {
@@ -18,7 +18,7 @@ internal static class GuiThemeTokens
         Color secondary = Resolve(profile.SecondaryText, fallback.SecondaryText);
         Color accent = Resolve(profile.AccentColor, fallback.AccentColor);
         Color panelAlt = Resolve(profile.PanelAltBackground, fallback.PanelAltBackground);
-        Color muted = ReadableMutedColor(Mix(secondary, panel, 0.25), primary, [window, panel, panelAlt]);
+        Color muted = ReadableMutedColor(secondary, primary, [window, panel, panelAlt]);
         return new Dictionary<string, Color>
         {
             ["Kei.Bg.Card"] = Mix(panel, window, 0.5),

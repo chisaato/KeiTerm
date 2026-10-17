@@ -12,9 +12,9 @@ public static class OneDarkGuiPreset
         WindowBackground = "#282C34",
         PanelBackground = "#21252B",
         PanelAltBackground = "#2C313A",
-        BorderBrush = "#181A1F",
-        PrimaryText = "#ABB2BF",
-        SecondaryText = "#5C6370",
+        BorderBrush = "#3B3F4C",
+        PrimaryText = "#DCDFE4",
+        SecondaryText = "#9DA5B4",
         AccentColor = "#61AFEF",
         AccentHover = "#4D9CE6"
     };

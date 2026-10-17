@@ -371,17 +371,6 @@
                            VerticalAlignment="Center"
                            Margin="8,0"
                            TextTrimming="CharacterEllipsis"/>
-
-                <!-- 视图控制区（文件管理） -->
-                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
-                    <Button x:Name="FileManagerToggleButton" Classes="iconBtn" ToolTip.Tip="{loc:KeiString Terminal.FileManager.Toggle}" Command="{Binding ToggleFileManagerCommand}">
-                        <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <Grid Width="24" Height="24">
-                                <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.SidebarRight}"/>
-                            </Grid>
-                        </Viewbox>
-                    </Button>
-                </StackPanel>
             </Grid>
         </Border>
 
@@ -745,18 +734,8 @@
                                        Margin="8,0"
                                        TextTrimming="CharacterEllipsis"/>
 
-                            <!-- 右侧视图切换快捷组 -->
-                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
-                                <Button Classes="modernToolBtn"
-                                        ToolTip.Tip="{loc:KeiString Terminal.FileManager.Toggle}" Command="{Binding ToggleFileManagerCommand}"
-                                        AutomationProperties.Name="{loc:KeiString Terminal.FileManager.Toggle}">
-                                    <Viewbox Width="16" Height="16" Stretch="Uniform">
-                                        <Grid Width="24" Height="24">
-                                            <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.SidebarRight}"/>
-                                        </Grid>
-                                    </Viewbox>
-                                </Button>
-                            </StackPanel>
+                            <!-- 右侧视图切换快捷组（已下移至终端工具栏） -->
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4"/>
                         </Grid>
                     </ScrollViewer>
                 </Border>

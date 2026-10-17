@@ -1,5 +1,7 @@
 # KeiTerm (Kei.Term)
 
+> ~~ 凯伊铛铛 ~~
+
 基于 AvaloniaUI 打造的跨平台现代 SSH 终端与凭据会话管理器。
 
 ---

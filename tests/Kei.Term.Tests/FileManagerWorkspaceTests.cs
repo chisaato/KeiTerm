@@ -368,7 +368,6 @@ public partial class FileManagerWorkspaceTests
         RemoteFileManagerView opened = VisibleFiles(host);
         Assert.Same(opened, host.Files.PickExecutableFileDialogAsync?.Target);
         Assert.False(opened.FindControl<Button>("FileManagerOpenInTabButton")!.IsEffectivelyVisible);
-        Assert.False(opened.FindControl<Button>("FileManagerDockButton")!.IsEffectivelyVisible);
         Assert.True(workspace.IsCached(document));
 
         Click(host.Window, opened.FindControl<Button>("FileManagerCloseButton")!);

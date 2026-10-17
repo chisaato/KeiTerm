@@ -29,6 +29,8 @@ public partial class SettingsViewModel : ViewModelBase
     private readonly SecuritySettingsPage _security;
     private readonly FileTransferSettingsPage _fileTransfer;
 
+    public FileTransferSettingsPage FileTransfer => _fileTransfer;
+
     public SecuritySettingsPage Security => _security;
 
     // 左侧分类树数据源

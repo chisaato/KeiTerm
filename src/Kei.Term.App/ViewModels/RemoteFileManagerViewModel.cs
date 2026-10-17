@@ -237,11 +237,6 @@ public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposabl
     public void ToggleDockPosition()
     {
         ToggleDockPositionRequested?.Invoke();
-        if (_settingsService != null)
-        {
-            _settingsService.Current.FileTransfer.IsFileManagerOnLeft = IsOnLeft;
-            _ = _settingsService.SaveSettingsAsync(_settingsService.Current);
-        }
     }
 
     [RelayCommand]

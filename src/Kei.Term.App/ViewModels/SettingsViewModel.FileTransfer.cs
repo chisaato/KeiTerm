@@ -56,5 +56,8 @@ public partial class SettingsViewModel
     }
 
     private void NotifyFileDisplaySettings()
-        => WeakReferenceMessenger.Default.Send(new FileSizeDisplayChangedMessage(_settingsService.Current.FileTransfer.SizeDisplayMode));
+    {
+        WeakReferenceMessenger.Default.Send(new FileSizeDisplayChangedMessage(_settingsService.Current.FileTransfer.SizeDisplayMode));
+        WeakReferenceMessenger.Default.Send(new FileManagerDockChangedMessage(_settingsService.Current.FileTransfer.IsFileManagerOnLeft));
+    }
 }

@@ -78,7 +78,7 @@ public class SessionManagerSidebarTests
             double dockedWidth = content.Bounds.Width;
             Assert.Equal(340, sidebar.Bounds.Width, 2);
             Button toggle = window.FindControl<Button>("SessionManagerToggleButton")!;
-            Button outside = window.FindControl<Button>("FileManagerToggleButton")!;
+            Button outside = window.FindControl<Button>("NewTabButton")!;
             Click(window, toggle);
             Assert.False(model.IsSessionManagerPinned);
             Assert.True(sidebar.IsVisible);
@@ -150,7 +150,8 @@ public class SessionManagerSidebarTests
             Assert.True(model.IsSessionManagerDocked);
             Click(window, window.FindControl<Button>("SessionManagerToggleButton")!);
             Assert.False(model.IsSessionManagerPinned);
-            Move(window, window.FindControl<Button>("FileManagerToggleButton")!);
+            Button outside = window.FindControl<Button>("NewTabButton")!;
+            Move(window, outside);
             await WaitForHoverHideAsync();
             Assert.False(model.IsSessionManagerVisible);
         }
@@ -230,7 +231,7 @@ public class SessionManagerSidebarTests
             HeadlessAvalonia.Pump();
             Border zone = window.FindControl<Border>("SessionManagerRevealZone")!;
             Border sidebar = window.FindControl<Border>("SessionManagerBorder")!;
-            Button outside = window.FindControl<Button>("FileManagerToggleButton")!;
+            Button outside = window.FindControl<Button>("NewTabButton")!;
             outside.Focus();
             Move(window, zone);
             Assert.True(sidebar.IsVisible);
