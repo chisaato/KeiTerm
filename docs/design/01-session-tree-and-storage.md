@@ -105,6 +105,10 @@ CREATE TABLE IF NOT EXISTS session_details (
     FOREIGN KEY(credential_id) REFERENCES credentials(id) ON DELETE SET NULL
 );
 
+-- 注：以上为初版设计。实际 schema 以 Storage/Schema/SchemaMigrations.cs 为准，后续追加了
+--   options_json（v3，会话行为覆盖 SessionOverrides，用户意图，参与同步）
+--   metadata_json（v8，连接元数据：本机自动发现的缓存，如 transferProbe；按键 json_set 读写，不参与同步，见 ADR-0003）
+
 -- 文件夹默认继承配置表（当 node_type = 0 时）
 CREATE TABLE IF NOT EXISTS folder_configs (
     folder_id TEXT PRIMARY KEY NOT NULL,

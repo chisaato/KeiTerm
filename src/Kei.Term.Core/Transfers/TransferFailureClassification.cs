@@ -45,8 +45,9 @@ public sealed class DotNetTransferFailureClassifier : ITransferFailureClassifier
 
     private static TransferFailureKind ClassifyFailure(Exception exception)
     {
-        // 部分文件长度和源不一致时，重试有可能写完。必须在普通 IOException 之前判断。
-        if (exception is TransferLengthMismatchException)
+        // 长度或哈希对不上时，重试有可能写完。哈希命令本身失败也先按暂时性处理。
+        // 必须在普通 IOException 之前判断。
+        if (exception is TransferLengthMismatchException or TransferHashMismatchException or TransferHashCommandException)
         {
             return TransferFailureKind.Transient;
         }

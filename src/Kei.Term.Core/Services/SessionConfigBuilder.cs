@@ -52,7 +52,9 @@ public static class SessionConfigBuilder
             ProxyProfileId: node.ProxyProfileId,
             TerminalUploadProtocolOverride: node.Overrides.TerminalUploadProtocol,
             MultiplexerMode: node.Overrides.MultiplexerMode ?? settings.TerminalMultiplexerMode,
-            TabTitleTemplate: settings.TabTitleTemplate
+            TabTitleTemplate: settings.TabTitleTemplate,
+            VerifyHashOverride: node.Overrides.VerifyHashEnabled,
+            ArchiveDirectoriesOverride: node.Overrides.ArchiveDirectoriesEnabled
         );
     }
 }

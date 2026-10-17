@@ -262,8 +262,16 @@ public class SftpRemoteFileSystem : IRemoteFileSystem
     {
         EnsureReady();
         // Get() 会先 realpath，符号链接已经被跟随。必须列父目录，用该目录项自己的 lstat。
-        ISftpFile? file = await Task.Run(() => FindChild(path), ct);
-        return file == null ? null : ToLstatItem(file);
+        try
+        {
+            ISftpFile? file = await Task.Run(() => FindChild(path), ct);
+            return file == null ? null : ToLstatItem(file);
+        }
+        catch (SftpPathNotFoundException)
+        {
+            // 归档合并检查会查询尚未创建的多层路径；父目录不存在也表示该条目不存在。
+            return null;
+        }
     }
 
     public Task SetLastWriteTimeUtcAsync(string path, DateTime lastWriteTimeUtc, CancellationToken ct = default)

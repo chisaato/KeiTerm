@@ -31,6 +31,7 @@
 | E2EE 同步 | 先加 `revision` + `deleted_at`，再 AGE + WebDAV / S3 / 本地目录 |
 | 连接中枢 | 从已连主机发现 Docker / K8s / WSL，经 SSH 执行，不装远端 agent |
 | 凭据源 | OS Keyring、1Password / Bitwarden、SSH 证书 |
+| 文件传输进阶 | ✅ 传输后完整性校验（sha256 → sha1 → md5）、目录归档传输（zstd → gzip → tar，默认关）、按连接缓存能力探测结果（`metadata_json`，迁移 v8）。先做 Linux，其他平台按远端工具集扩展。见 [规格](../.scratch/transfer-verify-archive/spec.md)、[ADR-0003](./adr/0003-connection-metadata-and-remote-toolset.md) |
 | 会话树拆分 | 连接管线已拆出。`SessionTreeViewModel` 和拖放还在 `MainViewModel`，见 [10](./design/10-refactor-plan.md) |
 
 服务变多之后再引入依赖注入。SSH.NET 做不到的（sftp 复用、agent 转发、env 请求）在设置里标出来，不要假装可用。

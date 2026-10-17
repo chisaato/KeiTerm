@@ -1,8 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Kei.Term.App.ViewModels;
 using Kei.Term.Core.Models;
 using Kei.Term.Core.Settings;
+using Kei.Term.Core.Transfers;
 using Xunit;
 
 namespace Kei.Term.Tests;
@@ -94,5 +98,129 @@ public class SessionEditViewModelTests
         Assert.Empty(saved.TerminalType);
         settings.DefaultTerminalType = "vt100";
         Assert.Equal("vt100", Kei.Term.Core.Services.SessionConfigBuilder.Build(saved, settings).TerminalType);
+    }
+
+    [Fact]
+    public void SessionEditViewModel_MapsAndAppliesTransferCapabilitiesTriState()
+    {
+        AppSettings settings = new();
+        settings.FileTransfer.VerifyHashEnabled = true;
+        settings.FileTransfer.ArchiveDirectoriesEnabled = false;
+
+        SessionNode existing = new()
+        {
+            Host = "test.server",
+            Overrides = new SessionOverrides
+            {
+                VerifyHashEnabled = false,
+                ArchiveDirectoriesEnabled = true,
+            }
+        };
+
+        SessionEditViewModel vm = new(existing, null, [], settings);
+        Assert.False(vm.SelectedVerifyHash?.Value);
+        Assert.True(vm.SelectedArchiveDirectories?.Value);
+
+        // 改为继承全局
+        vm.SelectedVerifyHash = vm.VerifyHashOptions.First(opt => opt.Value == null);
+        vm.SelectedArchiveDirectories = vm.ArchiveDirectoriesOptions.First(opt => opt.Value == null);
+
+        SessionNode saved = vm.ApplyToModel(existing);
+        Assert.Null(saved.Overrides.VerifyHashEnabled);
+        Assert.Null(saved.Overrides.ArchiveDirectoriesEnabled);
+
+        // 改为显式开 / 关
+        vm.SelectedVerifyHash = vm.VerifyHashOptions.First(opt => opt.Value == true);
+        vm.SelectedArchiveDirectories = vm.ArchiveDirectoriesOptions.First(opt => opt.Value == false);
+
+        saved = vm.ApplyToModel(existing);
+        Assert.True(saved.Overrides.VerifyHashEnabled);
+        Assert.False(saved.Overrides.ArchiveDirectoriesEnabled);
+    }
+
+    [Fact]
+    public async Task SessionEditViewModel_ProbeResultDisplay_AndClearCallsRepo()
+    {
+        Guid sessionId = Guid.NewGuid();
+        SessionNode existing = new()
+        {
+            Id = sessionId,
+            Host = "test.server",
+        };
+        FakeMetadataRepo metadata = new();
+        TransferProbeResult probe = new(
+            Kei.Term.Core.Transfers.RemotePlatform.Linux,
+            [Kei.Term.Core.Transfers.TransferHashAlgorithm.Sha256],
+            [Kei.Term.Core.Transfers.TransferArchiveFormat.Gzip],
+            new DateTime(2026, 10, 18, 12, 0, 0, DateTimeKind.Utc));
+        await metadata.SetTransferProbeAsync(sessionId, probe);
+
+        SessionEditViewModel vm = new(
+            existing,
+            null,
+            [],
+            new AppSettings(),
+            jumpCandidates: null,
+            proxies: null,
+            sessionTree: null,
+            portForwards: null,
+            metadataRepo: metadata);
+
+        await vm.LoadProbeResultAsync();
+        Assert.True(vm.HasProbeResult);
+        Assert.Contains("Linux", vm.ProbePlatformText);
+        Assert.Contains("Sha256", vm.ProbeHashesText);
+        Assert.Contains("Gzip", vm.ProbeArchivesText);
+        Assert.True(vm.CanClearProbe);
+
+        await vm.ClearProbeCommand.ExecuteAsync(null);
+        Assert.Equal(1, metadata.ClearCalls);
+        Assert.False(vm.HasProbeResult);
+        Assert.Equal("尚未探测", vm.ProbeStatusText);
+    }
+
+    [Fact]
+    public void SessionEditViewModel_NewSessionDisablesClearProbe()
+    {
+        FakeMetadataRepo metadata = new();
+        SessionEditViewModel vm = new(
+            null,
+            null,
+            [],
+            new AppSettings(),
+            jumpCandidates: null,
+            proxies: null,
+            sessionTree: null,
+            portForwards: null,
+            metadataRepo: metadata);
+
+        Assert.True(vm.IsNewSession);
+        Assert.False(vm.CanClearProbe);
+        Assert.False(vm.HasProbeResult);
+    }
+
+    private sealed class FakeMetadataRepo : Kei.Term.Core.Storage.ISessionMetadataRepository
+    {
+        private readonly Dictionary<Guid, TransferProbeResult> _store = [];
+        public int ClearCalls { get; private set; }
+
+        public Task<TransferProbeResult?> GetTransferProbeAsync(Guid sessionId, CancellationToken cancellationToken = default)
+        {
+            _store.TryGetValue(sessionId, out TransferProbeResult? res);
+            return Task.FromResult(res);
+        }
+
+        public Task<bool> SetTransferProbeAsync(Guid sessionId, TransferProbeResult result, CancellationToken cancellationToken = default)
+        {
+            _store[sessionId] = result;
+            return Task.FromResult(true);
+        }
+
+        public Task ClearTransferProbeAsync(Guid sessionId, CancellationToken cancellationToken = default)
+        {
+            ClearCalls++;
+            _store.Remove(sessionId);
+            return Task.CompletedTask;
+        }
     }
 }

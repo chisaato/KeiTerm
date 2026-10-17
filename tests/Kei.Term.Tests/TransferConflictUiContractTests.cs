@@ -6,7 +6,9 @@ using Avalonia.Controls;
 using Avalonia.VisualTree;
 using Kei.Term.App.Services;
 using Kei.Term.App.ViewModels;
+using Kei.Term.App.ViewModels.Settings;
 using Kei.Term.App.Views;
+using Kei.Term.Core.Models;
 using Kei.Term.Core.Settings;
 using Kei.Term.Core.Transfers;
 using Xunit;
@@ -45,6 +47,84 @@ public class TransferConflictUiContractTests
 
         window.Close();
     });
+
+    [Fact]
+    public Task SettingsWindow_And_SessionEditWindow_TransferCapabilityControls_ExistAndFollowTokens() => HeadlessAvalonia.RunAsync(async () =>
+    {
+        UiDesignSystemService.Apply();
+
+        // 1. 设置窗口中的文件传输页
+        AppSettings settings = new();
+        FileTransferSettingsPage transferPage = new();
+        transferPage.InitializeTransferPreferences(
+            verifyHashEnabled: true,
+            hashOrder: [TransferHashAlgorithm.Sha256, TransferHashAlgorithm.Md5],
+            archiveDirectoriesEnabled: true,
+            archiveOrder: [TransferArchiveFormat.Tar, TransferArchiveFormat.Zstd]);
+
+        // 2. 会话编辑窗口中的文件传输页
+        SessionNode session = new() { Name = "test-node", Host = "127.0.0.1" };
+        SessionEditViewModel editVm = new(session, null, [], settings);
+        SessionEditWindow editWindow = new(editVm);
+        editWindow.Show();
+        editWindow.UpdateLayout();
+
+        var editCombos = editWindow.GetVisualDescendants().OfType<ComboBox>().ToList();
+        Assert.Contains(editCombos, c => c.Name == "SessionVerifyHashComboBox");
+        Assert.Contains(editCombos, c => c.Name == "SessionArchiveDirectoriesComboBox");
+
+        var clearBtn = editWindow.GetVisualDescendants().OfType<Button>().FirstOrDefault(b => b.Name == "ClearProbeButton");
+        Assert.NotNull(clearBtn);
+
+        editWindow.Close();
+
+        SettingsViewModel settingsVm = new(new DummySettingsService(settings));
+        SettingsWindow settingsWindow = new(settingsVm);
+        settingsWindow.Show();
+        settingsVm.SelectedCategory = settingsVm.Categories.Single(c => c.Page is FileTransferSettingsPage);
+        settingsWindow.UpdateLayout();
+
+        var hashList = settingsWindow.GetVisualDescendants().OfType<ListBox>().FirstOrDefault(l => l.Name == "HashAlgorithmsListBox");
+        Assert.NotNull(hashList);
+        Assert.Contains("compactReorderList", hashList.Classes);
+
+        var archiveList = settingsWindow.GetVisualDescendants().OfType<ListBox>().FirstOrDefault(l => l.Name == "ArchiveFormatsListBox");
+        Assert.NotNull(archiveList);
+        Assert.Contains("compactReorderList", archiveList.Classes);
+
+        settingsWindow.Close();
+    });
+
+    private sealed class DummySettingsService(AppSettings settings) : ISettingsService
+    {
+        public AppSettings Current => settings;
+        public Task<AppSettings> LoadSettingsAsync(CancellationToken ct = default) => Task.FromResult(settings);
+        public Task SaveSettingsAsync(AppSettings newSettings, CancellationToken ct = default) => Task.CompletedTask;
+    }
+
+    [Fact]
+    public void TaskItem_And_Board_SupportPackingVerifyingUnpackingStates_AndUnverifiedTag()
+    {
+        FileTransferTaskItemViewModel item = new("archive.tar.zst", "/tmp/local", "/tmp/remote", FileTransferDirection.Upload);
+        Assert.False(item.IsUnverified);
+        Assert.Equal(FileTransferState.Pending, item.State);
+
+        item.State = FileTransferState.Packing;
+        item.StatusText = "正在打包...";
+        Assert.Equal(FileTransferState.Packing, item.State);
+
+        item.State = FileTransferState.Verifying;
+        item.StatusText = "正在校验完整性...";
+        Assert.Equal(FileTransferState.Verifying, item.State);
+
+        item.State = FileTransferState.Unpacking;
+        item.StatusText = "正在解包...";
+        Assert.Equal(FileTransferState.Unpacking, item.State);
+
+        item.State = FileTransferState.Completed;
+        item.IsUnverified = true;
+        Assert.True(item.IsUnverified);
+    }
 
     [Fact]
     public Task RetryCommand_And_RetryAllFailedTransfers_AreWiredInItemAndBoard() => Task.Run(() =>

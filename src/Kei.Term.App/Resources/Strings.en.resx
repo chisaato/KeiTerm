@@ -80,6 +80,13 @@
     <value>Browse…</value>
   </data>
 
+  <data name="Common.MoveUp" xml:space="preserve">
+    <value>Move Up</value>
+  </data>
+  <data name="Common.MoveDown" xml:space="preserve">
+    <value>Move Down</value>
+  </data>
+
   <!-- File Transfer Settings & Operations -->
   <data name="Settings.FileTransfer.FileManagerSection" xml:space="preserve">
     <value>File Management</value>
@@ -248,5 +255,83 @@
   </data>
   <data name="FileActivity.Status.Cancelled" xml:space="preserve">
     <value>Cancelled</value>
+  </data>
+  <data name="Settings.FileTransfer.VerifyHash" xml:space="preserve">
+    <value>Verify hash after transfer</value>
+  </data>
+  <data name="Settings.FileTransfer.VerifyHashTip" xml:space="preserve">
+    <value>Compare file hash after transfer; skips verification and marks unverified if no supported algorithm is detected.</value>
+  </data>
+  <data name="Settings.FileTransfer.HashAlgorithmOrder" xml:space="preserve">
+    <value>Hash algorithm priority (highest to lowest, check to enable):</value>
+  </data>
+  <data name="Settings.FileTransfer.ArchiveDirectories" xml:space="preserve">
+    <value>Directory archive transfer</value>
+  </data>
+  <data name="Settings.FileTransfer.ArchiveDirectoriesTip" xml:space="preserve">
+    <value>Pack directory as a single archive before transferring and unpack on destination. Resolves conflicts at directory level.</value>
+  </data>
+  <data name="Settings.FileTransfer.ArchiveFormatOrder" xml:space="preserve">
+    <value>Archive format priority (highest to lowest, check to enable):</value>
+  </data>
+  <data name="Settings.FileTransfer.ArchiveDirectoriesHint" xml:space="preserve">
+    <value>Archive transfer checks conflicts for the whole directory. If conflict policy is "Overwrite if older", it falls back to per-file transfer.</value>
+  </data>
+  <data name="SessionEdit.TransferCapabilitiesSection" xml:space="preserve">
+    <value>Integrity Verification &amp; Archive Transfer</value>
+  </data>
+  <data name="SessionEdit.VerifyHash" xml:space="preserve">
+    <value>Integrity Verification</value>
+  </data>
+  <data name="SessionEdit.ArchiveDirectories" xml:space="preserve">
+    <value>Directory Archive Transfer</value>
+  </data>
+  <data name="SessionEdit.ProbeResultTitle" xml:space="preserve">
+    <value>Capability Probe Result</value>
+  </data>
+  <data name="SessionEdit.ProbeNotRun" xml:space="preserve">
+    <value>Not probed yet</value>
+  </data>
+  <data name="SessionEdit.ProbePlatform" xml:space="preserve">
+    <value>Remote Platform: {0}</value>
+  </data>
+  <data name="SessionEdit.ProbeHashes" xml:space="preserve">
+    <value>Available Hash Algorithms: {0}</value>
+  </data>
+  <data name="SessionEdit.ProbeArchives" xml:space="preserve">
+    <value>Available Archive Formats: {0}</value>
+  </data>
+  <data name="SessionEdit.ProbeTime" xml:space="preserve">
+    <value>Probed At: {0}</value>
+  </data>
+  <data name="SessionEdit.ClearProbe" xml:space="preserve">
+    <value>Clear &amp; Re-probe</value>
+  </data>
+  <data name="SessionEdit.ClearProbeTip" xml:space="preserve">
+    <value>Clear cached probe results for this machine. Next transfer will re-probe capabilities.</value>
+  </data>
+  <data name="Common.Enabled" xml:space="preserve">
+    <value>On</value>
+  </data>
+  <data name="Common.Disabled" xml:space="preserve">
+    <value>Off</value>
+  </data>
+  <data name="Common.None" xml:space="preserve">
+    <value>None</value>
+  </data>
+  <data name="FileActivity.Status.Packing" xml:space="preserve">
+    <value>Packing…</value>
+  </data>
+  <data name="FileActivity.Status.Verifying" xml:space="preserve">
+    <value>Verifying integrity…</value>
+  </data>
+  <data name="FileActivity.Status.Unpacking" xml:space="preserve">
+    <value>Unpacking…</value>
+  </data>
+  <data name="FileActivity.Unverified" xml:space="preserve">
+    <value>Unverified</value>
+  </data>
+  <data name="FileActivity.UnverifiedTip" xml:space="preserve">
+    <value>Integrity verification is enabled, but no supported hash tool was available on remote host.</value>
   </data>
 </root>

@@ -152,6 +152,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
     private readonly ConnectionOrchestrator _connections;
     private readonly IProxyRepository? _proxyRepo;
     private readonly IPortForwardRepository? _portForwards;
+    private readonly ISessionMetadataRepository? _sessionMetadata;
+
+    public ISessionMetadataRepository? SessionMetadata => _sessionMetadata;
 
     // 当前设置快照（供快速连接窗口取默认端口/用户名等）
     public AppSettings CurrentSettings => _settingsService.Current;
@@ -171,11 +174,13 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         HostKeyTrustService? hostKeyTrust = null,
         IProxyRepository? proxyRepo = null,
         IPortForwardRepository? portForwards = null,
-        IProxySecretStore? proxySecrets = null)
+        IProxySecretStore? proxySecrets = null,
+        ISessionMetadataRepository? sessionMetadata = null)
     {
         _hostKeyTrust = hostKeyTrust;
         _treeRepo = treeRepo;
         _identityRepo = identityRepo;
+        _sessionMetadata = sessionMetadata;
         _editorRepo = editorRepo;
         _profileManager = profileManager;
         _settingsService = settingsService;

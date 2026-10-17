@@ -18,6 +18,7 @@ public static class SchemaMigrations
         new(5, "port_forwards", ApplyPortForwardsAsync),
         new(6, "proxy_secrets", ApplyProxySecretsAsync),
         new(7, "sync_columns", ApplySyncColumnsAsync),
+        new(8, "session_metadata", ApplySessionMetadataAsync),
     ];
 
     // v1 基线：必须幂等，兼容三类库——全新库、user_version=0 的现行库、更早的 credentials 旧库
@@ -350,6 +351,11 @@ public static class SchemaMigrations
             await AddColumnIfMissingAsync(conn, tx, table, "deleted_at", "TEXT", ct);
         }
     }
+
+    // v8 连接元数据。本机自动发现的信息（能力探测等）按键放在这一列，与 options_json 分开。
+    // 以后新键只写 JSON，不再为元数据加列。不参与同步，仓储写入时也不改 revision。
+    private static Task ApplySessionMetadataAsync(SqliteConnection conn, SqliteTransaction tx, CancellationToken ct)
+        => AddColumnIfMissingAsync(conn, tx, "session_details", "metadata_json", "TEXT", ct);
 
     private sealed class JumpBackfillRow
     {

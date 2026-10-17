@@ -128,6 +128,39 @@
                                 <ComboBox x:Name="SessionTerminalUploadProtocolComboBox" Grid.Column="1" ItemsSource="{Binding TerminalUploadOptions}" SelectedItem="{Binding SelectedTerminalUpload}" HorizontalAlignment="Stretch"/>
                             </Grid>
                             <TextBlock Text="{loc:KeiString Terminal.Drop.SessionHint}" TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}"/>
+
+                            <!-- 完整性校验与归档传输覆盖 -->
+                            <TextBlock Text="{loc:KeiString SessionEdit.TransferCapabilitiesSection}" FontWeight="Bold" Foreground="{DynamicResource Kei.Text.Primary}" FontSize="13"/>
+                            <Grid ColumnDefinitions="120, *" ColumnSpacing="12" RowDefinitions="Auto, Auto" RowSpacing="10" MaxWidth="440" HorizontalAlignment="Left">
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString SessionEdit.VerifyHash}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                <ComboBox x:Name="SessionVerifyHashComboBox" Grid.Row="0" Grid.Column="1" ItemsSource="{Binding VerifyHashOptions}" SelectedItem="{Binding SelectedVerifyHash}" HorizontalAlignment="Stretch"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="{loc:KeiString SessionEdit.ArchiveDirectories}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                <ComboBox x:Name="SessionArchiveDirectoriesComboBox" Grid.Row="1" Grid.Column="1" ItemsSource="{Binding ArchiveDirectoriesOptions}" SelectedItem="{Binding SelectedArchiveDirectories}" HorizontalAlignment="Stretch"/>
+                            </Grid>
+
+                            <!-- 能力探测展示 -->
+                            <Border Background="{DynamicResource Kei.Bg.Card}" BorderBrush="{DynamicResource Kei.Border.Subtle}"
+                                    BorderThickness="1" CornerRadius="{DynamicResource Kei.Radius.Control}" Padding="10,8"
+                                    MaxWidth="440" HorizontalAlignment="Left">
+                                <StackPanel Spacing="6">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Text="{loc:KeiString SessionEdit.ProbeResultTitle}" FontWeight="SemiBold" FontSize="12"
+                                                   Foreground="{DynamicResource Kei.Text.Primary}" VerticalAlignment="Center"/>
+                                        <Button x:Name="ClearProbeButton" Grid.Column="1" Content="{loc:KeiString SessionEdit.ClearProbe}"
+                                                Command="{Binding ClearProbeCommand}" IsEnabled="{Binding CanClearProbe}"
+                                                ToolTip.Tip="{loc:KeiString SessionEdit.ClearProbeTip}" Padding="6,2" FontSize="12" MinHeight="24"/>
+                                    </Grid>
+                                    <TextBlock Text="{Binding ProbeStatusText}" FontSize="12" Foreground="{DynamicResource Kei.Text.Secondary}"
+                                               IsVisible="{Binding !HasProbeResult}"/>
+                                    <StackPanel Spacing="3" IsVisible="{Binding HasProbeResult}">
+                                        <TextBlock Text="{Binding ProbePlatformText}" FontSize="12" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                        <TextBlock Text="{Binding ProbeHashesText}" FontSize="12" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                        <TextBlock Text="{Binding ProbeArchivesText}" FontSize="12" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                        <TextBlock Text="{Binding ProbeTimeText}" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
 
                         <!-- 4. 会话行为 (Behavior) -->

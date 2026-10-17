@@ -10,6 +10,7 @@ using Kei.Term.App.Services;
 using Kei.Term.Core.Abstractions;
 using Kei.Term.Core.Models;
 using Kei.Term.Core.Settings;
+using Kei.Term.Core.Storage;
 using Kei.Term.Core.Transfers;
 using Kei.Term.Ssh.Services;
 using Microsoft.Extensions.Logging;
@@ -43,15 +44,28 @@ public sealed class ConnectionTransferBoard : IAsyncDisposable
         ITransferFailureClassifier? classifier = null,
         ILogger? logger = null,
         bool ownsEndpoint = true,
-        ObservableCollection<FileTransferTaskItemViewModel>? tasks = null)
+        ObservableCollection<FileTransferTaskItemViewModel>? tasks = null,
+        Guid? sessionId = null,
+        ISessionMetadataRepository? metadata = null,
+        SessionOverrides? overrides = null)
     {
+        // 每个连接一份探测提供者：shell 从端点拿，设置每次现读，会话行没有时提供者自己改走内存。
+        TransferCapabilityProvider capabilities = new(
+            sessionId,
+            metadata,
+            settings,
+            endpoint.AcquireShellAsync);
         TransferQueue queue = new(
             endpoint,
             settings,
             classifier ?? SshTransferFailureClassifier.Instance,
             logger: logger,
             promptConflict: (name, source, target, ct) => OnUi(() => interaction.PromptTransferConflictAsync(name, source, target, ct)),
-            promptLargeFile: (name, size, ct) => OnUi(() => interaction.ConfirmLargeScpTransferAsync(name, size, ct)));
+            promptLargeFile: (name, size, ct) => OnUi(() => interaction.ConfirmLargeScpTransferAsync(name, size, ct)),
+            capabilities: capabilities,
+            // 与连接时取得的其他会话覆盖一致：持有连接配置快照，任务开始时读取其开关。
+            verifyHashOverride: () => overrides?.VerifyHashEnabled,
+            archiveDirectoriesOverride: () => overrides?.ArchiveDirectoriesEnabled);
         return new ConnectionTransferBoard(queue, tasks ?? [], ownsEndpoint);
     }
 
@@ -162,12 +176,16 @@ public sealed class ConnectionTransferBoard : IAsyncDisposable
     {
         view.State = Map(task.State);
         view.StatusText = Status(task);
+        view.IsUnverified = task.IsUnverified;
         view.NoteProgress(task.TransferredBytes, task.TotalBytes);
     }
 
     private static FileTransferState Map(QueuedTransferState state) => state switch
     {
         QueuedTransferState.Transferring => FileTransferState.Transferring,
+        QueuedTransferState.Packing => FileTransferState.Packing,
+        QueuedTransferState.Verifying => FileTransferState.Verifying,
+        QueuedTransferState.Unpacking => FileTransferState.Unpacking,
         QueuedTransferState.AwaitingConflict => FileTransferState.AwaitingConflict,
         QueuedTransferState.RetryWait => FileTransferState.RetryWait,
         QueuedTransferState.Completed => FileTransferState.Completed,
@@ -180,6 +198,9 @@ public sealed class ConnectionTransferBoard : IAsyncDisposable
     private static string Status(QueuedTransfer task) => task.State switch
     {
         QueuedTransferState.Transferring => Strings.Get("FileActivity.Status.Transferring"),
+        QueuedTransferState.Packing => Strings.Get("FileActivity.Status.Packing"),
+        QueuedTransferState.Verifying => Strings.Get("FileActivity.Status.Verifying"),
+        QueuedTransferState.Unpacking => Strings.Get("FileActivity.Status.Unpacking"),
         QueuedTransferState.AwaitingConflict => Strings.Get("FileActivity.Status.AwaitingConflict"),
         QueuedTransferState.RetryWait => Strings.Get("FileActivity.Status.RetryWait"),
         QueuedTransferState.Completed => Strings.Get("FileActivity.Status.Completed"),

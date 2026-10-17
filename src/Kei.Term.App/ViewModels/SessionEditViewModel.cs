@@ -10,6 +10,7 @@ using Kei.Term.App.ViewModels.Settings;
 using Kei.Term.Core.Models;
 using Kei.Term.Core.Services;
 using Kei.Term.Core.Settings;
+using Kei.Term.Core.Storage;
 using Kei.Term.Core.Vault;
 
 namespace Kei.Term.App.ViewModels;
@@ -172,6 +173,27 @@ public partial class SessionEditViewModel : ViewModelBase
         {
             PortForwards.Add(CloneForward(forward));
         }
+        InitializeTransferCapabilities(overrides, global, metadataRepo: null);
+    }
+
+    public bool IsNewSession { get; }
+
+    public SessionEditViewModel(
+        SessionNode? existing,
+        Guid? parentId,
+        IReadOnlyList<Identity> availableIdentities,
+        AppSettings? globalSettings,
+        IReadOnlyList<SessionNode>? jumpCandidates,
+        IReadOnlyList<ProxyProfile>? proxies,
+        IReadOnlyList<TreeNodeBase>? sessionTree,
+        IReadOnlyList<PortForward>? portForwards,
+        ISessionMetadataRepository? metadataRepo)
+        : this(existing, parentId, availableIdentities, globalSettings, jumpCandidates, proxies, sessionTree, portForwards)
+    {
+        IsNewSession = existing == null;
+        SessionOverrides overrides = existing?.Overrides ?? new SessionOverrides();
+        AppSettings global = globalSettings ?? new AppSettings();
+        InitializeTransferCapabilities(overrides, global, metadataRepo);
     }
 
     public IReadOnlyList<PortForward> CollectForwards()
@@ -310,6 +332,7 @@ public partial class SessionEditViewModel : ViewModelBase
         ApplyDirectoryFollowPreferences(model.Overrides);
         model.Overrides.ConnectTimeoutSeconds = SelectedConnectTimeout?.Value;
         model.Overrides.TerminalUploadProtocol = SelectedTerminalUpload?.Value;
+        ApplyTransferCapabilities(model.Overrides);
         return model;
     }
 

@@ -44,6 +44,26 @@ public class SessionConfigBuilderTests
         Assert.Equal(node.Id, resolved.SessionId);
     }
 
+    [Theory]
+    [InlineData(null, null)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public void Build_TransferOverrides_PassThroughWithoutResolvingGlobal(bool? verify, bool? archive)
+    {
+        var settings = CreateSettings();
+        settings.FileTransfer.VerifyHashEnabled = true;
+        settings.FileTransfer.ArchiveDirectoriesEnabled = true;
+        var node = new SessionNode { Name = "T", Host = "10.0.0.3" };
+        node.Overrides.VerifyHashEnabled = verify;
+        node.Overrides.ArchiveDirectoriesEnabled = archive;
+
+        var resolved = SessionConfigBuilder.Build(node, settings);
+
+        // 保留 null = 继承，由传输队列在任务开始时与当时的全局设置合并
+        Assert.Equal(verify, resolved.VerifyHashOverride);
+        Assert.Equal(archive, resolved.ArchiveDirectoriesOverride);
+    }
+
     [Fact]
     public void Build_MissingValues_FallBackToSettings()
     {

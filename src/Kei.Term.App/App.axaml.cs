@@ -122,6 +122,7 @@ public partial class App : Application
             var identityRepo = new SqliteIdentityRepository(db);
             var editorRepo = new SqliteExternalEditorRepository(db);
             var knownHostRepo = new SqliteKnownHostRepository(db);
+            var sessionMetadata = new SqliteSessionMetadataRepository(db);
             IDeviceQuickUnlockStore quickUnlockStore = CreateQuickUnlockStore();
             var vault = new InternalVaultManager(db, _loggerFactory.CreateLogger<InternalVaultManager>(), quickUnlockStore);
             VaultQuickUnlockService quickUnlock = new(vault, quickUnlockStore, _loggerFactory.CreateLogger<VaultQuickUnlockService>());
@@ -161,7 +162,8 @@ public partial class App : Application
                 hostKeyTrust: hostKeyTrust,
                 proxyRepo: proxyRepo,
                 portForwards: portForwards,
-                proxySecrets: vault);
+                proxySecrets: vault,
+                sessionMetadata: sessionMetadata);
             mainVm.VaultSession.ConfigureQuickUnlock(quickUnlock);
             var identityMgrVm = new IdentityManagerViewModel(
                 identityRepo,

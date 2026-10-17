@@ -108,7 +108,8 @@ public sealed class MainWindowInteractionService : IInteractionService
                 _mainVm.SnapshotSessionNodes(),
                 proxies,
                 _mainVm.SnapshotSessionTree(),
-                forwards);
+                forwards,
+                _mainVm.SessionMetadata);
             editVm.PickSessionAsync = request => PickSessionAsync(request);
             editVm.RequestCreateProxyAsync = () => CreateProxyFromSessionAsync(editVm);
             await new SessionEditWindow(editVm).ShowDialog(_owner);

@@ -123,6 +123,57 @@ public class TransferSettingsTests
     }
 
     [Fact]
+    public void FileTransferSettingsPage_ReorderingAndEnablingAlgorithmsAndFormats()
+    {
+        FileTransferSettingsPage page = new();
+        page.InitializeTransferPreferences(
+            verifyHashEnabled: true,
+            hashOrder: [TransferHashAlgorithm.Sha1, TransferHashAlgorithm.Sha256],
+            archiveDirectoriesEnabled: true,
+            archiveOrder: [TransferArchiveFormat.Tar, TransferArchiveFormat.Zstd]);
+
+        // 初始顺序与启用状态
+        Assert.Equal(3, page.HashAlgorithms.Count);
+        Assert.Equal(TransferHashAlgorithm.Sha1, page.HashAlgorithms[0].Value);
+        Assert.True(page.HashAlgorithms[0].IsEnabled);
+        Assert.Equal(TransferHashAlgorithm.Sha256, page.HashAlgorithms[1].Value);
+        Assert.True(page.HashAlgorithms[1].IsEnabled);
+        Assert.Equal(TransferHashAlgorithm.Md5, page.HashAlgorithms[2].Value);
+        Assert.False(page.HashAlgorithms[2].IsEnabled);
+
+        // 下移 Sha1
+        page.SelectedHashAlgorithm = page.HashAlgorithms[0];
+        page.MoveDownHashAlgorithmCommand.Execute(null);
+        Assert.Equal(TransferHashAlgorithm.Sha256, page.HashAlgorithms[0].Value);
+        Assert.Equal(TransferHashAlgorithm.Sha1, page.HashAlgorithms[1].Value);
+
+        // 上移 Sha1 回去
+        page.MoveUpHashAlgorithmCommand.Execute(null);
+        Assert.Equal(TransferHashAlgorithm.Sha1, page.HashAlgorithms[0].Value);
+
+        // 收集顺序（只收录 IsEnabled 为 true 的）
+        List<TransferHashAlgorithm> collectedHashes = page.CollectHashAlgorithmOrder();
+        Assert.Equal([TransferHashAlgorithm.Sha1, TransferHashAlgorithm.Sha256], collectedHashes);
+
+        // 禁用 Sha1，启用 Md5
+        page.HashAlgorithms[0].IsEnabled = false;
+        page.HashAlgorithms[2].IsEnabled = true;
+        Assert.Equal([TransferHashAlgorithm.Sha256, TransferHashAlgorithm.Md5], page.CollectHashAlgorithmOrder());
+
+        // 归档格式上下移与收集
+        Assert.Equal(3, page.ArchiveFormats.Count);
+        Assert.Equal(TransferArchiveFormat.Tar, page.ArchiveFormats[0].Value);
+        page.SelectedArchiveFormat = page.ArchiveFormats[0];
+        page.MoveDownArchiveFormatCommand.Execute(null);
+        Assert.Equal(TransferArchiveFormat.Zstd, page.ArchiveFormats[0].Value);
+        Assert.Equal(TransferArchiveFormat.Tar, page.ArchiveFormats[1].Value);
+
+        page.ArchiveFormats[2].IsEnabled = true; // Gzip
+        List<TransferArchiveFormat> collectedArchives = page.CollectArchiveFormatOrder();
+        Assert.Equal([TransferArchiveFormat.Zstd, TransferArchiveFormat.Tar, TransferArchiveFormat.Gzip], collectedArchives);
+    }
+
+    [Fact]
     public void ResolveDownloadDirectory_BlankUsesSystem_ConfiguredWins()
     {
         FileTransferSettings blank = new() { DefaultDownloadDirectory = "  " };
@@ -204,6 +255,8 @@ public class TransferSettingsTests
             Assert.Equal(RetryBackoffMode.Fixed, page.SelectedBackoffMode.Mode);
             Assert.Equal(7, page.InitialRetryIntervalSeconds);
             Assert.Equal(88, page.MaxRetryIntervalSeconds);
+            Assert.True(page.VerifyHashEnabled);
+            Assert.False(page.ArchiveDirectoriesEnabled);
 
             // 修改值并保存
             page.Concurrency = 8;
@@ -215,6 +268,8 @@ public class TransferSettingsTests
             page.SetBackoffMode(RetryBackoffMode.Exponential);
             page.InitialRetryIntervalSeconds = 3;
             page.MaxRetryIntervalSeconds = 45;
+            page.VerifyHashEnabled = false;
+            page.ArchiveDirectoriesEnabled = true;
 
             Assert.True(await model.ApplyChangesAsync());
 
@@ -229,6 +284,8 @@ public class TransferSettingsTests
             Assert.Equal(RetryBackoffMode.Exponential, saved.BackoffMode);
             Assert.Equal(3, saved.InitialRetryIntervalSeconds);
             Assert.Equal(45, saved.MaxRetryIntervalSeconds);
+            Assert.False(saved.VerifyHashEnabled);
+            Assert.True(saved.ArchiveDirectoriesEnabled);
         }
         finally
         {

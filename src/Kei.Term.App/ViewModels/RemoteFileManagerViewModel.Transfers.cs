@@ -94,6 +94,9 @@ public partial class RemoteFileManagerViewModel
     {
         IsTransferring = TransferTasks.Any(task => task.State is FileTransferState.Pending
             or FileTransferState.Transferring
+            or FileTransferState.Packing
+            or FileTransferState.Verifying
+            or FileTransferState.Unpacking
             or FileTransferState.AwaitingConflict
             or FileTransferState.RetryWait);
     }

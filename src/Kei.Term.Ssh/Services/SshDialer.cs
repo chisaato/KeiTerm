@@ -349,7 +349,7 @@ internal sealed class SshDialer : IAsyncDisposable
 
     public bool UsesJumpHosts => _hops.Count > 0 || _borrowedChain != null;
 
-    public async Task<T> ConnectClientAsync<T>(Func<ConnectionInfo, T> create, CancellationToken ct)
+    public async Task<T> ConnectClientAsync<T>(Func<ConnectionInfo, T> create, CancellationToken ct, bool attachPortForwards = true)
         where T : BaseClient
     {
         (string host, int port) = await ResolveDialEndpointAsync(ct);
@@ -381,7 +381,8 @@ internal sealed class SshDialer : IAsyncDisposable
         }
 
         // 只挂在目标会话的 SshClient 上。跳板客户端走 SshJumpChain，不会进这里。
-        if (client is SshClient ssh)
+        // 传输通道上的 exec 客户端传 false：转发已经挂在终端会话上，再挂一次会抢本地端口。
+        if (attachPortForwards && client is SshClient ssh)
         {
             StartSessionForwards(ssh);
         }

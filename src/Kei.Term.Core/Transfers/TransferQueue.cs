@@ -17,6 +17,9 @@ public enum QueuedTransferState
     Skipped,
     Failed,
     Cancelled,
+    Packing,
+    Verifying,
+    Unpacking,
 }
 
 // 上传：LocalPath 是源，RemotePath 是目标父目录。下载：LocalPath 是目标父目录，RemotePath 是源。
@@ -56,6 +59,9 @@ public sealed class QueuedTransfer
     public string RemotePath { get; }
     public bool IsDirectory { get; }
     public QueuedTransferState State { get; private set; } = QueuedTransferState.Queued;
+
+    // 这次任务启用了校验，但没有可用算法（或没有 shell）。校验关闭、或已经比对过，则为 false。
+    public bool IsUnverified { get; private set; }
     public long TransferredBytes { get; private set; }
     public long TotalBytes { get; private set; }
     public string? ErrorMessage { get; private set; }
@@ -69,6 +75,9 @@ public sealed class QueuedTransfer
 
     public bool IsActive => State is QueuedTransferState.Queued
         or QueuedTransferState.Transferring
+        or QueuedTransferState.Packing
+        or QueuedTransferState.Verifying
+        or QueuedTransferState.Unpacking
         or QueuedTransferState.AwaitingConflict
         or QueuedTransferState.RetryWait;
 
@@ -80,6 +89,7 @@ public sealed class QueuedTransfer
         _children.Clear();
         _expanded = false;
         CancelSource = CancellationTokenSource.CreateLinkedTokenSource(shutdown);
+        IsUnverified = false;
         Publish(QueuedTransferState.Queued, 0, IsDirectory ? 0 : Math.Max(0, Submission.Size), null, null);
     }
 
@@ -98,6 +108,14 @@ public sealed class QueuedTransfer
     }
 
     internal void SetTotal(long total) => Publish(State, TransferredBytes, total, ErrorMessage, FailureKind);
+
+    // 启用校验但挑不到算法时记下。目录任务里任一文件如此，整个任务都算未校验。
+    internal void NoteUnverified(int generation)
+    {
+        if (generation != Generation || IsUnverified) return;
+        IsUnverified = true;
+        Updated?.Invoke();
+    }
 
     internal void Report(int generation, int childIndex, QueuedTransferState state, long? bytes, string? error, TransferFailureKind? kind)
     {
@@ -140,6 +158,9 @@ public sealed class QueuedTransfer
     private QueuedTransferState Aggregate()
     {
         if (_children.Count == 0) return State;
+        if (_children.Any(child => child.State == QueuedTransferState.Packing)) return QueuedTransferState.Packing;
+        if (_children.Any(child => child.State == QueuedTransferState.Verifying)) return QueuedTransferState.Verifying;
+        if (_children.Any(child => child.State == QueuedTransferState.Unpacking)) return QueuedTransferState.Unpacking;
         if (_children.Any(child => child.State == QueuedTransferState.Transferring)) return QueuedTransferState.Transferring;
         if (_children.Any(child => child.State == QueuedTransferState.AwaitingConflict)) return QueuedTransferState.AwaitingConflict;
         if (_children.Any(child => child.State == QueuedTransferState.RetryWait)) return QueuedTransferState.RetryWait;
@@ -164,7 +185,7 @@ public sealed class QueuedTransfer
     }
 }
 
-public sealed class TransferQueue : IAsyncDisposable
+public sealed partial class TransferQueue : IAsyncDisposable
 {
     private readonly ITransferEndpoint _endpoint;
     private readonly Func<FileTransferSettings> _settings;
@@ -174,6 +195,9 @@ public sealed class TransferQueue : IAsyncDisposable
     private readonly Func<string, TransferFileFacts, TransferFileFacts, CancellationToken, Task<TransferConflictChoice?>>? _promptConflict;
     private readonly Func<string, long, CancellationToken, Task<bool>>? _promptLargeFile;
     private readonly ILogger _logger;
+    private readonly Func<bool?>? _verifyHashOverride;
+    private readonly Func<bool?>? _archiveDirectoriesOverride;
+    private readonly Func<CancellationToken, Task>? _afterCopy;
     private readonly SemaphoreSlim _slots;
     private readonly Channel<Work> _channel = Channel.CreateUnbounded<Work>(new UnboundedChannelOptions { SingleReader = true });
     private readonly CancellationTokenSource _shutdown = new();
@@ -196,12 +220,20 @@ public sealed class TransferQueue : IAsyncDisposable
         Func<string, TransferFileFacts, TransferFileFacts, CancellationToken, Task<TransferConflictChoice?>>? promptConflict = null,
         Func<string, long, CancellationToken, Task<bool>>? promptLargeFile = null,
         ILogger? logger = null,
-        bool? localDestinationIgnoreCase = null)
+        bool? localDestinationIgnoreCase = null,
+        ITransferCapabilityProvider? capabilities = null,
+        Func<bool?>? verifyHashOverride = null,
+        Func<CancellationToken, Task>? afterCopy = null,
+        Func<bool?>? archiveDirectoriesOverride = null)
     {
         ArgumentNullException.ThrowIfNull(endpoint);
         ArgumentNullException.ThrowIfNull(settings);
         _endpoint = endpoint;
         _settings = settings;
+        Capabilities = capabilities;
+        _verifyHashOverride = verifyHashOverride;
+        _archiveDirectoriesOverride = archiveDirectoriesOverride;
+        _afterCopy = afterCopy;
         _classifier = classifier ?? DotNetTransferFailureClassifier.Instance;
         _executor = executor ?? new FileTransferExecutor(logger);
         _time = time ?? TimeProvider.System;
@@ -217,6 +249,9 @@ public sealed class TransferQueue : IAsyncDisposable
     }
 
     public int MaxConcurrency { get; }
+
+    // 本连接的能力探测。null 表示调用方没接（测试队列）。生产路径由 ConnectionTransferBoard 注入。
+    public ITransferCapabilityProvider? Capabilities { get; }
 
     // 仅供测试观察：已进入槽位等待、尚未拿到槽的任务数。调度本身不读它。
     private readonly object _slotWatch = new();
@@ -410,19 +445,24 @@ public sealed class TransferQueue : IAsyncDisposable
             if (current is RootWork)
             {
                 current.Task.Report(current.Generation, -1, QueuedTransferState.Transferring, null, null, null);
+                if (await TryArchiveAsync(current, ReleaseSlot, ReacquireSlotAsync).ConfigureAwait(false)) return;
                 await ExpandAsync(current).ConfigureAwait(false);
                 return;
             }
 
-            await TransferFileAsync(current, () =>
+            await TransferFileAsync(current, ReleaseSlot, ReacquireSlotAsync).ConfigureAwait(false);
+
+            void ReleaseSlot()
             {
                 _slots.Release();
                 acquired = false;
-            }, async () =>
+            }
+
+            async Task ReacquireSlotAsync()
             {
                 await AcquireSlotAsync(current.Token).ConfigureAwait(false);
                 acquired = true;
-            }).ConfigureAwait(false);
+            }
         }
         catch (OperationCanceledException)
         {
@@ -580,6 +620,12 @@ public sealed class TransferQueue : IAsyncDisposable
                     }
 
                     file.OwnerToken = entry.Token;
+                    (ITransferHashVerifier? verifier, bool unverified) = await ResolveVerifierAsync(settings, file.Token).ConfigureAwait(false);
+                    if (unverified)
+                    {
+                        file.Task.NoteUnverified(file.Generation);
+                    }
+
                     var progress = new SyncProgress(bytes => file.Task.ReportBytes(file.Generation, file.ChildIndex, bytes));
                     FileTransferRequest request = new(
                         file.SourcePath,
@@ -589,7 +635,10 @@ public sealed class TransferQueue : IAsyncDisposable
                         source,
                         history,
                         progress,
-                        started => file.Attempted = started.Source);
+                        started => file.Attempted = started.Source,
+                        verifier,
+                        () => Report(file, QueuedTransferState.Verifying, null, null, null),
+                        _afterCopy);
                     if (file.Task.Direction == TransferDirection.Upload)
                     {
                         await _executor.UploadAsync(request, lease.FileSystem, file.Token).ConfigureAwait(false);
@@ -616,6 +665,12 @@ public sealed class TransferQueue : IAsyncDisposable
 
     private async Task FailOrRetryAsync(FileWork file, Exception exception, Action release, Func<Task> reacquire)
     {
+        // 部分文件已经删了。留下的源快照会让下一轮把一份新的坏前缀当成可续传历史。
+        if (exception is TransferHashMismatchException)
+        {
+            file.Attempted = null;
+        }
+
         if (_closed != 0 || file.Token.IsCancellationRequested)
         {
             Report(file, QueuedTransferState.Cancelled, null, null, null);
@@ -757,7 +812,50 @@ public sealed class TransferQueue : IAsyncDisposable
             MaxRetryIntervalSeconds = current.MaxRetryIntervalSeconds,
             DefaultConflictPolicy = current.DefaultConflictPolicy,
             Concurrency = current.Concurrency,
+            VerifyHashEnabled = current.VerifyHashEnabled,
+            HashAlgorithmOrder = current.HashAlgorithmOrder?.ToList() ?? [],
+            ArchiveDirectoriesEnabled = current.ArchiveDirectoriesEnabled,
+            ArchiveFormatOrder = current.ArchiveFormatOrder?.ToList() ?? [],
         };
+    }
+
+    // 会话覆盖优先，null 继承全局开关。顺序为空视为关闭，不记成未校验。
+    private bool VerificationRequested(FileTransferSettings settings)
+    {
+        bool enabled = _verifyHashOverride?.Invoke() ?? settings.VerifyHashEnabled;
+        return enabled && settings.EffectiveHashAlgorithmOrder.Count > 0;
+    }
+
+    private async Task<(ITransferHashVerifier? Verifier, bool Unverified)> ResolveVerifierAsync(
+        FileTransferSettings settings,
+        CancellationToken ct)
+    {
+        if (!VerificationRequested(settings))
+        {
+            return (null, false);
+        }
+
+        // 没有探测提供者时无法知道远端有什么，按未校验完成，不反复尝试。
+        if (Capabilities == null)
+        {
+            return (null, true);
+        }
+
+        TransferProbeResult probe = await Capabilities.GetAsync(ct).ConfigureAwait(false);
+        TransferHashAlgorithm? algorithm = probe.SelectHash(settings.EffectiveHashAlgorithmOrder);
+        IRemoteToolset? tools = RemoteToolsets.For(probe.Platform);
+        if (algorithm == null || tools == null)
+        {
+            return (null, true);
+        }
+
+        IRemoteShell? shell = await _endpoint.AcquireShellAsync(ct).ConfigureAwait(false);
+        if (shell == null)
+        {
+            return (null, true);
+        }
+
+        return (new TransferHashVerifier(algorithm.Value, shell, tools), false);
     }
 
     private void Write(Work work)

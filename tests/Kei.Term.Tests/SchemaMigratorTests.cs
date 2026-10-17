@@ -147,9 +147,11 @@ public class SchemaMigratorTests : IDisposable
             .ToArray();
         Assert.Equal(expectedApplyNames, actualApplyNames);
 
-        // v7 是本次追加的唯一一项，且号在末尾
-        Assert.Equal(7, SchemaMigrations.All[^1].Version);
-        Assert.Equal("sync_columns", SchemaMigrations.All[^1].Name);
+        // v7 同步列仍在原位，v8 连接元数据接在末尾
+        Assert.Equal(7, SchemaMigrations.All[^2].Version);
+        Assert.Equal("sync_columns", SchemaMigrations.All[^2].Name);
+        Assert.Equal(8, SchemaMigrations.All[^1].Version);
+        Assert.Equal("session_metadata", SchemaMigrations.All[^1].Name);
     }
 
     [Fact]
@@ -212,7 +214,7 @@ public class SchemaMigratorTests : IDisposable
 
         var factory = new SqliteConnectionFactory(ConnStr);
         int version = await SchemaMigrator.MigrateAsync(factory);
-        Assert.Equal(7, version);
+        Assert.Equal(8, version);
 
         using var conn = await factory.OpenAsync();
         foreach (string table in syncableTables)

@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Renci.SshNet;
 using Kei.Term.Core.Abstractions;
+using Kei.Term.Core.Transfers;
 
 // 每个连接一条专用 SFTP 传输连接（ADR-0002）。
 // 建立过程串行；多个租约共享这条连接上的 SftpClient，各自打开独立文件流
@@ -19,6 +20,7 @@ internal sealed class SftpTransferConnection : IRemoteTransferChannel
     private readonly TimeProvider _time;
     private readonly TimeSpan _idleTimeout;
     private readonly IAsyncDisposable? _owned;
+    private readonly DialerCommandShell? _commandShell;
     private readonly ILogger _logger;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly CancellationTokenSource _lifetime = new();
@@ -36,18 +38,22 @@ internal sealed class SftpTransferConnection : IRemoteTransferChannel
         TimeProvider time,
         IAsyncDisposable? owned,
         ILogger? logger,
-        TimeSpan? idleTimeout = null)
+        TimeSpan? idleTimeout = null,
+        DialerCommandShell? commandShell = null)
     {
         _connect = connect;
         _createFileSystem = createFileSystem;
         _time = time;
         _owned = owned;
+        _commandShell = commandShell;
         _logger = logger ?? NullLogger.Instance;
         _idleTimeout = idleTimeout ?? IdleTimeout;
     }
 
     internal static SftpTransferConnection Create(SshDialer dialer, ILogger logger)
     {
+        // exec 与 SFTP 共用拨号器（主机密钥、保活、跳板），但是另一条连接，生命周期跟通道而不是跟租约。
+        DialerCommandShell commandShell = new(dialer);
         return new SftpTransferConnection(
             async ct =>
             {
@@ -57,11 +63,19 @@ internal sealed class SftpTransferConnection : IRemoteTransferChannel
             createFileSystem: null,
             TimeProvider.System,
             dialer,
-            logger);
+            logger,
+            commandShell: commandShell);
     }
 
     // 成功建立过的次数。集成测试用来确认多条流没有各开一条连接。
     internal int ConnectCount => Volatile.Read(ref _connectCount);
+
+    public Task<IRemoteShell?> AcquireShellAsync(CancellationToken ct = default)
+    {
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
+        ct.ThrowIfCancellationRequested();
+        return Task.FromResult<IRemoteShell?>(_commandShell);
+    }
 
     public async Task<IRemoteTransferLease> AcquireAsync(CancellationToken ct = default)
     {
@@ -125,6 +139,8 @@ internal sealed class SftpTransferConnection : IRemoteTransferChannel
             _gate.Release();
         }
 
+        // 先拆 exec，再拆拨号器。拨号器持有跳板链，客户端还连着时不能先放掉。
+        _commandShell?.Dispose();
         if (_owned != null)
         {
             await _owned.DisposeAsync();

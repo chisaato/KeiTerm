@@ -28,6 +28,11 @@ public partial class SettingsViewModel
         _fileTransfer.SetBackoffMode(transfer.BackoffMode);
         _fileTransfer.InitialRetryIntervalSeconds = transfer.InitialRetryIntervalSeconds;
         _fileTransfer.MaxRetryIntervalSeconds = transfer.MaxRetryIntervalSeconds;
+        _fileTransfer.InitializeTransferPreferences(
+            transfer.VerifyHashEnabled,
+            transfer.HashAlgorithmOrder,
+            transfer.ArchiveDirectoriesEnabled,
+            transfer.ArchiveFormatOrder);
     }
 
     private void ApplyFileTransferSettings(AppSettings settings)
@@ -53,6 +58,10 @@ public partial class SettingsViewModel
         transfer.BackoffMode = _fileTransfer.SelectedBackoffMode.Mode;
         transfer.InitialRetryIntervalSeconds = _fileTransfer.InitialRetryIntervalSeconds;
         transfer.MaxRetryIntervalSeconds = _fileTransfer.MaxRetryIntervalSeconds;
+        transfer.VerifyHashEnabled = _fileTransfer.VerifyHashEnabled;
+        transfer.HashAlgorithmOrder = _fileTransfer.CollectHashAlgorithmOrder();
+        transfer.ArchiveDirectoriesEnabled = _fileTransfer.ArchiveDirectoriesEnabled;
+        transfer.ArchiveFormatOrder = _fileTransfer.CollectArchiveFormatOrder();
     }
 
     private void NotifyFileDisplaySettings()

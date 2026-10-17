@@ -8,6 +8,7 @@ using Avalonia.Controls.Presenters;
 using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media.Imaging;
 using Avalonia.VisualTree;
 using Kei.Term.App.Helpers;
 using Kei.Term.App.Services;
@@ -189,7 +190,7 @@ public sealed class MainWindowLayoutModeTests
             {
                 if (modernFrame != null)
                 {
-                    modernFrame.Save(Path.Combine(outputDir, "modern-sidebar-open.png"));
+                    modernFrame.Save(Path.Combine(outputDir, "modern-sidebar-open.png"), PngBitmapEncoderOptions.Default);
                 }
             }
 
@@ -201,7 +202,7 @@ public sealed class MainWindowLayoutModeTests
             {
                 if (modernCollapsedFrame != null)
                 {
-                    modernCollapsedFrame.Save(Path.Combine(outputDir, "modern-sidebar-collapsed.png"));
+                    modernCollapsedFrame.Save(Path.Combine(outputDir, "modern-sidebar-collapsed.png"), PngBitmapEncoderOptions.Default);
                 }
             }
         }
@@ -230,7 +231,7 @@ public sealed class MainWindowLayoutModeTests
             using var classicFrame = window.CaptureRenderedFrame();
             if (classicFrame != null)
             {
-                classicFrame.Save(Path.Combine(outputDir, "classic-window.png"));
+                classicFrame.Save(Path.Combine(outputDir, "classic-window.png"), PngBitmapEncoderOptions.Default);
             }
         }
         finally

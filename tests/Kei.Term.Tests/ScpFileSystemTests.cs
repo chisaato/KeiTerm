@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text;
 using Kei.Term.Core.Models;
+using Kei.Term.Core.Transfers;
 using Kei.Term.Ssh.Services;
 
 namespace Kei.Term.Tests;

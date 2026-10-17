@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using Kei.Term.Core.Abstractions;
+using Kei.Term.Core.Models;
 using Kei.Term.Core.Services;
 using Kei.Term.Core.Settings;
 using Kei.Term.Core.Storage;
@@ -46,7 +47,8 @@ public partial class TerminalTabViewModel
         ILogger? logger = null,
         ITerminalSession? expectedSession = null,
         ITransferEndpoint? transfers = null,
-        string? transferUnavailableReason = null)
+        string? transferUnavailableReason = null,
+        ISessionMetadataRepository? metadata = null)
     {
         ITerminalSession? session = _session;
         if (IsDisposed || session == null || expectedSession != null && !ReferenceEquals(session, expectedSession))
@@ -57,7 +59,7 @@ public partial class TerminalTabViewModel
         _fileManagerInitializationCancellation = cancellation;
         _fileManagerInitializations.RemoveAll(task => task.IsCompleted);
         Task initialization = InitializeFileManagerCoreAsync(
-            session, fileSystem, fileTracker, settingsService, editorRepo, logger, cancellation, transfers, transferUnavailableReason);
+            session, fileSystem, fileTracker, settingsService, editorRepo, logger, cancellation, transfers, transferUnavailableReason, metadata);
         _fileManagerInitializations.Add(initialization);
         return initialization;
     }
@@ -71,7 +73,8 @@ public partial class TerminalTabViewModel
         ILogger? logger,
         CancellationTokenSource cancellation,
         ITransferEndpoint? transfers,
-        string? transferUnavailableReason)
+        string? transferUnavailableReason,
+        ISessionMetadataRepository? metadata)
     {
         RemoteFileManagerViewModel? manager = null;
         ConnectionTransferBoard? ownedBoard = null;
@@ -84,7 +87,15 @@ public partial class TerminalTabViewModel
                     transfers,
                     () => settingsService?.Current.FileTransfer ?? new FileTransferSettings(),
                     _dropInteraction,
-                    logger: logger ?? _logger);
+                    logger: logger ?? _logger,
+                    sessionId: session.SessionId,
+                    metadata: metadata,
+                    // 连接建立时的会话覆盖快照；编辑会话后需重连才生效，与其他连接级覆盖一致
+                    overrides: new SessionOverrides
+                    {
+                        VerifyHashEnabled = Config?.VerifyHashOverride,
+                        ArchiveDirectoriesEnabled = Config?.ArchiveDirectoriesOverride,
+                    });
             }
 
             manager = new(session.SessionId, fileSystem, fileTracker, settingsService, editorRepo, logger ?? _logger, ownedBoard, _dropInteraction);

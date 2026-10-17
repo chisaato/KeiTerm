@@ -29,5 +29,11 @@ public sealed class SessionOverrides
     // SSH 连接超时（秒，null 表示继承全局设置）
     public int? ConnectTimeoutSeconds { get; set; }
 
+    // 完整性校验。null 继承全局 VerifyHashEnabled。顺序不做会话级覆盖。
+    public bool? VerifyHashEnabled { get; set; }
+
+    // 目录归档传输。null 继承全局 ArchiveDirectoriesEnabled。
+    public bool? ArchiveDirectoriesEnabled { get; set; }
+
     public SessionOverrides Clone() => (SessionOverrides)MemberwiseClone();
 }

@@ -24,6 +24,9 @@ public enum FileTransferState
     AwaitingConflict,
     RetryWait,
     Skipped,
+    Packing,
+    Verifying,
+    Unpacking,
 }
 
 public partial class FileTransferTaskItemViewModel : ViewModelBase
@@ -36,6 +39,9 @@ public partial class FileTransferTaskItemViewModel : ViewModelBase
 
     [ObservableProperty]
     private FileTransferState _state = FileTransferState.Pending;
+
+    [ObservableProperty]
+    private bool _isUnverified;
 
     [ObservableProperty]
     private double _progress;
@@ -105,7 +111,8 @@ public partial class FileTransferTaskItemViewModel : ViewModelBase
     public void Cancel()
     {
         if (State is FileTransferState.Pending or FileTransferState.Transferring
-            or FileTransferState.AwaitingConflict or FileTransferState.RetryWait)
+            or FileTransferState.AwaitingConflict or FileTransferState.RetryWait
+            or FileTransferState.Packing or FileTransferState.Verifying or FileTransferState.Unpacking)
         {
             if (_queue != null && _queueTaskId is Guid id)
             {

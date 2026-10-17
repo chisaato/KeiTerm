@@ -199,10 +199,53 @@ public class FileTransferSettings
     // 指数退避的等待上限（秒）。
     public int MaxRetryIntervalSeconds { get; set; } = DefaultMaxRetryIntervalSeconds;
 
+    // 传输完成后比对哈希。与现有枚举一样按数字写入设置文件。
+    public bool VerifyHashEnabled { get; set; } = true;
+
+    // 前面的算法优先。不在列表中的算法视为禁用；读取时去重并丢掉未定义的数字。
+    public List<TransferHashAlgorithm> HashAlgorithmOrder { get; set; } = [TransferHashAlgorithm.Sha256, TransferHashAlgorithm.Sha1, TransferHashAlgorithm.Md5];
+
+    // 目录整包传输。默认关：开启后目录冲突按整个目录判定，而不是逐个文件。
+    public bool ArchiveDirectoriesEnabled { get; set; }
+
+    public List<TransferArchiveFormat> ArchiveFormatOrder { get; set; } = [TransferArchiveFormat.Zstd, TransferArchiveFormat.Gzip, TransferArchiveFormat.Tar];
+
     public static int ClampConcurrency(int value)
         => value < MinConcurrency ? MinConcurrency : value;
 
     public int EffectiveConcurrency => ClampConcurrency(Concurrency);
+
+    public IReadOnlyList<TransferHashAlgorithm> EffectiveHashAlgorithmOrder => DistinctDefined(HashAlgorithmOrder);
+
+    public IReadOnlyList<TransferArchiveFormat> EffectiveArchiveFormatOrder => DistinctDefined(ArchiveFormatOrder);
+
+    // 空列表等价于关掉该功能，即使上面的开关仍是 true。
+    public bool EffectiveVerifyHashEnabled => VerifyHashEnabled && EffectiveHashAlgorithmOrder.Count > 0;
+
+    public bool EffectiveArchiveDirectoriesEnabled => ArchiveDirectoriesEnabled && EffectiveArchiveFormatOrder.Count > 0;
+
+    private static IReadOnlyList<T> DistinctDefined<T>(IEnumerable<T>? values)
+        where T : struct, Enum
+    {
+        if (values == null)
+        {
+            return [];
+        }
+
+        List<T> result = [];
+        HashSet<T> seen = [];
+        foreach (T value in values)
+        {
+            if (!Enum.IsDefined(value) || !seen.Add(value))
+            {
+                continue;
+            }
+
+            result.Add(value);
+        }
+
+        return result;
+    }
 
     public string ResolveDownloadDirectory()
         => DownloadDirectoryResolver.Resolve(DefaultDownloadDirectory);

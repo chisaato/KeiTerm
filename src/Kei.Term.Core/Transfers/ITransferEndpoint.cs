@@ -9,6 +9,10 @@ public interface ITransferEndpoint : IAsyncDisposable
     FileTransferProtocol Protocol { get; }
 
     Task<IRemoteTransferLease> AcquireAsync(CancellationToken ct = default);
+
+    // 取这个端点上的 exec。只开放 SFTP 子系统、或文件系统本身没有 shell 时返回 null。
+    Task<IRemoteShell?> AcquireShellAsync(CancellationToken ct = default)
+        => Task.FromResult<IRemoteShell?>(null);
 }
 
 public sealed class ChannelTransferEndpoint(IRemoteTransferChannel channel) : ITransferEndpoint
@@ -17,6 +21,9 @@ public sealed class ChannelTransferEndpoint(IRemoteTransferChannel channel) : IT
 
     public Task<IRemoteTransferLease> AcquireAsync(CancellationToken ct = default)
         => channel.AcquireAsync(ct);
+
+    public Task<IRemoteShell?> AcquireShellAsync(CancellationToken ct = default)
+        => channel.AcquireShellAsync(ct);
 
     public ValueTask DisposeAsync() => channel.DisposeAsync();
 }
@@ -51,6 +58,26 @@ public sealed class FileSystemTransferEndpoint : ITransferEndpoint
             }
 
             return new SharedLease(_fileSystem);
+        }
+        finally
+        {
+            _lifecycle.Release();
+        }
+    }
+
+    public async Task<IRemoteShell?> AcquireShellAsync(CancellationToken ct = default)
+    {
+        await _lifecycle.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            ObjectDisposedException.ThrowIf(_disposed != 0, this);
+            if (!_fileSystem.IsConnected)
+            {
+                await _fileSystem.ConnectAsync(ct).ConfigureAwait(false);
+            }
+
+            // SCP 的文件系统自己就是 shell。浏览用的 SFTP 文件系统没有 exec，这里返回 null。
+            return _fileSystem as IRemoteShell;
         }
         finally
         {

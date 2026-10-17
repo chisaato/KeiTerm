@@ -17,7 +17,7 @@ namespace Kei.Term.App.ViewModels;
 public partial class MainViewModel
 {
     private TerminalTabConnectionTarget CreateConnectionTarget(TerminalTabViewModel tab)
-        => new(tab, _settingsService, _editorRepo, _loggerFactory);
+        => new(tab, _settingsService, _editorRepo, _loggerFactory, _sessionMetadata);
 
     private void OnTabActionRequested(TerminalTabViewModel tab, TabAction action)
     {

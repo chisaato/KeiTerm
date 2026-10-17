@@ -2601,4 +2601,82 @@ Latin: AaBb CcDd GgYy gypq
   <data name="Settings.TabBar.Variable.remote_ip" xml:space="preserve"><value>目标 IP（仅支持 IP 地址连接）</value></data>
   <data name="Settings.General.TabNavigationModifier" xml:space="preserve"><value>标签页切换修饰键</value></data>
   <data name="Settings.General.TabNavigationHint" xml:space="preserve"><value>{0} + 1–9：按顺序切换标签页；+ -：上一个；+ =：下一个（首尾循环）。</value></data>
+  <data name="Settings.FileTransfer.VerifyHash" xml:space="preserve">
+    <value>传输后进行完整性校验</value>
+  </data>
+  <data name="Settings.FileTransfer.VerifyHashTip" xml:space="preserve">
+    <value>文件传完、改名前比对两端哈希，不一致则重传。远端没有可用算法时跳过，并标注「未校验」。</value>
+  </data>
+  <data name="Settings.FileTransfer.HashAlgorithmOrder" xml:space="preserve">
+    <value>哈希算法优先级（由高到低，可勾选启用）：</value>
+  </data>
+  <data name="Settings.FileTransfer.ArchiveDirectories" xml:space="preserve">
+    <value>目录归档传输</value>
+  </data>
+  <data name="Settings.FileTransfer.ArchiveDirectoriesTip" xml:space="preserve">
+    <value>把整个目录打成一个包传输，到目标端再解包。目录已存在时按整体处理冲突；冲突策略为「仅当较旧时覆盖」时改为逐个文件传输。</value>
+  </data>
+  <data name="Settings.FileTransfer.ArchiveFormatOrder" xml:space="preserve">
+    <value>归档格式优先级（由高到低，可勾选启用）：</value>
+  </data>
+  <data name="Settings.FileTransfer.ArchiveDirectoriesHint" xml:space="preserve">
+    <value>归档传输会改变目录冲突语义（按整个目录判定覆盖、跳过或改名）。若冲突策略为「仅当较旧时覆盖」，将自动退回逐文件模式传输。</value>
+  </data>
+  <data name="SessionEdit.TransferCapabilitiesSection" xml:space="preserve">
+    <value>完整性校验与归档传输</value>
+  </data>
+  <data name="SessionEdit.VerifyHash" xml:space="preserve">
+    <value>完整性校验</value>
+  </data>
+  <data name="SessionEdit.ArchiveDirectories" xml:space="preserve">
+    <value>目录归档传输</value>
+  </data>
+  <data name="SessionEdit.ProbeResultTitle" xml:space="preserve">
+    <value>能力探测结果</value>
+  </data>
+  <data name="SessionEdit.ProbeNotRun" xml:space="preserve">
+    <value>尚未探测</value>
+  </data>
+  <data name="SessionEdit.ProbePlatform" xml:space="preserve">
+    <value>远端平台：{0}</value>
+  </data>
+  <data name="SessionEdit.ProbeHashes" xml:space="preserve">
+    <value>可用哈希算法：{0}</value>
+  </data>
+  <data name="SessionEdit.ProbeArchives" xml:space="preserve">
+    <value>可用归档格式：{0}</value>
+  </data>
+  <data name="SessionEdit.ProbeTime" xml:space="preserve">
+    <value>探测时间：{0}</value>
+  </data>
+  <data name="SessionEdit.ClearProbe" xml:space="preserve">
+    <value>清除并重新探测</value>
+  </data>
+  <data name="SessionEdit.ClearProbeTip" xml:space="preserve">
+    <value>清除本机保存的探测结果，下次传输时重新探测。</value>
+  </data>
+  <data name="Common.Enabled" xml:space="preserve">
+    <value>开</value>
+  </data>
+  <data name="Common.Disabled" xml:space="preserve">
+    <value>关</value>
+  </data>
+  <data name="Common.None" xml:space="preserve">
+    <value>无</value>
+  </data>
+  <data name="FileActivity.Status.Packing" xml:space="preserve">
+    <value>正在打包…</value>
+  </data>
+  <data name="FileActivity.Status.Verifying" xml:space="preserve">
+    <value>正在校验…</value>
+  </data>
+  <data name="FileActivity.Status.Unpacking" xml:space="preserve">
+    <value>正在解包…</value>
+  </data>
+  <data name="FileActivity.Unverified" xml:space="preserve">
+    <value>未校验</value>
+  </data>
+  <data name="FileActivity.UnverifiedTip" xml:space="preserve">
+    <value>已开启完整性校验，但远端没有可用的哈希算法，未比对内容。</value>
+  </data>
 </root>

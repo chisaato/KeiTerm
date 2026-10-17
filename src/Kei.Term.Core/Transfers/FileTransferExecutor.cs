@@ -91,6 +91,18 @@ public sealed class FileTransferExecutor
                 throw new TransferLengthMismatchException(live.Size, actual);
             }
 
+            // 长度已经确认。测试可以在这里改掉部分文件，让接下来的哈希看到被篡改的副本。
+            if (request.AfterCopy != null)
+            {
+                await request.AfterCopy(ct).ConfigureAwait(false);
+            }
+
+            if (request.Verifier != null)
+            {
+                request.OnVerifying?.Invoke();
+                await VerifyContentAsync(request, remote, partialPath, upload, ct).ConfigureAwait(false);
+            }
+
             // 从此刻起部分文件是唯一完整新副本。发布失败不能再按续传开关删掉它。
             copyComplete = true;
             ct.ThrowIfCancellationRequested();
@@ -112,6 +124,36 @@ public sealed class FileTransferExecutor
 
             throw;
         }
+    }
+
+    private async Task VerifyContentAsync(
+        FileTransferRequest request,
+        IRemoteFileSystem remote,
+        string partialPath,
+        bool upload,
+        CancellationToken ct)
+    {
+        // 上传比对本地源和远端部分文件；下载比对远端源和本地部分文件。
+        string localPath = upload ? request.SourcePath : partialPath;
+        string remotePath = upload ? partialPath : request.SourcePath;
+        string localHex = await request.Verifier!.HashLocalAsync(localPath, ct).ConfigureAwait(false);
+        string remoteHex = await request.Verifier.HashRemoteAsync(remotePath, ct).ConfigureAwait(false);
+        if (string.Equals(localHex, remoteHex, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        // 不一致就是坏数据。续传开关开着也删，避免下一轮把坏前缀接上去。
+        try
+        {
+            await DeletePartialAsync(remote, partialPath, upload, CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "校验不一致后删除部分文件失败 {Path}", partialPath);
+        }
+
+        throw new TransferHashMismatchException(localHex, remoteHex);
     }
 
     private async Task CopyAsync(
@@ -430,4 +472,7 @@ public sealed record FileTransferRequest(
     TransferFileFacts Source,
     TransferFileFacts? PreviouslyRecordedSource = null,
     IProgress<long>? Progress = null,
-    Action<PartialWriteStarted>? OnPartialWriteStarted = null);
+    Action<PartialWriteStarted>? OnPartialWriteStarted = null,
+    ITransferHashVerifier? Verifier = null,
+    Action? OnVerifying = null,
+    Func<CancellationToken, Task>? AfterCopy = null);

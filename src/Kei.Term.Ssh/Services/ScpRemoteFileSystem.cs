@@ -9,11 +9,12 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Renci.SshNet;
 using Kei.Term.Core.Abstractions;
 using Kei.Term.Core.Models;
+using Kei.Term.Core.Transfers;
 
 // 不能被多个传输任务同时使用。一个实例只持有一个 ScpClient 和一个 exec 用的 SshClient；
 // CreateCommand 会改共享的 ConnectionInfo.Encoding，Session 也没有并发建通道的保证。
 // 读写还会把整个文件放进内存。SCP 主机的传输并发数应为 1。
-public partial class ScpRemoteFileSystem : IRemoteFileSystem
+public partial class ScpRemoteFileSystem : IRemoteFileSystem, IRemoteShell
 {
     private readonly SshDialer _dialer;
     private readonly ILogger _logger;
@@ -199,10 +200,11 @@ public partial class ScpRemoteFileSystem : IRemoteFileSystem
         await _shell.SetLastWriteTimeUtcAsync(path, lastWriteTimeUtc, ct);
     }
 
-    // POSIX 单引号转义：单引号内 $ ` \ 均不展开，内部单引号以 '\'' 拼接。
-    // 双引号包裹无法阻止 $(...) 与反引号展开，远端恶意文件名可借此在服务器上执行命令
-    internal static string ShellQuote(string path)
-        => "'" + path.Replace("'", "'\\''") + "'";
+    // 实现留在 Core 的 PosixShell，这里只保留原入口，既有调用点行为不变。
+    internal static string ShellQuote(string path) => PosixShell.Quote(path);
+
+    public Task<RemoteCommandResult> RunAsync(string command, CancellationToken cancellationToken = default)
+        => ExecuteCommandAsync(command, cancellationToken);
 
     private async Task<RemoteCommandResult> ExecuteCommandAsync(string text, CancellationToken ct)
     {

@@ -3,8 +3,7 @@ namespace Kei.Term.Ssh.Services;
 using Kei.Term.Core.Services;
 using System.Globalization;
 using Kei.Term.Core.Models;
-
-internal sealed record RemoteCommandResult(string Output, string Error, int? ExitStatus, string? ExitSignal = null);
+using Kei.Term.Core.Transfers;
 
 // SCP 的目录和元数据操作通过 shell 完成；命令成功检查集中处理，保持与 SFTP 的异常语义一致。
 internal sealed class ScpShellFileSystem(Func<string, CancellationToken, Task<RemoteCommandResult>> execute)

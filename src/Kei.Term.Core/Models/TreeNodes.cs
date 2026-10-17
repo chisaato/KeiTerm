@@ -122,5 +122,8 @@ public record ResolvedSessionConfig(
     // 保留继承语义，已经打开的连接也会采用当前全局上传设置。
     TerminalUploadProtocol? TerminalUploadProtocolOverride = null,
     TerminalMultiplexerMode MultiplexerMode = TerminalMultiplexerMode.Auto,
-    string TabTitleTemplate = ""
+    string TabTitleTemplate = "",
+    // 完整性校验与归档传输的会话覆盖；保留继承语义，任务开始时再与当前全局设置合并
+    bool? VerifyHashOverride = null,
+    bool? ArchiveDirectoriesOverride = null
 );

@@ -355,8 +355,17 @@
                                                     <!-- 名称独占弹性列，状态另起一行，长文件名不会挤掉操作和速度。 -->
                                                     <TextBlock Grid.Column="1" Text="{Binding FileName}" FontSize="12" Foreground="{DynamicResource Kei.Text.Primary}"
                                                                TextTrimming="CharacterEllipsis" VerticalAlignment="Center" ToolTip.Tip="{Binding RemotePath}"/>
-                                                    <TextBlock Grid.Row="1" Grid.ColumnSpan="3" Classes="transferStatus" Text="{Binding StatusText}" FontSize="12"
-                                                               TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding StatusText}"/>
+                                                    <StackPanel Grid.Row="1" Grid.ColumnSpan="3" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                        <TextBlock Classes="transferStatus" Text="{Binding StatusText}" FontSize="12"
+                                                                   TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding StatusText}" VerticalAlignment="Center"/>
+                                                        <Border Background="{DynamicResource Kei.Bg.PanelAlt}" BorderBrush="{DynamicResource Kei.Border.Subtle}"
+                                                                BorderThickness="1" CornerRadius="{DynamicResource Kei.Radius.Control}"
+                                                                Padding="4,1" VerticalAlignment="Center"
+                                                                IsVisible="{Binding IsUnverified}" ToolTip.Tip="{loc:KeiString FileActivity.UnverifiedTip}">
+                                                            <TextBlock Text="{loc:KeiString FileActivity.Unverified}" FontSize="12"
+                                                                       Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                                        </Border>
+                                                    </StackPanel>
                                                     <ProgressBar Grid.Row="2" Grid.ColumnSpan="3" Value="{Binding Progress}" Minimum="0" Maximum="100" Height="3" Margin="0,5,0,3"
                                                                  IsVisible="{Binding State, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:FileTransferState.Transferring}}"
                                                                  Foreground="{DynamicResource Kei.Accent}" Background="{DynamicResource Kei.Bg.PanelAlt}"/>

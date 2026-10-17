@@ -20,17 +20,20 @@ public sealed class TerminalTabConnectionTarget : IConnectionTarget
     private readonly ISettingsService _settings;
     private readonly IExternalEditorRepository? _editorRepo;
     private readonly ILoggerFactory? _loggerFactory;
+    private readonly ISessionMetadataRepository? _metadata;
 
     public TerminalTabConnectionTarget(
         TerminalTabViewModel tab,
         ISettingsService settings,
         IExternalEditorRepository? editorRepo,
-        ILoggerFactory? loggerFactory)
+        ILoggerFactory? loggerFactory,
+        ISessionMetadataRepository? metadata = null)
     {
         _tab = tab;
         _settings = settings;
         _editorRepo = editorRepo;
         _loggerFactory = loggerFactory;
+        _metadata = metadata;
     }
 
     public bool IsDisposed => _tab.IsDisposed;
@@ -108,6 +111,6 @@ public sealed class TerminalTabConnectionTarget : IConnectionTarget
 
         ILogger fileManagerLogger = (ILogger?)_loggerFactory?.CreateLogger<FileEditorLauncher>() ?? NullLogger.Instance;
         await _tab.InitializeFileManagerAsync(
-            fileSystem, tracker, _settings, _editorRepo, fileManagerLogger, session, transfers, transferUnavailableReason);
+            fileSystem, tracker, _settings, _editorRepo, fileManagerLogger, session, transfers, transferUnavailableReason, _metadata);
     }
 }
