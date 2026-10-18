@@ -6,7 +6,12 @@
              x:Class="Kei.Term.App.Views.Settings.TabBarSettingsPageView"
              x:DataType="settings:TabBarSettingsProxyPage">
 
-    <StackPanel MaxWidth="760" HorizontalAlignment="Stretch" Spacing="16">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" MaxWidth="{StaticResource Kei.Settings.ContentMaxWidth}"/>
+            <ColumnDefinition Width="0.001*"/>
+        </Grid.ColumnDefinitions>
+        <StackPanel Grid.Column="0" Spacing="16">
         <!-- 页头：面包屑 + 标题 + 描述 -->
         <controls:SettingsPageHeader Group="{loc:KeiString Settings.Groups.Terminal}"
                                      Title="{loc:KeiString Settings.Categories.TabBar}"
@@ -110,5 +115,6 @@
             <ContentControl Content="{Binding SubPageContent}"
                             IsVisible="{Binding IsInSubPage}"/>
         </Panel>
-    </StackPanel>
+        </StackPanel>
+    </Grid>
 </UserControl>

@@ -19,15 +19,18 @@ public record TabPlacementOption(string Key, string Label, Kei.Term.Core.Models.
 public record LayoutModeOption(string Key, string Label, LayoutMode Mode);
 
 // 「外观」分类页：界面主题、会话树显示密度与终端字体
-public partial class AppearanceSettingsPage : ViewModelBase, ISettingsDrillDownHost
+public partial class AppearanceSettingsPage : ViewModelBase, ISettingsDrillDownHost, ISelfScrollSettingsPage
 {
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsInSubPage))]
     [NotifyPropertyChangedFor(nameof(SubPageTitle))]
     [NotifyPropertyChangedFor(nameof(SubPageContent))]
+    [NotifyPropertyChangedFor(nameof(ManagesOwnScroll))]
     private SettingsSubPageViewModel? _currentSubPage;
 
     public bool IsInSubPage => CurrentSubPage != null;
+
+    public bool ManagesOwnScroll => !IsInSubPage;
 
     // 视图绑定用的非空路径，避免未下钻时 CurrentSubPage 为 null 产生绑定警告
     public string SubPageTitle => CurrentSubPage?.Title ?? string.Empty;

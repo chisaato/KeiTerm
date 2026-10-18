@@ -6,7 +6,12 @@
              x:Class="Kei.Term.App.Views.Settings.GeneralSettingsPageView"
              x:DataType="settings:GeneralSettingsPage">
 
-    <StackPanel MaxWidth="760" HorizontalAlignment="Stretch" Spacing="16">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" MaxWidth="{StaticResource Kei.Settings.ContentMaxWidth}"/>
+            <ColumnDefinition Width="0.001*"/>
+        </Grid.ColumnDefinitions>
+        <StackPanel Grid.Column="0" Spacing="16">
         <!-- 页头：面包屑 + 标题 + 描述 -->
         <controls:SettingsPageHeader Group="{loc:KeiString Settings.Groups.App}"
                                      Title="{loc:KeiString Settings.Categories.General}"
@@ -157,5 +162,6 @@
                 </controls:SettingRow>
             </StackPanel>
         </Border>
-    </StackPanel>
+        </StackPanel>
+    </Grid>
 </UserControl>

@@ -6,7 +6,12 @@
              x:Class="Kei.Term.App.Views.Settings.TabBarVariablesSubPageView"
              x:DataType="settings:TabBarVariablesSubPage">
 
-    <StackPanel Spacing="16">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" MaxWidth="{StaticResource Kei.Settings.ContentMaxWidth}"/>
+            <ColumnDefinition Width="0.001*"/>
+        </Grid.ColumnDefinitions>
+        <StackPanel Grid.Column="0" Spacing="16">
         <Border Classes="settingsCard">
             <StackPanel Spacing="12">
                 <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.TabBar.VariableReference}"/>
@@ -34,5 +39,6 @@
                            Foreground="{DynamicResource Kei.Text.Muted}"/>
             </StackPanel>
         </Border>
-    </StackPanel>
+        </StackPanel>
+    </Grid>
 </UserControl>

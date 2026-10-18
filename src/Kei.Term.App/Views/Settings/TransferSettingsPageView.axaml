@@ -6,7 +6,12 @@
              x:Class="Kei.Term.App.Views.Settings.TransferSettingsPageView"
              x:DataType="settings:TransferSettingsPage">
 
-    <StackPanel MaxWidth="760" HorizontalAlignment="Stretch" Spacing="16">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" MaxWidth="{StaticResource Kei.Settings.ContentMaxWidth}"/>
+            <ColumnDefinition Width="0.001*"/>
+        </Grid.ColumnDefinitions>
+        <StackPanel Grid.Column="0" Spacing="16">
         <!-- 页头：面包屑 + 标题 + 描述 -->
         <controls:SettingsPageHeader Group="{loc:KeiString Settings.Groups.Files}"
                                      Title="{loc:KeiString Settings.Categories.Transfer}"
@@ -112,6 +117,8 @@
                     <!-- 高级折叠区：退避模式、初始间隔、最大重试间隔 -->
                     <controls:SettingsCard.AdvancedContent>
                         <StackPanel Spacing="10" IsEnabled="{Binding AutoRetryEnabled}">
+                            <Border Classes="settingRowDivider"/>
+
                             <controls:SettingRow Title="{loc:KeiString Settings.FileTransfer.BackoffMode}"
                                                  Description="{loc:KeiString Settings.FileTransfer.BackoffModeTip}">
                                 <ComboBox x:Name="BackoffModeComboBox"
@@ -184,5 +191,6 @@
             <ContentControl Content="{Binding SubPageContent}"
                             IsVisible="{Binding IsInSubPage}"/>
         </Panel>
-    </StackPanel>
+        </StackPanel>
+    </Grid>
 </UserControl>

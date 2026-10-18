@@ -9,19 +9,27 @@
              x:Class="Kei.Term.App.Views.Settings.AppearanceSettingsPageView"
              x:DataType="settings:AppearanceSettingsPage">
 
-    <StackPanel MaxWidth="760" HorizontalAlignment="Stretch" Spacing="16">
+    <Grid RowDefinitions="Auto, *" HorizontalAlignment="Stretch">
         <!-- 页头：面包屑 + 标题 + 描述 -->
-        <controls:SettingsPageHeader Group="{loc:KeiString Settings.Groups.App}"
+        <controls:SettingsPageHeader Grid.Row="0"
+                                     Group="{loc:KeiString Settings.Groups.App}"
                                      Title="{loc:KeiString Settings.Categories.Appearance}"
                                      Description="{loc:KeiString Settings.Categories.AppearanceDesc}"
                                      SubPageTitle="{Binding SubPageTitle}"
-                                     BackCommand="{Binding NavigateBackCommand}"/>
+                                     BackCommand="{Binding NavigateBackCommand}"
+                                     Margin="0,0,0,16"/>
 
-        <Panel>
+        <Panel Grid.Row="1">
             <!-- 主内容区：未在子页时显示 -->
-            <controls:AdaptiveColumnsGrid ColumnDefinitions="1.1*,*" ColumnSpacing="16" IsVisible="{Binding !IsInSubPage}">
-                <!-- 左列：设置卡片 -->
-                <StackPanel Grid.Column="0" Spacing="16">
+            <controls:AdaptiveColumnsGrid ColumnSpacing="16" IsVisible="{Binding !IsInSubPage}">
+                <!-- 左列：设置卡片（独立滚动） -->
+                <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" MaxWidth="{StaticResource Kei.Settings.ContentMaxWidth}"/>
+                            <ColumnDefinition Width="0.001*"/>
+                        </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Spacing="16">
                     <!-- 1. 布局模式卡片 -->
                     <Border Classes="settingsCard">
                         <StackPanel Spacing="10">
@@ -126,40 +134,44 @@
                             </StackPanel>
                         </StackPanel>
                     </Border>
-                </StackPanel>
+                    </StackPanel>
+                    </Grid>
+                </ScrollViewer>
 
-                <!-- 右列：实时界面字体预览卡片 -->
-                <Border x:Name="UiFontPreviewPanel" Grid.Column="1" VerticalAlignment="Top"
+                <!-- 右列：实时界面字体预览卡片（固定不动） -->
+                <Border x:Name="UiFontPreviewPanel" VerticalAlignment="Top"
                         Background="{DynamicResource Kei.Bg.Card}" BorderBrush="{DynamicResource Kei.Border.Subtle}"
                         BorderThickness="1" CornerRadius="{DynamicResource Kei.Radius.Card}" Padding="14">
-                    <StackPanel Spacing="8">
-                        <TextBlock Text="{loc:KeiString Settings.Appearance.FontPreviewSection}" FontSize="12" FontWeight="SemiBold"
-                                   FontFamily="{Binding UiPreviewFontFamily}" Foreground="{DynamicResource Kei.Text.Secondary}"/>
-                        <TextBlock Text="KeiTerm 工作区" FontSize="14" FontWeight="SemiBold"
-                                   FontFamily="{Binding UiPreviewFontFamily}" Foreground="{DynamicResource Kei.Text.Primary}"/>
-                        <TextBlock Text="{loc:KeiString Settings.Appearance.UiFontPreviewSample}" FontFamily="{Binding UiPreviewFontFamily}"
-                                   FontSize="13" Foreground="{DynamicResource Kei.Text.Primary}" TextWrapping="Wrap"/>
-                        <Border Height="1" Background="{DynamicResource Kei.Border.Subtle}" Margin="0,4"/>
-                        <TextBlock Text="会话 · 文件管理 · 应用设置" FontSize="13" TextWrapping="Wrap"
-                                   FontFamily="{Binding UiPreviewFontFamily}" Foreground="{DynamicResource Kei.Text.Primary}"/>
-                        <TextBlock Text="筛选会话、选择编辑器与保存配置" FontSize="12" TextWrapping="Wrap"
-                                   FontFamily="{Binding UiPreviewFontFamily}" Foreground="{DynamicResource Kei.Text.Secondary}"/>
-                        <TextBlock Text="主机：192.168.1.100 / 端口：22" FontSize="12" TextWrapping="Wrap"
-                                   FontFamily="{Binding UiPreviewFontFamily}" Foreground="{DynamicResource Kei.Text.Secondary}"/>
-                        <Border Height="1" Background="{DynamicResource Kei.Border.Subtle}" Margin="0,4"/>
-                        <TextBlock Text="已连接 · root@server" FontSize="12" TextWrapping="Wrap"
-                                   FontFamily="{Binding UiPreviewFontFamily}" Foreground="{DynamicResource Kei.Session.Foreground}"/>
-                        <TextBlock Text="正在连接 · 请稍候" FontSize="12" TextWrapping="Wrap"
-                                   FontFamily="{Binding UiPreviewFontFamily}" Foreground="{DynamicResource Kei.Text.Secondary}"/>
-                        <TextBlock Text="连接失败 · 检查主机与端口" FontSize="12" TextWrapping="Wrap"
-                                   FontFamily="{Binding UiPreviewFontFamily}" Foreground="{DynamicResource Kei.Status.Error}"/>
-                    </StackPanel>
+                    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="{loc:KeiString Settings.Appearance.FontPreviewSection}" FontSize="12" FontWeight="SemiBold"
+                                       FontFamily="{Binding UiPreviewFontFamily}" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                            <TextBlock Text="KeiTerm 工作区" FontSize="14" FontWeight="SemiBold"
+                                       FontFamily="{Binding UiPreviewFontFamily}" Foreground="{DynamicResource Kei.Text.Primary}"/>
+                            <TextBlock Text="{loc:KeiString Settings.Appearance.UiFontPreviewSample}" FontFamily="{Binding UiPreviewFontFamily}"
+                                       FontSize="13" Foreground="{DynamicResource Kei.Text.Primary}" TextWrapping="Wrap"/>
+                            <Border Height="1" Background="{DynamicResource Kei.Border.Subtle}" Margin="0,4"/>
+                            <TextBlock Text="会话 · 文件管理 · 应用设置" FontSize="13" TextWrapping="Wrap"
+                                       FontFamily="{Binding UiPreviewFontFamily}" Foreground="{DynamicResource Kei.Text.Primary}"/>
+                            <TextBlock Text="筛选会话、选择编辑器与保存配置" FontSize="12" TextWrapping="Wrap"
+                                       FontFamily="{Binding UiPreviewFontFamily}" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                            <TextBlock Text="主机：192.168.1.100 / 端口：22" FontSize="12" TextWrapping="Wrap"
+                                       FontFamily="{Binding UiPreviewFontFamily}" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                            <Border Height="1" Background="{DynamicResource Kei.Border.Subtle}" Margin="0,4"/>
+                            <TextBlock Text="已连接 · root@server" FontSize="12" TextWrapping="Wrap"
+                                       FontFamily="{Binding UiPreviewFontFamily}" Foreground="{DynamicResource Kei.Session.Foreground}"/>
+                            <TextBlock Text="正在连接 · 请稍候" FontSize="12" TextWrapping="Wrap"
+                                       FontFamily="{Binding UiPreviewFontFamily}" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                            <TextBlock Text="连接失败 · 检查主机与端口" FontSize="12" TextWrapping="Wrap"
+                                       FontFamily="{Binding UiPreviewFontFamily}" Foreground="{DynamicResource Kei.Status.Error}"/>
+                        </StackPanel>
+                    </ScrollViewer>
                 </Border>
             </controls:AdaptiveColumnsGrid>
 
-            <!-- 子页面内容区：进入子页后显示 -->
+            <!-- 子页面内容区：进入子页后显示（此时整页由外层 ScrollViewer 滚动） -->
             <ContentControl Content="{Binding SubPageContent}"
                             IsVisible="{Binding IsInSubPage}"/>
         </Panel>
-    </StackPanel>
+    </Grid>
 </UserControl>

@@ -6,7 +6,12 @@
              x:Class="Kei.Term.App.Views.Settings.ProxySettingsPageView"
              x:DataType="settings:ProxySettingsPage">
 
-    <StackPanel MaxWidth="760" HorizontalAlignment="Stretch" Spacing="16">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" MaxWidth="{StaticResource Kei.Settings.ContentMaxWidth}"/>
+            <ColumnDefinition Width="0.001*"/>
+        </Grid.ColumnDefinitions>
+        <StackPanel Grid.Column="0" Spacing="16">
         <!-- 页头：面包屑 + 标题 + 描述 -->
         <controls:SettingsPageHeader Group="{loc:KeiString Settings.Groups.Connection}"
                                      Title="{loc:KeiString Settings.Categories.Proxy}"
@@ -65,5 +70,6 @@
 
         <SelectableTextBlock Text="{Binding ErrorMessage}" IsVisible="{Binding HasError}" FontSize="12"
                              Foreground="{DynamicResource Kei.Status.Error}" TextWrapping="Wrap"/>
-    </StackPanel>
+        </StackPanel>
+    </Grid>
 </UserControl>

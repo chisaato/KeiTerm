@@ -6,7 +6,12 @@
              x:Class="Kei.Term.App.Views.Settings.SshSettingsPageView"
              x:DataType="settings:SshSettingsPage">
 
-    <StackPanel MaxWidth="760" HorizontalAlignment="Stretch" Spacing="16">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" MaxWidth="{StaticResource Kei.Settings.ContentMaxWidth}"/>
+            <ColumnDefinition Width="0.001*"/>
+        </Grid.ColumnDefinitions>
+        <StackPanel Grid.Column="0" Spacing="16">
         <!-- 页头：面包屑 + 标题 + 描述 -->
         <controls:SettingsPageHeader Group="{loc:KeiString Settings.Groups.Connection}"
                                      Title="{loc:KeiString Settings.Categories.Ssh}"
@@ -110,14 +115,18 @@
                 <Expander Header="{loc:KeiString Settings.Common.ShowAdvancedOptions}"
                           IsExpanded="False"
                           Margin="0,4,0,0"
-                          Padding="0,8,0,0">
-                    <controls:SettingRow Title="{loc:KeiString Settings.Ssh.CustomAgentPath}"
-                                         Description="{loc:KeiString Settings.Ssh.CustomAgentPathTip}">
-                        <TextBox Text="{Binding CustomAgentSocketPath}"
-                                 PlaceholderText="{loc:KeiString Settings.Ssh.CustomAgentPathPlaceholder}"
-                                 MinWidth="220"
-                                 HorizontalAlignment="Right"/>
-                    </controls:SettingRow>
+                          Padding="0">
+                    <StackPanel Spacing="10">
+                        <Border Classes="settingRowDivider"/>
+
+                        <controls:SettingRow Title="{loc:KeiString Settings.Ssh.CustomAgentPath}"
+                                             Description="{loc:KeiString Settings.Ssh.CustomAgentPathTip}">
+                            <TextBox Text="{Binding CustomAgentSocketPath}"
+                                     PlaceholderText="{loc:KeiString Settings.Ssh.CustomAgentPathPlaceholder}"
+                                     MinWidth="220"
+                                     HorizontalAlignment="Right"/>
+                        </controls:SettingRow>
+                    </StackPanel>
                 </Expander>
             </StackPanel>
         </Border>
@@ -140,5 +149,6 @@
                 </controls:SettingRow>
             </StackPanel>
         </Border>
-    </StackPanel>
+        </StackPanel>
+    </Grid>
 </UserControl>

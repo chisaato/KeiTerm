@@ -3,6 +3,33 @@
         xmlns:controls="using:Kei.Term.App.Views.Settings.Controls">
     <!-- 设计系统与紧凑桌面密度令牌引用 -->
 
+    <!-- 窄模式预览分隔条：水平拖动，颜色走现有边框令牌 -->
+    <!-- 上下分栏时的分隔条：上下留出间隔，细线贯通 + 居中握把，命中区域比视觉线更高便于拖动 -->
+    <Style Selector="GridSplitter.settingsPreviewSplitter">
+        <Setter Property="Height" Value="20"/>
+        <Setter Property="Margin" Value="0,6"/>
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Background" Value="{DynamicResource Kei.Border}"/>
+        <Setter Property="Cursor" Value="SizeNorthSouth"/>
+        <Setter Property="ResizeDirection" Value="Rows"/>
+        <Setter Property="ResizeBehavior" Value="PreviousAndNext"/>
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Grid Background="Transparent">
+                    <Border Height="1" VerticalAlignment="Center"
+                            Background="{DynamicResource Kei.Border.Subtle}"/>
+                    <Border Width="48" Height="4" CornerRadius="2"
+                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                            Background="{TemplateBinding Background}"/>
+                </Grid>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="GridSplitter.settingsPreviewSplitter:pointerover">
+        <Setter Property="Background" Value="{DynamicResource Kei.Accent.Hover}"/>
+    </Style>
+
     <!-- 单层分组：细线划分职责，不叠加卡片背景。 -->
     <Style Selector="Border.settingsSection">
         <Setter Property="BorderBrush" Value="{DynamicResource Kei.Border.Subtle}"/>
@@ -87,6 +114,54 @@
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="CornerRadius" Value="{DynamicResource Kei.Radius.Card}"/>
         <Setter Property="Padding" Value="16,12"/>
+    </Style>
+
+    <!-- 卡片内高级折叠区：轻量同层开关行，无实心背景，展开后内容直接延续卡片内行列表 -->
+    <Style Selector="Border.settingsCard Expander">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Margin" Value="0,4,0,0"/>
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+    </Style>
+    <Style Selector="Border.settingsCard Expander /template/ ToggleButton#ExpanderHeader">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="0,4"/>
+        <Setter Property="MinHeight" Value="28"/>
+        <Setter Property="Height" Value="28"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Secondary}"/>
+    </Style>
+    <Style Selector="Border.settingsCard Expander /template/ ToggleButton#ExpanderHeader:pointerover">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Accent.Hover}"/>
+    </Style>
+    <Style Selector="Border.settingsCard Expander /template/ ToggleButton#ExpanderHeader:pointerover Path#ExpandCollapseChevron">
+        <Setter Property="Stroke" Value="{DynamicResource Kei.Accent.Hover}"/>
+    </Style>
+    <Style Selector="Border.settingsCard Expander /template/ ToggleButton#ExpanderHeader /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="HorizontalAlignment" Value="Left"/>
+    </Style>
+    <Style Selector="Border.settingsCard Expander /template/ ToggleButton#ExpanderHeader /template/ Border#ExpandCollapseChevronBorder">
+        <Setter Property="HorizontalAlignment" Value="Right"/>
+    </Style>
+    <Style Selector="Border.settingsCard Expander /template/ Border#ExpanderContent">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="0,8,0,0"/>
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+    </Style>
+    <Style Selector="Border.settingsCard Expander /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+    </Style>
+    <Style Selector="Border.settingsCard Expander > StackPanel">
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
     </Style>
 
     <!-- SettingsRow 细分隔线样式 -->

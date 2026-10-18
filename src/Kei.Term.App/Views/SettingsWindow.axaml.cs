@@ -16,6 +16,9 @@ public partial class SettingsWindow : Window
     public SettingsWindow()
     {
         InitializeComponent();
+        // 设置窗口是模态对话框，居中于主窗口
+        InitialWindowSize.Apply(this, InitialWindowSize.SettingsWidthRatio, InitialWindowSize.SettingsHeightRatio,
+            WindowStartupLocation.CenterOwner);
     }
 
     public SettingsWindow(SettingsViewModel vm) : this()

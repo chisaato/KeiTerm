@@ -30,9 +30,23 @@ public sealed class TerminalSettingsCombinedPage : ViewModelBase
 }
 
 // 「终端外观」分类项容器：终端配色方案、主字体与回退字体配置
-public sealed class TerminalAppearanceSettingsPage(AppearanceSettingsPage appearance) : ViewModelBase
+public sealed class TerminalAppearanceSettingsPage : ViewModelBase, ISelfScrollSettingsPage
 {
-    public AppearanceSettingsPage Appearance { get; } = appearance;
+    public AppearanceSettingsPage Appearance { get; }
+
+    public bool ManagesOwnScroll => Appearance.ManagesOwnScroll;
+
+    public TerminalAppearanceSettingsPage(AppearanceSettingsPage appearance)
+    {
+        Appearance = appearance;
+        Appearance.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(Appearance.ManagesOwnScroll))
+            {
+                OnPropertyChanged(nameof(ManagesOwnScroll));
+            }
+        };
+    }
 }
 
 // 标签栏设置分类项容器：位置与全局标题行为共用原页面草稿。

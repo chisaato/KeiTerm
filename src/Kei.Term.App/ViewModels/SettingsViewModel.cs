@@ -44,7 +44,11 @@ public partial class SettingsViewModel : ViewModelBase
 
     // 当前选中的分类，决定右侧内容
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsCurrentPageSelfScrolling))]
     private SettingsCategoryItem _selectedCategory;
+
+    public bool IsCurrentPageSelfScrolling =>
+        SelectedCategory?.Page is ISelfScrollSettingsPage selfScroll && selfScroll.ManagesOwnScroll;
 
     partial void OnSelectedCategoryChanged(SettingsCategoryItem? oldValue, SettingsCategoryItem newValue)
     {
@@ -206,6 +210,14 @@ public partial class SettingsViewModel : ViewModelBase
         }).ToArray();
 
         SelectedCategory = Categories.First(c => !c.IsHeader);
+
+        _appearance.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(AppearanceSettingsPage.ManagesOwnScroll))
+            {
+                OnPropertyChanged(nameof(IsCurrentPageSelfScrolling));
+            }
+        };
 
         // 选择即草稿预览：选择回调交回本 VM 统一广播，但不落盘
         _appearance.SetDraftPreviewHandler(OnTerminalProfileDraftPreview);

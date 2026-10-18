@@ -10,19 +10,27 @@
              x:Class="Kei.Term.App.Views.Settings.TerminalAppearanceSettingsPageView"
              x:DataType="settings:TerminalAppearanceSettingsPage">
 
-    <StackPanel MaxWidth="760" HorizontalAlignment="Stretch" Spacing="16">
+    <Grid RowDefinitions="Auto, *" HorizontalAlignment="Stretch">
         <!-- 页头：面包屑 + 标题 + 描述 -->
-        <scontrols:SettingsPageHeader Group="{loc:KeiString Settings.Groups.Terminal}"
-                                     Title="{loc:KeiString Settings.Categories.TerminalAppearance}"
-                                     Description="{loc:KeiString Settings.Categories.TerminalAppearanceDesc}"
-                                     SubPageTitle="{Binding Appearance.SubPageTitle}"
-                                     BackCommand="{Binding Appearance.NavigateBackCommand}"/>
+        <scontrols:SettingsPageHeader Grid.Row="0"
+                                      Group="{loc:KeiString Settings.Groups.Terminal}"
+                                      Title="{loc:KeiString Settings.Categories.TerminalAppearance}"
+                                      Description="{loc:KeiString Settings.Categories.TerminalAppearanceDesc}"
+                                      SubPageTitle="{Binding Appearance.SubPageTitle}"
+                                      BackCommand="{Binding Appearance.NavigateBackCommand}"
+                                      Margin="0,0,0,16"/>
 
-        <Panel>
+        <Panel Grid.Row="1">
             <!-- 主内容区：未在子页时显示 -->
-            <scontrols:AdaptiveColumnsGrid ColumnDefinitions="1.1*,*" ColumnSpacing="16" IsVisible="{Binding !Appearance.IsInSubPage}">
-                <!-- 左列：设置卡片 -->
-                <StackPanel Grid.Column="0" Spacing="16">
+            <scontrols:AdaptiveColumnsGrid ColumnSpacing="16" IsVisible="{Binding !Appearance.IsInSubPage}">
+                <!-- 左列：设置卡片（独立滚动） -->
+                <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" MaxWidth="{StaticResource Kei.Settings.ContentMaxWidth}"/>
+                            <ColumnDefinition Width="0.001*"/>
+                        </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Spacing="16">
                     <!-- 1. 终端配色方案档案卡片 -->
                     <Border Classes="settingsCard" DataContext="{Binding Appearance}">
                         <StackPanel Spacing="10">
@@ -132,17 +140,19 @@
                             </WrapPanel>
                         </StackPanel>
                     </Border>
-                </StackPanel>
+                    </StackPanel>
+                    </Grid>
+                </ScrollViewer>
 
-                <!-- 右列：终端实时渲染预览 -->
-                <Border x:Name="TerminalPreviewBorder" Grid.Column="1" VerticalAlignment="Stretch"
+                <!-- 右列：终端实时渲染预览（固定不动） -->
+                <Border x:Name="TerminalPreviewBorder" VerticalAlignment="Stretch"
                         Background="{DynamicResource Kei.Bg.Card}" BorderBrush="{DynamicResource Kei.Border.Subtle}"
                         BorderThickness="1" CornerRadius="{DynamicResource Kei.Radius.Card}" Padding="12">
                     <Grid RowDefinitions="Auto, *" RowSpacing="10">
                         <TextBlock Grid.Row="0" Text="{loc:KeiString Settings.Appearance.LivePreview}" FontSize="13" FontWeight="Bold"
                                    Foreground="{DynamicResource Kei.Text.Primary}"/>
                         <controls:TerminalShellPreviewView Grid.Row="1"
-                                                           MinHeight="360"
+                                                           MinHeight="160"
                                                            VerticalAlignment="Stretch"
                                                            HorizontalAlignment="Stretch"
                                                            Profile="{Binding Appearance.SelectedTerminalProfile}"
@@ -151,9 +161,9 @@
                 </Border>
             </scontrols:AdaptiveColumnsGrid>
 
-            <!-- 子页面内容区：进入子页后显示 -->
+            <!-- 子页面内容区：进入子页后显示（此时整页由外层 ScrollViewer 滚动） -->
             <ContentControl Content="{Binding Appearance.SubPageContent}"
                             IsVisible="{Binding Appearance.IsInSubPage}"/>
         </Panel>
-    </StackPanel>
+    </Grid>
 </UserControl>

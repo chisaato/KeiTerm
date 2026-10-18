@@ -78,12 +78,15 @@ public class TransferQueueTests
         {
             string file = WriteFile(directory, "a.txt", "data");
             QueuedTransfer task = retrying.Enqueue(Upload(file, "/remote"));
-            await WaitUntilAsync(() => task.State == QueuedTransferState.RetryWait);
+            Assert.Equal(TimeSpan.FromSeconds(2), await time.WhenTimerRegisteredAsync(1));
+            Assert.Equal(QueuedTransferState.RetryWait, task.State);
             Assert.Equal(1, transient.Attempts);
             time.Advance(TimeSpan.FromSeconds(2));
-            await WaitUntilAsync(() => transient.Attempts == 2 && task.State == QueuedTransferState.RetryWait);
+            Assert.Equal(TimeSpan.FromSeconds(4), await time.WhenTimerRegisteredAsync(2));
+            Assert.Equal(2, transient.Attempts);
+            Assert.Equal(QueuedTransferState.RetryWait, task.State);
             time.Advance(TimeSpan.FromSeconds(4));
-            await WaitUntilAsync(() => task.State == QueuedTransferState.Completed);
+            await WhenTerminalAsync([task]).WaitAsync(TimeSpan.FromSeconds(10));
             Assert.Equal(3, transient.Attempts);
         }
         finally { Directory.Delete(directory, true); }
@@ -95,10 +98,12 @@ public class TransferQueueTests
         {
             QueuedTransfer failed = denied.Enqueue(Upload(WriteFile(other, "b.txt", "data"), "/remote"));
             await WaitUntilAsync(() => failed.State == QueuedTransferState.Failed);
+            // CloseAsync 等待工作任务退出，之后没有尚未注册的重试能逃过断言。
+            await denied.CloseAsync();
             Assert.Equal(TransferFailureKind.Permanent, failed.FailureKind);
             Assert.Equal(1, permanent.Attempts);
             time.Advance(TimeSpan.FromMinutes(5));
-            await Task.Delay(30);
+            Assert.Equal(0, time.ActiveTimerCount);
             Assert.Equal(1, permanent.Attempts);
         }
         finally { Directory.Delete(other, true); }
@@ -114,10 +119,10 @@ public class TransferQueueTests
         try
         {
             QueuedTransfer task = queue.Enqueue(Upload(WriteFile(directory, "a.txt", "data"), "/remote"));
-            await WaitUntilAsync(() => task.State == QueuedTransferState.RetryWait);
+            await time.WhenTimerRegisteredAsync(1);
             await queue.CloseAsync();
             time.Advance(TimeSpan.FromMinutes(5));
-            await Task.Delay(30);
+            Assert.Equal(0, time.ActiveTimerCount);
             Assert.Equal(QueuedTransferState.Cancelled, task.State);
             Assert.Equal(1, remote.Attempts);
         }
@@ -561,12 +566,42 @@ public class TransferQueueTests
         private readonly object _gate = new();
         private TimeSpan _clock;
         private readonly List<ManualTimer> _timers = [];
+        private readonly List<TimeSpan> _registrations = [];
+        private readonly List<(int Count, TaskCompletionSource<TimeSpan> Done)> _pending = [];
+
+        public int ActiveTimerCount
+        {
+            get { lock (_gate) return _timers.Count(timer => !timer.Disposed); }
+        }
+
+        public Task<TimeSpan> WhenTimerRegisteredAsync(int count)
+        {
+            lock (_gate)
+            {
+                if (_registrations.Count >= count) return Task.FromResult(_registrations[count - 1]);
+                TaskCompletionSource<TimeSpan> done = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                _pending.Add((count, done));
+                return done.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            }
+        }
 
         public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
         {
-            ManualTimer timer = new(callback, state, _clock + dueTime);
-            lock (_gate) _timers.Add(timer);
-            return timer;
+            lock (_gate)
+            {
+                // 时钟读取、注册与发布信号必须原子化，不能只锁列表写入。
+                ManualTimer timer = new(callback, state, _clock + dueTime);
+                _timers.Add(timer);
+                _registrations.Add(dueTime);
+                foreach ((int count, TaskCompletionSource<TimeSpan> done) in _pending.ToArray())
+                {
+                    if (_registrations.Count < count) continue;
+                    _pending.RemoveAll(item => item.Done == done);
+                    done.TrySetResult(_registrations[count - 1]);
+                }
+
+                return timer;
+            }
         }
 
         public void Advance(TimeSpan by)
@@ -584,10 +619,11 @@ public class TransferQueueTests
         private sealed class ManualTimer(TimerCallback callback, object? state, TimeSpan due) : ITimer
         {
             public TimeSpan Due { get; } = due;
-            public bool Disposed { get; private set; }
+            private int _disposed;
+            public bool Disposed => Volatile.Read(ref _disposed) != 0;
             public void Fire() { if (!Disposed) callback(state); }
             public bool Change(TimeSpan dueTime, TimeSpan period) => false;
-            public void Dispose() => Disposed = true;
+            public void Dispose() => Interlocked.Exchange(ref _disposed, 1);
             public ValueTask DisposeAsync() { Dispose(); return ValueTask.CompletedTask; }
         }
     }

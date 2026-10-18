@@ -37,6 +37,16 @@ public class InitialWindowSizeTests
     }
 
     [Fact]
+    public void Compute_SettingsRatioOn1440p_FitsSettingsAndPreviewSideBySide()
+    {
+        Size size = InitialWindowSize.Compute(new Size(2560, 1400), new Size(980, 660),
+            InitialWindowSize.SettingsWidthRatio, InitialWindowSize.SettingsHeightRatio);
+
+        Assert.Equal(1305, size.Width);
+        Assert.Equal(854, size.Height);
+    }
+
+    [Fact]
     public void Compute_WithoutWorkArea_ReturnsFallback()
     {
         Assert.Equal(Fallback, InitialWindowSize.Compute(null, Fallback));

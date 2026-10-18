@@ -13,7 +13,13 @@ internal static class SftpLinkFollower
     public static async Task<Probe> ProbeAsync(SftpClient client, string path, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        ProbeOutcome directory = await TryOpenDirectoryAsync(client, path, ct);
+        return await ProbeAsync(client.ListDirectoryAsync(path, ct), () => client.Open(path, FileMode.Open, FileAccess.Read), ct);
+    }
+
+    internal static async Task<Probe> ProbeAsync(IAsyncEnumerable<ISftpFile> directoryEntries, Func<Stream> openFile, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        ProbeOutcome directory = await TryOpenDirectoryAsync(directoryEntries, ct);
         if (directory == ProbeOutcome.Opened)
         {
             return new Probe(SftpLinkTargetKind.Directory, null);
@@ -26,7 +32,7 @@ internal static class SftpLinkFollower
         }
 
         ct.ThrowIfCancellationRequested();
-        (ProbeOutcome file, long size) = TryOpenFile(client, path);
+        (ProbeOutcome file, long size) = TryOpenFile(openFile);
         return new Probe(Classify(directory, file), file == ProbeOutcome.Opened ? size : null);
     }
 
@@ -51,9 +57,9 @@ internal static class SftpLinkFollower
     }
 
     // 第一次 MoveNext 才会 opendir。成功（含空目录）就是指向目录；读到一条就停。
-    private static async Task<ProbeOutcome> TryOpenDirectoryAsync(SftpClient client, string path, CancellationToken ct)
+    private static async Task<ProbeOutcome> TryOpenDirectoryAsync(IAsyncEnumerable<ISftpFile> entries, CancellationToken ct)
     {
-        IAsyncEnumerator<ISftpFile> enumerator = client.ListDirectoryAsync(path, ct).GetAsyncEnumerator(ct);
+        IAsyncEnumerator<ISftpFile> enumerator = entries.GetAsyncEnumerator(ct);
         try
         {
             await enumerator.MoveNextAsync();
@@ -84,11 +90,11 @@ internal static class SftpLinkFollower
         }
     }
 
-    private static (ProbeOutcome Outcome, long Size) TryOpenFile(SftpClient client, string path)
+    private static (ProbeOutcome Outcome, long Size) TryOpenFile(Func<Stream> openFile)
     {
         try
         {
-            using SftpFileStream stream = client.Open(path, FileMode.Open, FileAccess.Read);
+            using Stream stream = openFile();
             return (ProbeOutcome.Opened, stream.Length);
         }
         catch (OperationCanceledException)

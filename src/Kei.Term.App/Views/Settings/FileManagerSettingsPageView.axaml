@@ -7,7 +7,12 @@
              x:Class="Kei.Term.App.Views.Settings.FileManagerSettingsPageView"
              x:DataType="settings:FileManagerSettingsPage">
 
-    <StackPanel MaxWidth="760" HorizontalAlignment="Stretch" Spacing="16">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" MaxWidth="{StaticResource Kei.Settings.ContentMaxWidth}"/>
+            <ColumnDefinition Width="0.001*"/>
+        </Grid.ColumnDefinitions>
+        <StackPanel Grid.Column="0" Spacing="16">
         <!-- 页头：面包屑 + 标题 + 描述 -->
         <controls:SettingsPageHeader Group="{loc:KeiString Settings.Groups.Files}"
                                      Title="{loc:KeiString Settings.Categories.FileManager}"
@@ -176,38 +181,32 @@
                           Header="{loc:KeiString Settings.FileTransfer.AdvancedWatcherSection}"
                           IsExpanded="False"
                           Margin="0,4,0,0"
-                          Padding="0,8,0,0">
+                          Padding="0">
                     <StackPanel Spacing="10">
-                        <Grid ColumnDefinitions="*,Auto">
-                            <StackPanel Spacing="2">
-                                <TextBlock Text="{loc:KeiString Settings.FileTransfer.PollingInterval}" FontSize="13" Foreground="{DynamicResource Kei.Text.Primary}"/>
-                                <TextBlock Text="{loc:KeiString Settings.FileTransfer.PollingIntervalTip}" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}"/>
-                            </StackPanel>
+                        <Border Classes="settingRowDivider"/>
+
+                        <controls:SettingRow Title="{loc:KeiString Settings.FileTransfer.PollingInterval}"
+                                             Description="{loc:KeiString Settings.FileTransfer.PollingIntervalTip}">
                             <NumericUpDown x:Name="PollingIntervalSecondsInput"
-                                           Grid.Column="1"
                                            Value="{Binding PollingIntervalSeconds}"
                                            Minimum="1" Maximum="3600"
                                            FormatString="0"
                                            MinWidth="160"
                                            HorizontalAlignment="Right"/>
-                        </Grid>
+                        </controls:SettingRow>
 
                         <Border Classes="settingRowDivider"/>
 
-                        <Grid ColumnDefinitions="*,Auto">
-                            <StackPanel Spacing="2">
-                                <TextBlock Text="{loc:KeiString Settings.FileTransfer.WriteDebounce}" FontSize="13" Foreground="{DynamicResource Kei.Text.Primary}"/>
-                                <TextBlock Text="{loc:KeiString Settings.FileTransfer.WriteDebounceTip}" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}"/>
-                            </StackPanel>
+                        <controls:SettingRow Title="{loc:KeiString Settings.FileTransfer.WriteDebounce}"
+                                             Description="{loc:KeiString Settings.FileTransfer.WriteDebounceTip}">
                             <NumericUpDown x:Name="WriteDebounceMillisecondsInput"
-                                           Grid.Column="1"
                                            Value="{Binding WriteDebounceMilliseconds}"
                                            Minimum="200" Maximum="60000"
                                            Increment="100"
                                            FormatString="0"
                                            MinWidth="160"
                                            HorizontalAlignment="Right"/>
-                        </Grid>
+                        </controls:SettingRow>
                     </StackPanel>
                 </Expander>
             </StackPanel>
@@ -403,5 +402,6 @@
                              FontSize="12"
                              Foreground="{DynamicResource Kei.Status.Error}"
                              TextWrapping="Wrap"/>
-    </StackPanel>
+        </StackPanel>
+    </Grid>
 </UserControl>

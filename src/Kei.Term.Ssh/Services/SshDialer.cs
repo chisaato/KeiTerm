@@ -50,12 +50,12 @@ internal sealed class HostKeyGate
         }
     }
 
-    public async Task ConnectAsync(BaseClient client, CancellationToken ct)
+    public async Task ConnectAsync(BaseClient client, CancellationToken ct, Func<CancellationToken, Task>? connect = null)
     {
         await PreferKnownAlgorithmsAsync(client.ConnectionInfo, ct);
         try
         {
-            await client.ConnectAsync(ct);
+            await (connect == null ? client.ConnectAsync(ct) : connect(ct));
         }
         catch (Exception ex) when (Rejection != null)
         {
@@ -80,7 +80,7 @@ internal sealed class HostKeyGate
         }
     }
 
-    private void OnHostKeyReceived(object? sender, HostKeyEventArgs e)
+    internal void OnHostKeyReceived(object? sender, HostKeyEventArgs e)
     {
         // HostKeyName 是签名算法（如 rsa-sha2-512），信任库按密钥类型（ssh-rsa）记录：以 blob 自描述类型为准
         string keyType = HostKeyFingerprint.ReadKeyType(e.HostKey) ?? e.HostKeyName;
@@ -104,6 +104,16 @@ internal sealed class HostKeyGate
     }
 }
 
+// 将 SSH.NET 不可重写的网络操作隔离；默认实现始终走同一主机密钥闸门。
+internal class SshConnectionOperations
+{
+    public virtual Task ConnectAsync(HostKeyGate gate, BaseClient client, CancellationToken ct)
+        => gate.ConnectAsync(client, ct);
+
+    public virtual void AddForwardedPort(SshClient client, ForwardedPortLocal forward)
+        => client.AddForwardedPort(forward);
+}
+
 // 跳板链：逐跳建立 SSH 连接，后一跳经前一跳的本地端口转发（direct-tcpip）拨号。
 // 注：SSH.NET 公共 API 不支持在已有会话的通道上直接承载新 SSH 连接，故以 127.0.0.1 临时端口转发实现；
 // 转发口仅绑定回环且随链释放。
@@ -112,12 +122,16 @@ internal sealed class SshJumpChain : IAsyncDisposable
     private readonly List<SshClient> _clients = [];
     private readonly List<ForwardedPortLocal> _forwards = [];
     private readonly ILogger _logger;
+    private readonly Func<string, uint, string, uint, ForwardedPortLocal> _createForward;
+    private readonly SshConnectionOperations _operations;
     private readonly object _sync = new();
     private int _disposed;
 
-    private SshJumpChain(ILogger logger)
+    private SshJumpChain(ILogger logger, Func<string, uint, string, uint, ForwardedPortLocal>? createForward = null, SshConnectionOperations? operations = null)
     {
         _logger = logger;
+        _createForward = createForward ?? ((bind, port, host, targetPort) => new ForwardedPortLocal(bind, port, host, targetPort));
+        _operations = operations ?? new SshConnectionOperations();
     }
 
     public bool IsConnected => _clients.Count > 0 && _clients.TrueForAll(c => c.IsConnected);
@@ -129,14 +143,17 @@ internal sealed class SshJumpChain : IAsyncDisposable
         IReadOnlyList<SshTarget> hops,
         SshClientOptions options,
         ILogger logger,
-        CancellationToken ct)
+        CancellationToken ct,
+        Func<ConnectionInfo, SshClient>? createClient = null,
+        Func<string, uint, string, uint, ForwardedPortLocal>? createForward = null,
+        SshConnectionOperations? operations = null)
     {
         if (hops.Count == 0)
         {
             throw new ArgumentException("跳板链至少需要一跳", nameof(hops));
         }
 
-        var chain = new SshJumpChain(logger);
+        var chain = new SshJumpChain(logger, createForward, operations);
         try
         {
             foreach (SshTarget hop in hops)
@@ -159,13 +176,13 @@ internal sealed class SshJumpChain : IAsyncDisposable
                         HasSocks5Auth(hop.Socks5Username, hop.Socks5Password));
                 }
 
-                var client = new SshClient(BuildConnectionInfo(hop, dialHost, dialPort, options));
+                SshClient client = (createClient ?? (info => new SshClient(info)))(BuildConnectionInfo(hop, dialHost, dialPort, options));
                 var gate = new HostKeyGate(hop.Host, hop.Port, options.HostKeyVerifier, ct);
                 gate.Attach(client);
                 ApplyKeepAlive(client, options);
                 chain._clients.Add(client);
 
-                await gate.ConnectAsync(client, ct);
+                await chain._operations.ConnectAsync(gate, client, ct);
                 logger.LogInformation("跳板已连接 {Host}:{Port} 层级={Level}", hop.Host, hop.Port, chain._clients.Count);
             }
 
@@ -185,8 +202,8 @@ internal sealed class SshJumpChain : IAsyncDisposable
         {
             ObjectDisposedException.ThrowIf(_disposed != 0, this);
             SshClient last = _clients[^1];
-            var forward = new ForwardedPortLocal(IPAddressLoopback, 0, host, (uint)port);
-            last.AddForwardedPort(forward);
+            ForwardedPortLocal forward = _createForward(IPAddressLoopback, 0, host, (uint)port);
+            _operations.AddForwardedPort(last, forward);
             forward.Start();
             _forwards.Add(forward);
             return (IPAddressLoopback, (int)forward.BoundPort);
@@ -311,6 +328,7 @@ internal sealed class SshJumpChain : IAsyncDisposable
 // 终端会话、SFTP、SCP 共用，保证三者安全语义一致
 internal sealed class SshDialer : IAsyncDisposable
 {
+    private readonly SshConnectionOperations _operations;
     private readonly SshTarget _target;
     private readonly IReadOnlyList<SshTarget> _hops;
     private readonly SshJumpChain? _borrowedChain;
@@ -330,7 +348,8 @@ internal sealed class SshDialer : IAsyncDisposable
         SshJumpChain? borrowedChain,
         SshClientOptions options,
         ILogger logger,
-        IReadOnlyList<PortForward>? portForwards = null)
+        IReadOnlyList<PortForward>? portForwards = null,
+        SshConnectionOperations? operations = null)
     {
         _target = target;
         _hops = hops;
@@ -338,6 +357,7 @@ internal sealed class SshDialer : IAsyncDisposable
         _options = options;
         _logger = logger;
         _portForwards = portForwards ?? [];
+        _operations = operations ?? new SshConnectionOperations();
     }
 
     public IReadOnlyList<string> ForwardStartErrors => _forwardErrors;
@@ -372,7 +392,7 @@ internal sealed class SshDialer : IAsyncDisposable
 
         try
         {
-            await gate.ConnectAsync(client, ct);
+            await _operations.ConnectAsync(gate, client, ct);
         }
         catch
         {
