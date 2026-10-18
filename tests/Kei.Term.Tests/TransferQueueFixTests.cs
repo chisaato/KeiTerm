@@ -19,7 +19,6 @@ public class TransferQueueFixTests
             queue.Enqueue(Upload(WriteFile(left, "a.txt", "one"), "/remote"));
             queue.Enqueue(Upload(WriteFile(right, "a.txt", "two"), "/remote"));
             await WaitUntilAsync(() => remote.Blocked == 1);
-            await Task.Delay(40);
             Assert.Equal(1, remote.Blocked);
             Assert.Equal(["a.txt.keipart"], remote.Started.ToArray());
             remote.Release(2);
@@ -44,10 +43,10 @@ public class TransferQueueFixTests
             queue.Enqueue(Upload(WriteFile(directory, "a", "one"), "/remote"));
             queue.Enqueue(Upload(WriteFile(directory, "a.keipart", "two"), "/remote"));
             await WaitUntilAsync(() => remote.Blocked == 1);
-            await Task.Delay(40);
             Assert.Equal(1, remote.MaxBlocked);
             remote.Release(2);
             await WaitUntilAsync(() => queue.Tasks.Count(task => task.State == QueuedTransferState.Completed) == 2);
+            Assert.Equal(1, remote.MaxBlocked);
         }
         finally { Directory.Delete(directory, true); }
     }
@@ -83,10 +82,10 @@ public class TransferQueueFixTests
             queue.Enqueue(Download("/remote/A.txt", "A.txt", directory, 1));
             queue.Enqueue(Download("/remote/a.txt", "a.txt", directory, 1));
             await WaitUntilAsync(() => remote.Reads == 1);
-            await Task.Delay(40);
             Assert.Equal(1, remote.MaxReads);
             remote.Release(2);
             await WaitUntilAsync(() => queue.Tasks.All(task => !task.IsActive));
+            Assert.Equal(1, remote.MaxReads);
         }
         finally { Directory.Delete(directory, true); }
     }
@@ -108,7 +107,7 @@ public class TransferQueueFixTests
                 File.SetLastWriteTimeUtc(file, new DateTime(2026, 1, 1, 1, 0, 0, DateTimeKind.Utc));
             };
             QueuedTransfer task = queue.Enqueue(Upload(file, "/remote"));
-            await WaitUntilAsync(() => task.State == QueuedTransferState.RetryWait);
+            Assert.Equal(TimeSpan.FromSeconds(2), await time.WhenTimerRegisteredAsync(1));
             time.Advance(TimeSpan.FromSeconds(2));
             await WaitUntilAsync(() => task.State == QueuedTransferState.Completed);
             Assert.Equal("BBBBBB", remote.Text("/remote/a.txt"));
@@ -158,14 +157,40 @@ public class TransferQueueFixTests
             await File.WriteAllTextAsync(Path.Combine(root, "a.txt"), "A");
             await File.WriteAllTextAsync(Path.Combine(root, "b.txt"), "B");
             QueuedTransfer task = queue.Enqueue(new TransferSubmission(TransferDirection.Upload, "proj", root, "/remote", true));
-            await WaitUntilAsync(() => task.State == QueuedTransferState.Failed);
-            Assert.Equal(1, task.TransferredBytes);
+            Task<(long Bytes, long Total)> first = WhenPublishedAsync(task, QueuedTransferState.Failed);
+            remote.AllowWrites();
+            Assert.Equal((1L, 2L), await first);
+            Task<(long Bytes, long Total)> retried = WhenPublishedAsync(task, QueuedTransferState.Completed);
             queue.Retry(task.Id);
-            await WaitUntilAsync(() => task.State == QueuedTransferState.Completed);
-            Assert.Equal(2, task.TransferredBytes);
-            Assert.Equal(2, task.TotalBytes);
+            Assert.Equal((2L, 2L), await retried);
         }
         finally { Directory.Delete(directory, true); }
+    }
+
+    [Fact]
+    public void ConcurrentChildReports_PreserveTerminalStateAndProgress()
+    {
+        // 两个子任务分别成功/失败：旧实现可能用过期的聚合结果把 Failed 覆盖为 Transferring。
+        for (int iteration = 0; iteration < 512; iteration++)
+        {
+            using CancellationTokenSource cancel = new();
+            QueuedTransfer task = new(Guid.NewGuid(), new TransferSubmission(TransferDirection.Upload, "proj", "/local", "/remote", true), cancel);
+            int first = task.AddChild();
+            int second = task.AddChild();
+            task.SetTotal(2);
+            task.Report(0, first, QueuedTransferState.Transferring, 0, null, null);
+            task.Report(0, second, QueuedTransferState.Transferring, 0, null, null);
+            Parallel.Invoke(
+                () =>
+                {
+                    task.ReportBytes(0, first, 1);
+                    task.Report(0, first, QueuedTransferState.Completed, 1, null, null);
+                },
+                () => task.Report(0, second, QueuedTransferState.Failed, 0, "denied", TransferFailureKind.Permanent));
+            Assert.Equal(QueuedTransferState.Failed, task.State);
+            Assert.Equal(1, task.TransferredBytes);
+            Assert.Equal(2, task.TotalBytes);
+        }
     }
 
     [Fact]
@@ -251,7 +276,7 @@ public class TransferQueueFixTests
             remote.Plan.Enqueue(PartialScript.FailKind.Transient);
             remote.Plan.Enqueue(PartialScript.FailKind.Permanent);
             QueuedTransfer first = queue.Enqueue(Upload(a, "/remote"));
-            await WaitUntilAsync(() => first.State == QueuedTransferState.RetryWait);
+            Assert.Equal(TimeSpan.FromSeconds(2), await time.WhenTimerRegisteredAsync(1));
             QueuedTransfer second = queue.Enqueue(SameDestination(b, "a.txt", "/remote"));
             await WaitUntilAsync(() => second.State == QueuedTransferState.Failed);
             Assert.Equal("BB", remote.Text("/remote/a.txt.keipart"));
@@ -277,7 +302,7 @@ public class TransferQueueFixTests
             remote.FailAfterBytes["/remote/a.txt.keipart"] = 2;
             remote.Transient["/remote/a.txt.keipart"] = 1;
             QueuedTransfer task = queue.Enqueue(Upload(file, "/remote"));
-            await WaitUntilAsync(() => task.State == QueuedTransferState.RetryWait);
+            Assert.Equal(TimeSpan.FromSeconds(2), await time.WhenTimerRegisteredAsync(1));
             time.Advance(TimeSpan.FromSeconds(2));
             await WaitUntilAsync(() => task.State == QueuedTransferState.Completed);
             Assert.Equal("AAAAAA", remote.Text("/remote/a.txt"));
@@ -302,7 +327,7 @@ public class TransferQueueFixTests
             remote.Permanent.Add("/remote/a.keipart.keipart");
             remote.FailAfterBytes["/remote/a.keipart.keipart"] = 2;
             QueuedTransfer first = queue.Enqueue(Upload(a, "/remote"));
-            await WaitUntilAsync(() => first.State == QueuedTransferState.RetryWait);
+            Assert.Equal(TimeSpan.FromSeconds(2), await time.WhenTimerRegisteredAsync(1));
             QueuedTransfer second = queue.Enqueue(Upload(partialName, "/remote"));
             await WaitUntilAsync(() => second.State == QueuedTransferState.Failed);
             time.Advance(TimeSpan.FromSeconds(2));
@@ -327,13 +352,14 @@ public class TransferQueueFixTests
             remote.FailAfterBytes["/remote/a.txt.keipart"] = 2;
             remote.Transient["/remote/a.txt.keipart"] = 1;
             QueuedTransfer task = queue.Enqueue(Upload(file, "/remote"));
-            await WaitUntilAsync(() => task.State == QueuedTransferState.RetryWait);
+            Assert.Equal(TimeSpan.FromSeconds(2), await time.WhenTimerRegisteredAsync(1));
             Assert.Equal("AA", remote.Text("/remote/a.txt.keipart"));
             File.WriteAllText(file, "BBBBBB");
             SetUtc(file, 2026, 2, 1);
             remote.FailParentChecks = 1;
             time.Advance(TimeSpan.FromSeconds(2));
-            await WaitUntilAsync(() => task.State == QueuedTransferState.RetryWait && task.ErrorMessage == "parent");
+            Assert.Equal(TimeSpan.FromSeconds(4), await time.WhenTimerRegisteredAsync(2));
+            Assert.Equal("parent", task.ErrorMessage);
             Assert.Equal("AA", remote.Text("/remote/a.txt.keipart"));
             time.Advance(TimeSpan.FromSeconds(4));
             await WaitUntilAsync(() => task.State == QueuedTransferState.Completed);
@@ -357,7 +383,7 @@ public class TransferQueueFixTests
             string file = WriteFile(directory, "a.txt", "AAAAAA");
             remote.FailParentChecks = 1;
             QueuedTransfer task = queue.Enqueue(Upload(file, "/remote"));
-            await WaitUntilAsync(() => task.State == QueuedTransferState.RetryWait);
+            Assert.Equal(TimeSpan.FromSeconds(2), await time.WhenTimerRegisteredAsync(1));
             Assert.Empty(remote.Offsets);
             remote.Plant("/remote/a.txt.keipart", "XX");
             time.Advance(TimeSpan.FromSeconds(2));
@@ -390,7 +416,7 @@ public class TransferQueueFixTests
                 }
             };
             QueuedTransfer task = queue.Enqueue(Upload(file, "/remote"));
-            await WaitUntilAsync(() => task.State == QueuedTransferState.RetryWait);
+            Assert.Equal(TimeSpan.FromSeconds(2), await time.WhenTimerRegisteredAsync(1));
             Assert.Equal("BB", remote.Text("/remote/a.txt.keipart"));
             time.Advance(TimeSpan.FromSeconds(2));
             await WaitUntilAsync(() => task.State == QueuedTransferState.Completed);
@@ -408,7 +434,11 @@ public class TransferQueueFixTests
         ConnectTrackingFileSystem remote = new();
         FileSystemTransferEndpoint endpoint = new(remote, FileTransferProtocol.Scp, owns: true);
         Assert.Equal(0, remote.Connects);
-        await Task.WhenAll(endpoint.AcquireAsync(), endpoint.AcquireAsync());
+        Task first = endpoint.AcquireAsync();
+        await remote.WhenConnecting;
+        Task second = endpoint.AcquireAsync();
+        remote.AllowConnect();
+        await Task.WhenAll(first, second);
         Assert.Equal(1, remote.Connects);
         await endpoint.DisposeAsync();
         await endpoint.DisposeAsync();
@@ -477,6 +507,20 @@ public class TransferQueueFixTests
         while (!condition()) await Task.Delay(15, timeout.Token);
     }
 
+    private static async Task<(long Bytes, long Total)> WhenPublishedAsync(QueuedTransfer task, QueuedTransferState state)
+    {
+        TaskCompletionSource<(long, long)> done = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        void OnUpdated()
+        {
+            if (task.State == state) done.TrySetResult((task.TransferredBytes, task.TotalBytes));
+        }
+
+        // 调用方在开放写入口或触发 Retry 前订阅，不以预先写入的 State 字段替代发布信号。
+        task.Updated += OnUpdated;
+        try { return await done.Task.WaitAsync(TimeSpan.FromSeconds(10)); }
+        finally { task.Updated -= OnUpdated; }
+    }
+
     private class MemoryRemote : IRemoteFileSystem
     {
         public Dictionary<string, byte[]> Files { get; } = new(StringComparer.Ordinal);
@@ -487,7 +531,9 @@ public class TransferQueueFixTests
         public Task<IReadOnlyList<RemoteFileItem>> ListDirectoryAsync(string path, CancellationToken ct = default)
             => Task.FromResult<IReadOnlyList<RemoteFileItem>>([]);
         public virtual Task<Stream> OpenReadAsync(string path, CancellationToken ct = default)
-            => Task.FromResult<Stream>(new MemoryStream(Files.GetValueOrDefault(path) ?? []));
+        {
+            lock (Files) return Task.FromResult<Stream>(new MemoryStream(Files.GetValueOrDefault(path) ?? []));
+        }
         public virtual Task<Stream> OpenWriteAsync(string path, CancellationToken ct = default)
         {
             MemoryStream stream = new();
@@ -499,25 +545,40 @@ public class TransferQueueFixTests
             => OpenWriteAsync(path, ct);
         public virtual Task CommitWriteAsync(Stream stream, CancellationToken ct = default)
         {
-            if (stream is MemoryStream memory && Open.TryGetValue(stream, out string? path)) Files[path] = memory.ToArray();
+            lock (Files)
+            {
+                if (stream is MemoryStream memory && Open.TryGetValue(stream, out string? path)) Files[path] = memory.ToArray();
+            }
             return Task.CompletedTask;
         }
-        public virtual Task DeleteAsync(string path, bool isDirectory, CancellationToken ct = default) { Files.Remove(path); return Task.CompletedTask; }
+        public virtual Task DeleteAsync(string path, bool isDirectory, CancellationToken ct = default)
+        {
+            lock (Files) Files.Remove(path);
+            return Task.CompletedTask;
+        }
         public Task RenameAsync(string oldPath, string newPath, CancellationToken ct = default) => RenameOverwriteAsync(oldPath, newPath, ct);
         public virtual Task RenameOverwriteAsync(string oldPath, string newPath, CancellationToken ct = default)
         {
-            if (Files.Remove(oldPath, out byte[]? bytes)) Files[newPath] = bytes;
+            lock (Files)
+            {
+                if (Files.Remove(oldPath, out byte[]? bytes)) Files[newPath] = bytes;
+            }
             return Task.CompletedTask;
         }
         public virtual Task CreateDirectoryAsync(string path, CancellationToken ct = default) => Task.CompletedTask;
         public Task ChangePermissionsAsync(string path, int octalPermissions, CancellationToken ct = default) => Task.CompletedTask;
         public virtual Task<RemoteFileItem?> GetItemAsync(string path, CancellationToken ct = default)
-            => Task.FromResult(Files.TryGetValue(path, out byte[]? bytes) ? Item(path, false, bytes.Length) : null);
+        {
+            lock (Files) return Task.FromResult(Files.TryGetValue(path, out byte[]? bytes) ? Item(path, false, bytes.Length) : null);
+        }
         public virtual Task<RemoteFileItem?> GetAttributesAsync(string path, CancellationToken ct = default)
             => GetItemAsync(path, ct);
         public Task SetLastWriteTimeUtcAsync(string path, DateTime lastWriteTimeUtc, CancellationToken ct = default) => Task.CompletedTask;
         public virtual ValueTask DisposeAsync() => ValueTask.CompletedTask;
-        public string Text(string path) => Files.TryGetValue(path, out byte[]? bytes) ? System.Text.Encoding.UTF8.GetString(bytes) : "";
+        public string Text(string path)
+        {
+            lock (Files) return Files.TryGetValue(path, out byte[]? bytes) ? System.Text.Encoding.UTF8.GetString(bytes) : "";
+        }
         protected static RemoteFileItem Item(string path, bool directory, long size)
             => new(Path.GetFileName(path), path, directory, size, DateTimeOffset.UnixEpoch, directory ? "drwxr-xr-x" : "-rw-r--r--");
     }
@@ -533,17 +594,23 @@ public class TransferQueueFixTests
         public void Release(int count = 1) { for (int i = 0; i < count; i++) _gate.Release(); }
         public override async Task<Stream> OpenWriteAsync(string path, CancellationToken ct = default)
         {
-            lock (Started) Started.Add(Path.GetFileName(path) ?? path);
-            int blocked = Interlocked.Increment(ref Blocked);
-            MaxBlocked = Math.Max(MaxBlocked, blocked);
+            lock (Started)
+            {
+                Started.Add(Path.GetFileName(path) ?? path);
+                int blocked = Interlocked.Increment(ref Blocked);
+                MaxBlocked = Math.Max(MaxBlocked, blocked);
+            }
             try { await _gate.WaitAsync(ct); }
             finally { Interlocked.Decrement(ref Blocked); }
             return await base.OpenWriteAsync(path, ct);
         }
         public override async Task<Stream> OpenReadAsync(string path, CancellationToken ct = default)
         {
-            int reads = Interlocked.Increment(ref Reads);
-            MaxReads = Math.Max(MaxReads, reads);
+            lock (Started)
+            {
+                int reads = Interlocked.Increment(ref Reads);
+                MaxReads = Math.Max(MaxReads, reads);
+            }
             try { await _gate.WaitAsync(ct); }
             finally { Interlocked.Decrement(ref Reads); }
             return await base.OpenReadAsync(path, ct);
@@ -588,15 +655,18 @@ public class TransferQueueFixTests
 
     private sealed class FlakySecondFile : MemoryRemote
     {
+        private readonly TaskCompletionSource _writesAllowed = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private int _bWrites;
-        public override Task<Stream> OpenWriteAsync(string path, CancellationToken ct = default)
+        public void AllowWrites() => _writesAllowed.TrySetResult();
+        public override async Task<Stream> OpenWriteAsync(string path, CancellationToken ct = default)
         {
+            await _writesAllowed.Task.WaitAsync(ct);
             if (path.EndsWith("/b.txt.keipart", StringComparison.Ordinal) && Interlocked.Increment(ref _bWrites) == 1)
             {
                 throw new UnauthorizedAccessException("denied");
             }
 
-            return base.OpenWriteAsync(path, ct);
+            return await base.OpenWriteAsync(path, ct);
         }
     }
 
@@ -760,12 +830,17 @@ public class TransferQueueFixTests
 
     private sealed class ConnectTrackingFileSystem : MemoryRemote
     {
+        private readonly TaskCompletionSource _connecting = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _connectAllowed = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public Task WhenConnecting => _connecting.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        public void AllowConnect() => _connectAllowed.TrySetResult();
         public int Connects;
         public int Disposes;
         public override async Task ConnectAsync(CancellationToken ct = default)
         {
             Interlocked.Increment(ref Connects);
-            await Task.Delay(50, ct);
+            _connecting.TrySetResult();
+            await _connectAllowed.Task.WaitAsync(ct);
             IsConnected = true;
         }
         public ConnectTrackingFileSystem() { IsConnected = false; }
@@ -782,11 +857,36 @@ public class TransferQueueFixTests
         private readonly object _gate = new();
         private TimeSpan _clock;
         private readonly List<ManualTimer> _timers = [];
+        private readonly List<TimeSpan> _registrations = [];
+        private readonly List<(int Count, TaskCompletionSource<TimeSpan> Done)> _pending = [];
+
+        public Task<TimeSpan> WhenTimerRegisteredAsync(int count)
+        {
+            lock (_gate)
+            {
+                if (_registrations.Count >= count) return Task.FromResult(_registrations[count - 1]);
+                TaskCompletionSource<TimeSpan> done = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                _pending.Add((count, done));
+                return done.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            }
+        }
+
         public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
         {
-            ManualTimer timer = new(callback, state, _clock + dueTime);
-            lock (_gate) _timers.Add(timer);
-            return timer;
+            lock (_gate)
+            {
+                ManualTimer timer = new(callback, state, _clock + dueTime);
+                _timers.Add(timer);
+                _registrations.Add(dueTime);
+                foreach ((int count, TaskCompletionSource<TimeSpan> done) in _pending.ToArray())
+                {
+                    if (_registrations.Count < count) continue;
+                    _pending.RemoveAll(item => item.Done == done);
+                    done.TrySetResult(_registrations[count - 1]);
+                }
+
+                return timer;
+            }
         }
         public void Advance(TimeSpan by)
         {
@@ -801,10 +901,11 @@ public class TransferQueueFixTests
         private sealed class ManualTimer(TimerCallback callback, object? state, TimeSpan due) : ITimer
         {
             public TimeSpan Due { get; } = due;
-            public bool Disposed { get; private set; }
+            private int _disposed;
+            public bool Disposed => Volatile.Read(ref _disposed) != 0;
             public void Fire() { if (!Disposed) callback(state); }
             public bool Change(TimeSpan dueTime, TimeSpan period) => false;
-            public void Dispose() => Disposed = true;
+            public void Dispose() => Interlocked.Exchange(ref _disposed, 1);
             public ValueTask DisposeAsync() { Dispose(); return ValueTask.CompletedTask; }
         }
     }

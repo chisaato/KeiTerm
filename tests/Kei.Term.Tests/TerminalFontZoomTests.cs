@@ -203,6 +203,7 @@ public class TerminalFontZoomTests
             var settingsVm = new SettingsViewModel(settings, tempDir);
             var appearance = AppearanceOf(settingsVm);
             var general = GeneralOf(settingsVm);
+            settings.Current.TerminalFontWeight = 500;
             appearance.FontFamily = "Custom Mono";
             appearance.CursorBlink = false;
             general.ConfirmBeforeClose = false;
@@ -212,6 +213,7 @@ public class TerminalFontZoomTests
 
             Assert.Equal(16.0, appearance.FontSize);
             Assert.Equal("Custom Mono", appearance.FontFamily);
+            Assert.Equal(500, settings.Current.TerminalFontWeight);
             Assert.False(appearance.CursorBlink);
             Assert.False(general.ConfirmBeforeClose);
             Assert.True(general.AutoReconnectOnDisconnect);

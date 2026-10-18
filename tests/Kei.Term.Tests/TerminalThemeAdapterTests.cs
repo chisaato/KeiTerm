@@ -142,15 +142,15 @@ public class TerminalThemeAdapterTests
     [Fact]
     public void TerminalFontSnapshot_CopiesFallbackListInsteadOfAliasingIt()
     {
-        List<string> source = ["Cascadia Mono", "Noto Sans Mono"];
+        List<Kei.Term.Core.Settings.FallbackFontSetting> source = [new() { Family = "Cascadia Mono" }, new() { Family = "Noto Sans Mono" }];
 
         TerminalFontSnapshot snapshot = new("JetBrains Mono, Consolas, monospace", source, 14.0, true);
 
         Assert.Equal("JetBrains Mono", snapshot.PrimaryFontFamily);
         // 外部修改源列表不得影响快照，避免“假不可变”
-        source.Add("Later Added");
+        source.Add(new() { Family = "Later Added" });
         Assert.Equal(2, snapshot.FallbackFonts.Count);
-        Assert.DoesNotContain("Later Added", snapshot.FallbackFonts);
+        Assert.DoesNotContain(snapshot.FallbackFonts, font => font.Family == "Later Added");
     }
 
     // M1：主字体单一化规则必须与 TerminalTabViewModel.NormalizeFontFamilyName 一致

@@ -1,0 +1,10 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Kei 字体语义符号：遵循 Lucide 24×24、2px 圆角中心描边规范，非上游图标。
+         独立于自动生成的 KeiIcons，避免重新生成 Lucide 资源时丢失。 -->
+    <!-- 等长边界与双向刻度表示等宽；方块数量表示图标占格，波浪表示比例宽度。 -->
+    <StreamGeometry x:Key="Kei.Icon.FontMonospace">M5 5v14M19 5v14M5 12h14M8 9l-3 3 3 3M16 9l3 3-3 3</StreamGeometry>
+    <StreamGeometry x:Key="Kei.Icon.FontSingleCell">M6 6h12v12H6Z</StreamGeometry>
+    <StreamGeometry x:Key="Kei.Icon.FontDoubleCell">M3 8h7v8H3ZM14 8h7v8h-7Z</StreamGeometry>
+    <StreamGeometry x:Key="Kei.Icon.FontProportional">M3 13c3-9 6-9 9-2s6 7 9-2</StreamGeometry>
+</ResourceDictionary>

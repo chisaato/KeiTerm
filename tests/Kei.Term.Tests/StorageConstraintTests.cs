@@ -1,5 +1,4 @@
 using System.Text.RegularExpressions;
-using System.Runtime.CompilerServices;
 using Dapper;
 using Kei.Term.Infrastructure.Storage;
 using Kei.Term.Infrastructure.Storage.Schema;
@@ -150,10 +149,7 @@ public class StorageConstraintTests
     [InlineData(@"\bCREATE\s+TABLE\b", "Kei.Term.Infrastructure/Storage/Schema/SchemaMigrations.cs")]
     public void StorageArchitecture_OnlyCentralEntryPointsMayCreateConnectionsAndTables(string pattern, string allowed)
     {
-        DirectoryInfo? root = new(Path.GetDirectoryName(SourceFilePath())!);
-        while (root is not null && !File.Exists(Path.Combine(root.FullName, "Kei.Term.slnx"))) root = root.Parent;
-        Assert.NotNull(root);
-        string source = Path.Combine(root.FullName, "src");
+        string source = Path.Combine(TestRepository.RepositoryRoot, "src");
         List<string> violations = [];
         foreach (string file in Directory.EnumerateFiles(source, "*.cs", SearchOption.AllDirectories))
         {
@@ -170,9 +166,6 @@ public class StorageConstraintTests
 
         Assert.True(violations.Count == 0, string.Join(Environment.NewLine, violations));
     }
-
-    // VSTest 工作目录与 artifacts 目录均可能不在仓库内。
-    private static string SourceFilePath([CallerFilePath] string path = "") => path;
 
     private const string SeedSql = """
         INSERT INTO tree_nodes(id, parent_id, node_type, name, created_at, updated_at)

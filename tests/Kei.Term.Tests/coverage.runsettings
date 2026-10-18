@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <!-- 普通测试不启动采集；仅由命令行采集选项显式启用。 -->
+      <DataCollector friendlyName="XPlat Code Coverage" enabled="false">
+        <Configuration>
+          <Format>cobertura</Format>
+          <Include>[Kei.Term.*]*</Include>
+          <Exclude>[Kei.Term.Tests]*</Exclude>
+          <IncludeTestAssembly>false</IncludeTestAssembly>
+          <ExcludeByAttribute>ExcludeFromCodeCoverageAttribute,GeneratedCodeAttribute,CompilerGeneratedAttribute</ExcludeByAttribute>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>

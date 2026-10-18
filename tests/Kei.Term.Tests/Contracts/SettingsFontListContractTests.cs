@@ -28,8 +28,13 @@ public class SettingsFontListContractTests
         // 5. 终端回退候选 AutoCompleteBox (SelectedItem="{Binding Parent.TerminalFallbackFontCandidate}")
         AssertAutoCompleteBoxFontBinding(doc, "{Binding Parent.TerminalFallbackFontCandidate}", "services:FontFamilyOption", "{Binding FontFamily}");
 
-        // 6. 终端已选回退 ListBox (ItemsSource="{Binding Parent.TerminalFallbackFonts}")
-        AssertListBoxFontBinding(doc, "{Binding Parent.TerminalFallbackFonts}", "x:String", "{Binding}");
+        // 6. 终端回退条目用自身字体渲染名称，权重与命令由条目承担。
+        XElement terminalFonts = doc.Descendants().Single(element => element.Attribute("ItemsSource")?.Value == "{Binding Parent.TerminalFallbackFonts}");
+        XElement template = terminalFonts.Descendants().First(element => element.Name.LocalName == "DataTemplate");
+        Assert.Equal("settings:FallbackFontEntry", template.Attributes().Single(attribute => attribute.Name.LocalName == "DataType").Value);
+        Assert.Contains(template.Descendants(), element => element.Name.LocalName == "TextBlock"
+            && element.Attribute("Text")?.Value == "{Binding DisplayName}"
+            && element.Attribute("FontFamily")?.Value == "{Binding FontFamily}");
     }
 
     private static void AssertAutoCompleteBoxFontBinding(
@@ -40,10 +45,11 @@ public class SettingsFontListContractTests
     {
         XElement box = FindAutoCompleteBoxBySelectedItem(doc, selectedItemBinding);
 
-        // 严格仅在当前 AutoCompleteBox 的直系后代元素中检索 DataTemplate，杜绝跨控件越界误判
-        XElement? dataTemplate = box.Descendants()
-            .FirstOrDefault(e => e.Name.LocalName == "DataTemplate");
-        Assert.NotNull(dataTemplate);
+        // 字体候选复用同一模板；沿资源键查找，不能误用其他列表的模板。
+        Assert.Contains("settingsFontPicker", box.Attribute("Classes")?.Value);
+        Assert.Equal("{StaticResource SettingsFontOptionTemplate}", box.Attribute("ItemTemplate")?.Value);
+        XElement dataTemplate = doc.Descendants().Single(element => element.Name.LocalName == "DataTemplate"
+            && element.Attributes().Any(attribute => attribute.Name.LocalName == "Key" && attribute.Value == "SettingsFontOptionTemplate"));
 
         XName dataTypeAttrName = dataTemplate.Name.Namespace + "DataType";
         string? actualDataType = dataTemplate.Attribute(dataTypeAttrName)?.Value
@@ -55,6 +61,8 @@ public class SettingsFontListContractTests
         Assert.NotNull(textBlock);
         Assert.Equal(expectedFontFamilyBinding, textBlock.Attribute("FontFamily")?.Value);
         Assert.Equal("{Binding DisplayName}", textBlock.Attribute("Text")?.Value);
+        Assert.Equal("CharacterEllipsis", textBlock.Attribute("TextTrimming")?.Value);
+        Assert.Equal("Grid", dataTemplate.Elements().Single().Name.LocalName);
         // 过滤与选中回写走 DisplayName，不能绑到 FontFamily 对象。
         Assert.Equal("{CompiledBinding DisplayName, DataType=services:FontFamilyOption}", box.Attribute("ValueMemberBinding")?.Value);
     }
@@ -104,27 +112,12 @@ public class SettingsFontListContractTests
 
     private static XDocument LoadSettingsPageDocuments()
     {
-        string solutionDir = FindSolutionRoot();
+        string solutionDir = TestRepository.RepositoryRoot;
         string pagesDirectory = Path.Combine(solutionDir, "src", "Kei.Term.App", "Views", "Settings");
         string[] pageFiles = Directory.GetFiles(pagesDirectory, "*PageView.axaml");
         Assert.NotEmpty(pageFiles);
-        return new XDocument(new XElement("SettingsPages", pageFiles.Select(file => XDocument.Load(file).Root!)));
+        return new XDocument(new XElement("SettingsPages", pageFiles.Append(Path.Combine(pagesDirectory, "SettingsStyles.axaml"))
+            .Select(file => XDocument.Load(file).Root!)));
     }
 
-    private static string FindSolutionRoot()
-    {
-        string current = AppContext.BaseDirectory;
-        while (!string.IsNullOrEmpty(current))
-        {
-            if (File.Exists(Path.Combine(current, "Kei.Term.slnx")) ||
-                File.Exists(Path.Combine(current, "Kei.Term.sln")))
-            {
-                return current;
-            }
-            DirectoryInfo? parent = Directory.GetParent(current);
-            if (parent == null) break;
-            current = parent.FullName;
-        }
-        return Directory.GetCurrentDirectory();
-    }
 }

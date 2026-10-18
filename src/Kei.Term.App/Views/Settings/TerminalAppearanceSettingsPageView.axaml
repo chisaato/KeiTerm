@@ -31,6 +31,47 @@
                             <ColumnDefinition Width="0.001*"/>
                         </Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="0" Spacing="16">
+                    <!-- 单项导入与整体备份分开；菜单直接说明会修改配色还是字体。 -->
+                    <DropDownButton x:Name="TerminalAppearanceImportButton" HorizontalAlignment="Right"
+                                    DataContext="{Binding $parent[Window].((vm:SettingsViewModel)DataContext)}"
+                                    x:DataType="vm:SettingsViewModel"
+                                    Content="{loc:KeiString Settings.Appearance.ImportMenu}"
+                                    AutomationProperties.Name="{loc:KeiString Settings.Appearance.ImportMenu}"
+                                    Height="28" Padding="10,0">
+                        <DropDownButton.Flyout>
+                            <MenuFlyout>
+                                <MenuItem Header="{loc:KeiString Settings.Appearance.ImportColorKonsole}"
+                                          AutomationProperties.Name="{loc:KeiString Settings.Appearance.ImportColorKonsole}"
+                                          Command="{Binding ImportKonsoleSchemeCommand}">
+                                    <MenuItem.Icon>
+                                        <Viewbox Width="16" Height="16"><Grid Width="24" Height="24">
+                                            <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Terminal}"/>
+                                        </Grid></Viewbox>
+                                    </MenuItem.Icon>
+                                </MenuItem>
+                                <MenuItem x:Name="ImportTerminalThemeJsonMenuItem"
+                                          Header="{loc:KeiString Settings.Appearance.ImportColorJson}"
+                                          AutomationProperties.Name="{loc:KeiString Settings.Appearance.ImportColorJson}"
+                                          Command="{Binding ImportTerminalThemeJsonCommand}">
+                                    <MenuItem.Icon>
+                                        <Viewbox Width="16" Height="16"><Grid Width="24" Height="24">
+                                            <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.File}"/>
+                                        </Grid></Viewbox>
+                                    </MenuItem.Icon>
+                                </MenuItem>
+                                <Separator/>
+                                <MenuItem Header="{loc:KeiString Settings.Appearance.ImportFontKonsole}"
+                                          AutomationProperties.Name="{loc:KeiString Settings.Appearance.ImportFontKonsole}"
+                                          Command="{Binding ImportKonsoleFontCommand}">
+                                    <MenuItem.Icon>
+                                        <Viewbox Width="16" Height="16"><Grid Width="24" Height="24">
+                                            <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Compose}"/>
+                                        </Grid></Viewbox>
+                                    </MenuItem.Icon>
+                                </MenuItem>
+                            </MenuFlyout>
+                        </DropDownButton.Flyout>
+                    </DropDownButton>
                     <!-- 1. 终端配色方案档案卡片 -->
                     <Border Classes="settingsCard" DataContext="{Binding Appearance}">
                         <StackPanel Spacing="10">
@@ -44,7 +85,17 @@
                                           SelectedItem="{Binding SelectedTerminalProfile}">
                                     <ComboBox.ItemTemplate>
                                         <DataTemplate x:DataType="profiles:TerminalProfile">
-                                            <TextBlock Text="{Binding Name}"/>
+                                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                                <Border Classes="profileUserTag"
+                                                        IsVisible="{Binding !IsBuiltIn}"
+                                                        VerticalAlignment="Center">
+                                                    <TextBlock Text="{loc:KeiString Settings.Appearance.UserProfileTag}"
+                                                               FontSize="12"
+                                                               Foreground="{DynamicResource Kei.Text.Secondary}"
+                                                               VerticalAlignment="Center"/>
+                                                </Border>
+                                            </StackPanel>
                                         </DataTemplate>
                                     </ComboBox.ItemTemplate>
                                 </ComboBox>
@@ -56,6 +107,11 @@
                                         Height="28" Padding="10,0" Margin="0,0,8,0"/>
                                 <Button Content="{loc:KeiString Settings.Appearance.EditTerminalProfile}"
                                         Command="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).EditTerminalProfileCommand}"
+                                        Height="28" Padding="10,0" Margin="0,0,8,0"/>
+                                <Button Classes="danger"
+                                        Content="{loc:KeiString Settings.Appearance.DeleteTerminalProfile}"
+                                        Command="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).DeleteTerminalProfileCommand}"
+                                        IsEnabled="{Binding CanDeleteSelectedTerminalProfile}"
                                         Height="28" Padding="10,0"/>
                             </WrapPanel>
                         </StackPanel>
@@ -64,12 +120,37 @@
                     <!-- 2. 终端等宽字体与字号卡片（含回退字体下钻） -->
                     <Border Classes="settingsCard" DataContext="{Binding Appearance}">
                         <StackPanel Spacing="10">
-                            <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.Appearance.FontSection}"/>
+                            <!-- 卡片标题与当前字体摘要；导入入口统一放在页首。 -->
+                            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="6">
+                                <TextBlock Grid.Row="0" Grid.Column="0"
+                                           Classes="settingsSectionTitle"
+                                           Text="{loc:KeiString Settings.Appearance.FontSection}"
+                                           VerticalAlignment="Center"/>
+
+                                <WrapPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                                           Orientation="Horizontal"
+                                           VerticalAlignment="Center">
+                                    <TextBlock Text="{loc:KeiString Settings.Appearance.FontSummaryLabel}"
+                                               FontSize="12"
+                                               Foreground="{DynamicResource Kei.Text.Secondary}"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,8,0"/>
+                                    <TextBlock Text="{Binding FontSummary}"
+                                               FontFamily="{Binding SelectedFont.FontFamily, FallbackValue={x:Null}}"
+                                               FontSize="12"
+                                               Foreground="{DynamicResource Kei.Text.Primary}"
+                                               TextWrapping="Wrap"
+                                               VerticalAlignment="Center"/>
+                                </WrapPanel>
+                            </Grid>
+
+                            <Border Classes="settingRowDivider"/>
 
                             <!-- 主字体 -->
                             <scontrols:SettingRow Title="{loc:KeiString Settings.Appearance.FontFamily}"
                                                  Description="{loc:KeiString Settings.Appearance.FontFamilyTip}">
-                                <AutoCompleteBox MinWidth="200"
+                                <AutoCompleteBox Classes="settingsFontPicker" Width="240"
+                                                 ItemTemplate="{StaticResource SettingsFontOptionTemplate}"
                                                  HorizontalAlignment="Right"
                                                  ItemsSource="{Binding AvailableFonts}"
                                                  SelectedItem="{Binding SelectedFont}"
@@ -77,12 +158,25 @@
                                                  FilterMode="Custom"
                                                  MinimumPrefixLength="0"
                                                  ValueMemberBinding="{CompiledBinding DisplayName, DataType=services:FontFamilyOption}">
-                                    <AutoCompleteBox.ItemTemplate>
-                                        <DataTemplate x:DataType="services:FontFamilyOption">
-                                            <TextBlock Text="{Binding DisplayName}" FontFamily="{Binding FontFamily}"/>
-                                        </DataTemplate>
-                                    </AutoCompleteBox.ItemTemplate>
                                 </AutoCompleteBox>
+                            </scontrols:SettingRow>
+
+                            <ContentControl Template="{StaticResource SettingsFontLegendTemplate}"/>
+                            <Border Classes="settingRowDivider"/>
+
+                            <!-- 字重 -->
+                            <scontrols:SettingRow Title="{loc:KeiString Settings.Appearance.FontWeight}"
+                                                 Description="{loc:KeiString Settings.Appearance.FontWeightTip}">
+                                <ComboBox MinWidth="200"
+                                          HorizontalAlignment="Right"
+                                          ItemsSource="{Binding AvailableFontWeights}"
+                                          SelectedItem="{Binding SelectedFontWeight}">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="settings:FontWeightOption">
+                                            <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
                             </scontrols:SettingRow>
 
                             <Border Classes="settingRowDivider"/>
@@ -90,15 +184,9 @@
                             <!-- 字号 -->
                             <scontrols:SettingRow Title="{loc:KeiString Settings.Appearance.FontSize}"
                                                  Description="{loc:KeiString Settings.Appearance.FontSizeTip}">
-                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" HorizontalAlignment="Right">
-                                    <NumericUpDown MinWidth="130"
-                                                   Value="{Binding FontSize}" Minimum="8" Maximum="36" FormatString="0.0"/>
-                                    <Button Grid.Column="1"
-                                            Content="{loc:KeiString FontDialog.Open}"
-                                            Click="OnOpenFontDialogClick"
-                                            Height="28"
-                                            Padding="10,0"/>
-                                </Grid>
+                                <NumericUpDown MinWidth="200"
+                                               HorizontalAlignment="Right"
+                                               Value="{Binding FontSize}" Minimum="8" Maximum="36" FormatString="0.0"/>
                             </scontrols:SettingRow>
 
                             <Border Classes="settingRowDivider"/>
@@ -121,25 +209,6 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- 3. 外部配色导入卡片 -->
-                    <Border Classes="settingsCard">
-                        <StackPanel Spacing="10">
-                            <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.Appearance.ExternalSchemesSection}"/>
-
-                            <WrapPanel Orientation="Horizontal" HorizontalAlignment="Left">
-                                <Button Content="{loc:KeiString Settings.Appearance.ImportKonsole}"
-                                        Command="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).ImportKonsoleSchemeCommand}"
-                                        Height="28" Padding="10,0" Margin="0,0,8,6"/>
-                                <Button x:Name="ImportTerminalThemeJsonButton"
-                                        Content="{loc:KeiString TerminalThemeJsonImport.Open}"
-                                        Command="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).ImportTerminalThemeJsonCommand}"
-                                        Height="28" Padding="10,0" Margin="0,0,8,6"/>
-                                <Button Content="{loc:KeiString Settings.Appearance.ImportITerm}"
-                                        IsEnabled="False"
-                                        Height="28" Padding="10,0" Margin="0,0,8,6"/>
-                            </WrapPanel>
-                        </StackPanel>
-                    </Border>
                     </StackPanel>
                     </Grid>
                 </ScrollViewer>

@@ -111,6 +111,18 @@ public partial class SettingsViewModel
     }
 
     [RelayCommand]
+    private async Task DeleteTerminalProfileAsync()
+    {
+        TerminalProfile? profile = _appearance.SelectedTerminalProfile;
+        if (IsBusy || profile == null || profile.IsBuiltIn) return;
+        if (!await _interaction.ConfirmDeleteAsync(profile.Name) || IsBusy) return;
+
+        // 删除只修改父设置事务草稿；重新选择有效默认值，沿用现有预览广播。
+        _profileManager.RemoveCustomTerminalProfile(profile.Id);
+        RefreshTerminalProfiles(_profileManager.DefaultTerminalProfile.Id);
+    }
+
+    [RelayCommand]
     private async Task ImportKonsoleSchemeAsync()
     {
         if (IsBusy || OpenKonsoleFileDialogAsync == null || OpenTerminalProfileEditDialogAsync == null) return;

@@ -34,8 +34,11 @@ public sealed record TransferSubmission(
 
 public sealed class QueuedTransfer
 {
+    // 子任务并发上报时，修改、聚合与发布必须属于同一个原子操作。
+    private readonly object _stateGate = new();
     private readonly List<Child> _children = [];
     private bool _expanded;
+    private volatile QueuedTransferState _state = QueuedTransferState.Queued;
 
     internal QueuedTransfer(Guid batchId, TransferSubmission submission, CancellationTokenSource cancel)
     {
@@ -58,7 +61,7 @@ public sealed class QueuedTransfer
     public string LocalPath { get; }
     public string RemotePath { get; }
     public bool IsDirectory { get; }
-    public QueuedTransferState State { get; private set; } = QueuedTransferState.Queued;
+    public QueuedTransferState State { get => _state; private set => _state = value; }
 
     // 这次任务启用了校验，但没有可用算法（或没有 shell）。校验关闭、或已经比对过，则为 false。
     public bool IsUnverified { get; private set; }
@@ -85,73 +88,95 @@ public sealed class QueuedTransfer
     {
         try { CancelSource.Cancel(); }
         catch (ObjectDisposedException) { }
-        Generation++;
-        _children.Clear();
-        _expanded = false;
-        CancelSource = CancellationTokenSource.CreateLinkedTokenSource(shutdown);
-        IsUnverified = false;
-        Publish(QueuedTransferState.Queued, 0, IsDirectory ? 0 : Math.Max(0, Submission.Size), null, null);
+        lock (_stateGate)
+        {
+            Generation++;
+            _children.Clear();
+            _expanded = false;
+            CancelSource = CancellationTokenSource.CreateLinkedTokenSource(shutdown);
+            IsUnverified = false;
+            Publish(QueuedTransferState.Queued, 0, IsDirectory ? 0 : Math.Max(0, Submission.Size), null, null);
+        }
     }
 
     internal void RequestCancel()
     {
         try { CancelSource.Cancel(); }
         catch (ObjectDisposedException) { }
-        if (IsActive) Publish(QueuedTransferState.Cancelled, TransferredBytes, TotalBytes, ErrorMessage, null);
+        lock (_stateGate)
+        {
+            if (IsActive) Publish(QueuedTransferState.Cancelled, TransferredBytes, TotalBytes, ErrorMessage, null);
+        }
     }
 
     internal int AddChild()
     {
-        _expanded = true;
-        _children.Add(new Child());
-        return _children.Count - 1;
+        lock (_stateGate)
+        {
+            _expanded = true;
+            _children.Add(new Child());
+            return _children.Count - 1;
+        }
     }
 
-    internal void SetTotal(long total) => Publish(State, TransferredBytes, total, ErrorMessage, FailureKind);
+    internal void SetTotal(long total)
+    {
+        lock (_stateGate) Publish(State, TransferredBytes, total, ErrorMessage, FailureKind);
+    }
 
     // 启用校验但挑不到算法时记下。目录任务里任一文件如此，整个任务都算未校验。
     internal void NoteUnverified(int generation)
     {
-        if (generation != Generation || IsUnverified) return;
-        IsUnverified = true;
-        Updated?.Invoke();
+        lock (_stateGate)
+        {
+            if (generation != Generation || IsUnverified) return;
+            IsUnverified = true;
+            Updated?.Invoke();
+        }
     }
 
     internal void Report(int generation, int childIndex, QueuedTransferState state, long? bytes, string? error, TransferFailureKind? kind)
     {
-        if (generation != Generation) return;
-        if (!_expanded || childIndex < 0)
+        lock (_stateGate)
         {
-            Publish(state, bytes ?? TransferredBytes, TotalBytes, error, kind);
-            return;
-        }
+            if (generation != Generation) return;
+            if (!_expanded || childIndex < 0)
+            {
+                Publish(state, bytes ?? TransferredBytes, TotalBytes, error, kind);
+                return;
+            }
 
-        Child child = _children[childIndex];
-        child.State = state;
-        if (bytes is long value) child.Bytes = value;
-        Publish(Aggregate(), _children.Sum(item => item.Bytes), TotalBytes, error, kind);
+            Child child = _children[childIndex];
+            child.State = state;
+            if (bytes is long value) child.Bytes = value;
+            Publish(Aggregate(), _children.Sum(item => item.Bytes), TotalBytes, error, kind);
+        }
     }
 
     internal void ReportBytes(int generation, int childIndex, long bytes)
     {
-        if (generation != Generation) return;
-        if (!_expanded || childIndex < 0)
+        lock (_stateGate)
         {
-            Publish(State, bytes, TotalBytes, ErrorMessage, FailureKind);
-            return;
-        }
+            if (generation != Generation) return;
+            if (!_expanded || childIndex < 0)
+            {
+                Publish(State, bytes, TotalBytes, ErrorMessage, FailureKind);
+                return;
+            }
 
-        _children[childIndex].Bytes = bytes;
-        Publish(State, _children.Sum(item => item.Bytes), TotalBytes, ErrorMessage, FailureKind);
+            _children[childIndex].Bytes = bytes;
+            Publish(State, _children.Sum(item => item.Bytes), TotalBytes, ErrorMessage, FailureKind);
+        }
     }
 
     private void Publish(QueuedTransferState state, long transferred, long total, string? error, TransferFailureKind? kind)
     {
-        State = state;
         TransferredBytes = transferred;
         TotalBytes = total;
         ErrorMessage = error;
         FailureKind = kind;
+        // 读到终态的调用方必须同时看见该次发布的字节数与错误信息。
+        State = state;
         Updated?.Invoke();
     }
 

@@ -1,4 +1,5 @@
 using Kei.Term.App.Services;
+using Kei.Term.App.Models;
 using Kei.Term.App.ViewModels;
 using Kei.Term.App.ViewModels.Settings;
 using Kei.Term.Core.Models.Profiles;
@@ -58,6 +59,8 @@ public class TerminalThemeJsonImportTransactionTests
             AppearanceSettingsPage appearance = Appearance(model);
             appearance.FontFamily = "Draft Mono";
             appearance.FontSize = 22;
+            appearance.SetTerminalFallbackFonts([new() { Family = "User Fallback", Weight = 500 }]);
+            TerminalFontSnapshot fontBefore = appearance.DraftFontSnapshot;
             ScriptedInteraction interaction = new();
             model.SetInteraction(interaction);
             TerminalProfile imported = TerminalThemeJsonParser.Parse(TerminalThemeJsonParser.ExampleJson, "Saved JSON").Profile!;
@@ -66,6 +69,8 @@ public class TerminalThemeJsonImportTransactionTests
             await model.ImportTerminalThemeJsonCommand.ExecuteAsync(null);
             Assert.Equal("Draft Mono", appearance.FontFamily);
             Assert.Equal(22, appearance.FontSize);
+            Assert.Equal(fontBefore.FontWeight, appearance.DraftFontSnapshot.FontWeight);
+            Assert.Equal(fontBefore.FallbackFonts, appearance.DraftFontSnapshot.FallbackFonts);
             Assert.Equal(imported.Id, appearance.SelectedTerminalProfile!.Id);
             Assert.True(await model.ApplyChangesAsync());
 

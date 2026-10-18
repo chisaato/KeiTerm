@@ -21,19 +21,16 @@
                            FontSize="12" TextWrapping="Wrap"
                            Foreground="{DynamicResource Kei.Text.Secondary}"/>
 
+                <ContentControl Template="{StaticResource SettingsFontLegendTemplate}"/>
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                    <AutoCompleteBox HorizontalAlignment="Stretch"
+                    <AutoCompleteBox HorizontalAlignment="Stretch" Classes="settingsFontPicker"
+                                     ItemTemplate="{StaticResource SettingsFontOptionTemplate}"
                                      ItemsSource="{Binding Parent.AvailableFonts}"
                                      SelectedItem="{Binding Parent.UiFallbackFontCandidate}"
                                      ItemFilter="{Binding Parent.FontItemFilter}"
                                      FilterMode="Custom" MinimumPrefixLength="0"
                                      ValueMemberBinding="{CompiledBinding DisplayName, DataType=services:FontFamilyOption}"
                                      PlaceholderText="{loc:KeiString Settings.Appearance.SelectFallbackFontToAdd}">
-                        <AutoCompleteBox.ItemTemplate>
-                            <DataTemplate x:DataType="services:FontFamilyOption">
-                                <TextBlock Text="{Binding DisplayName}" FontFamily="{Binding FontFamily}"/>
-                            </DataTemplate>
-                        </AutoCompleteBox.ItemTemplate>
                     </AutoCompleteBox>
                     <Button Grid.Column="1" Classes="iconBtn" Width="28" Height="28"
                             AutomationProperties.Name="{loc:KeiString Settings.Appearance.AddFallbackFont}"

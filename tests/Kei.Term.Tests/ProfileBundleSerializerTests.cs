@@ -10,6 +10,32 @@ namespace Kei.Term.Tests;
 public class ProfileBundleSerializerTests
 {
     [Fact]
+    public void LegacyFontFieldsAreIgnoredAndNotWrittenBack()
+    {
+        string json = """
+            {"version":1,"terminalProfiles":[{"id":"legacy","name":"Old palette",
+            "foreground":"#123456","background":"#234567","cursorColor":"#345678","selectionBackground":"#456789",
+            "ansiColors":["#000000","#111111","#222222","#333333","#444444","#555555","#666666","#777777","#888888","#999999","#AAAAAA","#BBBBBB","#CCCCCC","#DDDDDD","#EEEEEE","#FFFFFF"],
+            "fontFamily":"Old Font","fontSize":18,"fontWeight":"Bold","isItalic":true,"lineHeight":1.4,"cursorBlink":false}]}
+            """;
+        ProfileBundle bundle = ProfileBundleSerializer.Deserialize(json);
+        TerminalProfile profile = Assert.Single(bundle.TerminalProfiles);
+        Assert.Equal("legacy", profile.Id);
+        Assert.Equal("Old palette", profile.Name);
+        Assert.Equal("#123456", profile.Foreground);
+        Assert.Equal("#234567", profile.Background);
+        Assert.Equal("#345678", profile.CursorColor);
+        Assert.Equal("#456789", profile.SelectionBackground);
+        Assert.Equal(Enumerable.Range(0, 16).Select(i => "#" + new string("0123456789ABCDEF"[i], 6)), profile.AnsiColors);
+        string saved = ProfileBundleSerializer.Serialize(bundle);
+        using System.Text.Json.JsonDocument document = System.Text.Json.JsonDocument.Parse(saved);
+        System.Text.Json.JsonElement terminal = document.RootElement.GetProperty("terminalProfiles")[0];
+        foreach (string property in new[] { "fontFamily", "fontSize", "fontWeight", "isItalic", "lineHeight", "cursorBlink" })
+            Assert.False(terminal.TryGetProperty(property, out _), property);
+        Assert.Equal(profile.AnsiColors, Assert.Single(ProfileBundleSerializer.Deserialize(saved).TerminalProfiles).AnsiColors);
+    }
+
+    [Fact]
     public void SerializeAndDeserialize_RoundTrip_PreservesAllData()
     {
         var bundle = new ProfileBundle
@@ -53,12 +79,6 @@ public class ProfileBundleSerializerTests
                     Background = "#050505",
                     CursorColor = "#00FF00",
                     SelectionBackground = "#333333",
-                    FontFamily = "JetBrains Mono",
-                    FontSize = 15.0,
-                    FontWeight = "Bold",
-                    IsItalic = true,
-                    LineHeight = 1.3,
-                    CursorBlink = false,
                     IsBuiltIn = false,
                     AnsiColors =
                     [
@@ -91,7 +111,6 @@ public class ProfileBundleSerializerTests
         var restoredTerm = Assert.Single(restored.TerminalProfiles);
         Assert.Equal("custom-term-1", restoredTerm.Id);
         Assert.Equal("#FFFFFF", restoredTerm.Foreground);
-        Assert.Equal("JetBrains Mono", restoredTerm.FontFamily);
         Assert.Equal(16, restoredTerm.AnsiColors.Length);
         Assert.Equal("#FFFFFF", restoredTerm.AnsiColors[15]);
     }

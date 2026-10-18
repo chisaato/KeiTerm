@@ -9,13 +9,14 @@ public static class VeritasChihiroGuiPreset
         Id = Id,
         Name = "Veritas - Kagami Chihiro",
         IsBuiltIn = true,
-        WindowBackground = "#303048",
-        PanelBackground = "#334261",
-        PanelAltBackground = "#465266",
-        BorderBrush = "#526E9F",
-        PrimaryText = "#FFFFFF",
-        SecondaryText = "#FFFFFF",
-        AccentColor = "#4DBCE9",
-        AccentHover = "#3388C4"
+        WindowBackground = "#1A1D2C",
+        PanelBackground = "#24293D",
+        PanelAltBackground = "#30374F",
+        BorderBrush = "#434E70",
+        PrimaryText = "#EFF2F8",
+        SecondaryText = "#8D9AB2",
+        AccentColor = "#309FD9",
+        AccentHover = "#2382B4"
     };
 }
+

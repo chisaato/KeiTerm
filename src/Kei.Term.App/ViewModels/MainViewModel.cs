@@ -231,6 +231,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         if (_profileManager != null)
         {
             _profileManager.TerminalProfileChanged += OnTerminalProfileChanged;
+            _profileManager.TerminalFontSnapshotChanged += OnTerminalFontSnapshotChanged;
         }
     }
 
@@ -308,7 +309,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
                 continue;
             }
 
-            if (!string.Equals(tab.EffectiveProfileId, change.ProfileId, StringComparison.OrdinalIgnoreCase))
+            // 删除时有效 ID 会回退，但显式选择仍保留；恢复/重新导入同 ID 时也必须命中。
+            string? requestedId = string.IsNullOrWhiteSpace(tab.ExplicitProfileId)
+                ? tab.EffectiveProfileId : tab.ExplicitProfileId;
+            if (!string.Equals(requestedId, change.ProfileId, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -328,6 +332,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         if (_profileManager != null)
         {
             _profileManager.TerminalProfileChanged -= OnTerminalProfileChanged;
+            _profileManager.TerminalFontSnapshotChanged -= OnTerminalFontSnapshotChanged;
         }
 
         if (_lockTimer != null)
@@ -347,56 +352,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
     private TerminalProfile ResolveEffectiveTerminalProfile(string? explicitProfileId)
         => _profileManager?.ResolveEffectiveTerminalProfile(explicitProfileId)
            ?? BuiltInPresets.GetDefaultTerminalProfile();
-
-    // 由当前设置构造“已应用”字体快照
-    private static TerminalFontSnapshot BuildAppliedFontSnapshot(AppSettings settings)
-    {
-        var fallbacks = string.IsNullOrWhiteSpace(settings.TerminalFallbackFontFamily)
-            ? Array.Empty<string>()
-            : settings.TerminalFallbackFontFamily
-                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-        return new TerminalFontSnapshot(
-            settings.FontFamily,
-            fallbacks,
-            settings.FontSize,
-            settings.CursorBlink);
-    }
-
-    // 全局字号缩放（Ctrl+滚轮）：写回设置 → 刷新所有标签字体快照 → 立即保存；已到边界则不写不改不存
-    public void ApplyGlobalFontZoom(int steps)
-    {
-        if (_disposed != 0 || steps == 0)
-        {
-            return;
-        }
-
-        var settings = _settingsService.Current;
-        double target = TerminalFontZoom.Step(settings.FontSize, steps);
-        if (target == settings.FontSize)
-        {
-            return;
-        }
-
-        settings.FontSize = target;
-        var snapshot = BuildAppliedFontSnapshot(settings);
-        foreach (var tab in Tabs.ToList())
-        {
-            if (tab.IsDisposed)
-            {
-                continue;
-            }
-
-            // 未创建 TerminalControl 的标签也更新快照，控件创建时自然沿用新字号
-            tab.ApplyFontSnapshot(snapshot);
-        }
-
-        // 只提交字号：保存锁内补丁当前对象，不用这次拿到的完整快照覆盖其他字段
-        _ = _settingsService.CommitFontSizeAsync(target);
-    }
-
-    // 标签请求缩放（Ctrl+滚轮）→ 统一走全局缩放
-    private void OnTabFontZoomRequested(int steps) => ApplyGlobalFontZoom(steps);
 
     partial void OnFilterTextChanged(string value) => RefreshTreeFromCache();
 

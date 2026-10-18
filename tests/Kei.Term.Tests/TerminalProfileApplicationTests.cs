@@ -23,7 +23,7 @@ namespace Kei.Term.Tests;
 
 // Package B：有效预览/已提交分离、同 ID 刷新、设置事务门控、原子持久化与订阅释放。
 // 纯 VM/Core：配色注入用 RecordingThemeSink，Terminal 用“禁止创建”工厂隔离原生控件。
-public class TerminalProfileApplicationTests
+public partial class TerminalProfileApplicationTests
 {
     private static TerminalProfile Profile(string id, string foreground = "#111111")
     {
@@ -47,7 +47,7 @@ public class TerminalProfileApplicationTests
     }
 
     private static TerminalFontSnapshot Font(string family = "JetBrains Mono")
-        => new(family, new[] { "Noto Sans Mono" }, 14.0, true);
+        => new(family, [new() { Family = "Noto Sans Mono" }], 14.0, true);
 
     private static string NewTempDir()
     {
@@ -835,7 +835,7 @@ public class TerminalProfileApplicationTests
 
         var next = Profile("P-Next", "#ABCDEF");
         tab.ApplyTerminalProfile(next);
-        tab.ApplyFontSnapshot(new TerminalFontSnapshot("Fira Code", new[] { "Fallback" }, 15.0, false));
+        tab.ApplyFontSnapshot(new TerminalFontSnapshot("Fira Code", [new() { Family = "Fallback" }], 15.0, false));
 
         Assert.Equal(0, probe.Calls);
         Assert.Single(sink.Applied);
@@ -927,9 +927,14 @@ public class TerminalProfileApplicationTests
             var manager = new ProfileManagerService(settings, tempDir);
             await manager.InitializeAsync();
             var settingsVm = new SettingsViewModel(settings, tempDir, identityRepo: null, profileManager: manager);
+            AppearanceSettingsPage appearance = settingsVm.Categories.Select(category => category.Page).OfType<AppearanceSettingsPage>().Single();
+            appearance.FontFamily = "User Draft Font";
+            appearance.FontSize = 23;
+            appearance.SetTerminalFallbackFonts([new() { Family = "Draft Fallback", Weight = 500 }]);
+            TerminalFontSnapshot fontBefore = appearance.DraftFontSnapshot;
 
             var schemePath = Path.Combine(tempDir, "sample.colorscheme");
-            await File.WriteAllTextAsync(schemePath, "[General]\nDescription=Sample\n[Background]\nColor=35,38,39\n[Foreground]\nColor=252,252,252\n");
+            await File.WriteAllTextAsync(schemePath, "[General]\nDescription=Sample\nFont=Imported Font,8,-1,5,75,0,0,0,0,0\n[Background]\nColor=35,38,39\n[Foreground]\nColor=252,252,252\n");
             settingsVm.OpenKonsoleFileDialogAsync = () => Task.FromResult<string?>(schemePath);
 
             // 取消：不得产生任何自定义方案
@@ -938,9 +943,18 @@ public class TerminalProfileApplicationTests
             Assert.DoesNotContain(manager.AllTerminalProfiles, p => !p.IsBuiltIn);
 
             // 确认：仅进有效状态，不落盘
-            settingsVm.OpenTerminalProfileEditDialogAsync = (_, _) => Task.FromResult<TerminalProfile?>(Profile("Konsole-Imported"));
+            settingsVm.OpenTerminalProfileEditDialogAsync = (profile, _) =>
+            {
+                profile.Id = "Konsole-Imported";
+                return Task.FromResult<TerminalProfile?>(profile);
+            };
             await settingsVm.ImportKonsoleSchemeCommand.ExecuteAsync(null);
             Assert.Contains(manager.AllTerminalProfiles, p => p.Id == "Konsole-Imported");
+            Assert.Equal("#232627", appearance.SelectedTerminalProfile!.Background);
+            Assert.Equal(fontBefore.FontFamily, appearance.DraftFontSnapshot.FontFamily);
+            Assert.Equal(fontBefore.FontSize, appearance.DraftFontSnapshot.FontSize);
+            Assert.Equal(fontBefore.FontWeight, appearance.DraftFontSnapshot.FontWeight);
+            Assert.Equal(fontBefore.FallbackFonts, appearance.DraftFontSnapshot.FallbackFonts);
 
             var reopened = new ProfileManagerService(settings, tempDir);
             await reopened.InitializeAsync();
@@ -1091,19 +1105,19 @@ public class TerminalProfileApplicationTests
         page.FontFamily = "Fira Code";
         page.FontSize = 16.0;
         page.CursorBlink = false;
-        page.SetTerminalFallbackFonts("Noto Sans Mono, monospace");
+        page.SetTerminalFallbackFonts([new() { Family = "Noto Sans Mono" }, new() { Family = "monospace" }]);
 
         var snapshot = page.DraftFontSnapshot;
         Assert.Equal("Fira Code", snapshot.FontFamily);
         Assert.Equal(16.0, snapshot.FontSize);
         Assert.False(snapshot.CursorBlink);
-        Assert.Equal(new[] { "Noto Sans Mono", "monospace" }, snapshot.FallbackFonts);
+        Assert.Equal(new[] { "Noto Sans Mono", "monospace" }, snapshot.FallbackFonts.Select(font => font.Family));
         Assert.Contains(nameof(AppearanceSettingsPage.DraftFontSnapshot), notified);
     }
 
-    // K) 自定义方案深拷贝保留字体字段（配色编辑不丢字段、不改字体）
+    // K) 自定义方案深拷贝保存完整配色。
     [Fact]
-    public async Task AddOrUpdate_CustomProfileCopy_PreservesFontFields()
+    public async Task AddOrUpdate_CustomProfileCopy_PreservesColors()
     {
         var settings = new InMemorySettingsService();
         string tempDir = NewTempDir();
@@ -1113,18 +1127,14 @@ public class TerminalProfileApplicationTests
             await manager.InitializeAsync();
 
             var source = Profile("Custom-Font");
-            source.FontFamily = "Cascadia Mono, Consolas, monospace";
-            source.FontSize = 15.5;
-            source.FontWeight = "SemiBold";
-            source.IsItalic = true;
+            source.Foreground = "#123456";
+            source.AnsiColors[3] = "#654321";
 
             manager.AddOrUpdateCustomTerminalProfile(source.DeepCopy());
 
             var stored = manager.ResolveEffectiveTerminalProfile("Custom-Font");
-            Assert.Equal("Cascadia Mono, Consolas, monospace", stored.FontFamily);
-            Assert.Equal(15.5, stored.FontSize);
-            Assert.Equal("SemiBold", stored.FontWeight);
-            Assert.True(stored.IsItalic);
+            Assert.Equal("#123456", stored.Foreground);
+            Assert.Equal("#654321", stored.AnsiColors[3]);
         }
         finally
         {

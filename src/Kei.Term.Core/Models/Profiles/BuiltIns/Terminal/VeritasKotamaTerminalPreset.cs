@@ -9,28 +9,29 @@ public static class VeritasKotamaTerminalPreset
         Id = Id,
         Name = "Veritas - Otose Kotama",
         IsBuiltIn = true,
-        Foreground = "#FFFFFF",
-        Background = "#302D2C",
-        CursorColor = "#EDA52F",
-        SelectionBackground = "#EDA52F40",
+        Foreground = "#F4F0E8",
+        Background = "#1A1A1A",
+        CursorColor = "#DB922C",
+        SelectionBackground = "#DB922C38",
         AnsiColors =
         [
-            "#000000", // Black
-            "#CD3131", // Red
-            "#0DBC79", // Green
-            "#E5E510", // Yellow
-            "#2472C8", // Blue
-            "#BC3FBC", // Magenta
-            "#11A8CD", // Cyan
-            "#E5E5E5", // White
-            "#666666", // Bright Black
-            "#F14C4C", // Bright Red
-            "#23D18B", // Bright Green
-            "#F5F543", // Bright Yellow
-            "#3B8EEA", // Bright Blue
-            "#D670D6", // Bright Magenta
-            "#29B8DB", // Bright Cyan
-            "#FFFFFF"  // Bright White
+            "#1A1A1A", // Black (Coat dark charcoal)
+            "#DE5353", // Red
+            "#43B87A", // Green
+            "#DB922C", // Yellow (Coat amber/orange)
+            "#3B92E0", // Blue
+            "#C070DC", // Magenta (Eye soft lilac/violet)
+            "#32C2E8", // Cyan (Earphone glow & tie cyan)
+            "#DCD6CE", // White
+            "#5C5753", // Bright Black (Muted warm charcoal)
+            "#EE6868", // Bright Red
+            "#5DD194", // Bright Green
+            "#ECA946", // Bright Yellow
+            "#5AA6EE", // Bright Blue
+            "#D585EF", // Bright Magenta (Eye vivid lilac)
+            "#55D5F8", // Bright Cyan
+            "#FFFFFF"  // Bright White (Hair white/cream highlight)
         ]
     };
 }
+

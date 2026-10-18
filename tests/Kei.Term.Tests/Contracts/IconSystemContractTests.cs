@@ -12,7 +12,7 @@ public class IconSystemContractTests
     [Fact]
     public void LucideViews_UseUnfilledCenterlinesInsideFixedViewports()
     {
-        string root = FindSolutionRoot();
+        string root = TestRepository.RepositoryRoot;
         foreach (string file in Directory.EnumerateFiles(Path.Combine(root, "src/Kei.Term.App"), "*.axaml", SearchOption.AllDirectories))
         {
             XDocument document = XDocument.Load(file);
@@ -37,7 +37,7 @@ public class IconSystemContractTests
     [Fact]
     public void DialogActionLabels_DoNotMixTextSymbolsOrEmojiWithVectorIcons()
     {
-        string root = FindSolutionRoot();
+        string root = TestRepository.RepositoryRoot;
         XDocument strings = XDocument.Load(Path.Combine(root, "src", "Kei.Term.App", "Resources", "Strings.resx"));
         var labels = strings.Root!.Elements("data").ToDictionary(data => data.Attribute("name")!.Value,
             data => data.Element("value")!.Value);
@@ -62,13 +62,4 @@ public class IconSystemContractTests
         }
     }
 
-    private static string FindSolutionRoot()
-    {
-        var dir = AppContext.BaseDirectory;
-        while (!string.IsNullOrEmpty(dir) && !Directory.GetFiles(dir, "*.sln*").Any())
-        {
-            dir = Directory.GetParent(dir)?.FullName;
-        }
-        return dir ?? Environment.CurrentDirectory;
-    }
 }

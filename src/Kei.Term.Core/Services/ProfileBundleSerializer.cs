@@ -147,10 +147,6 @@ public static class ProfileBundleSerializer
         if (string.IsNullOrWhiteSpace(p.Background)) p.Background = fb.Background;
         if (string.IsNullOrWhiteSpace(p.CursorColor)) p.CursorColor = fb.CursorColor;
         if (string.IsNullOrWhiteSpace(p.SelectionBackground)) p.SelectionBackground = fb.SelectionBackground;
-        if (string.IsNullOrWhiteSpace(p.FontFamily)) p.FontFamily = fb.FontFamily;
-        if (p.FontSize <= 0) p.FontSize = fb.FontSize;
-        if (string.IsNullOrWhiteSpace(p.FontWeight)) p.FontWeight = fb.FontWeight;
-        if (p.LineHeight <= 0) p.LineHeight = fb.LineHeight;
 
         // ANSI 16 色矩阵严密补齐
         var defaultPreset = BuiltInPresets.GetDefaultTerminalProfile();

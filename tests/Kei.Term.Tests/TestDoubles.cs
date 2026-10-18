@@ -18,6 +18,8 @@ namespace Kei.Term.Tests;
 // 按脚本回答的交互服务：每类提示一个队列，队列耗尽即按"取消"处理；同时记录调用次数与参数
 internal sealed class ScriptedInteraction : IInteractionService
 {
+    public Queue<string?> KonsoleProfilePaths { get; } = new();
+    public Task<string?> PickKonsoleProfileFileAsync() => Task.FromResult(KonsoleProfilePaths.Count > 0 ? KonsoleProfilePaths.Dequeue() : null);
     public Queue<TerminalFileDropChoice?> TerminalDropChoices { get; } = new();
     public int TerminalDropPrompts { get; private set; }
     public TaskCompletionSource<TerminalFileDropChoice?>? PendingTerminalDrop { get; set; }
@@ -129,7 +131,14 @@ internal sealed class ScriptedInteraction : IInteractionService
         return Task.CompletedTask;
     }
 
-    public Task<bool> ConfirmDeleteAsync(string name) => Task.FromResult(true);
+    public Queue<bool> DeleteAnswers { get; } = new();
+    public List<string> DeletePrompts { get; } = new();
+
+    public Task<bool> ConfirmDeleteAsync(string name)
+    {
+        DeletePrompts.Add(name);
+        return Task.FromResult(DeleteAnswers.Count == 0 || DeleteAnswers.Dequeue());
+    }
 
     public Queue<string?> TextAnswers { get; } = new();
 

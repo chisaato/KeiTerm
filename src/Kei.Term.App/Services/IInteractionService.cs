@@ -80,6 +80,7 @@ public interface IInteractionService
     Task<string?> PickSecureCrtFolderAsync();
 
     Task<string?> PickKonsoleSchemeFileAsync();
+    Task<string?> PickKonsoleProfileFileAsync() => Task.FromResult<string?>(null);
 
     Task<CommandPaletteItem?> ShowCommandPaletteAsync(CommandPaletteViewModel viewModel)
         => Task.FromResult<CommandPaletteItem?>(null);

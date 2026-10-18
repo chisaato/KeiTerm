@@ -9,13 +9,14 @@ public static class VeritasHareGuiPreset
         Id = Id,
         Name = "Veritas - Omagari Hare",
         IsBuiltIn = true,
-        WindowBackground = "#18202C",
-        PanelBackground = "#293241",
-        PanelAltBackground = "#22262C",
-        BorderBrush = "#475977",
-        PrimaryText = "#FFFFFF",
-        SecondaryText = "#BDCF3E",
+        WindowBackground = "#151922",
+        PanelBackground = "#1E2532",
+        PanelAltBackground = "#283244",
+        BorderBrush = "#3A4A62",
+        PrimaryText = "#F4F6F8",
+        SecondaryText = "#96A3B6",
         AccentColor = "#DAEF00",
-        AccentHover = "#A0B000"
+        AccentHover = "#B8C900"
     };
 }
+

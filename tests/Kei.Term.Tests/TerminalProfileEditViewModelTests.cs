@@ -96,7 +96,7 @@ public class TerminalProfileEditViewModelTests
     }
 
     [Fact]
-    public void FontSnapshotConstructor_StoresSnapshot_AndRetainsLegacyFontFields()
+    public void FontSnapshotConstructor_StoresReadOnlySnapshot_AndSavesColors()
     {
         var legacyProfile = new TerminalProfile
         {
@@ -104,17 +104,11 @@ public class TerminalProfileEditViewModelTests
             Name = "Custom One",
             Background = "#1E1E1E",
             Foreground = "#EEEEEE",
-            FontFamily = "Legacy Font",
-            FontSize = 16.0,
-            FontWeight = "Bold",
-            IsItalic = true,
-            LineHeight = 1.25,
-            CursorBlink = false
         };
 
         var snapshot = new TerminalFontSnapshot(
             fontFamily: "Draft Cascadia",
-            fallbackFonts: new List<string> { "Draft Fallback" },
+            fallbackFonts: [new() { Family = "Draft Fallback" }],
             fontSize: 14.5,
             cursorBlink: true);
 
@@ -124,15 +118,11 @@ public class TerminalProfileEditViewModelTests
         Assert.Equal("Draft Cascadia", vm.FontSnapshot.FontFamily);
         Assert.Equal(14.5, vm.FontSnapshot.FontSize);
 
-        // 确认保存后，ResultProfile 应原样继承旧字体字段，未被抹除
+        // 确认保存不影响只读字体快照。
         vm.Confirm();
         Assert.True(vm.IsConfirmed);
-        Assert.Equal("Legacy Font", vm.ResultProfile.FontFamily);
-        Assert.Equal(16.0, vm.ResultProfile.FontSize);
-        Assert.Equal("Bold", vm.ResultProfile.FontWeight);
-        Assert.True(vm.ResultProfile.IsItalic);
-        Assert.Equal(1.25, vm.ResultProfile.LineHeight);
-        Assert.False(vm.ResultProfile.CursorBlink);
+        Assert.Equal("#EEEEEE", vm.ResultProfile.Foreground);
+        Assert.Same(snapshot, vm.FontSnapshot);
     }
 
     [Fact]
@@ -162,12 +152,10 @@ public class TerminalProfileEditViewModelTests
     {
         TerminalProfile source = new()
         {
-            Name = "Original", IsBuiltIn = builtIn, FontFamily = "Legacy Font",
-            FontSize = 16, FontWeight = "Bold", IsItalic = true, LineHeight = 1.3, CursorBlink = false
+            Name = "Original", IsBuiltIn = builtIn
         };
-        TerminalProfileEditViewModel draft = new(source);
-        // 模拟字体弹窗已修改的草稿字段，后续 JSON 回写不能覆盖它。
-        draft.ResultProfile.FontWeight = "Medium";
+        TerminalFontSnapshot snapshot = new("Draft Font", [], 16, false, 500);
+        TerminalProfileEditViewModel draft = new(source, snapshot);
         draft.ActiveHex = "invalid";
         TerminalProfile imported = TerminalThemeJsonParser.Parse(TerminalThemeJsonParser.ExampleJson, "JSON theme").Profile!;
         draft.ApplyJsonProfile(imported);
@@ -184,14 +172,8 @@ public class TerminalProfileEditViewModelTests
         draft.Confirm();
         Assert.Equal("Final theme", draft.ResultProfile.Name);
         Assert.Equal("#224466", draft.ResultProfile.AnsiColors[4]);
-        Assert.Equal("Legacy Font", draft.ResultProfile.FontFamily);
-        Assert.Equal(16, draft.ResultProfile.FontSize);
-        Assert.Equal("Medium", draft.ResultProfile.FontWeight);
-        Assert.True(draft.ResultProfile.IsItalic);
-        Assert.Equal(1.3, draft.ResultProfile.LineHeight);
-        Assert.False(draft.ResultProfile.CursorBlink);
+        Assert.Same(snapshot, draft.FontSnapshot);
         Assert.Equal("Original", source.Name);
-        Assert.Equal("Bold", source.FontWeight);
         if (builtIn) Assert.NotEqual(source.Id, draft.ResultProfile.Id);
         else Assert.Equal(source.Id, draft.ResultProfile.Id);
     }

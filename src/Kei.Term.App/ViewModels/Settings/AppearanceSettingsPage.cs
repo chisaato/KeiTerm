@@ -69,6 +69,7 @@ public partial class AppearanceSettingsPage : ViewModelBase, ISettingsDrillDownH
 
     public AppearanceSettingsPage()
     {
+        TerminalFallbackFonts.CollectionChanged += OnTerminalFallbackFontsChanged;
         UiFallbackFonts.CollectionChanged += (_, _) => OnPropertyChanged(nameof(UiPreviewFontFamily));
         _selectedTheme = ThemeOptions[0];
 
@@ -104,6 +105,7 @@ public partial class AppearanceSettingsPage : ViewModelBase, ISettingsDrillDownH
             ?? new FontFamilyOption("Cascadia Mono", true);
         _selectedUiFont = AvailableFonts.FirstOrDefault(f => _uiFontFamily.Contains(f.Name, StringComparison.OrdinalIgnoreCase))
             ?? AvailableFonts.FirstOrDefault();
+        RefreshFontWeights();
     }
 
     // GUI 配色方案与终端配色方案集合
@@ -125,6 +127,9 @@ public partial class AppearanceSettingsPage : ViewModelBase, ISettingsDrillDownH
     [ObservableProperty]
     private TerminalProfile? _selectedTerminalProfile;
 
+    [ObservableProperty]
+    private bool _canDeleteSelectedTerminalProfile;
+
     // 草稿预览回调：选择变化即通知父流程（设置页保持不落盘、不改已提交 ID）
     private Action<TerminalProfile?>? _draftPreviewHandler;
 
@@ -132,6 +137,7 @@ public partial class AppearanceSettingsPage : ViewModelBase, ISettingsDrillDownH
 
     partial void OnSelectedTerminalProfileChanged(TerminalProfile? value)
     {
+        CanDeleteSelectedTerminalProfile = value is { IsBuiltIn: false };
         _draftPreviewHandler?.Invoke(value);
     }
 
@@ -212,9 +218,10 @@ public partial class AppearanceSettingsPage : ViewModelBase, ISettingsDrillDownH
     // 当前字体草稿快照（主字体/回退/字号/闪烁），供共用 Demo 与调色弹窗读取
     public TerminalFontSnapshot DraftFontSnapshot => new(
         FontFamily,
-        TerminalFallbackFonts.ToList(),
+        GetTerminalFallbackFontSettings(),
         FontSize,
-        CursorBlink);
+        CursorBlink,
+        FontWeight);
 
     private void NotifyDraftFontSnapshotChanged() => OnPropertyChanged(nameof(DraftFontSnapshot));
 
@@ -225,13 +232,13 @@ public partial class AppearanceSettingsPage : ViewModelBase, ISettingsDrillDownH
         {
             var fonts = new List<string>();
             if (!string.IsNullOrWhiteSpace(FontFamily)) fonts.Add(FontFamily);
-            fonts.AddRange(TerminalFallbackFonts);
+            fonts.AddRange(TerminalFallbackFonts.Select(entry => entry.Family));
             if (fonts.Count == 0) fonts.Add("monospace");
             return new FontFamily(string.Join(", ", fonts));
         }
     }
 
-    public FontWeight PreviewFontWeight => FontWeight.Regular;
+    public FontWeight PreviewFontWeight => (FontWeight)FontWeight;
     public string PreviewSampleText => "AaBbCc 012345 !@#$% 中文测试 0O1lI|";
 
     // 主题候选项：纯粹深色为主与跟随系统
@@ -447,16 +454,14 @@ public partial class AppearanceSettingsPage : ViewModelBase, ISettingsDrillDownH
         ? string.Join(" › ", UiFallbackFonts)
         : Helpers.Strings.Get("Settings.Common.NoSelection");
 
-    public string TerminalFallbackFontsSummary => TerminalFallbackFonts.Count > 0
-        ? string.Join(" › ", TerminalFallbackFonts)
-        : Helpers.Strings.Get("Settings.Common.NoSelection");
-
     // 终端主字体（Terminal Primary Font）
     [ObservableProperty]
     private string _fontFamily = "JetBrainsMono Nerd Font Mono";
 
     partial void OnFontFamilyChanged(string value)
     {
+        RefreshFontWeights();
+        OnPropertyChanged(nameof(FontSummary));
         OnPropertyChanged(nameof(PreviewFontFamily));
         NotifyDraftFontSnapshotChanged();
         if (_isSyncingFont) return;
@@ -467,96 +472,12 @@ public partial class AppearanceSettingsPage : ViewModelBase, ISettingsDrillDownH
         _isSyncingFont = false;
     }
 
-    // 终端回退字体有序列表
-    public ObservableCollection<string> TerminalFallbackFonts { get; } = [];
-
-    [ObservableProperty]
-    private string? _selectedTerminalFallbackFont;
-
-    [ObservableProperty]
-    private FontFamilyOption? _terminalFallbackFontCandidate;
-
-    public void SetTerminalFallbackFonts(string? commaSeparated)
-    {
-        TerminalFallbackFonts.Clear();
-        if (!string.IsNullOrWhiteSpace(commaSeparated))
-        {
-            var parts = commaSeparated.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            foreach (var part in parts)
-            {
-                if (!TerminalFallbackFonts.Contains(part))
-                {
-                    TerminalFallbackFonts.Add(part);
-                }
-            }
-        }
-        OnPropertyChanged(nameof(PreviewFontFamily));
-        NotifyDraftFontSnapshotChanged();
-        OnPropertyChanged(nameof(TerminalFallbackFontsSummary));
-    }
-
-    public string GetTerminalFallbackFontsString() => string.Join(", ", TerminalFallbackFonts);
-
-    public void AddTerminalFallbackFont()
-    {
-        if (TerminalFallbackFontCandidate != null && !TerminalFallbackFonts.Contains(TerminalFallbackFontCandidate.Name))
-        {
-            TerminalFallbackFonts.Add(TerminalFallbackFontCandidate.Name);
-            OnPropertyChanged(nameof(PreviewFontFamily));
-            NotifyDraftFontSnapshotChanged();
-            OnPropertyChanged(nameof(TerminalFallbackFontsSummary));
-        }
-    }
-
-    public void RemoveTerminalFallbackFont()
-    {
-        if (SelectedTerminalFallbackFont != null)
-        {
-            TerminalFallbackFonts.Remove(SelectedTerminalFallbackFont);
-            OnPropertyChanged(nameof(PreviewFontFamily));
-            NotifyDraftFontSnapshotChanged();
-            OnPropertyChanged(nameof(TerminalFallbackFontsSummary));
-        }
-    }
-
-    public void MoveUpTerminalFallbackFont()
-    {
-        if (SelectedTerminalFallbackFont == null) return;
-        var idx = TerminalFallbackFonts.IndexOf(SelectedTerminalFallbackFont);
-        if (idx > 0)
-        {
-            TerminalFallbackFonts.Move(idx, idx - 1);
-            OnPropertyChanged(nameof(PreviewFontFamily));
-            NotifyDraftFontSnapshotChanged();
-            OnPropertyChanged(nameof(TerminalFallbackFontsSummary));
-        }
-    }
-
-    public void MoveDownTerminalFallbackFont()
-    {
-        if (SelectedTerminalFallbackFont == null) return;
-        var idx = TerminalFallbackFonts.IndexOf(SelectedTerminalFallbackFont);
-        if (idx >= 0 && idx < TerminalFallbackFonts.Count - 1)
-        {
-            TerminalFallbackFonts.Move(idx, idx + 1);
-            OnPropertyChanged(nameof(PreviewFontFamily));
-            NotifyDraftFontSnapshotChanged();
-            OnPropertyChanged(nameof(TerminalFallbackFontsSummary));
-        }
-    }
-
-    // 兼容保留字段
-    public string FallbackFontFamily
-    {
-        get => GetTerminalFallbackFontsString();
-        set => SetTerminalFallbackFonts(value);
-    }
-
     [ObservableProperty]
     private double _fontSize = 14.0;
 
     partial void OnFontSizeChanged(double value)
     {
+        OnPropertyChanged(nameof(FontSummary));
         OnPropertyChanged(nameof(FontSize));
         NotifyDraftFontSnapshotChanged();
     }

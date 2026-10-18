@@ -224,13 +224,7 @@ public sealed partial class TerminalProfileEditViewModel : ViewModelBase
             Foreground = Foreground,
             CursorColor = CursorColor,
             SelectionBackground = SelectionBackground,
-            AnsiColors = ansiArr,
-            FontFamily = ResultProfile.FontFamily,
-            FontSize = ResultProfile.FontSize,
-            FontWeight = ResultProfile.FontWeight,
-            IsItalic = ResultProfile.IsItalic,
-            LineHeight = ResultProfile.LineHeight,
-            CursorBlink = ResultProfile.CursorBlink
+            AnsiColors = ansiArr
         };
     }
 
@@ -254,7 +248,7 @@ public sealed partial class TerminalProfileEditViewModel : ViewModelBase
             ansiArr[i] = AnsiColors[i];
         }
 
-        // 严格深拷贝赋值，保留旧字体字段（FontFamily, FontSize, FontWeight, IsItalic, LineHeight, CursorBlink）
+        // 仅保存配色，预览读取的字体快照不进入配色方案。
         ResultProfile = new TerminalProfile
         {
             Id = ResultProfile.IsBuiltIn ? Guid.NewGuid().ToString() : ResultProfile.Id,
@@ -264,13 +258,7 @@ public sealed partial class TerminalProfileEditViewModel : ViewModelBase
             Foreground = Foreground,
             CursorColor = CursorColor,
             SelectionBackground = SelectionBackground,
-            AnsiColors = ansiArr,
-            FontFamily = ResultProfile.FontFamily,
-            FontSize = ResultProfile.FontSize,
-            FontWeight = ResultProfile.FontWeight,
-            IsItalic = ResultProfile.IsItalic,
-            LineHeight = ResultProfile.LineHeight,
-            CursorBlink = ResultProfile.CursorBlink
+            AnsiColors = ansiArr
         };
 
         IsConfirmed = true;

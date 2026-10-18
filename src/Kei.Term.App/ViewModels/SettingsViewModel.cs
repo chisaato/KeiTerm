@@ -213,6 +213,11 @@ public partial class SettingsViewModel : ViewModelBase
 
         _appearance.PropertyChanged += (_, e) =>
         {
+            if (e.PropertyName == nameof(AppearanceSettingsPage.DraftFontSnapshot)
+                && !_isReloading && !IsBusy)
+            {
+                BroadcastTerminalFontDraft();
+            }
             if (e.PropertyName == nameof(AppearanceSettingsPage.ManagesOwnScroll))
             {
                 OnPropertyChanged(nameof(IsCurrentPageSelfScrolling));
@@ -238,6 +243,7 @@ public partial class SettingsViewModel : ViewModelBase
         {
             _isReloading = false;
         }
+        BroadcastTerminalFontDraft();
     }
 
     private void ReloadCore()
@@ -278,8 +284,10 @@ public partial class SettingsViewModel : ViewModelBase
         _appearance.UiFontFamily = current.UiFontFamily;
         _appearance.SetUiFallbackFonts(current.UiFallbackFontFamily);
         _appearance.FontFamily = current.FontFamily;
-        _appearance.FallbackFontFamily = current.TerminalFallbackFontFamily;
+        current.MigrateFallbackFonts();
+        _appearance.SetTerminalFallbackFonts(current.TerminalFallbackFonts);
         _appearance.FontSize = current.FontSize;
+        _appearance.FontWeight = current.TerminalFontWeight;
         RememberSyncedFontSize(current.FontSize);
         _appearance.CursorBlink = current.CursorBlink;
         _appearance.SetTabPlacement(current.TabPlacement);
@@ -377,11 +385,11 @@ public partial class SettingsViewModel : ViewModelBase
             : _appearance.UiFontFamily.Trim();
         settings.UiFallbackFontFamily = _appearance.GetUiFallbackFontsString();
         settings.FontFamily = string.IsNullOrWhiteSpace(_appearance.FontFamily) ? "monospace" : _appearance.FontFamily.Trim();
-        settings.TerminalFallbackFontFamily = string.IsNullOrWhiteSpace(_appearance.FallbackFontFamily)
-            ? "Noto Sans Mono CJK SC, Source Han Sans HW SC, Microsoft YaHei, monospace"
-            : _appearance.FallbackFontFamily.Trim();
+        settings.TerminalFallbackFontFamily = null;
+        settings.TerminalFallbackFonts = _appearance.GetTerminalFallbackFontSettings();
         // 未手改字号时采用已提交值（含外部缩放），避免打开设置时读到的旧草稿覆盖滚轮结果
         settings.FontSize = ResolveFontSizeForSave();
+        settings.TerminalFontWeight = _appearance.FontWeight;
         if (IsFontSizeDraftClean)
         {
             ApplySyncedFontSize(settings.FontSize);
@@ -453,6 +461,7 @@ public partial class SettingsViewModel : ViewModelBase
 
             _lastAppliedSettings = CloneSettings(settings);
             RememberSyncedFontSize(settings.FontSize);
+            BroadcastTerminalFontDraft();
             NotifyFileDisplaySettings();
             WeakReferenceMessenger.Default.Send(new TabTitleTemplateChangedMessage(settings.TabTitleTemplate));
             return true;
@@ -461,18 +470,6 @@ public partial class SettingsViewModel : ViewModelBase
         {
             IsBusy = false;
         }
-    }
-
-    // 选择即预览：只更新管理器有效默认并广播，不落盘、不改已提交权威
-    private void OnTerminalProfileDraftPreview(TerminalProfile? value)
-    {
-        // busy 期间（提交/取消进行中）阻止草稿变更广播
-        if (_isReloading || IsBusy || value == null || string.IsNullOrWhiteSpace(value.Id))
-        {
-            return;
-        }
-
-        _profileManager.NotifyDefaultProfileSelectionChanged(value.Id);
     }
 
     // 回滚到“已提交”权威：恢复 working + 广播内容/默认变化 + 界面同步；可选补偿写回
@@ -514,24 +511,6 @@ public partial class SettingsViewModel : ViewModelBase
         }
 
         return errors.Count == 0 ? null : string.Join("; ", errors);
-    }
-
-    // 用管理器的已提交权威刷新设置界面选中项（含 GUI/终端）
-    private void SyncAppearanceToCommitted()
-    {
-        _isReloading = true;
-        try
-        {
-            _appearance.SetProfiles(
-                _profileManager.AllGuiProfiles,
-                _profileManager.ActiveGuiProfile.Id,
-                _profileManager.AllTerminalProfiles,
-                _profileManager.DefaultTerminalProfile.Id);
-        }
-        finally
-        {
-            _isReloading = false;
-        }
     }
 
     private async Task NotifyAsync(string title, string message)

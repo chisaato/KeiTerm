@@ -9,13 +9,14 @@ public static class VeritasKotamaGuiPreset
         Id = Id,
         Name = "Veritas - Otose Kotama",
         IsBuiltIn = true,
-        WindowBackground = "#302D2C",
-        PanelBackground = "#5F4E48",
-        PanelAltBackground = "#57504E",
-        BorderBrush = "#3B312A",
-        PrimaryText = "#FFFFFF",
-        SecondaryText = "#BBBBBB",
-        AccentColor = "#EDA52F",
-        AccentHover = "#EDA52F8D"
+        WindowBackground = "#1A1A1A",
+        PanelBackground = "#252526",
+        PanelAltBackground = "#323130",
+        BorderBrush = "#4A4643",
+        PrimaryText = "#F4F0E8",
+        SecondaryText = "#9C948B",
+        AccentColor = "#DB922C",
+        AccentHover = "#B8761D"
     };
 }
+

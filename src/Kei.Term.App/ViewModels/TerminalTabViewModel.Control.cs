@@ -124,8 +124,7 @@ public partial class TerminalTabViewModel
             }
         };
         TerminalControl terminal = TerminalControlFactory.Create(hooks);
-        terminal.FontLinearMetrics = true;
-        terminal.FontSubpixelPositioning = true;
+        TerminalFontRendering.Apply(terminal);
         TerminalKeywordHighlight.Apply(terminal);
         return terminal;
     }
@@ -163,31 +162,7 @@ public partial class TerminalTabViewModel
     // 只设置字体属性（包括主字体与回退字体链）
     private static void ApplyFontToTerminal(TerminalControl terminal, TerminalFontSnapshot snapshot)
     {
-        terminal.FontFamilyName = snapshot.PrimaryFontFamily;
-        terminal.TerminalFontSize = snapshot.FontSize;
-
-        // 构造回退字体链（0.6.0-preview.2 引入）
-        System.Collections.Immutable.ImmutableArray<string>.Builder regularBuilder =
-            System.Collections.Immutable.ImmutableArray.CreateBuilder<string>();
-        if (!string.IsNullOrWhiteSpace(snapshot.PrimaryFontFamily))
-        {
-            regularBuilder.Add(snapshot.PrimaryFontFamily);
-        }
-        foreach (string fallback in snapshot.FallbackFonts)
-        {
-            if (!string.IsNullOrWhiteSpace(fallback) && !regularBuilder.Contains(fallback))
-            {
-                regularBuilder.Add(fallback.Trim());
-            }
-        }
-
-        terminal.FontFamilies = new RoyalTerminal.Terminal.TerminalFontFamilySettings
-        {
-            Regular = regularBuilder.ToImmutable()
-        };
-
-        // 适配终端行高（保持实际字号与字宽不变，仅依据度量策略适配行高）
-        TerminalFontMetricAdapter.AdaptCellHeight(terminal, snapshot.PrimaryFontFamily, snapshot.FontSize);
+        TerminalTypefaceProvider.Apply(terminal, snapshot);
     }
 
     [RelayCommand]

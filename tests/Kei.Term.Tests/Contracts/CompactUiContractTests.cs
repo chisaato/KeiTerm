@@ -14,7 +14,7 @@ public class CompactUiContractTests
     [Fact]
     public void Views_DoNotHardcodeColors_OrUndersizeBodyText()
     {
-        string root = FindRoot();
+        string root = TestRepository.RepositoryRoot;
         HashSet<string> paintProperties = ["Background", "Foreground", "BorderBrush", "Fill", "Stroke"];
         HashSet<string> glyphs = ["«", "»", "↑", "↓", "✕", ".*"];
         List<string> violations = [];
@@ -44,10 +44,4 @@ public class CompactUiContractTests
     private static string Describe(string file, XObject node, string reason)
         => $"{Path.GetFileName(file)}:{((IXmlLineInfo)node).LineNumber} {reason}";
 
-    private static string FindRoot()
-    {
-        DirectoryInfo? directory = new(AppContext.BaseDirectory);
-        while (directory != null && !File.Exists(Path.Combine(directory.FullName, "Kei.Term.slnx"))) directory = directory.Parent;
-        return directory?.FullName ?? throw new DirectoryNotFoundException("找不到解决方案目录");
-    }
 }

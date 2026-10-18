@@ -9,28 +9,29 @@ public static class VeritasChihiroTerminalPreset
         Id = Id,
         Name = "Veritas - Kagami Chihiro",
         IsBuiltIn = true,
-        Foreground = "#FFFFFF",
-        Background = "#303048",
-        CursorColor = "#4DBCE9",
-        SelectionBackground = "#526E9F50",
+        Foreground = "#EFF2F8",
+        Background = "#1A1D2C",
+        CursorColor = "#309FD9",
+        SelectionBackground = "#309FD938",
         AnsiColors =
         [
-            "#000000", // Black
-            "#CD3131", // Red
-            "#0DBC79", // Green
-            "#E5E510", // Yellow
-            "#2472C8", // Blue
-            "#BC3FBC", // Magenta
-            "#11A8CD", // Cyan
-            "#E5E5E5", // White
-            "#666666", // Bright Black
-            "#F14C4C", // Bright Red
-            "#23D18B", // Bright Green
-            "#F5F543", // Bright Yellow
-            "#3B8EEA", // Bright Blue
-            "#D670D6", // Bright Magenta
-            "#29B8DB", // Bright Cyan
+            "#1A1D2C", // Black (Deep Navy)
+            "#E05265", // Red
+            "#3EB489", // Green (Terminal green)
+            "#FFE354", // Yellow (Hairpin bright yellow)
+            "#309FD9", // Blue (Tie cyan-blue)
+            "#9C6CE4", // Magenta
+            "#4D9BA9", // Cyan (Glasses teal)
+            "#DAE0EC", // White
+            "#505B7D", // Bright Black (Muted navy)
+            "#F06A7C", // Bright Red
+            "#54CEA3", // Bright Green
+            "#FFEB75", // Bright Yellow
+            "#4EB5EE", // Bright Blue
+            "#B68DF2", // Bright Magenta
+            "#68B4C2", // Bright Cyan
             "#FFFFFF"  // Bright White
         ]
     };
 }
+

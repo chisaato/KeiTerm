@@ -1,6 +1,119 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="using:Kei.Term.App.Views.Settings.Controls">
+        xmlns:controls="using:Kei.Term.App.Views.Settings.Controls"
+        xmlns:services="using:Kei.Term.App.Services"
+        xmlns:loc="using:Kei.Term.App.Helpers">
+    <Styles.Resources>
+        <ResourceDictionary>
+        <ResourceDictionary.MergedDictionaries>
+            <ResourceInclude Source="avares://Kei.Term.App/DesignSystem/KeiFontIcons.axaml"/>
+        </ResourceDictionary.MergedDictionaries>
+        <!-- 四个字体选择器共享单行布局；星号列在弹层约束内截断，不按长字族名扩宽。 -->
+        <DataTemplate x:Key="SettingsFontOptionTemplate" x:DataType="services:FontFamilyOption">
+            <Grid ColumnSpacing="4" MinHeight="24"
+                  ToolTip.Tip="{Binding DisplayName}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="48"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding DisplayName}" FontFamily="{Binding FontFamily}"
+                           FontSize="12.5" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                <ContentControl Grid.Column="1" Content="{Binding}"
+                                ContentTemplate="{StaticResource SettingsFontSymbolsTemplate}"/>
+            </Grid>
+        </DataTemplate>
+        <!-- 始终保留两个槽位；仅隐藏内部图形，不改变相邻字族名称的可用宽度。 -->
+        <DataTemplate x:Key="SettingsFontSymbolsTemplate" x:DataType="services:FontFamilyOption">
+            <Grid ColumnDefinitions="24,24" Height="24" Classes="fontSymbols">
+                <Border Background="Transparent" IsVisible="{Binding IsMonospaceRecommended}"
+                        AutomationProperties.Name="{loc:KeiString Fonts.Tag.Monospace}"
+                        ToolTip.Tip="{loc:KeiString Fonts.Tag.Monospace}">
+                    <Viewbox Width="16" Height="16"><Grid Width="24" Height="24">
+                        <Path Classes="kei-icon fontSymbol" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.FontMonospace}"/>
+                    </Grid></Viewbox>
+                </Border>
+                <Grid Grid.Column="1">
+                    <Border Background="Transparent" IsVisible="{Binding HasSingleCellIcons}"
+                            AutomationProperties.Name="{loc:KeiString Fonts.Variant.NerdMono}"
+                            ToolTip.Tip="{loc:KeiString Fonts.Variant.NerdMono}">
+                        <Viewbox Width="16" Height="16"><Grid Width="24" Height="24">
+                            <Path Classes="kei-icon fontSymbol" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.FontSingleCell}"/>
+                        </Grid></Viewbox>
+                    </Border>
+                    <Border Background="Transparent" IsVisible="{Binding HasDoubleCellIcons}"
+                            AutomationProperties.Name="{loc:KeiString Fonts.Variant.NerdStandard}"
+                            ToolTip.Tip="{loc:KeiString Fonts.Variant.NerdStandard}">
+                        <Viewbox Width="16" Height="16"><Grid Width="24" Height="24">
+                            <Path Classes="kei-icon fontSymbol" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.FontDoubleCell}"/>
+                        </Grid></Viewbox>
+                    </Border>
+                    <Border Background="Transparent" IsVisible="{Binding HasProportionalIcons}"
+                            AutomationProperties.Name="{loc:KeiString Fonts.Variant.NerdPropo}"
+                            ToolTip.Tip="{loc:KeiString Fonts.Variant.NerdPropo}">
+                        <Viewbox Width="16" Height="16"><Grid Width="24" Height="24">
+                            <Path Classes="kei-icon fontSymbol" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.FontProportional}"/>
+                        </Grid></Viewbox>
+                    </Border>
+                </Grid>
+            </Grid>
+        </DataTemplate>
+        <!-- 可换行的小图例：页面与两个回退字体子页共享，不增加弹层宽度。 -->
+        <ControlTemplate x:Key="SettingsFontLegendTemplate">
+            <WrapPanel Classes="fontLegend">
+                <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,2,12,2">
+                    <Viewbox Width="16" Height="16"><Grid Width="24" Height="24">
+                        <Path Classes="kei-icon fontSymbol" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.FontMonospace}"/>
+                    </Grid></Viewbox>
+                    <TextBlock Text="{loc:KeiString Fonts.Legend.Monospace}"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,2,12,2">
+                    <Viewbox Width="16" Height="16"><Grid Width="24" Height="24">
+                        <Path Classes="kei-icon fontSymbol" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.FontSingleCell}"/>
+                    </Grid></Viewbox>
+                    <TextBlock Text="{loc:KeiString Fonts.Legend.SingleCell}"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,2,12,2">
+                    <Viewbox Width="16" Height="16"><Grid Width="24" Height="24">
+                        <Path Classes="kei-icon fontSymbol" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.FontDoubleCell}"/>
+                    </Grid></Viewbox>
+                    <TextBlock Text="{loc:KeiString Fonts.Legend.DoubleCell}"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,2,0,2">
+                    <Viewbox Width="16" Height="16"><Grid Width="24" Height="24">
+                        <Path Classes="kei-icon fontSymbol" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.FontProportional}"/>
+                    </Grid></Viewbox>
+                    <TextBlock Text="{loc:KeiString Fonts.Legend.Proportional}"/>
+                </StackPanel>
+            </WrapPanel>
+        </ControlTemplate>
+        </ResourceDictionary>
+    </Styles.Resources>
+
+    <Style Selector="Path.fontSymbol">
+        <Setter Property="Stroke" Value="{DynamicResource Kei.Text.Muted}"/>
+    </Style>
+    <Style Selector="Grid.fontSymbols:pointerover Path.fontSymbol">
+        <Setter Property="Stroke" Value="{DynamicResource Kei.Text.Secondary}"/>
+    </Style>
+    <Style Selector="WrapPanel.fontLegend TextBlock">
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Muted}"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <!-- Fluent 默认仅设 MinWidth，长项会把弹层撑宽；明确锁定到宿主的实际宽度。 -->
+    <Style Selector="AutoCompleteBox.settingsFontPicker /template/ Popup#PART_Popup">
+        <Setter Property="Width" Value="{Binding Bounds.Width, RelativeSource={RelativeSource TemplatedParent}}"/>
+        <Setter Property="MaxWidth" Value="{Binding Bounds.Width, RelativeSource={RelativeSource TemplatedParent}}"/>
+    </Style>
+    <Style Selector="AutoCompleteBox.settingsFontPicker /template/ ListBox#PART_SelectingItemsControl">
+        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+    </Style>
+    <Style Selector="AutoCompleteBox.settingsFontPicker /template/ ListBox#PART_SelectingItemsControl ListBoxItem">
+        <Setter Property="MinHeight" Value="28"/>
+        <Setter Property="Padding" Value="6,2"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+    </Style>
     <!-- 设计系统与紧凑桌面密度令牌引用 -->
 
     <!-- 窄模式预览分隔条：水平拖动，颜色走现有边框令牌 -->
@@ -280,5 +393,14 @@
                 </Grid>
             </ControlTemplate>
         </Setter>
+    </Style>
+
+    <!-- 通用紧凑胶囊标签（与现有 DefaultEditorBadge / profileUserTag 统一） -->
+    <Style Selector="Border.settingsTag, Border.profileUserTag">
+        <Setter Property="Background" Value="{DynamicResource Kei.Bg.Input}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Border.Subtle}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource Kei.Radius.Control}"/>
+        <Setter Property="Padding" Value="4,1"/>
     </Style>
 </Styles>

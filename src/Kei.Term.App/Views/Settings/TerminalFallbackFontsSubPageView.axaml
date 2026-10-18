@@ -13,62 +13,225 @@
             <ColumnDefinition Width="0.001*"/>
         </Grid.ColumnDefinitions>
         <StackPanel Grid.Column="0" Spacing="16">
-        <Border Classes="settingsCard">
-            <StackPanel Spacing="12">
-                <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.Appearance.AdvancedFallbackFonts}"/>
+            <Border Classes="settingsCard">
+                <StackPanel Spacing="12">
+                    <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.Appearance.AdvancedFallbackFonts}"/>
 
-                <TextBlock Text="{loc:KeiString Settings.Appearance.FallbackFontsHint}"
-                           FontSize="12" TextWrapping="Wrap"
-                           Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                    <TextBlock Text="{loc:KeiString Settings.Appearance.FallbackFontsHint}"
+                               FontSize="12" TextWrapping="Wrap"
+                               Foreground="{DynamicResource Kei.Text.Secondary}"/>
 
-                <Grid ColumnDefinitions="*, Auto" ColumnSpacing="8">
-                    <AutoCompleteBox Grid.Column="0" HorizontalAlignment="Stretch"
-                                     ItemsSource="{Binding Parent.AvailableFonts}"
-                                     SelectedItem="{Binding Parent.TerminalFallbackFontCandidate}"
-                                     ItemFilter="{Binding Parent.FontItemFilter}"
-                                     FilterMode="Custom" MinimumPrefixLength="0"
-                                     ValueMemberBinding="{CompiledBinding DisplayName, DataType=services:FontFamilyOption}"
-                                     PlaceholderText="{loc:KeiString Settings.Appearance.SelectFallbackFontToAdd}">
-                        <AutoCompleteBox.ItemTemplate>
-                            <DataTemplate x:DataType="services:FontFamilyOption">
-                                <TextBlock Text="{Binding DisplayName}" FontFamily="{Binding FontFamily}"/>
-                            </DataTemplate>
-                        </AutoCompleteBox.ItemTemplate>
-                    </AutoCompleteBox>
-                    <Button Grid.Column="1" Classes="iconBtn" Width="28" Height="28"
-                            AutomationProperties.Name="{loc:KeiString Settings.Appearance.AddFallbackFont}"
-                            ToolTip.Tip="{loc:KeiString Settings.Appearance.AddFallbackFont}"
-                            IsEnabled="{Binding Parent.TerminalFallbackFontCandidate, Converter={x:Static ObjectConverters.IsNotNull}}"
-                            Command="{Binding Parent.AddTerminalFallbackFont}">
-                        <Viewbox Width="16" Height="16">
-                            <Grid Width="24" Height="24">
-                                <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Add}"/>
-                            </Grid>
-                        </Viewbox>
-                    </Button>
-                </Grid>
+                    <!-- 添加回退字体候选行 -->
+                    <ContentControl Template="{StaticResource SettingsFontLegendTemplate}"/>
+                    <Grid ColumnDefinitions="*, Auto" ColumnSpacing="8">
+                        <AutoCompleteBox Grid.Column="0" HorizontalAlignment="Stretch" Classes="settingsFontPicker"
+                                         ItemTemplate="{StaticResource SettingsFontOptionTemplate}"
+                                         ItemsSource="{Binding Parent.AvailableFonts}"
+                                         SelectedItem="{Binding Parent.TerminalFallbackFontCandidate}"
+                                         ItemFilter="{Binding Parent.FontItemFilter}"
+                                         FilterMode="Custom" MinimumPrefixLength="0"
+                                         ValueMemberBinding="{CompiledBinding DisplayName, DataType=services:FontFamilyOption}"
+                                         PlaceholderText="{loc:KeiString Settings.Appearance.SelectFallbackFontToAdd}">
+                        </AutoCompleteBox>
+                        <Button Grid.Column="1" Classes="iconBtn" Width="28" Height="28"
+                                AutomationProperties.Name="{loc:KeiString Settings.Appearance.AddFallbackFont}"
+                                ToolTip.Tip="{loc:KeiString Settings.Appearance.AddFallbackFont}"
+                                IsEnabled="{Binding Parent.TerminalFallbackFontCandidate, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                Command="{Binding Parent.AddTerminalFallbackFont}">
+                            <Viewbox Width="16" Height="16">
+                                <Grid Width="24" Height="24">
+                                    <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Add}"/>
+                                </Grid>
+                            </Viewbox>
+                        </Button>
+                    </Grid>
 
-                <Grid ColumnDefinitions="*, Auto" ColumnSpacing="8">
-                    <ListBox Classes="popupList" Grid.Column="0" MinHeight="100" MaxHeight="220"
-                             ItemsSource="{Binding Parent.TerminalFallbackFonts}"
-                             SelectedItem="{Binding Parent.SelectedTerminalFallbackFont}">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate x:DataType="x:String">
-                                <TextBlock Text="{Binding}" FontFamily="{Binding}" FontSize="12"/>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-                    <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
-                        <Button Content="{loc:KeiString Settings.Appearance.MoveUp}" MinWidth="60"
-                                Command="{Binding Parent.MoveUpTerminalFallbackFont}"/>
-                        <Button Content="{loc:KeiString Settings.Appearance.MoveDown}" MinWidth="60"
-                                Command="{Binding Parent.MoveDownTerminalFallbackFont}"/>
-                        <Button Content="{loc:KeiString Settings.Appearance.RemoveFallbackFont}" MinWidth="60"
-                                Command="{Binding Parent.RemoveTerminalFallbackFont}"/>
-                    </StackPanel>
-                </Grid>
-            </StackPanel>
-        </Border>
+                    <Border Classes="settingRowDivider"/>
+
+                    <!-- 回退字体列表及空状态 -->
+                    <Panel>
+                        <!-- 空状态提示 -->
+                        <Border IsVisible="{Binding !Parent.TerminalFallbackFonts.Count}"
+                                Background="{DynamicResource Kei.Bg.Input}"
+                                BorderBrush="{DynamicResource Kei.Border.Subtle}"
+                                BorderThickness="1"
+                                CornerRadius="{DynamicResource Kei.Radius.Control}"
+                                Padding="16,24"
+                                HorizontalAlignment="Stretch">
+                            <StackPanel Spacing="8" HorizontalAlignment="Center">
+                                <TextBlock Text="{loc:KeiString Settings.Common.NoSelection}"
+                                           FontSize="13" FontWeight="SemiBold"
+                                           HorizontalAlignment="Center"
+                                           Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                <TextBlock Text="{loc:KeiString Settings.Appearance.FallbackFontsHint}"
+                                           FontSize="12"
+                                           HorizontalAlignment="Center"
+                                           Foreground="{DynamicResource Kei.Text.Muted}"
+                                           TextWrapping="Wrap"
+                                           MaxWidth="420"
+                                           TextAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- 回退字体条目卡片列表 -->
+                        <ItemsControl ItemsSource="{Binding Parent.TerminalFallbackFonts}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="settings:FallbackFontEntry">
+                                    <Border Background="{DynamicResource Kei.Bg.Panel}"
+                                            BorderBrush="{DynamicResource Kei.Border.Subtle}"
+                                            BorderThickness="1"
+                                            CornerRadius="{DynamicResource Kei.Radius.Control}"
+                                            Padding="12,10"
+                                            Margin="0,0,0,8">
+                                        <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="8">
+                                            <!-- 第一行：序号、字族与变体信息、字重选择、操作按钮 -->
+                                            <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                                                <!-- 优先级序号 -->
+                                                <Border Grid.Column="0"
+                                                        Background="{DynamicResource Kei.Bg.Input}"
+                                                        BorderBrush="{DynamicResource Kei.Border.Subtle}"
+                                                        BorderThickness="1"
+                                                        CornerRadius="{DynamicResource Kei.Radius.Control}"
+                                                        Width="24" Height="24"
+                                                        VerticalAlignment="Center">
+                                                    <!-- 序号指示图标：通过 Viewbox 承载 24x24 画布与 kei-icon -->
+                                                    <Viewbox Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                        <Grid Width="24" Height="24">
+                                                            <Path Classes="kei-icon" Width="24" Height="24" Stretch="None"
+                                                                  Stroke="{DynamicResource Kei.Text.Muted}"
+                                                                  Data="{StaticResource Kei.Icon.Terminal}"/>
+                                                        </Grid>
+                                                    </Viewbox>
+                                                </Border>
+
+                                                <!-- 字体族名与标签 -->
+                                                <Grid Grid.Column="1" ColumnDefinitions="*,48" ColumnSpacing="4" VerticalAlignment="Center" Margin="0,2">
+                                                    <TextBlock Text="{Binding DisplayName}"
+                                                               FontFamily="{Binding FontFamily}"
+                                                               FontSize="13" FontWeight="Medium"
+                                                               Foreground="{DynamicResource Kei.Text.Primary}"
+                                                               VerticalAlignment="Center"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               ToolTip.Tip="{Binding DisplayName}"/>
+                                                    <ContentControl Grid.Column="1" Content="{Binding FontOption}"
+                                                                    ContentTemplate="{StaticResource SettingsFontSymbolsTemplate}"/>
+                                                </Grid>
+
+                                                <!-- 右侧：字重下拉与操作按钮区（支持窄屏换行） -->
+                                                <WrapPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                    <!-- 字重下拉框 -->
+                                                    <ComboBox ItemsSource="{Binding AvailableWeights}"
+                                                              SelectedItem="{Binding SelectedWeight, Mode=TwoWay}"
+                                                              AutomationProperties.Name="{loc:KeiString Settings.Appearance.FallbackFontWeight}"
+                                                              ToolTip.Tip="{loc:KeiString Settings.Appearance.FallbackFontWeight}"
+                                                              MinWidth="150"
+                                                              Height="28"
+                                                              Margin="0,2,8,2"
+                                                              VerticalAlignment="Center">
+                                                        <ComboBox.ItemTemplate>
+                                                            <DataTemplate x:DataType="settings:FontWeightOption">
+                                                                <TextBlock Text="{Binding DisplayName}" FontSize="12" VerticalAlignment="Center"/>
+                                                            </DataTemplate>
+                                                        </ComboBox.ItemTemplate>
+                                                    </ComboBox>
+
+                                                    <!-- 上移/下移/移除 动作按钮组 -->
+                                                    <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="0,2">
+                                                        <Button Classes="iconBtn"
+                                                                Command="{Binding MoveUpCommand}"
+                                                                AutomationProperties.Name="{loc:KeiString Settings.Appearance.FallbackMoveUp}"
+                                                                ToolTip.Tip="{loc:KeiString Settings.Appearance.FallbackMoveUp}"
+                                                                Width="28" Height="28">
+                                                            <Viewbox Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                <Grid Width="24" Height="24">
+                                                                    <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.ArrowUp}"/>
+                                                                </Grid>
+                                                            </Viewbox>
+                                                        </Button>
+
+                                                        <Button Classes="iconBtn"
+                                                                Command="{Binding MoveDownCommand}"
+                                                                AutomationProperties.Name="{loc:KeiString Settings.Appearance.FallbackMoveDown}"
+                                                                ToolTip.Tip="{loc:KeiString Settings.Appearance.FallbackMoveDown}"
+                                                                Width="28" Height="28">
+                                                            <Viewbox Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                <Grid Width="24" Height="24">
+                                                                    <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.ArrowDown}"/>
+                                                                </Grid>
+                                                            </Viewbox>
+                                                        </Button>
+
+                                                        <Border Width="1" Height="16" Margin="4,0"
+                                                                Background="{DynamicResource Kei.Border.Subtle}"
+                                                                VerticalAlignment="Center"/>
+
+                                                        <Button Classes="iconBtn danger"
+                                                                Command="{Binding RemoveCommand}"
+                                                                AutomationProperties.Name="{loc:KeiString Settings.Appearance.FallbackRemove}"
+                                                                ToolTip.Tip="{loc:KeiString Settings.Appearance.FallbackRemove}"
+                                                                Width="28" Height="28">
+                                                            <Viewbox Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                <Grid Width="24" Height="24">
+                                                                    <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Delete}"/>
+                                                                </Grid>
+                                                            </Viewbox>
+                                                        </Button>
+                                                    </StackPanel>
+                                                </WrapPanel>
+                                            </Grid>
+
+                                            <!-- 第二行：未安装警告提示（本机未安装时显示） -->
+                                            <Border Grid.Row="1"
+                                                    IsVisible="{Binding IsMissing}"
+                                                    Background="{DynamicResource Kei.Bg.ErrorSubtle}"
+                                                    BorderBrush="{DynamicResource Kei.Status.Error}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="{DynamicResource Kei.Radius.Control}"
+                                                    Padding="8,4">
+                                                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                    <Viewbox Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                        <Grid Width="24" Height="24">
+                                                            <Path Classes="kei-icon" Width="24" Height="24" Stretch="None"
+                                                                  Stroke="{DynamicResource Kei.Status.Error}"
+                                                                  Data="{StaticResource Kei.Icon.Warning}"/>
+                                                        </Grid>
+                                                    </Viewbox>
+                                                    <TextBlock Text="{loc:KeiString Settings.Appearance.FallbackFontMissing}"
+                                                               FontSize="12"
+                                                               Foreground="{DynamicResource Kei.Status.Error}"
+                                                               VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <!-- 示例文本预览区（IsMissing 时半透明变淡） -->
+                                            <Border Grid.Row="2"
+                                                    Classes.missingSample="{Binding IsMissing}"
+                                                    Background="{DynamicResource Kei.Bg.Input}"
+                                                    BorderBrush="{DynamicResource Kei.Border.Subtle}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="{DynamicResource Kei.Radius.Control}"
+                                                    Padding="10,8">
+                                                <Border.Styles>
+                                                    <Style Selector="Border.missingSample">
+                                                        <Setter Property="Opacity" Value="0.45"/>
+                                                    </Style>
+                                                </Border.Styles>
+                                                <TextBlock Text="{Binding $parent[UserControl].((settings:TerminalFallbackFontsSubPage)DataContext).Parent.FallbackPreviewText}"
+                                                           FontFamily="{Binding FontFamily}"
+                                                           FontWeight="{Binding PreviewFontWeight}"
+                                                           FontSize="13"
+                                                           Foreground="{DynamicResource Kei.Text.Primary}"
+                                                           TextWrapping="Wrap"
+                                                           VerticalAlignment="Center"/>
+                                            </Border>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Panel>
+                </StackPanel>
+            </Border>
         </StackPanel>
     </Grid>
 </UserControl>

@@ -9,28 +9,29 @@ public static class VeritasHareTerminalPreset
         Id = Id,
         Name = "Veritas - Omagari Hare",
         IsBuiltIn = true,
-        Foreground = "#FFFFFF",
-        Background = "#18202C",
+        Foreground = "#F4F6F8",
+        Background = "#151922",
         CursorColor = "#DAEF00",
-        SelectionBackground = "#7991B21E",
+        SelectionBackground = "#DAEF0038",
         AnsiColors =
         [
-            "#000000", // Black
-            "#CD3131", // Red
-            "#0DBC79", // Green
-            "#E5E510", // Yellow
-            "#2472C8", // Blue
-            "#BC3FBC", // Magenta
-            "#11A8CD", // Cyan
-            "#E5E5E5", // White
-            "#666666", // Bright Black
-            "#F14C4C", // Bright Red
-            "#23D18B", // Bright Green
-            "#F5F543", // Bright Yellow
-            "#3B8EEA", // Bright Blue
-            "#D670D6", // Bright Magenta
-            "#29B8DB", // Bright Cyan
-            "#FFFFFF"  // Bright White
+            "#151922", // Black (Jacket dark)
+            "#E04858", // Red
+            "#A1C41C", // Green (Lime/olive)
+            "#DAEF00", // Yellow (Cyber Lime accent)
+            "#3B8EEA", // Blue (Millennium Blue)
+            "#B666D2", // Magenta
+            "#4EB5D9", // Cyan (Sensor blue)
+            "#D8DEE9", // White
+            "#54637D", // Bright Black (Muted slate)
+            "#F15C6D", // Bright Red
+            "#B8E022", // Bright Green
+            "#E8FA2E", // Bright Yellow
+            "#56A2F5", // Bright Blue
+            "#CD84E8", // Bright Magenta
+            "#6CD1F2", // Bright Cyan
+            "#FFFFFF"  // Bright White (Hair white)
         ]
     };
 }
+

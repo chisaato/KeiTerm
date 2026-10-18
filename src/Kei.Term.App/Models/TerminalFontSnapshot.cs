@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Kei.Term.Core.Settings;
 
 namespace Kei.Term.App.Models;
 
@@ -11,15 +12,17 @@ public sealed record TerminalFontSnapshot
 
     public TerminalFontSnapshot(
         string fontFamily,
-        IReadOnlyList<string> fallbackFonts,
+        IReadOnlyList<FallbackFontSetting> fallbackFonts,
         double fontSize,
-        bool cursorBlink)
+        bool cursorBlink,
+        int fontWeight = 400)
     {
         FontFamily = fontFamily;
         // 复制回退列表：快照不得因外部随后修改列表而“假不可变”
         FallbackFonts = fallbackFonts is null ? [] : [.. fallbackFonts];
         FontSize = fontSize;
         CursorBlink = cursorBlink;
+        FontWeight = System.Math.Clamp(fontWeight, 100, 900);
 
         // 真实终端只接受单一族名；这里统一算出唯一主字体名（规则与 TerminalTabViewModel 一致）
         PrimaryFontFamily = NormalizePrimaryFontFamily(fontFamily);
@@ -30,9 +33,10 @@ public sealed record TerminalFontSnapshot
     // 单一主字体族名（逗号列表第一有效项）；供真实 tab 与 Demo 统一使用
     public string PrimaryFontFamily { get; }
 
-    public IReadOnlyList<string> FallbackFonts { get; }
+    public IReadOnlyList<FallbackFontSetting> FallbackFonts { get; }
     public double FontSize { get; }
     public bool CursorBlink { get; }
+    public int FontWeight { get; }
 
     // 与 TerminalTabViewModel.NormalizeFontFamilyName 相同的规则：取逗号列表第一段，空则默认单族名。
     // 该规则不构成对回退字体链的支持声明。

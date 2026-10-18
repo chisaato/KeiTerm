@@ -9,28 +9,29 @@ public static class VeritasMakiTerminalPreset
         Id = Id,
         Name = "Veritas - Konuri Maki",
         IsBuiltIn = true,
-        Foreground = "#FFFFFF",
-        Background = "#303048",
-        CursorColor = "#CB1919",
-        SelectionBackground = "#CB191940",
+        Foreground = "#F6F5F8",
+        Background = "#1C1B26",
+        CursorColor = "#C83E44",
+        SelectionBackground = "#C83E4438",
         AnsiColors =
         [
-            "#000000", // Black
-            "#CD3131", // Red
-            "#0DBC79", // Green
-            "#E5E510", // Yellow
-            "#2472C8", // Blue
-            "#BC3FBC", // Magenta
-            "#11A8CD", // Cyan
-            "#E5E5E5", // White
-            "#666666", // Bright Black
-            "#F14C4C", // Bright Red
-            "#23D18B", // Bright Green
-            "#F5F543", // Bright Yellow
-            "#3B8EEA", // Bright Blue
-            "#D670D6", // Bright Magenta
-            "#29B8DB", // Bright Cyan
+            "#1C1B26", // Black (Jacket dark violet)
+            "#C83E44", // Red (Hair vermilion)
+            "#2CC985", // Green (Graffiti spray green)
+            "#FFD034", // Yellow (Graffiti yellow)
+            "#2F8BE6", // Blue (Tie blue)
+            "#E63985", // Magenta (Graffiti pink/magenta)
+            "#32F4FB", // Cyan (Eye bright cyan)
+            "#DDDCE4", // White
+            "#544F6C", // Bright Black (Muted dark violet)
+            "#E04D54", // Bright Red (Bright hair vermilion)
+            "#4AE29D", // Bright Green
+            "#FFE054", // Bright Yellow
+            "#4D9FF0", // Bright Blue
+            "#F2589D", // Bright Magenta
+            "#60F7FD", // Bright Cyan
             "#FFFFFF"  // Bright White
         ]
     };
 }
+

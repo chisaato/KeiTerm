@@ -21,7 +21,7 @@ public class TerminalLineHeightTests
     {
         var tab = new TerminalTabViewModel(
             "test-tab",
-            new TerminalFontSnapshot(fontFamily, Array.Empty<string>(), fontSize, false),
+            new TerminalFontSnapshot(fontFamily, [], fontSize, false),
             BuiltInPresets.GetDefaultTerminalProfile(),
             explicitProfileId: null,
             scrollbackLines: 5000);
@@ -107,14 +107,14 @@ public class TerminalLineHeightTests
             float cellWidth11 = terminal.Renderer!.CellWidth;
 
             // 切换到 14.0
-            tab.ApplyFontSnapshot(new TerminalFontSnapshot(family, Array.Empty<string>(), 14.0, false));
+            tab.ApplyFontSnapshot(new TerminalFontSnapshot(family, [], 14.0, false));
             HeadlessAvalonia.Pump();
             float cellHeight14 = terminal.Renderer!.CellHeight;
             Assert.Equal(cellHeight14, terminal.ScrollData!.CellHeight);
             Assert.True(cellHeight14 > cellHeight11);
 
             // 往返切换回 11.0
-            tab.ApplyFontSnapshot(new TerminalFontSnapshot(family, Array.Empty<string>(), 11.0, false));
+            tab.ApplyFontSnapshot(new TerminalFontSnapshot(family, [], 11.0, false));
             HeadlessAvalonia.Pump();
             Assert.Equal(cellHeight11, terminal.Renderer!.CellHeight);
             Assert.Equal(cellHeight11, terminal.ScrollData!.CellHeight);
@@ -188,7 +188,7 @@ public class TerminalLineHeightTests
 
             var preview = new TerminalShellPreviewView
             {
-                Font = new TerminalFontSnapshot(family, Array.Empty<string>(), 11.0, false),
+                Font = new TerminalFontSnapshot(family, [], 11.0, false),
                 Profile = BuiltInPresets.GetDefaultTerminalProfile()
             };
 

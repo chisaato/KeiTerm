@@ -55,7 +55,7 @@ public class TerminalHostTests
         string family = InstalledMonospace.Require();
         TerminalTabViewModel tab = new(
             "t",
-            new TerminalFontSnapshot(family, Array.Empty<string>(), 14, false),
+            new TerminalFontSnapshot(family, [], 14, false),
             BuiltInPresets.GetDefaultTerminalProfile(),
             explicitProfileId: null,
             scrollbackLines: scrollbackLines);
@@ -375,7 +375,7 @@ public class TerminalHostTests
     {
         TerminalTabViewModel tab = new(
             "reparent",
-            new TerminalFontSnapshot(family, Array.Empty<string>(), 14, false),
+            new TerminalFontSnapshot(family, [], 14, false),
             BuiltInPresets.GetDefaultTerminalProfile(),
             explicitProfileId: null,
             scrollbackLines: 5000);

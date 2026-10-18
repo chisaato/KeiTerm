@@ -23,7 +23,7 @@ public static class TerminalFontMetricAdapter
     /// 本函数优先通过已解析的 Typeface/GlyphCache 度量该物理像素下的 ascent/descent/leading。
     /// 若输入无效或度量失败，返回 null，调用方应保留渲染器原本计算的自然行高，不作无依据的猜测或硬编码。
     /// </summary>
-    public static float? TryCalculateTargetCellHeight(string? fontFamily, double fontSize, GlyphCache? glyphCache = null)
+    public static float? TryCalculateTargetCellHeight(string? fontFamily, double fontSize, GlyphCache? glyphCache = null, SKTypeface? primaryTypeface = null)
     {
         if (fontSize <= 0 || !double.IsFinite(fontSize))
         {
@@ -53,13 +53,17 @@ public static class TerminalFontMetricAdapter
 
             // 若无 GlyphCache，尝试从规范化主族名解析字体度量
             string primaryFamily = TerminalFontSnapshot.NormalizePrimaryFontFamily(fontFamily);
-            using var typeface = SKTypeface.FromFamilyName(primaryFamily);
+            using var resolvedTypeface = primaryTypeface is null ? SKTypeface.FromFamilyName(primaryFamily) : null;
+            SKTypeface? typeface = primaryTypeface ?? resolvedTypeface;
             if (typeface is not null)
             {
+                // 与 TerminalFontRendering 的光栅化参数保持一致，避免回退路径算出不同行高
                 using var font = new SKFont(typeface, pixelSize)
                 {
-                    LinearMetrics = true,
-                    Subpixel = true
+                    Edging = SKFontEdging.Antialias,
+                    Hinting = SKFontHinting.Full,
+                    LinearMetrics = false,
+                    Subpixel = false
                 };
                 var metrics = font.Metrics;
                 float height = MathF.Round(metrics.Descent - metrics.Ascent + metrics.Leading, MidpointRounding.AwayFromZero);
@@ -152,7 +156,7 @@ public static class TerminalFontMetricAdapter
             return;
         }
 
-        float? targetHeight = TryCalculateTargetCellHeight(fontFamily, fontSize, renderer.GlyphCache);
+        float? targetHeight = TryCalculateTargetCellHeight(fontFamily, fontSize, renderer.GlyphCache, terminal.TypefaceCollection?.GetPrimaryTypeface());
         if (targetHeight.HasValue && targetHeight.Value > 0)
         {
             ApplyCellHeight(terminal, targetHeight.Value);

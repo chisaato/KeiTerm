@@ -212,7 +212,7 @@ public class SidebarTransitionTests
     }
 
     private static TerminalTabViewModel CreateTab(string title) => new(title,
-        new TerminalFontSnapshot(InstalledMonospace.Require(), Array.Empty<string>(), 14, false),
+        new TerminalFontSnapshot(InstalledMonospace.Require(), [], 14, false),
         BuiltInPresets.GetDefaultTerminalProfile(), explicitProfileId: null);
 
     private static MainViewModel CreateModel(bool pinned)

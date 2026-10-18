@@ -19,7 +19,7 @@ public enum FileSizeDisplayMode
     Bytes = 2
 }
 
-public class AppSettings
+public class AppSettings : System.Text.Json.Serialization.IJsonOnDeserialized, System.Text.Json.Serialization.IJsonOnSerializing
 {
     // 连接管理器显示模式与最后状态
     public PanelVisibilityMode SessionManagerVisibilityMode { get; set; } = PanelVisibilityMode.RememberLastState;
@@ -34,6 +34,7 @@ public class AppSettings
     // 终端外观设置（FontFamily 必须是单一字体族名，TerminalControl 不支持逗号候选列表）
     public string FontFamily { get; set; } = "JetBrainsMono Nerd Font Mono";
     public double FontSize { get; set; } = 14.0;
+    public int TerminalFontWeight { get; set; } = 400;
     public int ScrollbackLines { get; set; } = 5000;
     public bool CursorBlink { get; set; } = true;
 
@@ -43,7 +44,41 @@ public class AppSettings
     public double UiFontSize { get; set; } = 13.0;
 
     // 终端备用/回退字体（Fallback Font），供终端排版时字符缺失回退
-    public string TerminalFallbackFontFamily { get; set; } = "Noto Sans Mono CJK SC, Source Han Sans HW SC, Microsoft YaHei, monospace";
+    private string? _legacyFallbackFonts = "Noto Sans Mono CJK SC, Source Han Sans HW SC, Microsoft YaHei, monospace";
+    private List<FallbackFontSetting> _terminalFallbackFonts = [];
+    private bool _hasLegacyFallbackFonts;
+    private bool _hasFallbackFonts;
+
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? TerminalFallbackFontFamily
+    {
+        get => _legacyFallbackFonts;
+        set { _legacyFallbackFonts = value; _hasLegacyFallbackFonts = true; }
+    }
+
+    public List<FallbackFontSetting> TerminalFallbackFonts
+    {
+        get => _terminalFallbackFonts;
+        set { _terminalFallbackFonts = value; _hasFallbackFonts = true; }
+    }
+
+    public void MigrateFallbackFonts()
+    {
+        if (TerminalFallbackFonts is not { Count: > 0 } && !string.IsNullOrWhiteSpace(TerminalFallbackFontFamily))
+            TerminalFallbackFonts = TerminalFallbackFontFamily.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Distinct(StringComparer.OrdinalIgnoreCase).Select(family => new FallbackFontSetting { Family = family }).ToList();
+        TerminalFallbackFonts ??= [];
+        TerminalFallbackFontFamily = null;
+    }
+
+    void System.Text.Json.Serialization.IJsonOnDeserialized.OnDeserialized()
+    {
+        // 新版明确保存的空列表不能被构造器的旧版默认字符串重新填充；
+        // 两个字段都缺失的更早配置仍然沿用默认字体链。
+        if (_hasFallbackFonts && !_hasLegacyFallbackFonts) _legacyFallbackFonts = null;
+        MigrateFallbackFonts();
+    }
+    void System.Text.Json.Serialization.IJsonOnSerializing.OnSerializing() => MigrateFallbackFonts();
 
     // UI 主题，取值 "Dark" | "System"
     public string UiTheme { get; set; } = "Dark";

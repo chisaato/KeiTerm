@@ -9,13 +9,14 @@ public static class VeritasMakiGuiPreset
         Id = Id,
         Name = "Veritas - Konuri Maki",
         IsBuiltIn = true,
-        WindowBackground = "#303048",
-        PanelBackground = "#312E42",
-        PanelAltBackground = "#2A3049",
-        BorderBrush = "#FF00003C",
-        PrimaryText = "#FFFFFF",
-        SecondaryText = "#FF5260",
-        AccentColor = "#CB1919",
-        AccentHover = "#941212"
+        WindowBackground = "#1C1B26",
+        PanelBackground = "#282536",
+        PanelAltBackground = "#343048",
+        BorderBrush = "#4C4666",
+        PrimaryText = "#F6F5F8",
+        SecondaryText = "#A099B5",
+        AccentColor = "#C83E44",
+        AccentHover = "#A53136"
     };
 }
+

@@ -22,7 +22,7 @@ public partial class MainViewModel
         TerminalProfile effectiveProfile = ResolveEffectiveTerminalProfile(config.TerminalProfileId);
         var tab = new TerminalTabViewModel(
             config.SessionName,
-            BuildAppliedFontSnapshot(_settingsService.Current),
+            _profileManager?.WorkingTerminalFontSnapshot ?? BuildAppliedFontSnapshot(_settingsService.Current),
             effectiveProfile,
             config.TerminalProfileId,
             _logger,

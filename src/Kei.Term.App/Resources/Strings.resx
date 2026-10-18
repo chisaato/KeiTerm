@@ -681,7 +681,7 @@
     <value>如 JetBrainsMono Nerd Font Mono</value>
   </data>
   <data name="Settings.Appearance.FontFamilyTip" xml:space="preserve">
-    <value>终端使用的核心等宽字体（优先渲染英文、符号与 Nerd 图标）</value>
+    <value>终端的核心等宽字体。各软件叫法不同，如 JBMono NF Medium 即 JBMono Nerd Font 的 Medium 字重。</value>
   </data>
   <data name="Settings.Appearance.FallbackFontFamily" xml:space="preserve">
     <value>回退/中文补充</value>
@@ -708,22 +708,7 @@
     <value>字重</value>
   </data>
   <data name="Settings.Appearance.FontWeightTip" xml:space="preserve">
-    <value>终端字体粗细程度</value>
-  </data>
-  <data name="Settings.Appearance.FontWeightLight" xml:space="preserve">
-    <value>细体 (Light)</value>
-  </data>
-  <data name="Settings.Appearance.FontWeightRegular" xml:space="preserve">
-    <value>常规 (Regular)</value>
-  </data>
-  <data name="Settings.Appearance.FontWeightMedium" xml:space="preserve">
-    <value>中等 (Medium)</value>
-  </data>
-  <data name="Settings.Appearance.FontWeightSemiBold" xml:space="preserve">
-    <value>半粗 (SemiBold)</value>
-  </data>
-  <data name="Settings.Appearance.FontWeightBold" xml:space="preserve">
-    <value>粗体 (Bold)</value>
+    <value>终端字体粗细；Konsole 与 SecureCRT 常用 Medium</value>
   </data>
   <data name="Settings.Appearance.FontPreviewSection" xml:space="preserve">
     <value>字体实时预览</value>
@@ -834,6 +819,12 @@
   </data>
   <data name="Settings.Appearance.NewTerminalProfile" xml:space="preserve">
     <value>新建...</value>
+  </data>
+  <data name="Settings.Appearance.DeleteTerminalProfile" xml:space="preserve">
+    <value>删除</value>
+  </data>
+  <data name="Settings.Appearance.UserProfileTag" xml:space="preserve">
+    <value>用户</value>
   </data>
   <data name="Settings.Appearance.EditTerminalProfile" xml:space="preserve">
     <value>编辑 / 调色...</value>
@@ -2025,7 +2016,7 @@ Latin: AaBb CcDd GgYy gypq
 符号：@ # $ % &amp; * + = / \ ( ) [ ] { }</value>
   </data>
   <data name="Settings.Appearance.FallbackFontsHint" xml:space="preserve">
-    <value>主字体缺少字符时，按以下顺序尝试回退字体。</value>
+    <value>主字体缺少某字符时按下列顺序尝试，可为每个字体单独指定字重。</value>
   </data>
   <data name="Menu.File.NewTab" xml:space="preserve">
     <value>新建标签页</value>
@@ -2180,21 +2171,6 @@ Latin: AaBb CcDd GgYy gypq
   <data name="Terminal.Find.NoMatch" xml:space="preserve">
     <value>无匹配</value>
   </data>
-  <data name="FontDialog.Title" xml:space="preserve">
-    <value>字体</value>
-  </data>
-  <data name="FontDialog.Header" xml:space="preserve">
-    <value>字重与行距</value>
-  </data>
-  <data name="FontDialog.Weight" xml:space="preserve">
-    <value>字重</value>
-  </data>
-  <data name="FontDialog.LineHeight" xml:space="preserve">
-    <value>行距</value>
-  </data>
-  <data name="FontDialog.Open" xml:space="preserve">
-    <value>字重与行距…</value>
-  </data>
   <data name="Settings.FileTransfer.SizeDisplay" xml:space="preserve">
     <value>文件大小单位</value>
   </data>
@@ -2265,9 +2241,6 @@ Latin: AaBb CcDd GgYy gypq
   </data>
   <data name="Settings.Appearance.TreeGeometrySection" xml:space="preserve">
     <value>尺寸微调</value>
-  </data>
-  <data name="Settings.Appearance.ExternalSchemesSection" xml:space="preserve">
-    <value>导入外部配色方案</value>
   </data>
   <data name="Settings.Appearance.LivePreview" xml:space="preserve">
     <value>实时效果预览</value>
@@ -2493,9 +2466,6 @@ Latin: AaBb CcDd GgYy gypq
   </data>
   <data name="Settings.FileTransfer.AssociationsSection" xml:space="preserve">
     <value>文件类型关联</value>
-  </data>
-  <data name="TerminalThemeJsonImport.Open" xml:space="preserve">
-    <value>导入通用 JSON...</value>
   </data>
   <data name="TerminalThemeJsonImport.Edit" xml:space="preserve">
     <value>JSON...</value>
@@ -2760,12 +2730,10 @@ Latin: AaBb CcDd GgYy gypq
   <data name="Settings.FileTransfer.DatabaseOperationFailed" xml:space="preserve">
     <value>操作失败，请检查本地配置数据库后重试。</value>
   </data>
-  <data name="Settings.Appearance.ImportKonsole" xml:space="preserve">
-    <value>从 Konsole 导入…</value>
-  </data>
-  <data name="Settings.Appearance.ImportITerm" xml:space="preserve">
-    <value>从 iTerm 导入…</value>
-  </data>
+  <data name="Settings.Appearance.ImportMenu" xml:space="preserve"><value>导入</value></data>
+  <data name="Settings.Appearance.ImportColorKonsole" xml:space="preserve"><value>配色：从 Konsole 配色文件…</value></data>
+  <data name="Settings.Appearance.ImportColorJson" xml:space="preserve"><value>配色：从 JSON…</value></data>
+  <data name="Settings.Appearance.ImportFontKonsole" xml:space="preserve"><value>字体：从 Konsole 配置…</value></data>
   <data name="Settings.Appearance.ImportWindowsTerminal" xml:space="preserve">
     <value>从 Windows Terminal 导入…</value>
   </data>
@@ -2796,4 +2764,22 @@ Latin: AaBb CcDd GgYy gypq
   <data name="FileActivity.UnverifiedTip" xml:space="preserve">
     <value>已开启完整性校验，但远端没有可用的哈希算法，未比对内容。</value>
   </data>
+  <data name="Settings.Appearance.FontSummaryLabel" xml:space="preserve"><value>当前字体</value></data>
+  <data name="Settings.Appearance.ImportKonsoleFont" xml:space="preserve"><value>从 Konsole 配置导入…</value></data>
+  <data name="Settings.Appearance.ImportKonsoleFontSuccess" xml:space="preserve"><value>已导入：{0}</value></data>
+  <data name="Settings.Appearance.ImportKonsoleFontError" xml:space="preserve"><value>无法读取 Konsole 配置：{0}</value></data>
+  <data name="Fonts.Variant.NerdMono" xml:space="preserve"><value>Nerd Font Mono · 图标单格</value></data>
+  <data name="Fonts.Variant.NerdStandard" xml:space="preserve"><value>Nerd Font · 图标可占双格</value></data>
+  <data name="Fonts.Variant.NerdPropo" xml:space="preserve"><value>Nerd Font Propo · 比例宽度</value></data>
+  <data name="Fonts.Tag.Monospace" xml:space="preserve"><value>等宽：字符使用相同的宽度</value></data>
+  <data name="Fonts.Legend.Monospace" xml:space="preserve"><value>等宽</value></data>
+  <data name="Fonts.Legend.SingleCell" xml:space="preserve"><value>图标单格</value></data>
+  <data name="Fonts.Legend.DoubleCell" xml:space="preserve"><value>图标可占双格</value></data>
+  <data name="Fonts.Legend.Proportional" xml:space="preserve"><value>比例宽度</value></data>
+  <data name="Settings.Appearance.FallbackWeightFollowPrimary" xml:space="preserve"><value>跟随主字体</value></data>
+  <data name="Settings.Appearance.FallbackFontMissing" xml:space="preserve"><value>本机未找到该字体</value></data>
+  <data name="Settings.Appearance.FallbackFontWeight" xml:space="preserve"><value>字重</value></data>
+  <data name="Settings.Appearance.FallbackMoveUp" xml:space="preserve"><value>上移</value></data>
+  <data name="Settings.Appearance.FallbackMoveDown" xml:space="preserve"><value>下移</value></data>
+  <data name="Settings.Appearance.FallbackRemove" xml:space="preserve"><value>移除</value></data>
 </root>

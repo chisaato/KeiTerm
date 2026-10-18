@@ -267,7 +267,6 @@ public class TerminalThemeJsonParserTests
         profile.Foreground = "#80abcdef";
         profile.CursorColor = "#90123456";
         profile.AnsiColors[4] = "#77112233";
-        profile.FontFamily = "Must remain private";
         string json = TerminalThemeJsonParser.Export(profile);
         TerminalThemeJsonParseResult result = TerminalThemeJsonParser.Parse(json);
         Assert.True(result.IsValid);
@@ -276,7 +275,7 @@ public class TerminalThemeJsonParserTests
         Assert.Equal(profile.CursorColor, result.Profile.CursorColor);
         Assert.Equal(profile.AnsiColors[4], result.Profile.AnsiColors[4]);
         Assert.DoesNotContain(profile.Id, json);
-        Assert.DoesNotContain(profile.FontFamily, json);
+        Assert.DoesNotContain("fontFamily", json, StringComparison.OrdinalIgnoreCase);
         Assert.Equal("#123", profile.Background);
         Assert.Equal("#80abcdef", profile.Foreground);
 

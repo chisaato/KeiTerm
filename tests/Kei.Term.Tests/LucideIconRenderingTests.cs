@@ -23,7 +23,7 @@ public class LucideIconRenderingTests
     public Task EveryIconAndSettingsCategory_HasCenteredConsistentVisibleBounds() => HeadlessAvalonia.RunAsync(() =>
     {
         UiDesignSystemService.Apply();
-        XDocument icons = XDocument.Load(System.IO.Path.Combine(FindRoot(), "src/Kei.Term.App/DesignSystem/KeiIcons.axaml"));
+        XDocument icons = XDocument.Load(System.IO.Path.Combine(TestRepository.RepositoryRoot, "src/Kei.Term.App/DesignSystem/KeiIcons.axaml"));
         XNamespace xaml = "http://schemas.microsoft.com/winfx/2006/xaml";
         foreach (XElement resource in icons.Root!.Elements())
         {
@@ -44,7 +44,7 @@ public class LucideIconRenderingTests
     public Task Icons_RenderWithoutClippingAtToolbarAndRowSizes() => HeadlessAvalonia.RunAsync(() =>
     {
         UiDesignSystemService.Apply();
-        XDocument resources = XDocument.Load(System.IO.Path.Combine(FindRoot(), "src/Kei.Term.App/DesignSystem/KeiIcons.axaml"));
+        XDocument resources = XDocument.Load(System.IO.Path.Combine(TestRepository.RepositoryRoot, "src/Kei.Term.App/DesignSystem/KeiIcons.axaml"));
         XNamespace xaml = "http://schemas.microsoft.com/winfx/2006/xaml";
         Grid sheet = new() { ColumnDefinitions = new ColumnDefinitions("*,*,*,*,*,*,*,*"), Margin = new Thickness(12) };
         string[] keys = resources.Root!.Elements().Select(resource => resource.Attribute(xaml + "Key")!.Value).ToArray();
@@ -147,10 +147,4 @@ public class LucideIconRenderingTests
         HeadlessAvalonia.Pump();
     }
 
-    private static string FindRoot()
-    {
-        DirectoryInfo? directory = new(AppContext.BaseDirectory);
-        while (directory != null && !File.Exists(System.IO.Path.Combine(directory.FullName, "Kei.Term.slnx"))) directory = directory.Parent;
-        return directory?.FullName ?? throw new DirectoryNotFoundException("找不到解决方案目录");
-    }
 }

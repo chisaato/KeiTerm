@@ -55,7 +55,9 @@ public partial class TerminalShellPreviewView : UserControl
         "\x1b[36m[ZH]\x1b[0m 天地玄黄 宇宙洪荒 • 繁星落入深渊，终端静静流淌。\r\n" +
         "\x1b[36m[JA]\x1b[0m いろはにほへと 散りぬるを • 我が世誰ぞ常ならむ\r\n" +
         "\x1b[36m[KO]\x1b[0m 다람쥐 헌 쳇바퀴에 타고파 • 별빛이 흐르는 은하수\r\n" +
-        "\x1b[36m[EN]\x1b[0m The quick brown fox jumps over the lazy dog. 1234567890\r\n\r\n" +
+        "\x1b[36m[EN]\x1b[0m The quick brown fox jumps over the lazy dog. 1234567890\r\n" +
+        // Nerd Font 私有区图标：分支、文件夹、主页、代码、GitHub、锁、对勾、叉，以及 Powerline 分隔符；用于检验主字体或回退链是否带图标
+        "\x1b[36m[NF]\x1b[0m         \r\n\r\n" +
         "\x1b[32muser@keiterm\x1b[0m:\x1b[34m~\x1b[0m$ uname -srm\r\n" +
         "\x1b[0mLinux 6.10.0-keiterm x86_64\r\n\r\n" +
         "\x1b[32muser@keiterm\x1b[0m:\x1b[34m~/workspace\x1b[0m$ ls -la --color=auto\r\n" +
@@ -106,10 +108,9 @@ public partial class TerminalShellPreviewView : UserControl
         {
             IsHitTestVisible = false, // 纯预览展示，不接收键盘鼠标输入
             Focusable = false,
-            AutoScroll = false, // 禁用自动滚动到底部，保证顶部色条和完整 CJK 样例常驻可见
-            FontLinearMetrics = true,
-            FontSubpixelPositioning = true
+            AutoScroll = false // 禁用自动滚动到底部，保证顶部色条和完整 CJK 样例常驻可见
         };
+        TerminalFontRendering.Apply(terminal);
         TerminalKeywordHighlight.Apply(terminal);
 
         // 注册 Loaded 钩子：当控件挂载并建立真实 Renderer 后，重新应用选区 alpha 覆盖与重绘
@@ -300,25 +301,7 @@ public partial class TerminalShellPreviewView : UserControl
                     _terminalControl.TerminalFontSize = Font.FontSize;
                 }
 
-                // 构造回退字体链（0.6.0-preview.2 引入）
-                System.Collections.Immutable.ImmutableArray<string>.Builder regularBuilder =
-                    System.Collections.Immutable.ImmutableArray.CreateBuilder<string>();
-                if (!string.IsNullOrWhiteSpace(primaryFamily))
-                {
-                    regularBuilder.Add(primaryFamily);
-                }
-                foreach (string fallback in Font.FallbackFonts)
-                {
-                    if (!string.IsNullOrWhiteSpace(fallback) && !regularBuilder.Contains(fallback))
-                    {
-                        regularBuilder.Add(fallback.Trim());
-                    }
-                }
-
-                _terminalControl.FontFamilies = new RoyalTerminal.Terminal.TerminalFontFamilySettings
-                {
-                    Regular = regularBuilder.ToImmutable()
-                };
+                TerminalTypefaceProvider.Apply(_terminalControl, Font);
 
                 // 适配终端行高
                 TerminalFontMetricAdapter.AdaptCellHeight(_terminalControl, primaryFamily, Font.FontSize);

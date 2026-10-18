@@ -95,21 +95,18 @@
 
                             <controls:SettingRow Title="{loc:KeiString Settings.Appearance.UiFontFamily}"
                                                  Description="{loc:KeiString Settings.Appearance.UiFontFamilyTip}">
-                                <AutoCompleteBox MinWidth="200"
+                                <AutoCompleteBox Classes="settingsFontPicker" Width="240"
+                                                 ItemTemplate="{StaticResource SettingsFontOptionTemplate}"
                                                  HorizontalAlignment="Right"
                                                  ItemsSource="{Binding AvailableFonts}"
                                                  SelectedItem="{Binding SelectedUiFont}"
                                                  ItemFilter="{Binding FontItemFilter}"
                                                  FilterMode="Custom" MinimumPrefixLength="0"
                                                  ValueMemberBinding="{CompiledBinding DisplayName, DataType=services:FontFamilyOption}">
-                                    <AutoCompleteBox.ItemTemplate>
-                                        <DataTemplate x:DataType="services:FontFamilyOption">
-                                            <TextBlock Text="{Binding DisplayName}" FontFamily="{Binding FontFamily}"/>
-                                        </DataTemplate>
-                                    </AutoCompleteBox.ItemTemplate>
                                 </AutoCompleteBox>
                             </controls:SettingRow>
 
+                            <ContentControl Template="{StaticResource SettingsFontLegendTemplate}"/>
                             <Border Classes="settingRowDivider"/>
 
                             <controls:DrillDownRow Title="{loc:KeiString Settings.Appearance.AdvancedFallbackFonts}"

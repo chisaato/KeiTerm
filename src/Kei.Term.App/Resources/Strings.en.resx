@@ -317,12 +317,10 @@
   <data name="Settings.FileTransfer.DatabaseOperationFailed" xml:space="preserve">
     <value>Operation failed. Please check local database and try again.</value>
   </data>
-  <data name="Settings.Appearance.ImportKonsole" xml:space="preserve">
-    <value>Import from Konsole…</value>
-  </data>
-  <data name="Settings.Appearance.ImportITerm" xml:space="preserve">
-    <value>Import from iTerm…</value>
-  </data>
+  <data name="Settings.Appearance.ImportMenu" xml:space="preserve"><value>Import</value></data>
+  <data name="Settings.Appearance.ImportColorKonsole" xml:space="preserve"><value>Colors: from Konsole color scheme…</value></data>
+  <data name="Settings.Appearance.ImportColorJson" xml:space="preserve"><value>Colors: from JSON…</value></data>
+  <data name="Settings.Appearance.ImportFontKonsole" xml:space="preserve"><value>Font: from Konsole profile…</value></data>
   <data name="Settings.Appearance.ImportWindowsTerminal" xml:space="preserve">
     <value>Import from Windows Terminal…</value>
   </data>
@@ -589,4 +587,32 @@
   <data name="FileActivity.UnverifiedTip" xml:space="preserve">
     <value>Integrity verification is enabled, but no supported hash tool was available on remote host.</value>
   </data>
+  <data name="Settings.Appearance.DeleteTerminalProfile" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="Settings.Appearance.UserProfileTag" xml:space="preserve">
+    <value>User</value>
+  </data>
+  <data name="Settings.Appearance.FontWeight" xml:space="preserve"><value>Weight</value></data>
+  <data name="Settings.Appearance.FontWeightTip" xml:space="preserve"><value>Stroke thickness of the terminal font</value></data>
+  <data name="Settings.Appearance.FontSummaryLabel" xml:space="preserve"><value>Current font</value></data>
+  <data name="Settings.Appearance.ImportKonsoleFont" xml:space="preserve"><value>Import from Konsole profile…</value></data>
+  <data name="Settings.Appearance.ImportKonsoleFontSuccess" xml:space="preserve"><value>Imported: {0}</value></data>
+  <data name="Settings.Appearance.ImportKonsoleFontError" xml:space="preserve"><value>Cannot read Konsole profile: {0}</value></data>
+  <data name="Fonts.Variant.NerdMono" xml:space="preserve"><value>Nerd Font Mono · single-cell icons</value></data>
+  <data name="Fonts.Variant.NerdStandard" xml:space="preserve"><value>Nerd Font · icons may span two cells</value></data>
+  <data name="Fonts.Variant.NerdPropo" xml:space="preserve"><value>Nerd Font Propo · proportional</value></data>
+  <data name="Fonts.Tag.Monospace" xml:space="preserve"><value>Monospace: characters share the same width</value></data>
+  <data name="Fonts.Legend.Monospace" xml:space="preserve"><value>Monospace</value></data>
+  <data name="Fonts.Legend.SingleCell" xml:space="preserve"><value>Single-cell icons</value></data>
+  <data name="Fonts.Legend.DoubleCell" xml:space="preserve"><value>Icons may span two cells</value></data>
+  <data name="Fonts.Legend.Proportional" xml:space="preserve"><value>Proportional</value></data>
+  <data name="Settings.Appearance.FontFamilyTip" xml:space="preserve"><value>Primary terminal font. Names vary by app: JBMono NF Medium is the Medium weight of JBMono Nerd Font.</value></data>
+  <data name="Settings.Appearance.FallbackFontsHint" xml:space="preserve"><value>When the primary font lacks a character, try these fonts in order. Each font can have its own weight.</value></data>
+  <data name="Settings.Appearance.FallbackWeightFollowPrimary" xml:space="preserve"><value>Follow primary font</value></data>
+  <data name="Settings.Appearance.FallbackFontMissing" xml:space="preserve"><value>Not installed on this system</value></data>
+  <data name="Settings.Appearance.FallbackFontWeight" xml:space="preserve"><value>Weight</value></data>
+  <data name="Settings.Appearance.FallbackMoveUp" xml:space="preserve"><value>Move up</value></data>
+  <data name="Settings.Appearance.FallbackMoveDown" xml:space="preserve"><value>Move down</value></data>
+  <data name="Settings.Appearance.FallbackRemove" xml:space="preserve"><value>Remove</value></data>
 </root>

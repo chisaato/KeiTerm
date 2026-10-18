@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Media;
 using Avalonia.Threading;
+using Kei.Term.App.Models;
 using Kei.Term.Core.Models.Profiles;
 using Kei.Term.Core.Services;
 using Kei.Term.Core.Settings;
@@ -109,6 +110,17 @@ public class ProfileManagerService
 
     // 终端配色变更唯一广播源（MainViewModel 单点订阅）
     public event Action<TerminalProfileChange>? TerminalProfileChanged;
+
+    // 与配色共用一个外观草稿作用域；不写入 AppSettings 或 profiles.json。
+    public TerminalFontSnapshot? WorkingTerminalFontSnapshot { get; private set; }
+
+    public event Action<TerminalFontSnapshot>? TerminalFontSnapshotChanged;
+
+    public void NotifyTerminalFontSnapshotChanged(TerminalFontSnapshot snapshot)
+    {
+        WorkingTerminalFontSnapshot = snapshot;
+        TerminalFontSnapshotChanged?.Invoke(snapshot);
+    }
 
     public IReadOnlyList<GuiProfile> AllGuiProfiles =>
         BuiltInPresets.DefaultGuiProfiles.Concat(_customGuiProfiles).ToList().AsReadOnly();
@@ -309,15 +321,30 @@ public class ProfileManagerService
         TerminalProfileChanged?.Invoke(new TerminalProfileChange(profile.Id, TerminalProfileChangeReason.ProfileContentEdited));
     }
 
-    // 从有效状态移除自定义方案（丢弃未提交草稿）
+    // 仅从有效状态移除自定义方案；提交前仍可由已提交权威恢复。
     public void RemoveCustomTerminalProfile(string profileId)
     {
-        if (string.IsNullOrWhiteSpace(profileId))
+        if (string.IsNullOrWhiteSpace(profileId)
+            || BuiltInPresets.DefaultTerminalProfiles.Any(p => string.Equals(p.Id, profileId, StringComparison.OrdinalIgnoreCase)))
         {
             return;
         }
 
-        _customTerminalProfiles.RemoveAll(p => string.Equals(p.Id, profileId, StringComparison.OrdinalIgnoreCase));
+        int removed = _customTerminalProfiles.RemoveAll(p => string.Equals(p.Id, profileId, StringComparison.OrdinalIgnoreCase));
+        if (removed == 0) return;
+
+        bool wasDefault = string.Equals(_defaultTerminalProfileId, profileId, StringComparison.OrdinalIgnoreCase);
+        if (wasDefault)
+        {
+            // null 与现有解析语义一致：回退内置默认，不保留已删除 ID。
+            _defaultTerminalProfileId = null;
+        }
+
+        TerminalProfileChanged?.Invoke(new TerminalProfileChange(profileId, TerminalProfileChangeReason.ProfileContentEdited));
+        if (wasDefault)
+        {
+            TerminalProfileChanged?.Invoke(new TerminalProfileChange(null, TerminalProfileChangeReason.DefaultSelectionChanged));
+        }
     }
 
     // 当前有效终端方案深拷贝快照：设置事务提交前冻结，避免 await 期间被修改

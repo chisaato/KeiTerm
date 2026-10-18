@@ -11,6 +11,9 @@ dotnet build Kei.Term.slnx
 # 执行单元测试
 dotnet test tests/Kei.Term.Tests/Kei.Term.Tests.csproj
 
+# 采集生产程序集覆盖率（独立构建目录，勿与其他进程共用，避免插桩时 PDB 被占用）
+dotnet test tests/Kei.Term.Tests/Kei.Term.Tests.csproj --collect:"XPlat Code Coverage" --artifacts-path /tmp/keiterm-coverage-run
+
 # 含真实 sshd 的集成测试（Linux，需要 /usr/sbin/sshd）
 KEITERM_SSHD_TESTS=1 dotnet test tests/Kei.Term.Tests/Kei.Term.Tests.csproj
 

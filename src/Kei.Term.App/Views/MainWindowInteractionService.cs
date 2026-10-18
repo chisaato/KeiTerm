@@ -221,6 +221,8 @@ public sealed class MainWindowInteractionService : IInteractionService
             return files.Count > 0 ? files[0].Path.LocalPath : null;
         });
 
+    public Task<string?> PickKonsoleProfileFileAsync() => KonsoleProfileFilePicker.PickAsync(_owner);
+
     // === 子窗口 ===
 
     public Task<CommandPaletteItem?> ShowCommandPaletteAsync(CommandPaletteViewModel viewModel)

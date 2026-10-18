@@ -2,6 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Avalonia.Media;
+using Kei.Term.Core.Fonts;
+using Kei.Term.App.Helpers;
+using SkiaSharp;
+using Kei.Term.App.Terminals;
 
 namespace Kei.Term.App.Services;
 
@@ -13,7 +17,18 @@ namespace Kei.Term.App.Services;
 public record FontFamilyOption(string Name, bool IsMonospaceRecommended)
 {
     // 下拉框或文本展示友好名称
-    public string DisplayName => IsMonospaceRecommended ? $"{Name} (Mono)" : Name;
+    public string DisplayName => Name;
+    public NerdFontVariant NerdVariant => FontFaceNaming.Classify(Name);
+    public bool HasSingleCellIcons => NerdVariant == NerdFontVariant.Mono;
+    public bool HasDoubleCellIcons => NerdVariant == NerdFontVariant.Standard;
+    public bool HasProportionalIcons => NerdVariant == NerdFontVariant.Propo;
+    public string? VariantLabel => NerdVariant switch
+    {
+        NerdFontVariant.Mono => Strings.Get("Fonts.Variant.NerdMono"),
+        NerdFontVariant.Standard => Strings.Get("Fonts.Variant.NerdStandard"),
+        NerdFontVariant.Propo => Strings.Get("Fonts.Variant.NerdPropo"),
+        _ => null
+    };
 
     // 类型安全的 FontFamily 实例，按原始名称构造，避免友好后缀 (Mono) 污染字体解析
     public FontFamily FontFamily { get; } = new(Name);
@@ -60,15 +75,11 @@ public static class SystemFontScanner
 
         try
         {
-            var systemFonts = FontManager.Current?.SystemFonts;
-            if (systemFonts != null)
+            foreach (string family in SKFontManager.Default.FontFamilies)
             {
-                foreach (var font in systemFonts)
+                if (!string.IsNullOrWhiteSpace(family))
                 {
-                    if (!string.IsNullOrWhiteSpace(font.Name))
-                    {
-                        rawNames.Add(font.Name.Trim());
-                    }
+                    rawNames.Add(ResolveLegacyFamily(family.Trim()).Family);
                 }
             }
         }
@@ -114,5 +125,25 @@ public static class SystemFontScanner
         }
 
         return false;
+    }
+
+    public static (string Family, int Weight) ResolveLegacyFamily(string family)
+    {
+        SKTypeface? face = TerminalTypefaceProvider.Resolve(family, 400);
+        bool installed = SKFontManager.Default.FontFamilies.Contains(family, StringComparer.OrdinalIgnoreCase);
+        return face is null || (!installed && !string.Equals(face.FamilyName, family, StringComparison.OrdinalIgnoreCase))
+            ? (family, 400) : (face.FamilyName, face.FontWeight);
+    }
+
+    public static IReadOnlyList<int> GetAvailableWeights(string family)
+    {
+        using SKFontStyleSet styles = SKFontManager.Default.GetFontStyles(family);
+        SortedSet<int> weights = [];
+        for (int i = 0; i < styles.Count; i++)
+        {
+            using SKFontStyle style = styles[i];
+            if (style.Slant == SKFontStyleSlant.Upright) weights.Add(style.Weight);
+        }
+        return weights.Count == 0 ? [400] : weights.ToArray();
     }
 }

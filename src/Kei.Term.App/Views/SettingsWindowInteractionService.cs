@@ -135,6 +135,8 @@ internal sealed class SettingsWindowInteractionService(Window owner, SettingsVie
 
     public Task<string?> PickKonsoleSchemeFileAsync() => Task.FromResult<string?>(null);
 
+    public Task<string?> PickKonsoleProfileFileAsync() => KonsoleProfileFilePicker.PickAsync(DialogOwner);
+
     public Task OpenIdentityManagerAsync() => Task.CompletedTask;
 
     public Task OpenKnownHostsAsync() => Task.CompletedTask;

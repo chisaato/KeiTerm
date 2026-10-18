@@ -1,5 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.Interactivity;
 using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.VisualTree;
@@ -30,14 +32,26 @@ public class TerminalThemeJsonSettingsWindowTests
             SettingsViewModel model = new(settings, directory, profileManager: manager);
             settingsWindow = new SettingsWindow(model);
             model.SelectedCategory = model.Categories.Single(category => category.Page is TerminalAppearanceSettingsPage);
+            AppearanceSettingsPage appearance = ((TerminalAppearanceSettingsPage)model.SelectedCategory.Page).Appearance;
+            appearance.FontSize = 17;
+            TerminalFontSnapshot fontBeforeImport = appearance.DraftFontSnapshot;
             settingsWindow.Show();
             HeadlessAvalonia.Pump();
 
-            Button action = settingsWindow.GetVisualDescendants().OfType<Button>().Single(button => button.Name == "ImportTerminalThemeJsonButton");
-            action.BringIntoView();
+            DropDownButton imports = settingsWindow.GetVisualDescendants().OfType<DropDownButton>()
+                .Single(button => button.Name == "TerminalAppearanceImportButton");
+            imports.BringIntoView();
             HeadlessAvalonia.Pump();
+            Click(settingsWindow, imports);
+            MenuFlyout menu = Assert.IsType<MenuFlyout>(imports.Flyout);
+            Assert.True(menu.IsOpen);
+            Assert.Equal(3, menu.Items.OfType<MenuItem>().Count());
+            Assert.Contains(menu.Items.OfType<MenuItem>(), item => ReferenceEquals(item.Command, model.ImportKonsoleSchemeCommand));
+            Assert.Contains(menu.Items.OfType<MenuItem>(), item => ReferenceEquals(item.Command, model.ImportKonsoleFontCommand));
+            MenuItem action = menu.Items.OfType<MenuItem>().Single(item => item.Name == "ImportTerminalThemeJsonMenuItem");
             Assert.Same(model.ImportTerminalThemeJsonCommand, action.Command);
-            Click(settingsWindow, action);
+            action.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+            HeadlessAvalonia.Pump();
 
             TerminalProfileEditWindow palette = Assert.IsType<TerminalProfileEditWindow>(Assert.Single(settingsWindow.OwnedWindows));
             TerminalProfileEditViewModel paletteDraft = Assert.IsType<TerminalProfileEditViewModel>(palette.DataContext);
@@ -66,6 +80,12 @@ public class TerminalThemeJsonSettingsWindowTests
             Assert.Equal("Imported from settings", manager.DefaultTerminalProfile.Name);
             Assert.Equal("#123456", manager.DefaultTerminalProfile.AnsiColors[4]);
             Assert.Single(manager.AllTerminalProfiles, profile => !profile.IsBuiltIn);
+            TerminalFontSnapshot fontAfterImport = appearance.DraftFontSnapshot;
+            Assert.Equal(fontBeforeImport.FontFamily, fontAfterImport.FontFamily);
+            Assert.Equal(fontBeforeImport.FontSize, fontAfterImport.FontSize);
+            Assert.Equal(fontBeforeImport.FontWeight, fontAfterImport.FontWeight);
+            Assert.Equal(fontBeforeImport.CursorBlink, fontAfterImport.CursorBlink);
+            Assert.Equal(fontBeforeImport.FallbackFonts, fontAfterImport.FallbackFonts);
             Assert.False(File.Exists(Path.Combine(directory, "profiles.json")));
 
             await model.CancelCommand.ExecuteAsync(null);
