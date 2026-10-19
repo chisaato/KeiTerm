@@ -615,4 +615,16 @@
   <data name="Settings.Appearance.FallbackMoveUp" xml:space="preserve"><value>Move up</value></data>
   <data name="Settings.Appearance.FallbackMoveDown" xml:space="preserve"><value>Move down</value></data>
   <data name="Settings.Appearance.FallbackRemove" xml:space="preserve"><value>Remove</value></data>
+  <data name="FileManager.CreateFile" xml:space="preserve"><value>New file</value></data>
+  <data name="FileManager.CreateDirectory" xml:space="preserve"><value>New folder</value></data>
+  <data name="FileManager.Rename" xml:space="preserve"><value>Rename</value></data>
+  <data name="FileManager.UploadFiles" xml:space="preserve"><value>Upload files…</value></data>
+  <data name="FileManager.Refresh" xml:space="preserve"><value>Refresh</value></data>
+  <data name="FileManager.Name" xml:space="preserve"><value>Name</value></data>
+  <data name="FileManager.InvalidName" xml:space="preserve"><value>Name must not be empty, . or .., or contain / or a null character.</value></data>
+  <data name="FileManager.TargetExists" xml:space="preserve"><value>The target already exists and will not be overwritten.</value></data>
+  <data name="FileManager.OperationFailed" xml:space="preserve"><value>Operation failed: {0}</value></data>
+  <data name="FileManager.ItemCount" xml:space="preserve"><value>{0} items</value></data>
+  <data name="Common.ConfirmDelete" xml:space="preserve"><value>Confirm deletion</value></data>
+  <data name="Common.ConfirmDeleteMessage" xml:space="preserve"><value>Delete “{0}”? This action cannot be undone.</value></data>
 </root>

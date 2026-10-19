@@ -149,6 +149,10 @@ internal sealed class ScriptedInteraction : IInteractionService
 
     public Queue<TransferConflictChoice?> ConflictChoices { get; } = new();
     public Queue<string?> Folders { get; } = new();
+    public Queue<IReadOnlyList<string>?> Files { get; } = new();
+
+    public Task<IReadOnlyList<string>?> PickFilesAsync(string title, CancellationToken ct = default)
+        => Task.FromResult(Files.Count > 0 ? Files.Dequeue() : null);
     public Queue<bool> LargeFileAnswers { get; } = new();
 
     public Task<TransferConflictChoice?> PromptTransferConflictAsync(

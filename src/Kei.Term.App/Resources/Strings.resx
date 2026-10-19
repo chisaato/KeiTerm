@@ -2782,4 +2782,16 @@ Latin: AaBb CcDd GgYy gypq
   <data name="Settings.Appearance.FallbackMoveUp" xml:space="preserve"><value>上移</value></data>
   <data name="Settings.Appearance.FallbackMoveDown" xml:space="preserve"><value>下移</value></data>
   <data name="Settings.Appearance.FallbackRemove" xml:space="preserve"><value>移除</value></data>
+  <data name="FileManager.CreateFile" xml:space="preserve"><value>新建文件</value></data>
+  <data name="FileManager.CreateDirectory" xml:space="preserve"><value>新建文件夹</value></data>
+  <data name="FileManager.Rename" xml:space="preserve"><value>重命名</value></data>
+  <data name="FileManager.UploadFiles" xml:space="preserve"><value>上传文件…</value></data>
+  <data name="FileManager.Refresh" xml:space="preserve"><value>刷新</value></data>
+  <data name="FileManager.Name" xml:space="preserve"><value>名称</value></data>
+  <data name="FileManager.InvalidName" xml:space="preserve"><value>名称不能为空、为 . 或 ..，或包含 / 和空字符。</value></data>
+  <data name="FileManager.TargetExists" xml:space="preserve"><value>目标已存在，不会覆盖。</value></data>
+  <data name="FileManager.OperationFailed" xml:space="preserve"><value>操作失败：{0}</value></data>
+  <data name="FileManager.ItemCount" xml:space="preserve"><value>{0} 个项目</value></data>
+  <data name="Common.ConfirmDelete" xml:space="preserve"><value>确认删除</value></data>
+  <data name="Common.ConfirmDeleteMessage" xml:space="preserve"><value>确定要删除“{0}”吗？此操作无法撤销。</value></data>
 </root>

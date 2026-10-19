@@ -268,6 +268,9 @@ public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposabl
 
         try
         {
+            string confirmationName = targets.Count == 1 ? targets[0].Name
+                : string.Format(Helpers.Strings.Get("FileManager.ItemCount"), targets.Count);
+            if (!await (_interaction ?? NullInteractionService.Instance).ConfirmDeleteAsync(confirmationName)) return;
             if (targets.Count == 1)
             {
                 TransferStatusMessage = $"正在删除: {targets[0].Name}...";

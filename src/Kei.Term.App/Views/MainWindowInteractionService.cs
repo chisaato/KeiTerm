@@ -318,8 +318,9 @@ public sealed class MainWindowInteractionService : IInteractionService
                 return await dialog.ShowDialog<TerminalFileDropChoice?>(_owner);
             });
 
-    // 独立确认框尚未实现：保持现有行为直接放行
-    public Task<bool> ConfirmDeleteAsync(string name) => Task.FromResult(true);
+    public Task<bool> ConfirmDeleteAsync(string name)
+        => Safe.RunAsync(_log, "确认删除", () => SettingsWindowInteractionService.ShowConfirmationAsync(
+            DialogOwner, Strings.Get("Common.ConfirmDelete"), string.Format(Strings.Get("Common.ConfirmDeleteMessage"), name)));
 
     public Task OpenBatchEditAsync(BatchSessionEditViewModel viewModel) => Safe.RunAsync(_log, "打开批量修改会话", async () =>
     {
@@ -362,6 +363,19 @@ public sealed class MainWindowInteractionService : IInteractionService
         });
 
     // 统一消息通知：更新主窗口状态提示栏，并在日志留痕
+    public Task<IReadOnlyList<string>?> PickFilesAsync(string title, CancellationToken ct = default)
+        => Safe.RunAsync<IReadOnlyList<string>?>(_log, "选择上传文件", async () =>
+        {
+            ct.ThrowIfCancellationRequested();
+            IReadOnlyList<IStorageFile> files = await DialogOwner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = title,
+                AllowMultiple = true,
+            });
+            ct.ThrowIfCancellationRequested();
+            return files.Select(file => file.TryGetLocalPath()).OfType<string>().ToArray();
+        });
+
     public Task NotifyAsync(string title, string message)
     {
         _log.LogInformation("[通知] {Title}: {Message}", title, message);

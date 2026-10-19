@@ -110,15 +110,23 @@ public partial class RemoteFileManagerView : UserControl
         {
             // 右键时若命中列表项：
             // 如果右击的项未被选中，则将其设为唯一点选；如果已被选中（多选集合中），则保留多选状态
-            if (e.Source is Visual visual)
+            if (DataContext is RemoteFileManagerViewModel vm)
             {
-                var listBoxItem = visual.FindAncestorOfType<ListBoxItem>();
-                if (listBoxItem?.DataContext is RemoteFileItem item && DataContext is RemoteFileManagerViewModel vm)
+                ListBoxItem? listBoxItem = (e.Source as Visual) as ListBoxItem
+                    ?? (e.Source as Visual)?.FindAncestorOfType<ListBoxItem>();
+                if (listBoxItem?.DataContext is RemoteFileItem item)
                 {
                     if (FileListBox.SelectedItems != null && !FileListBox.SelectedItems.Contains(item))
                     {
+                        FileListBox.SelectedItems.Clear();
                         vm.SelectedItem = item;
                     }
+                }
+                else
+                {
+                    FileListBox.SelectedItems?.Clear();
+                    vm.SelectedItems.Clear();
+                    vm.SelectedItem = null;
                 }
             }
         }
@@ -126,7 +134,7 @@ public partial class RemoteFileManagerView : UserControl
 
     private void OnContextMenuOpening(object? sender, System.ComponentModel.CancelEventArgs e)
     {
-        if (DataContext is not RemoteFileManagerViewModel vm || vm.SelectedItem == null)
+        if (DataContext is not RemoteFileManagerViewModel vm)
         {
             e.Cancel = true;
             return;
@@ -144,6 +152,15 @@ public partial class RemoteFileManagerView : UserControl
         if (vm.SelectedItems.Count == 0 && vm.SelectedItem != null)
         {
             vm.SelectedItems.Add(vm.SelectedItem);
+        }
+
+        if (sender is ContextMenu menu)
+        {
+            bool hasSelection = vm.SelectedItems.Count > 0;
+            foreach (Control control in menu.Items.OfType<Control>())
+                if (control.Classes.Contains("selection-action")) control.IsVisible = hasSelection;
+            if (this.FindControl<MenuItem>("RenameMenuItem") is { } rename)
+                rename.IsVisible = vm.SelectedItems.Count == 1 && vm.SelectedItem?.Name != "..";
         }
 
         var openWithSubMenu = this.FindControl<MenuItem>("OpenWithSubMenu");
@@ -180,12 +197,12 @@ public partial class RemoteFileManagerView : UserControl
 
     private static void PopulateOpenWithSubMenu(MenuItem? subMenu, RemoteFileManagerViewModel vm)
     {
-        if (subMenu == null || vm.SelectedItem == null) return;
+        if (subMenu == null) return;
 
-        subMenu.IsVisible = !vm.SelectedItem.IsDirectory;
+        subMenu.IsVisible = vm.SelectedItem is { IsDirectory: false };
         subMenu.Items.Clear();
 
-        if (!vm.SelectedItem.IsDirectory)
+        if (vm.SelectedItem is { IsDirectory: false })
         {
             if (vm.AvailableEditors.Count == 0)
             {

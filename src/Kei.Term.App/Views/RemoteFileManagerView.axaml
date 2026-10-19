@@ -8,6 +8,10 @@
              x:DataType="vm:RemoteFileManagerViewModel"
              Background="{DynamicResource Kei.Bg.Panel}">
 
+    <UserControl.KeyBindings>
+        <KeyBinding Gesture="F5" Command="{Binding RefreshDirectoryCommand}"/>
+    </UserControl.KeyBindings>
+
     <UserControl.Styles>
         <Style Selector="ListBoxItem">
             <Setter Property="Padding" Value="6,4"/>
@@ -236,25 +240,31 @@
                      Background="Transparent">
                 <ListBox.ContextMenu>
                     <ContextMenu Opening="OnContextMenuOpening">
-                        <MenuItem Header="打开" Command="{Binding EnterOrOpenFileCommand}" CommandParameter="{Binding SelectedItem}"/>
+                        <MenuItem Classes="selection-action" Header="打开" Command="{Binding EnterOrOpenFileCommand}" CommandParameter="{Binding SelectedItem}"/>
                         <MenuItem x:Name="OpenDirectoryInTabMenuItem" Header="{loc:KeiString FileManager.OpenInTab}"
                                   Command="{Binding OpenDirectoryInTabCommand}" CommandParameter="{Binding SelectedItem}"
                                   IsVisible="{Binding SelectedItem.IsDirectory, FallbackValue=False}"/>
                         <MenuItem Header="打开方式" x:Name="OpenWithSubMenu">
                             <!-- 子项将在 ContextMenu 打开时动态构建 -->
                         </MenuItem>
-                        <MenuItem Header="使用系统默认程序打开"
+                        <MenuItem Classes="selection-action" Header="使用系统默认程序打开"
                                   Command="{Binding OpenWithSystemDefaultCommand}"
                                   CommandParameter="{Binding SelectedItem}"/>
-                        <MenuItem Header="选择其他本地程序打开..."
+                        <MenuItem Classes="selection-action" Header="选择其他本地程序打开..."
                                   Command="{Binding OpenWithCustomExecutableCommand}"
                                   CommandParameter="{Binding SelectedItem}"/>
-                        <Separator/>
-                        <MenuItem Header="{loc:KeiString FileManager.Download}" Command="{Binding DownloadCommand}" CommandParameter="{Binding SelectedItem}"/>
-                        <MenuItem Header="{loc:KeiString FileManager.DownloadTo}" Command="{Binding DownloadToCommand}" CommandParameter="{Binding SelectedItem}"/>
-                        <MenuItem Header="{loc:KeiString FileManager.CopyRemotePath}" Click="OnCopyRemotePath"/>
-                        <Separator/>
-                        <MenuItem Header="删除" Command="{Binding DeleteItemCommand}" CommandParameter="{Binding SelectedItem}"/>
+                        <Separator Classes="selection-action"/>
+                        <MenuItem Classes="selection-action" Header="{loc:KeiString FileManager.Download}" Command="{Binding DownloadCommand}" CommandParameter="{Binding SelectedItem}"/>
+                        <MenuItem Classes="selection-action" Header="{loc:KeiString FileManager.DownloadTo}" Command="{Binding DownloadToCommand}" CommandParameter="{Binding SelectedItem}"/>
+                        <MenuItem Classes="selection-action" Header="{loc:KeiString FileManager.CopyRemotePath}" Click="OnCopyRemotePath"/>
+                        <Separator Classes="selection-action"/>
+                        <MenuItem x:Name="RenameMenuItem" Header="{loc:KeiString FileManager.Rename}" Command="{Binding RenameItemCommand}" CommandParameter="{Binding SelectedItem}"/>
+                        <MenuItem Classes="selection-action" Header="删除" Command="{Binding DeleteItemCommand}" CommandParameter="{Binding SelectedItem}"/>
+                        <Separator Classes="selection-action"/>
+                        <MenuItem Header="{loc:KeiString FileManager.CreateFile}" Command="{Binding CreateFileCommand}"/>
+                        <MenuItem Header="{loc:KeiString FileManager.CreateDirectory}" Command="{Binding CreateDirectoryCommand}"/>
+                        <MenuItem Header="{loc:KeiString FileManager.UploadFiles}" Command="{Binding UploadFilesCommand}"/>
+                        <MenuItem Header="{loc:KeiString FileManager.Refresh}" InputGesture="F5" Command="{Binding RefreshDirectoryCommand}"/>
                     </ContextMenu>
                 </ListBox.ContextMenu>
                 <ListBox.ItemTemplate>

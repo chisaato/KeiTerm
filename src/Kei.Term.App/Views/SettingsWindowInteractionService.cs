@@ -146,6 +146,9 @@ internal sealed class SettingsWindowInteractionService(Window owner, SettingsVie
     public Task OpenQuickConnectAsync() => Task.CompletedTask;
 
     public Task<bool> ConfirmDeleteAsync(string name)
+        => ShowConfirmationAsync(DialogOwner, Strings.Get("Settings.Security.RemoveMasterPassword"), name);
+
+    internal static Task<bool> ShowConfirmationAsync(Window owner, string title, string name)
     {
         var message = new TextBlock
         {
@@ -160,7 +163,7 @@ internal sealed class SettingsWindowInteractionService(Window owner, SettingsVie
         confirm.Classes.Add("accent");
         var dialog = new Window
         {
-            Title = Strings.Get("Settings.Security.RemoveMasterPassword"),
+            Title = title,
             Width = 460,
             SizeToContent = SizeToContent.Height,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
@@ -186,7 +189,7 @@ internal sealed class SettingsWindowInteractionService(Window owner, SettingsVie
         dialog.Bind(Window.FontFamilyProperty, dialog.GetResourceObservable("Kei.Font.UI"));
         cancel.Click += (_, _) => dialog.Close(false);
         confirm.Click += (_, _) => dialog.Close(true);
-        return dialog.ShowDialog<bool>(DialogOwner);
+        return dialog.ShowDialog<bool>(owner);
     }
 
     public Task NotifyAsync(string title, string message) => Task.CompletedTask;
@@ -217,4 +220,16 @@ internal sealed class SettingsWindowInteractionService(Window owner, SettingsVie
     }
 
     public Task OpenBatchEditAsync(BatchSessionEditViewModel viewModel) => Task.CompletedTask;
+
+    public async Task<IReadOnlyList<string>?> PickFilesAsync(string title, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        IReadOnlyList<IStorageFile> files = await DialogOwner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = title,
+            AllowMultiple = true,
+        });
+        ct.ThrowIfCancellationRequested();
+        return files.Select(file => file.TryGetLocalPath()).OfType<string>().ToArray();
+    }
 }

@@ -120,6 +120,9 @@ public interface IInteractionService
     Task<string?> PickFolderAsync(string title, CancellationToken ct = default)
         => Task.FromResult<string?>(null);
 
+    Task<IReadOnlyList<string>?> PickFilesAsync(string title, CancellationToken ct = default)
+        => Task.FromResult<IReadOnlyList<string>?>(null);
+
     Task NotifyAsync(string title, string message);
 
     // 单行文本输入（重命名等）；取消 = null
