@@ -1,13 +1,15 @@
-# 终端字形比 Konsole / SecureCRT 略淡（LCD 子像素 vs 灰度抗锯齿）
+# 终端字形比 Konsole / SecureCRT 略淡（LCD / 灰度差异待确认）
 
 Status: wontfix（暂缓，等上游条件成熟再研究）
 
 ## 现象
 
-同一字体（JetBrainsMono Nerd Font Medium 11pt）、同一配色下，KeiTerm 与 Konsole 叠加后字形完全重合（字宽、行高、笔画位置一致），
+同一字体（JetBrainsMono Nerd Font Medium 11pt）、同一配色下，当时叠图观察认为 KeiTerm 与 Konsole 的字形位置接近；该观察不足以证明字宽、行高、笔画位置完全一致，
 但 KeiTerm 的笔画略淡：只有 SemiBold 的视觉分量才接近 Konsole 的 Medium。
 
-## 测量（2026-10-19，同一张截图里的 `clear`，左 Kei / 右 Konsole）
+## 历史测量（2026-10-19，拟截取 `clear` 的 ROI，左 Kei / 右 Konsole）
+
+以下保留当时观察值，但 ROI 可能混入 prompt 符号，不作为纯 `clear` 的精确基准，也不能据此证明字形完全相同。
 
 | | KeiTerm | Konsole |
 |---|---|---|
@@ -16,19 +18,19 @@ Status: wontfix（暂缓，等上游条件成熟再研究）
 | 有墨像素 | 243 | 251 |
 | 平均覆盖率 | 0.691 | 0.693 |
 
-结论：总墨量几乎相同，差别在笔画中心——Konsole 更多像素是满色，KeiTerm 更多是半透明过渡。
+该 ROI 中 Konsole 的满覆盖像素更多；由于取样边界和内容未严格控制，不能把差异直接归因于字形笔画中心或渲染机制。
 
-## 原因（已确认部分）
+## 渲染线索（不是已确认根因）
 
-- 本机 fontconfig：`hintstyle=3`（hintfull）、`rgba=1`（RGB 子像素）、`lcdfilter=1`；KDE `XftSubPixel=rgb`。Konsole 走 Qt 的 **LCD 子像素渲染**，横向精度是灰度的 3 倍，竖笔边缘更实。
-- RoyalTerminal 0.6.2 先把终端画到离屏 `SKSurface`（`TerminalRenderSurface` / `TerminalShaderPostProcessor.CreateRenderSurface`，无 `SKSurfaceProperties`、未声明像素排列），再贴回窗口；Skia 在这种表面上不做 LCD，所以 `FontEdging.SubpixelAntialias` 实际退化为灰度。应用侧改不了，需上游暴露表面属性或改渲染路径。
-- 应用侧已做到最大：`TerminalFontRendering` 设置灰度抗锯齿 + `Hinting=Full` + 关闭亚像素定位/线性度量。
-- 无头渲染对照（SkiaSharp 3.119.4，字号 15–22px，None/Slight/Full）：同字号内 Full 的墨量与满覆盖像素都不低于其他档，**Full 已是 hinting 里最实的设置**，换档不会更接近 Konsole。
+- 本机 fontconfig：`hintstyle=3`（hintfull）、`rgba=1`（RGB 子像素）、`lcdfilter=1`；KDE `XftSubPixel=rgb`。这些只能证明系统配置偏好，不能证明 Konsole 的实际窗口渲染走了 LCD。
+- 当时检查 RoyalTerminal 0.6.2 的线索是先画到离屏 `SKSurface`（`TerminalRenderSurface` / `TerminalShaderPostProcessor.CreateRenderSurface`，未显式设置 `SKSurfaceProperties`/像素排列），再贴回窗口。这是研究实际抗锯齿路径的线索，不足以单独证明两端差异只能由 LCD / 灰度造成，或应用侧绝无调整余地。
+- 当前应用侧 `TerminalFontRendering` 使用灰度抗锯齿 + `Hinting=Full` + 关闭亚像素定位/线性度量；这描述现状，不代表已经找到最优解。
+- 裸 Skia 无头渲染对照（SkiaSharp 3.119.4，字号 15–22px，None/Slight/Full）中，同字号内 Full 的墨量与满覆盖像素不低于其他档。实验未复现真实终端的尺寸、字体度量和完整渲染链，不能外推为 Full 绝无调整余地。
 
 ## 未确认部分
 
-- Skia 灰度混合的对比度/gamma 与 Qt LCD 混合的差异究竟占多少，没有拆开量化。
-- 对照实验没能复现截图的尺寸（截图里 `clear` 为 60×12 像素，任何单一字号都对不上，疑似屏幕缩放或截图拉伸），因此无法与 Konsole 基准做直接排名。要重做请在 100% 缩放下各截一张同尺寸图。
+- Konsole 实际抗锯齿路径，以及两端混合对比度/gamma 等因素各占多少，没有严格确认或拆开量化。
+- 当时截图 bbox 记录为 60×12 像素，但实际还包含 prompt 符号，不能当作纯 `clear` 的字形尺寸。裸 Skia 实验未对齐真实终端尺寸；不能据此认定屏幕缩放或截图拉伸是根因。后续应控制文本、ROI、字号、缩放及渲染链，重建同条件基准。
 
 ## 决定
 
@@ -36,8 +38,14 @@ Status: wontfix（暂缓，等上游条件成熟再研究）
 - 暂缓。可重新研究的时机：
   1. RoyalTerminal 上游提供离屏表面的 `SKSurfaceProperties`/像素几何，或直接绘制到窗口表面的选项；
   2. 上游提供文字对比度/gamma 调节；
-  3. 100% 缩放下获得同尺寸基准截图，重新量化。
+   3. 获得受控文本、纯字形 ROI 与同条件尺寸基准截图（可先用 100% 缩放），重新量化。
 
 ## 复现对照实验
 
 用 SkiaSharp 无头渲染 `clear`：前景 `66,160,78`，背景 `35,38,39`，覆盖率取绿色通道 `(G-38)/122`，统计墨量、满覆盖（>0.9）与有墨（>0.15）像素数。
+
+## Comments
+
+### 2026-10-20 勘误与证据边界
+
+以上已收回「Konsole 确定使用 LCD」「叠图证明字形完全一致」「Full 已无调整余地」的过度断言。历史数值仅作线索，原因仍未严格确认。用户明确不允许自动字重或字形补偿，未来择机研究；本 ticket 保持 `wontfix`（暂缓），不因[本轮功能交付办结](../spec.md)而改为已解决。

@@ -228,11 +228,16 @@ public partial class SettingsViewModel : ViewModelBase
         _appearance.SetDraftPreviewHandler(OnTerminalProfileDraftPreview);
 
         SubscribeExternalFontSize();
-        Reload();
+        // App 在读取 settings.json 前构造此 VM；构造只初始化表单，不把默认值发布为全局草稿。
+        // 真正打开设置时由 Reload() 广播，避免新标签优先读取到启动阶段缓存的默认字体。
+        Reload(broadcastTerminalFontDraft: false);
     }
 
     // 从设置服务重读当前值，丢弃未保存的编辑（每次打开窗口时调用）
     public void Reload()
+        => Reload(broadcastTerminalFontDraft: true);
+
+    private void Reload(bool broadcastTerminalFontDraft)
     {
         _isReloading = true;
         try
@@ -243,7 +248,7 @@ public partial class SettingsViewModel : ViewModelBase
         {
             _isReloading = false;
         }
-        BroadcastTerminalFontDraft();
+        if (broadcastTerminalFontDraft) BroadcastTerminalFontDraft();
     }
 
     private void ReloadCore()
