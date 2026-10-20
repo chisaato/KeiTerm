@@ -38,6 +38,10 @@ public partial class RemoteFileManagerViewModel
             if (!_sizeDisplayDisposed)
             {
                 SizeDisplayMode = mode;
+                foreach (FileTransferTaskItemViewModel task in TransferTasks)
+                {
+                    task.SizeDisplayMode = mode;
+                }
             }
         }
     }

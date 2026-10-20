@@ -108,6 +108,23 @@ public class SessionConfigBuilderTests
     }
 
     [Theory]
+    [InlineData("ops", "root", "ops")]
+    [InlineData(null, "root", "root")]
+    [InlineData("  ", " root ", "root")]
+    [InlineData(null, null, "globaluser")]
+    [InlineData(null, "  ", "globaluser")]
+    public void ApplyIdentityUsername_SessionOverridesIdentity_ThenGlobal(string? sessionUser, string? identityUser, string expected)
+    {
+        SessionNode node = new() { Host = "h", Username = sessionUser };
+        ResolvedSessionConfig built = SessionConfigBuilder.Build(node, CreateSettings());
+
+        ResolvedSessionConfig resolved = SessionConfigBuilder.ApplyIdentityUsername(
+            built, new Kei.Term.Core.Vault.Identity { Name = "id", Username = identityUser });
+
+        Assert.Equal(expected, resolved.Username);
+    }
+
+    [Theory]
     [InlineData("", "screen-256color", "screen-256color")]
     [InlineData("  ", "vt100", "vt100")]
     [InlineData("ansi", "vt100", "ansi")]

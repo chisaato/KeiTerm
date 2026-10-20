@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Input;
 using Kei.Term.App.Helpers;
 using Kei.Term.App.Logging;
+using Kei.Term.App.Models;
 using Kei.Term.Core.Models;
 using Kei.Term.Core.Services;
 
@@ -68,7 +69,10 @@ public partial class MainViewModel
         {
             if (!IsValidCloneTarget(_copySnapshot.Root, targetId))
             {
-                StatusMessage = Strings.Get("Status.Paste.InvalidTarget");
+                await Interaction.NotifyAsync(
+                    Strings.Get("Toolbar.Paste"),
+                    Strings.Get("Status.Paste.InvalidTarget"),
+                    NotificationLevel.Warning);
                 return;
             }
 

@@ -19,6 +19,7 @@ public partial class SettingsViewModel
         _fileTransfer.WriteDebounceMilliseconds = Math.Clamp(transfer.WriteDebounceMilliseconds, 200, 60000);
         _fileTransfer.CustomEditorPath = transfer.CustomEditorPath;
         _fileTransfer.IsFileManagerOnLeft = transfer.IsFileManagerOnLeft;
+        _fileTransfer.FileManagerPage.FileManagerSidebarWidthPercent = FileManagerSidebarSizing.ClampDefaultRatio(transfer.FileManagerSidebarRatio) * 100;
         _fileTransfer.Concurrency = transfer.Concurrency;
         _fileTransfer.DefaultDownloadDirectory = transfer.DefaultDownloadDirectory;
         _fileTransfer.SetConflictPolicy(transfer.DefaultConflictPolicy);
@@ -49,6 +50,7 @@ public partial class SettingsViewModel
         transfer.WriteDebounceMilliseconds = Math.Clamp(_fileTransfer.WriteDebounceMilliseconds, 200, 60000);
         transfer.CustomEditorPath = _fileTransfer.CustomEditorPath.Trim();
         transfer.IsFileManagerOnLeft = _fileTransfer.IsFileManagerOnLeft;
+        transfer.FileManagerSidebarRatio = FileManagerSidebarSizing.ClampDefaultRatio(_fileTransfer.FileManagerPage.FileManagerSidebarWidthPercent / 100);
         transfer.Concurrency = _fileTransfer.Concurrency;
         transfer.DefaultDownloadDirectory = _fileTransfer.DefaultDownloadDirectory.Trim();
         transfer.DefaultConflictPolicy = _fileTransfer.SelectedConflictPolicy.Policy;
@@ -68,5 +70,6 @@ public partial class SettingsViewModel
     {
         WeakReferenceMessenger.Default.Send(new FileSizeDisplayChangedMessage(_settingsService.Current.FileTransfer.SizeDisplayMode));
         WeakReferenceMessenger.Default.Send(new FileManagerDockChangedMessage(_settingsService.Current.FileTransfer.IsFileManagerOnLeft));
+        WeakReferenceMessenger.Default.Send(new FileManagerSidebarRatioChangedMessage(_settingsService.Current.FileTransfer.FileManagerSidebarRatio));
     }
 }

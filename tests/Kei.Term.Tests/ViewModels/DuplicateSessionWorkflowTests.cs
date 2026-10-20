@@ -49,7 +49,7 @@ public class DuplicateSessionWorkflowTests
         public Task OpenSettingsAsync() => NullInteractionService.Instance.OpenSettingsAsync();
         public Task OpenQuickConnectAsync() => NullInteractionService.Instance.OpenQuickConnectAsync();
         public Task<bool> ConfirmDeleteAsync(string name) => NullInteractionService.Instance.ConfirmDeleteAsync(name);
-        public Task NotifyAsync(string title, string message) => NullInteractionService.Instance.NotifyAsync(title, message);
+        public Task NotifyAsync(string title, string message, NotificationLevel level = NotificationLevel.Info) => NullInteractionService.Instance.NotifyAsync(title, message, level);
         public Task<string?> PromptTextAsync(string title, string label, string? initialText) => NullInteractionService.Instance.PromptTextAsync(title, label, initialText);
         public Task OpenBatchEditAsync(Kei.Term.App.ViewModels.BatchEdit.BatchSessionEditViewModel viewModel) => NullInteractionService.Instance.OpenBatchEditAsync(viewModel);
     }

@@ -90,6 +90,24 @@ public partial class RemoteFileManagerViewModel
         return directory;
     }
 
+    public int ActiveTransferCount => TransferTasks.Count(task => task.State is FileTransferState.Transferring or FileTransferState.Packing or FileTransferState.Verifying or FileTransferState.Unpacking);
+
+    public double TotalTransferSpeedMBs => TransferTasks.Where(task => task.State == FileTransferState.Transferring).Sum(task => task.SpeedMBs);
+
+    public string TotalTransferSpeedText => TotalTransferSpeedMBs > 0.01 ? $"{TotalTransferSpeedMBs:F1} MB/s" : string.Empty;
+
+    public string TransferActivitySummaryText
+    {
+        get
+        {
+            int count = ActiveTransferCount;
+            if (count == 0) return string.Empty;
+            string countText = Strings.Format("FileActivity.Summary.Active", count);
+            double speed = TotalTransferSpeedMBs;
+            return speed > 0.01 ? $"{countText} · {speed:F1} MB/s" : countText;
+        }
+    }
+
     private void UpdateOverallTransferringState()
     {
         IsTransferring = TransferTasks.Any(task => task.State is FileTransferState.Pending
@@ -99,5 +117,9 @@ public partial class RemoteFileManagerViewModel
             or FileTransferState.Unpacking
             or FileTransferState.AwaitingConflict
             or FileTransferState.RetryWait);
+        OnPropertyChanged(nameof(ActiveTransferCount));
+        OnPropertyChanged(nameof(TotalTransferSpeedMBs));
+        OnPropertyChanged(nameof(TotalTransferSpeedText));
+        OnPropertyChanged(nameof(TransferActivitySummaryText));
     }
 }

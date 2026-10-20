@@ -885,7 +885,7 @@
     <value>留空则使用当前系统用户</value>
   </data>
   <data name="Settings.Ssh.DefaultUsernameTip" xml:space="preserve">
-    <value>会话未填写用户名时使用的全局默认用户名</value>
+    <value>会话与身份都未填写用户名时使用的全局默认用户名</value>
   </data>
   <data name="Settings.Ssh.DefaultIdentity" xml:space="preserve">
     <value>默认身份:</value>
@@ -1119,8 +1119,11 @@
   <data name="SessionEdit.Username" xml:space="preserve">
     <value>用户名:</value>
   </data>
-  <data name="SessionEdit.Username.Placeholder" xml:space="preserve">
-    <value>为空则使用全局默认用户名或当前系统用户</value>
+  <data name="SessionEdit.Username.FromIdentityFormat" xml:space="preserve">
+    <value>留空沿用身份「{0}」的用户名：{1}</value>
+  </data>
+  <data name="SessionEdit.Username.FallbackFormat" xml:space="preserve">
+    <value>留空使用默认用户名：{0}</value>
   </data>
   <data name="SessionEdit.Identity" xml:space="preserve">
     <value>绑定身份:</value>
@@ -1306,7 +1309,7 @@
     <value>用户名:</value>
   </data>
   <data name="IdentityEdit.Username.Placeholder" xml:space="preserve">
-    <value>预填用户名（交互式/兜底弹窗使用）</value>
+    <value>连接使用的登录用户名；会话可单独覆盖</value>
   </data>
   <data name="IdentityEdit.Description" xml:space="preserve">
     <value>描述:</value>
@@ -1433,6 +1436,9 @@
   </data>
   <data name="IdentityEdit.VaultKey.NotImported" xml:space="preserve">
     <value>未导入</value>
+  </data>
+  <data name="IdentityEdit.VaultKey.Unknown" xml:space="preserve">
+    <value>保管库已锁定，无法确认</value>
   </data>
   <data name="IdentityEdit.VaultKey.Imported" xml:space="preserve">
     <value>已导入</value>
@@ -2425,6 +2431,12 @@ Latin: AaBb CcDd GgYy gypq
   <data name="Settings.FileTransfer.DockLeft" xml:space="preserve">
     <value>默认停靠在左侧</value>
   </data>
+  <data name="Settings.FileTransfer.SidebarWidth" xml:space="preserve">
+    <value>文件管理侧栏默认宽度比例</value>
+  </data>
+  <data name="Settings.FileTransfer.SidebarWidthTip" xml:space="preserve">
+    <value>占连接视图宽度的 20%–70%；手动拖动过的连接保留自己的比例。</value>
+  </data>
   <data name="Settings.FileTransfer.CacheWatcherSection" xml:space="preserve">
     <value>缓存与文件监视</value>
   </data>
@@ -2794,4 +2806,28 @@ Latin: AaBb CcDd GgYy gypq
   <data name="FileManager.ItemCount" xml:space="preserve"><value>{0} 个项目</value></data>
   <data name="Common.ConfirmDelete" xml:space="preserve"><value>确认删除</value></data>
   <data name="Common.ConfirmDeleteMessage" xml:space="preserve"><value>确定要删除“{0}”吗？此操作无法撤销。</value></data>
+  <data name="FileActivity.Header.Direction" xml:space="preserve"><value>方向</value></data>
+  <data name="FileActivity.Header.Name" xml:space="preserve"><value>名称</value></data>
+  <data name="FileActivity.Header.Size" xml:space="preserve"><value>大小</value></data>
+  <data name="FileActivity.Header.Progress" xml:space="preserve"><value>进度</value></data>
+  <data name="FileActivity.Header.Speed" xml:space="preserve"><value>速度</value></data>
+  <data name="FileActivity.Header.Status" xml:space="preserve"><value>状态</value></data>
+  <data name="FileActivity.Header.RemotePath" xml:space="preserve"><value>远端路径</value></data>
+  <data name="FileActivity.Header.Actions" xml:space="preserve"><value>操作</value></data>
+  <data name="FileActivity.Header.ResizeTip" xml:space="preserve"><value>拖动调整列宽，双击恢复默认</value></data>
+  <data name="FileActivity.Summary.Active" xml:space="preserve"><value>{0} 个进行中</value></data>
+  <data name="FileActivity.Action.CopyError" xml:space="preserve"><value>复制错误信息</value></data>
+  <data name="FileActivity.Action.CopyRemotePath" xml:space="preserve"><value>复制远端路径</value></data>
+  <data name="FileActivity.Action.NavigateToRemote" xml:space="preserve"><value>定位到远端目录</value></data>
+  <data name="FileActivity.Action.Remove" xml:space="preserve"><value>从列表中移除</value></data>
+  <data name="FileManager.Dock.MoveToLeft" xml:space="preserve"><value>移到左侧</value></data>
+  <data name="FileManager.Dock.MoveToRight" xml:space="preserve"><value>移到右侧</value></data>
+  <data name="FileManager.Dock.Toggle" xml:space="preserve"><value>切换停靠侧</value></data>
+  <data name="FileManager.Hide" xml:space="preserve"><value>隐藏文件管理</value></data>
+  <data name="Terminal.FileManager.Show" xml:space="preserve"><value>显示文件管理</value></data>
+  <data name="Terminal.FileManager.Hide" xml:space="preserve"><value>隐藏文件管理</value></data>
+  <data name="Toast.Action.Copy" xml:space="preserve"><value>复制全文</value></data>
+  <data name="Toast.Action.Close" xml:space="preserve"><value>关闭</value></data>
+  <data name="Toast.Action.Expand" xml:space="preserve"><value>展开</value></data>
+  <data name="Toast.Action.Collapse" xml:space="preserve"><value>收起</value></data>
 </root>

@@ -360,17 +360,6 @@
                         </Viewbox>
                     </Button>
                 </StackPanel>
-
-                <!-- 暂态状态提示（如粘贴目标无效） -->
-                <TextBlock Grid.Column="1"
-                           Text="{Binding StatusMessage}"
-                           FontSize="12"
-                           Foreground="{DynamicResource Kei.Status.Connecting}"
-                           IsVisible="{Binding StatusMessage, Converter={x:Static ObjectConverters.IsNotNull}}"
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Center"
-                           Margin="8,0"
-                           TextTrimming="CharacterEllipsis"/>
             </Grid>
         </Border>
 
@@ -723,17 +712,6 @@
                                 </Button>
                             </StackPanel>
 
-                            <!-- 居中暂态提示 -->
-                            <TextBlock Grid.Column="1"
-                                       Text="{Binding StatusMessage}"
-                                       FontSize="12"
-                                       Foreground="{DynamicResource Kei.Status.Connecting}"
-                                       IsVisible="{Binding StatusMessage, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                       HorizontalAlignment="Center"
-                                       VerticalAlignment="Center"
-                                       Margin="8,0"
-                                       TextTrimming="CharacterEllipsis"/>
-
                             <!-- 右侧视图切换快捷组（已下移至终端工具栏） -->
                             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4"/>
                         </Grid>
@@ -746,6 +724,20 @@
                         <views:NewTabView x:Name="WelcomeView" DataContext="{Binding WelcomePage}"/>
                     </Border>
                     <views:TerminalWorkspaceView x:Name="WorkspaceHost" IsVisible="{Binding HasTabs}"/>
+
+                    <!-- 工作区右下角分级 Toast 通知浮层（置于撰写栏上方，不遮挡滚动条过多） -->
+                    <ItemsControl ItemsSource="{Binding ToastManager.ActiveToasts}"
+                                  HorizontalAlignment="Right"
+                                  VerticalAlignment="Bottom"
+                                  Margin="0,0,16,12"
+                                  ZIndex="50"
+                                  IsHitTestVisible="True">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <views:ToastItemView/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                 </Panel>
 
                 <!-- 撰写栏：显示条件 = 撰写栏开关打开且有选中标签 -->

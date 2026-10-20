@@ -231,7 +231,7 @@ public partial class IdentityManagerViewModel : ViewModelBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "设置主密码未完整完成");
-            await Interaction.NotifyAsync(Strings.Get("IdentityManager.SetMasterPassword"), ex.Message);
+            await Interaction.NotifyAsync(Strings.Get("IdentityManager.SetMasterPassword"), ex.Message, NotificationLevel.Error);
         }
         finally
         {

@@ -38,6 +38,7 @@
     <Color x:Key="Kei.Color.Status.Connected">#FF4EC9B0</Color>
     <Color x:Key="Kei.Color.Status.Disconnected">#FF7E7E8A</Color>
     <Color x:Key="Kei.Color.Status.Error">#FFF48771</Color>
+    <Color x:Key="Kei.Color.Status.Info">#FF4B84F5</Color>
 
     <!-- 笔刷定义 -->
     <SolidColorBrush x:Key="Kei.Bg.Window" Color="{StaticResource Kei.Color.Bg.Window}"/>
@@ -67,6 +68,7 @@
     <SolidColorBrush x:Key="Kei.Status.Connected" Color="{StaticResource Kei.Color.Status.Connected}"/>
     <SolidColorBrush x:Key="Kei.Status.Disconnected" Color="{StaticResource Kei.Color.Status.Disconnected}"/>
     <SolidColorBrush x:Key="Kei.Status.Error" Color="{StaticResource Kei.Color.Status.Error}"/>
+    <SolidColorBrush x:Key="Kei.Status.Info" Color="{StaticResource Kei.Color.Status.Info}"/>
     <SolidColorBrush x:Key="Kei.Bg.ErrorSubtle" Color="{DynamicResource Kei.Color.Status.Error}" Opacity="0.2"/>
 
     <!-- 尺寸与几何令牌 -->

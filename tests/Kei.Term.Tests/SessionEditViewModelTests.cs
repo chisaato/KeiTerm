@@ -14,6 +14,23 @@ namespace Kei.Term.Tests;
 public class SessionEditViewModelTests
 {
     [Fact]
+    public void UsernamePlaceholder_FollowsSelectedOrDefaultIdentity_ThenGlobal()
+    {
+        Kei.Term.Core.Vault.Identity bound = new() { Name = "运维", Username = "root" };
+        Kei.Term.Core.Vault.Identity fallback = new() { Name = "默认", Username = "deploy" };
+        Kei.Term.Core.Vault.Identity nameless = new() { Name = "无用户名" };
+        AppSettings settings = new() { DefaultUsername = "global", DefaultIdentityId = fallback.Id };
+        SessionEditViewModel vm = new(null, null, [bound, fallback, nameless], settings);
+
+        // 未绑定身份时沿用全局默认身份
+        Assert.Contains("deploy", vm.UsernamePlaceholder);
+        vm.SelectedIdentity = vm.Identities.First(o => o.Id == bound.Id);
+        Assert.Contains("root", vm.UsernamePlaceholder);
+        vm.SelectedIdentity = vm.Identities.First(o => o.Id == nameless.Id);
+        Assert.Contains("global", vm.UsernamePlaceholder);
+    }
+
+    [Fact]
     public void SessionEditViewModel_AppliesTimeoutOverrideToModel()
     {
         var settings = new AppSettings { ConnectTimeoutSeconds = 60 };

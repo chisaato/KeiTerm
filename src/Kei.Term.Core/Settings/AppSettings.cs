@@ -201,6 +201,12 @@ public class FileTransferSettings
     // 文件管理侧栏停靠位置（false: 停靠在右侧，true: 停靠在左侧）
     public bool IsFileManagerOnLeft { get; set; } = false;
 
+    // 连接视图中侧栏的默认宽度比例；手动拖动只影响当前视图，不回写此设置。
+    public double FileManagerSidebarRatio { get; set; } = FileManagerSidebarSizing.DefaultRatio;
+
+    // 传输队列表格的列宽与列显隐；所有连接、侧栏与文件标签共用。
+    public TransferTableSettings TransferTable { get; set; } = new();
+
     public const int DefaultConcurrency = 3;
     public const int MinConcurrency = 1;
     public const int DefaultRetryCount = 3;
@@ -284,6 +290,14 @@ public class FileTransferSettings
 
     public string ResolveDownloadDirectory()
         => DownloadDirectoryResolver.Resolve(DefaultDownloadDirectory);
+}
+
+// 键为列标识（RemotePath/Size/Progress/Speed/Status）；缺失的列使用默认宽度与默认显隐。
+public class TransferTableSettings
+{
+    public Dictionary<string, double> ColumnWidths { get; set; } = [];
+
+    public Dictionary<string, bool> ColumnVisibility { get; set; } = [];
 }
 
 public interface ISettingsService

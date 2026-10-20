@@ -45,7 +45,28 @@ public partial class SessionEditViewModel : ViewModelBase
     private ObservableCollection<IdentityOption> _identities = [];
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(UsernamePlaceholder))]
     private IdentityOption? _selectedIdentity;
+
+    // 会话用户名是可选覆盖：占位提示留空时实际沿用的用户名及其来源
+    public string UsernamePlaceholder
+    {
+        get
+        {
+            Guid? identityId = SelectedIdentity?.Id ?? _defaultIdentityId;
+            if (identityId is { } id && _identitiesById.TryGetValue(id, out Identity? identity)
+                && !string.IsNullOrWhiteSpace(identity.Username))
+            {
+                return string.Format(Strings.Get("SessionEdit.Username.FromIdentityFormat"), identity.Name, identity.Username.Trim());
+            }
+
+            return string.Format(Strings.Get("SessionEdit.Username.FallbackFormat"), SessionConfigBuilder.FallbackUsername(_globalSettings));
+        }
+    }
+
+    private readonly Dictionary<Guid, Identity> _identitiesById = [];
+    private readonly Guid? _defaultIdentityId;
+    private readonly AppSettings _globalSettings;
 
     [ObservableProperty]
     private ObservableCollection<FirewallOption> _firewallOptions = [];
@@ -118,6 +139,13 @@ public partial class SessionEditViewModel : ViewModelBase
         IReadOnlyList<PortForward>? portForwards = null)
     {
         AppSettings global = globalSettings ?? new AppSettings();
+        _globalSettings = global;
+        _defaultIdentityId = global.DefaultIdentityId;
+        foreach (Identity identity in availableIdentities)
+        {
+            _identitiesById[identity.Id] = identity;
+        }
+
         TitleFollowOptions = SessionBehaviorOptions.InheritableTitleFollow(global.TabTitleFollowsRemote);
         ConnectTimeoutOptions = SessionBehaviorOptions.InheritableConnectTimeout(global.ConnectTimeoutSeconds);
         SessionOverrides overrides = existing?.Overrides ?? new SessionOverrides();

@@ -49,7 +49,7 @@ internal sealed class ScriptedInteraction : IInteractionService
     public List<string> AuthPromptUsernames { get; } = [];
     public List<string> KeyboardInteractivePrompts { get; } = [];
     public List<HostKeyEvaluation> HostKeyPrompts { get; } = [];
-    public List<(string Title, string Message)> Notifications { get; } = [];
+    public List<(string Title, string Message, NotificationLevel Level)> Notifications { get; } = [];
 
     public Task<string?> PromptMasterPasswordAsync(string? error)
     {
@@ -90,9 +90,9 @@ internal sealed class ScriptedInteraction : IInteractionService
         return Task.FromResult(HostKeyDecisions.Count > 0 ? HostKeyDecisions.Dequeue() : HostKeyDecision.Reject);
     }
 
-    public Task NotifyAsync(string title, string message)
+    public Task NotifyAsync(string title, string message, NotificationLevel level = NotificationLevel.Info)
     {
-        Notifications.Add((title, message));
+        Notifications.Add((title, message, level));
         return Task.CompletedTask;
     }
 

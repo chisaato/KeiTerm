@@ -79,6 +79,8 @@ public partial class SettingsViewModel : ViewModelBase
     public Func<TerminalProfile?, TerminalFontSnapshot, Task<TerminalProfile?>>? OpenTerminalProfileEditDialogAsync { get; set; }
     public Func<string, string, Task>? ShowNotificationAsync { get; set; }
 
+    public Func<string, string, NotificationLevel, Task>? ShowNotificationWithLevelAsync { get; set; }
+
     private readonly Services.ProfileManagerService _profileManager;
 
     // 最后一次成功提交的设置快照：仅用于 settings.json 的失败补偿
@@ -460,7 +462,7 @@ public partial class SettingsViewModel : ViewModelBase
                 var message = compensationError == null
                     ? ex.Message
                     : $"{ex.Message}（恢复已提交状态失败：{compensationError}）";
-                await NotifyAsync("设置保存失败", message);
+                await NotifyAsync("设置保存失败", message, NotificationLevel.Error);
                 return false;
             }
 
@@ -518,9 +520,13 @@ public partial class SettingsViewModel : ViewModelBase
         return errors.Count == 0 ? null : string.Join("; ", errors);
     }
 
-    private async Task NotifyAsync(string title, string message)
+    private async Task NotifyAsync(string title, string message, NotificationLevel level = NotificationLevel.Info)
     {
-        if (ShowNotificationAsync != null)
+        if (ShowNotificationWithLevelAsync != null)
+        {
+            await ShowNotificationWithLevelAsync(title, message, level);
+        }
+        else if (ShowNotificationAsync != null)
         {
             await ShowNotificationAsync(title, message);
         }
@@ -580,7 +586,7 @@ public partial class SettingsViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            await NotifyAsync("取消回滚失败", ex.Message);
+            await NotifyAsync("取消回滚失败", ex.Message, NotificationLevel.Error);
         }
         finally
         {

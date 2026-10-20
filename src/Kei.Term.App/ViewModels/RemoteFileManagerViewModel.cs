@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia.Input.Platform;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -33,6 +34,7 @@ public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposabl
 
     public event Action? CloseRequested;
     public event Action? ToggleDockPositionRequested;
+    public event Action<bool>? SetDockPositionRequested;
 
     // 当前是否停靠在左侧
     [ObservableProperty]
@@ -66,6 +68,12 @@ public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposabl
 
     // 活跃的传输任务列表。目录标签与侧栏指向连接上的同一集合。
     public ObservableCollection<FileTransferTaskItemViewModel> TransferTasks { get; }
+
+    // 传输队列表格的列宽/显隐，同一份设置下所有文件管理器共用。
+    public TransferTableLayout TransferLayout { get; }
+
+    // 本视图自己的表格排布（按视图宽度压缩列），随文件管理器释放。
+    public TransferTableView TransferView { get; }
 
     // 多选选中的项目列表
     public ObservableCollection<RemoteFileItem> SelectedItems { get; } = [];
@@ -130,6 +138,8 @@ public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposabl
         _fileSystem = fileSystem;
         _fileTracker = fileTracker;
         _settingsService = settingsService;
+        TransferLayout = TransferTableLayout.For(settingsService);
+        TransferView = new TransferTableView(TransferLayout);
         InitializeSizeDisplay();
         InitializeFileActivities();
         _editorRepo = editorRepo;
@@ -238,6 +248,35 @@ public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposabl
     {
         ToggleDockPositionRequested?.Invoke();
     }
+
+    [RelayCommand]
+    public void MoveToLeft()
+    {
+        SetDockPositionRequested?.Invoke(true);
+    }
+
+    [RelayCommand]
+    public void MoveToRight()
+    {
+        SetDockPositionRequested?.Invoke(false);
+    }
+
+    [RelayCommand]
+    public async Task CopyTextToClipboardAsync(string? text)
+    {
+        if (string.IsNullOrEmpty(text)) return;
+        if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            var topLevel = Avalonia.Controls.TopLevel.GetTopLevel(desktop.MainWindow);
+            if (topLevel?.Clipboard is { } clipboard)
+            {
+                await clipboard.SetTextAsync(text);
+            }
+        }
+    }
+
+    [RelayCommand]
+    public Task CopyErrorMessageAsync(string? error) => CopyTextToClipboardAsync(error);
 
     [RelayCommand]
     public async Task NavigateUpAsync()

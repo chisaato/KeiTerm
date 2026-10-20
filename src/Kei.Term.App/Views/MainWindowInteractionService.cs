@@ -12,6 +12,7 @@ using Kei.Term.App.Models;
 using Kei.Term.App.Services;
 using Kei.Term.App.ViewModels;
 using Kei.Term.App.ViewModels.BatchEdit;
+using Kei.Term.App.ViewModels.Notifications;
 using Kei.Term.Core.Models;
 using Kei.Term.Core.Models.Profiles;
 using Kei.Term.Core.Security;
@@ -376,10 +377,12 @@ public sealed class MainWindowInteractionService : IInteractionService
             return files.Select(file => file.TryGetLocalPath()).OfType<string>().ToArray();
         });
 
-    public Task NotifyAsync(string title, string message)
+    public Task NotifyAsync(string title, string message) => NotifyAsync(title, message, NotificationLevel.Info);
+
+    public Task NotifyAsync(string title, string message, Kei.Term.App.Models.NotificationLevel level = Kei.Term.App.Models.NotificationLevel.Info)
     {
-        _log.LogInformation("[通知] {Title}: {Message}", title, message);
-        _mainVm.StatusMessage = $"{title}: {message.Replace("\n", " ")}";
+        _log.LogInformation("[通知][{Level}] {Title}: {Message}", level, title, message);
+        _mainVm.ToastManager.Show(title, message, level);
         return Task.CompletedTask;
     }
 }

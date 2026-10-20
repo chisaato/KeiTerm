@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Kei.Term.App.Helpers;
+using Kei.Term.App.Models;
 using Kei.Term.App.ViewModels;
 using Kei.Term.Core.Abstractions;
 using Kei.Term.Core.Models;
@@ -100,7 +101,7 @@ public sealed partial class ConnectionOrchestrator
         if (exit.Error != null)
         {
             _logger.LogWarning("出口不可用 会话={Session} 原因={Reason}", request.Config.SessionName, exit.Error);
-            await _interaction().NotifyAsync(request.Config.SessionName, exit.Error);
+            await _interaction().NotifyAsync(request.Config.SessionName, exit.Error, NotificationLevel.Error);
             return ConnectOutcome.Stopped;
         }
 
@@ -123,7 +124,7 @@ public sealed partial class ConnectionOrchestrator
         catch (JumpChainException ex)
         {
             _logger.LogWarning("跳板链解析失败 会话={Session} 原因={Reason}", auth.Config.SessionName, ex.Message);
-            await _interaction().NotifyAsync(auth.Config.SessionName, ex.Message);
+            await _interaction().NotifyAsync(auth.Config.SessionName, ex.Message, NotificationLevel.Error);
             return ConnectOutcome.Stopped;
         }
 

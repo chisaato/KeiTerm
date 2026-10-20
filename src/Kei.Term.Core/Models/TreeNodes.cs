@@ -125,5 +125,7 @@ public record ResolvedSessionConfig(
     string TabTitleTemplate = "",
     // 完整性校验与归档传输的会话覆盖；保留继承语义，任务开始时再与当前全局设置合并
     bool? VerifyHashOverride = null,
-    bool? ArchiveDirectoriesOverride = null
+    bool? ArchiveDirectoriesOverride = null,
+    // 用户名是否来自会话显式填写；为 false 时允许身份用户名接管
+    bool HasSessionUsername = false
 );

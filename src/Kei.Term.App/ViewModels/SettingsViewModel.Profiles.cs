@@ -32,20 +32,22 @@ public partial class SettingsViewModel
             // 导出“已提交”权威，不含未应用草稿
             var json = _profileManager.ExportBundle();
             await System.IO.File.WriteAllTextAsync(filePath, json);
-            if (ShowNotificationAsync != null)
+            if (ShowNotificationWithLevelAsync != null)
             {
-                await ShowNotificationAsync(
+                await ShowNotificationWithLevelAsync(
                     Strings.Get("Settings.Appearance.ProfileBackupSection"),
-                    string.Format(Strings.Get("Settings.Appearance.BundleExportSuccess"), System.IO.Path.GetFileName(filePath)));
+                    string.Format(Strings.Get("Settings.Appearance.BundleExportSuccess"), System.IO.Path.GetFileName(filePath)),
+                    NotificationLevel.Success);
             }
         }
         catch (Exception ex)
         {
-            if (ShowNotificationAsync != null)
+            if (ShowNotificationWithLevelAsync != null)
             {
-                await ShowNotificationAsync(
+                await ShowNotificationWithLevelAsync(
                     Strings.Get("Settings.Appearance.ProfileBackupSection"),
-                    ex.Message);
+                    ex.Message,
+                    NotificationLevel.Error);
             }
         }
     }
@@ -63,20 +65,22 @@ public partial class SettingsViewModel
             // 纳入父事务：只并入有效状态，Apply 时统一提交；取消无副作用、不落盘
             await _profileManager.ImportBundleAsync(json, overwrite: true, persist: false);
             RefreshAllProfiles();
-            if (ShowNotificationAsync != null)
+            if (ShowNotificationWithLevelAsync != null)
             {
-                await ShowNotificationAsync(
+                await ShowNotificationWithLevelAsync(
                     Strings.Get("Settings.Appearance.ProfileBackupSection"),
-                    Strings.Get("Settings.Appearance.BundleImportSuccess"));
+                    Strings.Get("Settings.Appearance.BundleImportSuccess"),
+                    NotificationLevel.Success);
             }
         }
         catch (Exception ex)
         {
-            if (ShowNotificationAsync != null)
+            if (ShowNotificationWithLevelAsync != null)
             {
-                await ShowNotificationAsync(
+                await ShowNotificationWithLevelAsync(
                     Strings.Get("Settings.Appearance.ProfileBackupSection"),
-                    string.Format(Strings.Get("Settings.Appearance.BundleImportError"), ex.Message));
+                    string.Format(Strings.Get("Settings.Appearance.BundleImportError"), ex.Message),
+                    NotificationLevel.Error);
             }
         }
     }
@@ -145,7 +149,7 @@ public partial class SettingsViewModel
         }
         catch (Exception ex)
         {
-            await NotifyAsync(Strings.Get("TerminalProfileEdit.Title"), ex.Message);
+            await NotifyAsync(Strings.Get("TerminalProfileEdit.Title"), ex.Message, NotificationLevel.Error);
         }
     }
 
@@ -164,7 +168,7 @@ public partial class SettingsViewModel
         }
         catch (Exception ex)
         {
-            await NotifyAsync(Strings.Get("TerminalProfileEdit.Title"), ex.Message);
+            await NotifyAsync(Strings.Get("TerminalProfileEdit.Title"), ex.Message, NotificationLevel.Error);
         }
     }
 

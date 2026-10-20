@@ -19,6 +19,9 @@ sealed class Program
     // Avalonia configuration, don't remove; also used by visual designer.
     public static AppBuilder BuildAvaloniaApp()
     {
+        // 必须早于 X11 平台初始化：Avalonia 只在初始化时读取一次输入法环境变量
+        LinuxImeEnvironment.Apply();
+
         var builder = AppBuilder.Configure<App>()
             .WithInterFont()
             // 诊断期调低阈值：框架内部（含平台后端）信息一并经 TraceToLogBridge 落盘

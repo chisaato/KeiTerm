@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Media;
@@ -103,7 +104,7 @@ public class SidebarTransitionTests
     [MonospaceTheory]
     [InlineData(false)]
     [InlineData(true)]
-    public Task FileSidebar_AnimatesBothDirections_AndReclaimsOnlyItsColumn(bool onLeft) => HeadlessAvalonia.RunAsync(async () =>
+    public Task FileManagerSidebar_AnimatesBothDirections_AndReclaimsOnlyItsColumn(bool onLeft) => HeadlessAvalonia.RunAsync(async () =>
     {
         UiDesignSystemService.Apply();
         TerminalTabViewModel tab = CreateTab("files");
@@ -140,7 +141,14 @@ public class SidebarTransitionTests
             Assert.True(hasOutwardOffset);
             Assert.Equal(1, surface.Opacity);
             Assert.Equal(0, transform.X);
-            layout.ColumnDefinitions[column].Width = new GridLength(310);
+            // 模拟一次有效拖动；新规则以拖动完成事件保存比例，且侧栏最小为 320px。
+            layout.ColumnDefinitions[column].Width = new GridLength(350);
+            window.UpdateLayout();
+            view.FindControl<GridSplitter>("FileManagerSplitter")!.RaiseEvent(new VectorEventArgs
+            {
+                RoutedEvent = Thumb.DragCompletedEvent,
+                Vector = new Vector(0, 0)
+            });
             files.Focus();
 
             hasIntermediateOpacity = false;
@@ -148,7 +156,7 @@ public class SidebarTransitionTests
             Assert.True(files.IsVisible);
             Assert.False(files.IsHitTestVisible);
             Assert.False(view.FindControl<GridSplitter>("FileManagerSplitter")!.IsHitTestVisible);
-            Assert.Equal(310, layout.ColumnDefinitions[column].Width.Value);
+            Assert.Equal(350, layout.ColumnDefinitions[column].Width.Value);
             Assert.Same(tab.Terminal, window.FocusManager!.GetFocusedElement());
             await AdvanceAnimationAsync(240);
             Assert.True(hasIntermediateOpacity);
@@ -159,7 +167,7 @@ public class SidebarTransitionTests
 
             tab.IsFileManagerVisible = true;
             await AdvanceAnimationAsync(240);
-            Assert.Equal(310, layout.ColumnDefinitions[column].Width.Value);
+            Assert.Equal(350, layout.ColumnDefinitions[column].Width.Value);
         }
         finally { window.Close(); await tab.DisposeAsync(); }
     });

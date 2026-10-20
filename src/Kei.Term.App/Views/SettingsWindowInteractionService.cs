@@ -192,7 +192,7 @@ internal sealed class SettingsWindowInteractionService(Window owner, SettingsVie
         return dialog.ShowDialog<bool>(owner);
     }
 
-    public Task NotifyAsync(string title, string message) => Task.CompletedTask;
+    public Task NotifyAsync(string title, string message, Kei.Term.App.Models.NotificationLevel level = Kei.Term.App.Models.NotificationLevel.Info) => Task.CompletedTask;
 
     public Task<string?> PromptTextAsync(string title, string label, string? initialText)
         => new TextPromptWindow(title, label, initialText).ShowDialog<string?>(DialogOwner);

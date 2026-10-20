@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Kei.Term.App.Helpers;
+using Kei.Term.App.Models;
 using Kei.Term.App.ViewModels;
 using Kei.Term.Core.Abstractions;
 using Kei.Term.Core.Models;
@@ -51,6 +52,7 @@ public sealed class AuthMaterialCollector
     {
         ResolvedSessionConfig config = request.Config;
         Identity? identity = request.UseIdentity ? await ResolveIdentityAsync(config) : null;
+        config = SessionConfigBuilder.ApplyIdentityUsername(config, identity);
 
         var materials = new List<MaterializedAuthMethod>();
         if (request.Preloaded != null)
@@ -71,14 +73,13 @@ public sealed class AuthMaterialCollector
             if (identity is { Methods.Count: > 0 })
             {
                 if (allowInteraction)
-                    await _interaction().NotifyAsync(config.SessionName, Strings.Get("Status.Auth.ConfiguredMethodsUnavailable"));
+                    await _interaction().NotifyAsync(config.SessionName, Strings.Get("Status.Auth.ConfiguredMethodsUnavailable"), NotificationLevel.Warning);
                 return null;
             }
 
-            string? effectiveUser = identity?.Username ?? config.Username;
-            if (!string.IsNullOrWhiteSpace(effectiveUser))
+            if (!string.IsNullOrWhiteSpace(config.Username))
             {
-                _logger.LogInformation("未配置认证材料，先尝试直连免密登录 用户名={Username}", effectiveUser);
+                _logger.LogInformation("未配置认证材料，先尝试直连免密登录 用户名={Username}", config.Username);
                 materials.Add(new MaterializedAuthMethod(
                     AuthMaterialKind.Password,
                     new SecretPayload { Password = string.Empty }));
@@ -126,6 +127,7 @@ public sealed class AuthMaterialCollector
         {
             ResolvedSessionConfig hopConfig = SessionConfigBuilder.Build(jumpNode, _settings.Current);
             Identity? hopIdentity = await ResolveIdentityAsync(hopConfig);
+            hopConfig = SessionConfigBuilder.ApplyIdentityUsername(hopConfig, hopIdentity);
             List<MaterializedAuthMethod> hopMaterials = await MaterializePlanAsync(hopConfig, hopIdentity, allowInteraction, onInteraction);
 
             if (hopMaterials.Count == 0)
@@ -137,7 +139,7 @@ public sealed class AuthMaterialCollector
 
                 if (!allowInteraction) throw new JumpChainException($"跳板机认证需要交互: {jumpNode.Name}");
                 onInteraction?.Invoke();
-                AuthPromptResult? prompt = await PromptAuthAsync(hopIdentity?.Username ?? hopConfig.Username, hopIdentity);
+                AuthPromptResult? prompt = await PromptAuthAsync(hopConfig.Username, hopIdentity);
                 if (prompt == null)
                 {
                     throw new JumpChainException($"已取消跳板机认证: {jumpNode.Name}");

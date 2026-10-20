@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Kei.Term.App.Helpers;
+using Kei.Term.App.Models;
 using Kei.Term.App.Services;
 using Kei.Term.Core.Vault;
 
@@ -76,7 +77,8 @@ public partial class SecuritySettingsPage : ViewModelBase
             {
                 await Interaction().NotifyAsync(
                     Strings.Get("Settings.Security.MasterPasswordSection"),
-                    Strings.Get("Settings.Security.Locked"));
+                    Strings.Get("Settings.Security.Locked"),
+                    NotificationLevel.Warning);
             }
 
             return;
@@ -99,7 +101,7 @@ public partial class SecuritySettingsPage : ViewModelBase
         {
             if (Interaction != null)
             {
-                await Interaction().NotifyAsync(Strings.Get("Settings.Security.SetFailed"), ex.Message);
+                await Interaction().NotifyAsync(Strings.Get("Settings.Security.SetFailed"), ex.Message, NotificationLevel.Error);
             }
         }
         finally
@@ -120,7 +122,8 @@ public partial class SecuritySettingsPage : ViewModelBase
         {
             await Interaction().NotifyAsync(
                 Strings.Get("Settings.Security.MasterPasswordSection"),
-                Strings.Get("Settings.Security.Locked"));
+                Strings.Get("Settings.Security.Locked"),
+                NotificationLevel.Warning);
             return;
         }
 
@@ -133,7 +136,7 @@ public partial class SecuritySettingsPage : ViewModelBase
         }
         catch (Exception ex)
         {
-            await Interaction().NotifyAsync(Strings.Get("Settings.Security.RemoveFailed"), ex.Message);
+            await Interaction().NotifyAsync(Strings.Get("Settings.Security.RemoveFailed"), ex.Message, NotificationLevel.Error);
         }
         finally
         {

@@ -176,6 +176,7 @@ public sealed class ConnectionTransferBoard : IAsyncDisposable
     {
         view.State = Map(task.State);
         view.StatusText = Status(task);
+        view.ErrorMessage = task.ErrorMessage;
         view.IsUnverified = task.IsUnverified;
         view.NoteProgress(task.TransferredBytes, task.TotalBytes);
     }
@@ -213,7 +214,7 @@ public sealed class ConnectionTransferBoard : IAsyncDisposable
     };
 
     // 进度更新可以晚一拍。结构变更必须等 UI 线程做完，否则调用方返回时集合还是空的，或和后台 Sync 各插一条。
-    private static void RunOnUi(Action action)
+    public static void RunOnUi(Action action)
     {
         try
         {
@@ -231,7 +232,7 @@ public sealed class ConnectionTransferBoard : IAsyncDisposable
         }
     }
 
-    private static void OnUi(Action action)
+    public static void OnUi(Action action)
     {
         try
         {

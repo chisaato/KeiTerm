@@ -55,7 +55,7 @@ public class Identity
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
-    // 预填用户名（Interactive/弹窗兜底时使用）
+    // 登录用户名；会话显式填写时由会话覆盖（见 SessionConfigBuilder.ApplyIdentityUsername）
     public string? Username { get; set; }
     // 持久化为 methods_json（多态 JSON），数组序 = 尝试序
     public List<AuthMethodEntry> Methods { get; set; } = [];

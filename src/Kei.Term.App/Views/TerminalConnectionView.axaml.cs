@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Presenters;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -10,6 +11,7 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Kei.Term.App.ViewModels;
 using Kei.Term.App.Workspaces;
+using Kei.Term.Core.Settings;
 
 namespace Kei.Term.App.Views;
 
@@ -22,13 +24,17 @@ public partial class TerminalConnectionView : UserControl
     private bool _fileManagerPresentationInitialized;
     private bool _fileManagerTargetVisible;
     private bool _fileManagerPresentedOnLeft;
-    private double _lastFileManagerWidth = 460;
+    private readonly FileManagerSidebarSizing _fileManagerSizing = new();
 
     public TerminalConnectionView()
     {
         InitializeComponent();
         InitializeTerminalFileDrop();
+        InitializeDockDragDrop();
         _fileManagerTransition = new SidebarTransition(SftpSurface);
+        ConnectionLayout.SizeChanged += (_, _) => ApplyFileManagerColumns(SftpHost.IsVisible);
+        FileManagerSplitter.AddHandler(Thumb.DragCompletedEvent, OnFileManagerSplitterDragCompleted,
+            RoutingStrategies.Bubble, handledEventsToo: true);
         AddHandler(PointerPressedEvent, OnPointerPressed, RoutingStrategies.Tunnel | RoutingStrategies.Bubble, handledEventsToo: true);
         AddHandler(GotFocusEvent, OnGotFocus, RoutingStrategies.Bubble, handledEventsToo: true);
     }
@@ -77,7 +83,11 @@ public partial class TerminalConnectionView : UserControl
             _fileManagerPresentationInitialized = false;
             if (tab != null) tab.PropertyChanged += OnFileManagerPropertyChanged;
         }
-        if (tab != null) UpdateFileManagerLayout(tab);
+        if (tab != null)
+        {
+            _fileManagerSizing.ApplyDefault(tab.FileManagerSidebarRatio);
+            UpdateFileManagerLayout(tab);
+        }
         else if (_fileManagerTransition != null)
         {
             _fileManagerTransition.SetImmediate(false);
@@ -103,6 +113,11 @@ public partial class TerminalConnectionView : UserControl
 
     private void OnFileManagerPropertyChanged(object? sender, PropertyChangedEventArgs args)
     {
+        if (sender is TerminalTabViewModel owner && args.PropertyName == nameof(TerminalTabViewModel.FileManagerSidebarRatio))
+        {
+            _fileManagerSizing.ApplyDefault(owner.FileManagerSidebarRatio);
+            ApplyFileManagerColumns(SftpHost.IsVisible);
+        }
         if (sender is TerminalTabViewModel tab
             && args.PropertyName is nameof(TerminalTabViewModel.IsFileManagerVisible) or nameof(TerminalTabViewModel.IsFileManagerOnLeft)
                 or nameof(TerminalTabViewModel.IsShellVisible))
@@ -115,10 +130,6 @@ public partial class TerminalConnectionView : UserControl
     private void UpdateFileManagerLayout(TerminalTabViewModel tab)
     {
         if (_fileManagerTransition == null) return;
-        ColumnDefinition currentColumn = ConnectionLayout.ColumnDefinitions[_fileManagerPresentedOnLeft ? 0 : 2];
-        if (SftpHost.IsVisible && currentColumn.Width.IsAbsolute && currentColumn.Width.Value > 1)
-            _lastFileManagerWidth = currentColumn.Width.Value;
-
         bool visible = tab.IsFileManagerVisible;
         bool fromHidden = !SftpHost.IsVisible;
         bool moved = _fileManagerPresentationInitialized && _fileManagerPresentedOnLeft != tab.IsFileManagerOnLeft;
@@ -153,10 +164,27 @@ public partial class TerminalConnectionView : UserControl
     private void ApplyFileManagerColumns(bool presented)
     {
         bool shellVisible = ResolveTab()?.IsShellVisible != false;
-        GridLength fileWidth = !shellVisible && presented ? new(1, GridUnitType.Star) : new(presented ? _lastFileManagerWidth : 0);
+        double width = ConnectionLayout.Bounds.Width;
+        double maximum = Math.Max(0, width - FileManagerSidebarSizing.SplitterWidth - 240);
+        ColumnDefinition fileColumn = ConnectionLayout.ColumnDefinitions[_fileManagerPresentedOnLeft ? 0 : 2];
+        ColumnDefinition shellColumn = ConnectionLayout.ColumnDefinitions[_fileManagerPresentedOnLeft ? 2 : 0];
+        // 换边、隐藏和仅文件视图都要清除旧约束，避免遗留 MinWidth 阻止折叠。
+        shellColumn.MinWidth = 0;
+        shellColumn.MaxWidth = double.PositiveInfinity;
+        fileColumn.MinWidth = shellVisible && presented ? Math.Min(320, maximum) : 0;
+        fileColumn.MaxWidth = shellVisible && presented ? maximum : double.PositiveInfinity;
+        GridLength fileWidth = !shellVisible && presented ? new(1, GridUnitType.Star) : new(presented ? _fileManagerSizing.GetWidth(width) : 0);
         GridLength terminalWidth = shellVisible ? new(1, GridUnitType.Star) : new(0);
         ConnectionLayout.ColumnDefinitions[0].Width = _fileManagerPresentedOnLeft ? fileWidth : terminalWidth;
         ConnectionLayout.ColumnDefinitions[2].Width = _fileManagerPresentedOnLeft ? terminalWidth : fileWidth;
+    }
+
+    private void OnFileManagerSplitterDragCompleted(object? sender, VectorEventArgs args)
+    {
+        if (!SftpHost.IsVisible || ResolveTab()?.IsShellVisible == false) return;
+        _fileManagerSizing.RecordDrag(ConnectionLayout.ColumnDefinitions[_fileManagerPresentedOnLeft ? 0 : 2].ActualWidth,
+            ConnectionLayout.Bounds.Width);
+        ApplyFileManagerColumns(true);
     }
 
     private void CompleteFileManagerHide(TerminalTabViewModel tab)

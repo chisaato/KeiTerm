@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Input;
 using Kei.Term.App.Helpers;
 using Kei.Term.App.Logging;
+using Kei.Term.App.Models;
 using Kei.Term.Core.Models;
 using Kei.Term.Core.Services;
 
@@ -54,6 +55,9 @@ public partial class MainViewModel
         // 清除过滤以展示并选中新生成的副本。
         FilterText = string.Empty;
         SelectedTreeNode = _allNodesCache.FirstOrDefault(node => node.Id == copy.Id);
-        StatusMessage = string.Format(Strings.Get("Status.SessionDuplicated"), copy.Name);
+        await Interaction.NotifyAsync(
+            Strings.Get("DuplicateSession.Title"),
+            string.Format(Strings.Get("Status.SessionDuplicated"), copy.Name),
+            NotificationLevel.Success);
     });
 }

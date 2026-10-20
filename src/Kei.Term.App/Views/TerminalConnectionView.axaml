@@ -11,6 +11,17 @@
              VerticalAlignment="Stretch"
              Focusable="True"
              FontFamily="{DynamicResource Kei.Font.UI}">
+    <UserControl.Styles>
+        <Style Selector="Button.terminalFileManagerToggle.open">
+            <Setter Property="Background" Value="{DynamicResource Kei.Bg.Pressed}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Kei.Text.Muted}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+        <Style Selector="Button.terminalFileManagerToggle.open Path.kei-icon">
+            <Setter Property="Stroke" Value="{DynamicResource Kei.Accent}"/>
+        </Style>
+    </UserControl.Styles>
+
     <Grid x:Name="ConnectionLayout" ColumnDefinitions="*,Auto,0">
         <Border x:Name="ShellHost"
                 Grid.Column="{Binding IsFileManagerOnLeft, Converter={x:Static conv:FileManagerDockConverter.Instance}, ConverterParameter=Terminal}"
@@ -30,9 +41,22 @@
             </Border.ContextMenu>
             <Grid RowDefinitions="Auto,*,Auto">
                 <!-- 28px 命中区域和 16px 图标，与终端查找及侧栏共享操作。 -->
-                <Border Grid.Row="0" Height="34"
+                <Border x:Name="TerminalHeaderBorder" Grid.Row="0" Height="34"
                         Background="{DynamicResource Kei.Bg.PanelAlt}"
                         BorderBrush="{DynamicResource Kei.Border}" BorderThickness="0,0,0,1" Padding="6,3">
+                    <Border.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="{loc:KeiString FileManager.Dock.MoveToLeft}" Command="{Binding MoveFileManagerToLeftCommand}"
+                                      IsEnabled="{Binding !IsFileManagerOnLeft}" IsVisible="{Binding IsFileManagerVisible}"/>
+                            <MenuItem Header="{loc:KeiString FileManager.Dock.MoveToRight}" Command="{Binding MoveFileManagerToRightCommand}"
+                                      IsEnabled="{Binding IsFileManagerOnLeft}" IsVisible="{Binding IsFileManagerVisible}"/>
+                            <Separator IsVisible="{Binding IsFileManagerVisible}"/>
+                            <MenuItem Header="{loc:KeiString FileManager.PromoteToFileTab}" Command="{Binding FileManager.PromoteToTabCommand}"
+                                      IsVisible="{Binding IsFileManagerVisible}"/>
+                            <MenuItem Header="{loc:KeiString FileManager.Hide}" Command="{Binding CloseFileManagerDocumentCommand}"
+                                      IsVisible="{Binding IsFileManagerVisible}"/>
+                        </ContextMenu>
+                    </Border.ContextMenu>
                     <Grid ColumnDefinitions="Auto,*,Auto">
                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                             <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -86,11 +110,12 @@
                                     </Grid>
                                 </Viewbox>
                             </Button>
-                            <Button x:Name="TerminalFileManagerToggleButton" Classes="iconBtn" Width="28" Height="28" Command="{Binding ToggleFileManagerCommand}"
-                                    ToolTip.Tip="{loc:KeiString Terminal.FileManager.Toggle}" AutomationProperties.Name="{loc:KeiString Terminal.FileManager.Toggle}">
+                            <Button x:Name="TerminalFileManagerToggleButton" Classes="iconBtn terminalFileManagerToggle" Classes.open="{Binding IsFileManagerVisible}"
+                                    Width="28" Height="28" Command="{Binding ToggleFileManagerCommand}"
+                                    ToolTip.Tip="{Binding FileManagerToggleToolTip}" AutomationProperties.Name="{Binding FileManagerToggleToolTip}">
                                 <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
                                     <Grid Width="24" Height="24">
-                                        <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.SidebarRight}"/>
+                                        <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.FileManager}"/>
                                     </Grid>
                                 </Viewbox>
                             </Button>
@@ -144,6 +169,24 @@
                 </Border.RenderTransform>
                 <views:RemoteFileManagerView DataContext="{Binding FileManager}"/>
             </Border>
+        </Border>
+
+        <!-- 拖拽换边放置预览指示层 -->
+        <Border x:Name="DockDropOverlay"
+                Grid.ColumnSpan="3"
+                Background="Transparent"
+                IsHitTestVisible="False"
+                IsVisible="False">
+            <Grid ColumnDefinitions="*,*">
+                <Border x:Name="DropTargetLeft" Grid.Column="0" Margin="4" CornerRadius="4"
+                        Background="{DynamicResource Kei.Accent}" Opacity="0.18"
+                        BorderBrush="{DynamicResource Kei.Accent}" BorderThickness="2"
+                        IsVisible="False"/>
+                <Border x:Name="DropTargetRight" Grid.Column="1" Margin="4" CornerRadius="4"
+                        Background="{DynamicResource Kei.Accent}" Opacity="0.18"
+                        BorderBrush="{DynamicResource Kei.Accent}" BorderThickness="2"
+                        IsVisible="False"/>
+            </Grid>
         </Border>
     </Grid>
 </UserControl>

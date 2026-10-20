@@ -114,7 +114,7 @@ public partial class SettingsWindow : Window
         vm.OpenTerminalProfileEditDialogAsync = interaction.EditTerminalProfileAsync;
 
         // 接入真正可见且可复制的错误提示区域
-        vm.ShowNotificationAsync = (title, message) =>
+        vm.ShowNotificationWithLevelAsync = (title, message, level) =>
         {
             var textBlock = this.FindControl<SelectableTextBlock>("NotificationTextBlock");
             if (textBlock != null)

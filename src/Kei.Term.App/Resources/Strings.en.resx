@@ -347,6 +347,12 @@
   <data name="Settings.FileTransfer.DockLeft" xml:space="preserve">
     <value>Dock on left side by default</value>
   </data>
+  <data name="Settings.FileTransfer.SidebarWidth" xml:space="preserve">
+    <value>Default file manager sidebar width</value>
+  </data>
+  <data name="Settings.FileTransfer.SidebarWidthTip" xml:space="preserve">
+    <value>20%–70% of the connection view; manually resized connections keep their own ratio.</value>
+  </data>
   <data name="Settings.FileTransfer.TransfersSection" xml:space="preserve">
     <value>Transfers &amp; Queue</value>
   </data>
@@ -627,4 +633,28 @@
   <data name="FileManager.ItemCount" xml:space="preserve"><value>{0} items</value></data>
   <data name="Common.ConfirmDelete" xml:space="preserve"><value>Confirm deletion</value></data>
   <data name="Common.ConfirmDeleteMessage" xml:space="preserve"><value>Delete “{0}”? This action cannot be undone.</value></data>
+  <data name="FileActivity.Header.Direction" xml:space="preserve"><value>Direction</value></data>
+  <data name="FileActivity.Header.Name" xml:space="preserve"><value>Name</value></data>
+  <data name="FileActivity.Header.Size" xml:space="preserve"><value>Size</value></data>
+  <data name="FileActivity.Header.Progress" xml:space="preserve"><value>Progress</value></data>
+  <data name="FileActivity.Header.Speed" xml:space="preserve"><value>Speed</value></data>
+  <data name="FileActivity.Header.Status" xml:space="preserve"><value>Status</value></data>
+  <data name="FileActivity.Header.RemotePath" xml:space="preserve"><value>Remote Path</value></data>
+  <data name="FileActivity.Header.Actions" xml:space="preserve"><value>Actions</value></data>
+  <data name="FileActivity.Header.ResizeTip" xml:space="preserve"><value>Drag to resize, double-click to reset</value></data>
+  <data name="FileActivity.Summary.Active" xml:space="preserve"><value>{0} active</value></data>
+  <data name="FileActivity.Action.CopyError" xml:space="preserve"><value>Copy Error Message</value></data>
+  <data name="FileActivity.Action.CopyRemotePath" xml:space="preserve"><value>Copy Remote Path</value></data>
+  <data name="FileActivity.Action.NavigateToRemote" xml:space="preserve"><value>Go to Remote Directory</value></data>
+  <data name="FileActivity.Action.Remove" xml:space="preserve"><value>Remove from List</value></data>
+  <data name="FileManager.Dock.MoveToLeft" xml:space="preserve"><value>Move to Left</value></data>
+  <data name="FileManager.Dock.MoveToRight" xml:space="preserve"><value>Move to Right</value></data>
+  <data name="FileManager.Dock.Toggle" xml:space="preserve"><value>Switch Dock Side</value></data>
+  <data name="FileManager.Hide" xml:space="preserve"><value>Hide File Manager</value></data>
+  <data name="Terminal.FileManager.Show" xml:space="preserve"><value>Show File Manager</value></data>
+  <data name="Terminal.FileManager.Hide" xml:space="preserve"><value>Hide File Manager</value></data>
+  <data name="Toast.Action.Copy" xml:space="preserve"><value>Copy Full Text</value></data>
+  <data name="Toast.Action.Close" xml:space="preserve"><value>Close</value></data>
+  <data name="Toast.Action.Expand" xml:space="preserve"><value>Expand</value></data>
+  <data name="Toast.Action.Collapse" xml:space="preserve"><value>Collapse</value></data>
 </root>

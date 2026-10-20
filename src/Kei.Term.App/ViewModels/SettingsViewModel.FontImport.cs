@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Input;
 using Kei.Term.App.Helpers;
+using Kei.Term.App.Models;
 using Kei.Term.App.Services;
 using Kei.Term.Core.Fonts;
 
@@ -30,12 +31,14 @@ public partial class SettingsViewModel
             _appearance.FontWeight = weight;
             _appearance.FontSize = font.PointSize;
             await _interaction.NotifyAsync(Strings.Get("Settings.Appearance.ImportKonsoleFont"),
-                string.Format(Strings.Get("Settings.Appearance.ImportKonsoleFontSuccess"), _appearance.FontSummary));
+                string.Format(Strings.Get("Settings.Appearance.ImportKonsoleFontSuccess"), _appearance.FontSummary),
+                NotificationLevel.Success);
         }
         catch (Exception ex)
         {
             await _interaction.NotifyAsync(Strings.Get("Settings.Appearance.ImportKonsoleFont"),
-                string.Format(Strings.Get("Settings.Appearance.ImportKonsoleFontError"), ex.Message));
+                string.Format(Strings.Get("Settings.Appearance.ImportKonsoleFontError"), ex.Message),
+                NotificationLevel.Error);
         }
     }
 }

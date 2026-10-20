@@ -77,7 +77,10 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
 
     // 文件管理侧栏显隐控制
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FileManagerToggleToolTip))]
     private bool _isFileManagerVisible;
+
+    public string FileManagerToggleToolTip => Strings.Get(IsFileManagerVisible ? "Terminal.FileManager.Hide" : "Terminal.FileManager.Show");
 
     // 文件管理侧栏停靠在左侧（false 为右侧，true 为左侧）
     [ObservableProperty]
@@ -162,6 +165,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         // 生产默认绑定真实控件（惰性）；测试可注入无控件实现以验证纯状态
         _themeSink = themeSink ?? new TerminalControlThemeSink(() => Terminal);
 
+        RegisterSidebarSizingMessages();
         WeakReferenceMessenger.Default.Register<TerminalTabViewModel, FileManagerDockChangedMessage>(this, static (recipient, message) =>
         {
             void Apply()
@@ -361,10 +365,32 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
     [RelayCommand]
     public void ToggleDockPosition()
     {
-        IsFileManagerOnLeft = !IsFileManagerOnLeft;
+        SetDockPosition(!IsFileManagerOnLeft);
+    }
+
+    [RelayCommand]
+    public void MoveFileManagerToLeft()
+    {
+        SetDockPosition(true);
+    }
+
+    [RelayCommand]
+    public void MoveFileManagerToRight()
+    {
+        SetDockPosition(false);
+    }
+
+    public void SetDockPosition(bool onLeft)
+    {
+        if (IsFileManagerOnLeft == onLeft && FileManager?.IsOnLeft == onLeft)
+        {
+            return;
+        }
+
+        IsFileManagerOnLeft = onLeft;
         if (FileManager != null)
         {
-            FileManager.IsOnLeft = IsFileManagerOnLeft;
+            FileManager.IsOnLeft = onLeft;
         }
         Dispatcher.UIThread.Post(() => TrySyncTerminalSize(), DispatcherPriority.Render);
     }
@@ -420,6 +446,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         }
 
         WeakReferenceMessenger.Default.Unregister<FileManagerDockChangedMessage>(this);
+        WeakReferenceMessenger.Default.Unregister<FileManagerSidebarRatioChangedMessage>(this);
         _userDisconnect = true;
         CancelReconnect();
         await DrainDirectoryFollowAsync();

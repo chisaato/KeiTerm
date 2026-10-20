@@ -24,6 +24,7 @@ public partial class RemoteFileManagerView : UserControl
         _pickExecutable = PickExecutableFileAsync;
         InitializeComponent();
         InitializeActivityLayout();
+        InitializeTransferTable();
         InitializeDirectoryTreeLayout();
         AddHandler(DragDrop.DropEvent, OnDrop);
         AddHandler(DragDrop.DragOverEvent, OnDragOver);

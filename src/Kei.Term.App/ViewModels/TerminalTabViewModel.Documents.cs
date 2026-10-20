@@ -82,6 +82,7 @@ public partial class TerminalTabViewModel
         RequestCloseEmptyTab();
     }
 
+    [RelayCommand]
     public void CloseFileManagerDocument()
     {
         CloseDocument(ConnectionDocumentKind.FileManager);

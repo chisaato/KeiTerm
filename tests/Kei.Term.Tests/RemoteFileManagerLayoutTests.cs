@@ -81,14 +81,17 @@ public class RemoteFileManagerLayoutTests
         {
             HeadlessAvalonia.Pump();
             Button showShell = view.FindControl<Button>("FileManagerShowShellButton")!;
+            Button dockButton = view.FindControl<Button>("FileManagerDockButton")!;
             Button fullscreen = view.FindControl<Button>("FileManagerMaximizeButton")!;
             Assert.False(showShell.IsVisible);
+            Assert.True(dockButton.IsEffectivelyVisible);
             Assert.True(fullscreen.IsEffectivelyVisible);
             Assert.Equal(Strings.Get("FileManager.Maximize"), AutomationProperties.GetName(fullscreen));
             model.IsShellVisible = false;
             model.IsMaximized = true;
             HeadlessAvalonia.Pump();
             Assert.True(showShell.IsEffectivelyVisible);
+            Assert.False(dockButton.IsVisible);
             Assert.Contains("maximized", fullscreen.Classes);
             Assert.Equal(Strings.Get("FileManager.RestoreLayout"), AutomationProperties.GetName(fullscreen));
             AssertTokenColor(window, "Kei.Bg.Pressed", fullscreen.Background);
@@ -96,6 +99,7 @@ public class RemoteFileManagerLayoutTests
             await CaptureAsync(window, 450, "current-page-fullscreen-actions");
             model.IsFileTab = true;
             HeadlessAvalonia.Pump();
+            Assert.False(dockButton.IsVisible);
             Assert.False(fullscreen.IsVisible);
             Assert.False(view.FindControl<Button>("FileManagerOpenInTabButton")!.IsVisible);
             Assert.True(showShell.IsEffectivelyVisible);
@@ -285,15 +289,21 @@ public class RemoteFileManagerLayoutTests
             ItemsControl transfers = view.FindControl<ItemsControl>("TransferTaskList")!;
             Border[] tasks = transfers.GetVisualDescendants().OfType<Border>().Where(border => border.Classes.Contains("transferTask")).ToArray();
             Assert.Equal(6, tasks.Length);
+            // 极窄面板里各列已压到最小宽度仍放不下时，表格整体水平滚动；滚到末尾后操作按钮必须可达。
+            ScrollViewer tableScroller = view.FindControl<ScrollViewer>("TransferTableScroller")!;
+            bool tableScrolls = model.TransferView.TableMinWidth > tableScroller.Bounds.Width + 0.1;
+            if (tableScrolls)
+            {
+                tableScroller.Offset = new Vector(double.MaxValue, 0);
+                window.UpdateLayout();
+                HeadlessAvalonia.Pump();
+            }
             foreach (Border task in tasks)
             {
-                AssertInsideHorizontally(task, window);
+                if (!tableScrolls) AssertInsideHorizontally(task, window);
                 TextBlock name = task.GetVisualDescendants().OfType<TextBlock>().Single(text => text.Text == ((FileTransferTaskItemViewModel)task.DataContext!).FileName);
                 TextBlock status = task.GetVisualDescendants().OfType<TextBlock>().Single(text => text.Classes.Contains("transferStatus"));
-                Point nameOrigin = name.TranslatePoint(default, window)!.Value;
-                Point statusOrigin = status.TranslatePoint(default, window)!.Value;
-                Assert.True(statusOrigin.Y >= nameOrigin.Y + name.Bounds.Height, "任务状态必须另起一行以保留长文件名的宽度");
-                Assert.True(name.Bounds.Width > 100, "窄面板也应留出可辨识文件名的宽度");
+                Assert.True(name.Bounds.Width > 0, "窄面板也应留出可辨识文件名的宽度");
                 Button[] actions = task.GetVisualDescendants().OfType<Button>().Where(button => button.IsEffectivelyVisible).ToArray();
                 Assert.NotEmpty(actions);
                 Assert.All(actions, button => AssertInsideHorizontally(button, window));

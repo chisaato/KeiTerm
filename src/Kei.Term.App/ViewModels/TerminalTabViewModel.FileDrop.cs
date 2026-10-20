@@ -11,6 +11,7 @@ using CommunityToolkit.Mvvm.Input;
 using Kei.Term.App.Helpers;
 using Kei.Term.App.Services;
 using Kei.Term.Core.Abstractions;
+using Kei.Term.App.Models;
 using Kei.Term.Core.Models;
 using Kei.Term.Core.Services;
 using Kei.Term.Core.Settings;
@@ -90,7 +91,7 @@ public partial class TerminalTabViewModel
                 // 目录仍可粘贴路径/名称；上传仅接收普通文件，避免静默丢弃部分拖入项。
                 if (paths.Any(Directory.Exists))
                 {
-                    await _dropInteraction.NotifyAsync(Strings.Get("Terminal.Drop.Title"), Strings.Get("Terminal.Drop.DirectoriesUnsupported"));
+                    await _dropInteraction.NotifyAsync(Strings.Get("Terminal.Drop.Title"), Strings.Get("Terminal.Drop.DirectoriesUnsupported"), NotificationLevel.Warning);
                     return;
                 }
                 IsTerminalUploadActive = true;
@@ -116,7 +117,7 @@ public partial class TerminalTabViewModel
         catch (Exception ex)
         {
             StatusMessage = Strings.Format("Terminal.Drop.Failed", ex.Message);
-            await _dropInteraction.NotifyAsync(Strings.Get("Terminal.Drop.Title"), StatusMessage);
+            await _dropInteraction.NotifyAsync(Strings.Get("Terminal.Drop.Title"), StatusMessage, NotificationLevel.Error);
         }
         finally
         {

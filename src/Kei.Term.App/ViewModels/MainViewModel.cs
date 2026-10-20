@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia.Input.Platform;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -16,6 +17,7 @@ using Kei.Term.App.Helpers;
 using Kei.Term.App.Workspaces;
 using Kei.Term.App.Logging;
 using Kei.Term.App.Models;
+using Kei.Term.App.ViewModels.Notifications;
 using Kei.Term.App.Services;
 using Kei.Term.App.Services.Connection;
 using Kei.Term.App.Terminals;
@@ -135,9 +137,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
     [ObservableProperty]
     private TabPlacement _tabPlacement = TabPlacement.Top;
 
-    // 暂态状态提示（如粘贴目标无效）
-    [ObservableProperty]
-    private string? _statusMessage;
+    // 右下角分级 Toast 通知管理器
+    public ToastManagerViewModel ToastManager { get; }
 
     // 关闭窗口前是否需要确认（来自设置）
     public bool ConfirmBeforeClose => _settingsService.Current.ConfirmBeforeClose;
@@ -187,6 +188,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         _logger = logger ?? NullLogger<MainViewModel>.Instance;
         _loggerFactory = loggerFactory;
         _uiDispatch = uiDispatch ?? DefaultUiDispatch;
+        ToastManager = new ToastManagerViewModel(
+            copyToClipboard: CopyTextToClipboardAsync,
+            dispatchToUi: _uiDispatch);
         VaultSession = new VaultSessionService(
             vault,
             vaultSecretStore,
@@ -232,6 +236,19 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         {
             _profileManager.TerminalProfileChanged += OnTerminalProfileChanged;
             _profileManager.TerminalFontSnapshotChanged += OnTerminalFontSnapshotChanged;
+        }
+    }
+
+    private static async Task CopyTextToClipboardAsync(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return;
+        if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            var topLevel = Avalonia.Controls.TopLevel.GetTopLevel(desktop.MainWindow);
+            if (topLevel?.Clipboard is { } clipboard)
+            {
+                await clipboard.SetTextAsync(text);
+            }
         }
     }
 
@@ -665,7 +682,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
             catch (Exception ex)
             {
                 node.Name = original;
-                await Interaction.NotifyAsync(Strings.Get("Tree.Menu.Rename"), ex.Message);
+                await Interaction.NotifyAsync(Strings.Get("Tree.Menu.Rename"), ex.Message, NotificationLevel.Error);
             }
         }
         finally
@@ -802,7 +819,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         string path = OpenSshPaths.UserConfig;
         if (!File.Exists(path))
         {
-            await Interaction.NotifyAsync(Strings.Get("Menu.File.ImportOpenSshConfig"), $"未找到 {path}");
+            await Interaction.NotifyAsync(Strings.Get("Menu.File.ImportOpenSshConfig"), $"未找到 {path}", NotificationLevel.Warning);
             return;
         }
 
@@ -819,11 +836,13 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         await ReloadTreeAsync();
 
         string message = $"导入 {summary.SessionsImported} 个会话（跳过已存在 {summary.SessionsSkipped} 个），新建 {summary.IdentitiesCreated} 个身份。";
+        NotificationLevel importLevel = NotificationLevel.Success;
         if (summary.Warnings.Count > 0)
         {
             message += "\n" + string.Join("\n", summary.Warnings);
+            importLevel = NotificationLevel.Warning;
         }
-        await Interaction.NotifyAsync(Strings.Get("Menu.File.ImportOpenSshConfig"), message);
+        await Interaction.NotifyAsync(Strings.Get("Menu.File.ImportOpenSshConfig"), message, importLevel);
     });
 
     // 导入 ~/.ssh/known_hosts：与系统 ssh 共享已建立的主机信任（含哈希条目与 @revoked）
@@ -833,7 +852,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         string path = OpenSshPaths.UserKnownHosts;
         if (_hostKeyTrust == null || !File.Exists(path))
         {
-            await Interaction.NotifyAsync(Strings.Get("Menu.File.ImportKnownHosts"), $"未找到 {path}");
+            await Interaction.NotifyAsync(Strings.Get("Menu.File.ImportKnownHosts"), $"未找到 {path}", NotificationLevel.Warning);
             return;
         }
 
@@ -842,7 +861,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
 
         await Interaction.NotifyAsync(
             Strings.Get("Menu.File.ImportKnownHosts"),
-            $"导入 {count} 条主机密钥，跳过无法识别的行 {parsed.SkippedLines} 行。");
+            $"导入 {count} 条主机密钥，跳过无法识别的行 {parsed.SkippedLines} 行。",
+            NotificationLevel.Success);
     });
 
     // 导入 SecureCRT 会话：弹出目录选择框，提取层级目录与会话，并为用到的凭据建立占位 Profile
@@ -864,11 +884,13 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         await ReloadTreeAsync();
 
         var msg = $"成功扫描 {summary.TotalFilesScanned} 个文件，新建 {summary.FoldersCreated} 个目录，导入 {summary.SessionsImported} 个会话。";
+        NotificationLevel scrtLevel = NotificationLevel.Success;
         if (summary.IdentitiesCreated > 0)
         {
             msg += $"\n为未注册凭据创建了 {summary.IdentitiesCreated} 个空身份档案 ({string.Join(", ", summary.ImportedIdentityNames)})，请在身份管理器中补全私钥或口令。";
+            scrtLevel = NotificationLevel.Warning;
         }
-        await Interaction.NotifyAsync("SecureCRT 导入完成", msg);
+        await Interaction.NotifyAsync("SecureCRT 导入完成", msg, scrtLevel);
     });
 
     [RelayCommand]
@@ -896,13 +918,14 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
             await profileManager.CommitAndSaveProfilesAsync();
             await Interaction.NotifyAsync(
                 Strings.Get("TerminalProfileEdit.Title"),
-                Strings.Get("Settings.Appearance.BundleImportSuccess"));
+                Strings.Get("Settings.Appearance.BundleImportSuccess"),
+                NotificationLevel.Success);
         }
         catch (Exception ex)
         {
             // 落盘失败：撤销内存草稿并给出可见提示，不假装成功
             profileManager.RemoveCustomTerminalProfile(confirmed.Id);
-            await Interaction.NotifyAsync(Strings.Get("TerminalProfileEdit.Title"), ex.Message);
+            await Interaction.NotifyAsync(Strings.Get("TerminalProfileEdit.Title"), ex.Message, NotificationLevel.Error);
         }
     });
 

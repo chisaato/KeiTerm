@@ -77,6 +77,25 @@ public class IdentityEditPasswordTests
         finally { window.Close(); }
     });
 
+    [Theory]
+    [InlineData(null, "tester")]
+    [InlineData("override", "override")]
+    public async Task Collector_UsesIdentityUsername_UnlessSessionOverrides(string? sessionUser, string expected)
+    {
+        using Fixture fixture = await Fixture.CreateAsync();
+        Identity identity = await fixture.SeedIdentityAsync();
+        FixedSettingsService settings = new(new AppSettings { DefaultUsername = "global" });
+        AuthMaterialCollector collector = new(fixture.Repository, settings, fixture.Session, () => fixture.Interaction);
+        ResolvedSessionConfig config = SessionConfigBuilder.Build(new SessionNode
+        {
+            Name = "identity user", Host = "test.invalid", Username = sessionUser, IdentityId = identity.Id,
+        }, settings.Current);
+
+        CollectedAuth collected = (await collector.CollectTargetAsync(new ConnectionRequest(config, UseIdentity: true)))!;
+
+        Assert.Equal(expected, collected.Config.Username);
+    }
+
     [Fact]
     public async Task BlankNewPassword_PreventsSavingOrConfirming()
     {
@@ -111,6 +130,43 @@ public class IdentityEditPasswordTests
         Assert.True(editor.IsConfirmed);
         Assert.Equal("retry secret", (await fixture.Vault.GetSecretsAsync(editor.IdentityId))[row.Model.Id.ToString()].Password);
         Assert.Empty(row.Password);
+    }
+
+    [Fact]
+    public async Task Prepare_LockedVault_PromptsOnOpen_SoApplyDoesNotInterrupt()
+    {
+        using Fixture fixture = await Fixture.CreateAsync();
+        fixture.Session.Lock();
+        IdentityEditViewModel editor = fixture.Editor();
+        fixture.Interaction.MasterPasswords.Enqueue(Fixture.MasterPassword);
+        await editor.PrepareAsync();
+        Assert.Equal(1, fixture.Interaction.MasterPasswordPrompts);
+        Assert.True(fixture.Vault.IsUnlocked);
+
+        editor.AddMethodCommand.Execute(null);
+        IdentityMethodRowViewModel row = Assert.Single(editor.Methods);
+        row.Password = "typed after unlock";
+        await editor.ConfirmCommand.ExecuteAsync(null);
+        Assert.True(editor.IsConfirmed);
+        Assert.Equal(1, fixture.Interaction.MasterPasswordPrompts);
+        Assert.Equal("typed after unlock", (await fixture.Vault.GetSecretsAsync(editor.IdentityId))[row.Model.Id.ToString()].Password);
+    }
+
+    [Fact]
+    public async Task Prepare_CancelledUnlock_PromptsOnce_AndMarksVaultKeyUnknown()
+    {
+        using Fixture fixture = await Fixture.CreateAsync();
+        Identity identity = new() { Name = "key identity", Methods = [new VaultPrivateKeyMethod()] };
+        await fixture.Repository.SaveAsync(identity);
+        await fixture.Session.PersistSecretAsync(identity.Id, identity.Methods[0].Id, new SecretPayload { PrivateKeyContent = "key material" });
+        fixture.Session.Lock();
+        IdentityEditViewModel editor = fixture.Editor(identity);
+        editor.VaultKeyInfoLoader = fixture.Session.GetVaultKeyInfoAsync;
+        await editor.PrepareAsync();
+        // 取消后不能再为私钥预览二次弹框，也不能把已导入的私钥显示成「未导入」
+        Assert.Equal(1, fixture.Interaction.MasterPasswordPrompts);
+        IdentityMethodRowViewModel row = Assert.Single(editor.Methods);
+        Assert.Equal(Kei.Term.App.Helpers.Strings.Get("IdentityEdit.VaultKey.Unknown"), row.VaultKeyStatus);
     }
 
     [Fact]

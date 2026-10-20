@@ -2,10 +2,12 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.VisualTree;
 using Kei.Term.App.DesignSystem;
+using Kei.Term.App.Helpers;
 using Kei.Term.App.Services;
 using Kei.Term.App.ViewModels;
 using Kei.Term.App.ViewModels.Settings;
@@ -69,12 +71,20 @@ public class UiRefinementsContractTests
             Button toggleBtn = view.GetVisualDescendants().OfType<Button>().Single(b => b.Name == "TerminalFileManagerToggleButton");
             Assert.NotNull(toggleBtn);
             Assert.False(tab.IsFileManagerVisible);
+            Assert.Equal(Strings.Get("Terminal.FileManager.Show"), AutomationProperties.GetName(toggleBtn));
+            Assert.DoesNotContain("open", toggleBtn.Classes);
 
             toggleBtn.Command?.Execute(null);
+            HeadlessAvalonia.Pump();
             Assert.True(tab.IsFileManagerVisible);
+            Assert.Equal(Strings.Get("Terminal.FileManager.Hide"), AutomationProperties.GetName(toggleBtn));
+            Assert.Contains("open", toggleBtn.Classes);
 
             toggleBtn.Command?.Execute(null);
+            HeadlessAvalonia.Pump();
             Assert.False(tab.IsFileManagerVisible);
+            Assert.Equal(Strings.Get("Terminal.FileManager.Show"), AutomationProperties.GetName(toggleBtn));
+            Assert.DoesNotContain("open", toggleBtn.Classes);
         }
         finally
         {

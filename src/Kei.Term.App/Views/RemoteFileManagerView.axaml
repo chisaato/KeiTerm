@@ -84,6 +84,11 @@
         <Style Selector="Button.directoryTreeToggle.open Path.kei-icon">
             <Setter Property="Stroke" Value="{DynamicResource Kei.Accent}"/>
         </Style>
+        <Style Selector="Button.directoryTreeToggle.open">
+            <Setter Property="Background" Value="{DynamicResource Kei.Bg.Pressed}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Kei.Text.Muted}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
         <Style Selector="Button.fileMaximize">
             <Setter Property="ToolTip.Tip" Value="{loc:KeiString FileManager.Maximize}"/>
             <Setter Property="AutomationProperties.Name" Value="{loc:KeiString FileManager.Maximize}"/>
@@ -95,11 +100,48 @@
             <Setter Property="BorderBrush" Value="{DynamicResource Kei.Text.Muted}"/>
             <Setter Property="BorderThickness" Value="1"/>
         </Style>
+        <Style Selector="Border.transferTableRow:pointerover">
+            <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}"/>
+        </Style>
+        <Style Selector="Border.transferTableRow.failed TextBlock.transferStatus">
+            <Setter Property="Foreground" Value="{DynamicResource Kei.Status.Error}"/>
+        </Style>
+        <Style Selector="Border.transferTableRow.skipped TextBlock.transferStatus">
+            <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Secondary}"/>
+        </Style>
+        <Style Selector="Border.transferTableRow.completed TextBlock.transferStatus">
+            <Setter Property="Foreground" Value="{DynamicResource Kei.Status.Connected}"/>
+        </Style>
+        <!-- 表头列分隔把手：6px 宽的命中区，中间一条细线，悬停高亮 -->
+        <Style Selector="Border.columnGrip">
+            <Setter Property="Width" Value="6"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Cursor" Value="SizeWestEast"/>
+        </Style>
+        <Style Selector="Border.columnGrip > Border">
+            <Setter Property="Width" Value="1"/>
+            <Setter Property="Margin" Value="0,3"/>
+            <Setter Property="Background" Value="{DynamicResource Kei.Border.Subtle}"/>
+        </Style>
+        <Style Selector="Border.columnGrip:pointerover > Border">
+            <Setter Property="Width" Value="2"/>
+            <Setter Property="Background" Value="{DynamicResource Kei.Accent}"/>
+        </Style>
     </UserControl.Styles>
 
     <Grid x:Name="FileManagerLayout" RowDefinitions="Auto,Auto,*,Auto,Auto,Auto" DragDrop.AllowDrop="True">
         <!-- 顶部工具条：标题与操作 -->
         <Border Grid.Row="0" Background="{DynamicResource Kei.Bg.PanelAlt}" BorderBrush="{DynamicResource Kei.Border}" BorderThickness="0,0,0,1" Padding="8,4">
+            <Border.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="{loc:KeiString FileManager.Dock.MoveToLeft}" Command="{Binding MoveToLeftCommand}" IsEnabled="{Binding !IsOnLeft}" IsVisible="{Binding !IsFileTab}"/>
+                    <MenuItem Header="{loc:KeiString FileManager.Dock.MoveToRight}" Command="{Binding MoveToRightCommand}" IsEnabled="{Binding IsOnLeft}" IsVisible="{Binding !IsFileTab}"/>
+                    <Separator IsVisible="{Binding !IsFileTab}"/>
+                    <MenuItem Header="{loc:KeiString FileManager.PromoteToFileTab}" Command="{Binding PromoteToTabCommand}" IsVisible="{Binding !IsFileTab}"/>
+                    <MenuItem Header="{loc:KeiString FileManager.Hide}" Command="{Binding CloseCommand}" IsVisible="{Binding !IsFileTab}"/>
+                </ContextMenu>
+            </Border.ContextMenu>
             <Grid x:Name="FileManagerToolbar" ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
                 <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6" Margin="0,0,6,0" VerticalAlignment="Center">
                     <Viewbox Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -117,7 +159,7 @@
                             ToolTip.Tip="{loc:KeiString FileManager.Tree.Toggle}" AutomationProperties.Name="{loc:KeiString FileManager.Tree.Toggle}">
                         <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
                             <Grid Width="24" Height="24">
-                                <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Sidebar}" Width="24" Height="24" Stretch="None"/>
+                                <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.ListTree}" Width="24" Height="24" Stretch="None"/>
                             </Grid>
                         </Viewbox>
                     </Button>
@@ -130,12 +172,27 @@
                             </Grid>
                         </Viewbox>
                     </Button>
+                    <Button x:Name="FileManagerDockButton" Classes="iconBtn" Width="28" Height="28"
+                            ToolTip.Tip="{loc:KeiString FileManager.Dock.Toggle}" AutomationProperties.Name="{loc:KeiString FileManager.Dock.Toggle}"
+                            Command="{Binding ToggleDockPositionCommand}">
+                        <Button.IsVisible>
+                            <MultiBinding Converter="{x:Static BoolConverters.And}">
+                                <Binding Path="!IsFileTab"/>
+                                <Binding Path="!IsMaximized"/>
+                            </MultiBinding>
+                        </Button.IsVisible>
+                        <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Grid Width="24" Height="24">
+                                <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.DockSwap}" Width="24" Height="24" Stretch="None"/>
+                            </Grid>
+                        </Viewbox>
+                    </Button>
                     <Button x:Name="FileManagerMaximizeButton" Classes="iconBtn fileMaximize" Classes.maximized="{Binding IsMaximized}"
                             Width="28" Height="28" Command="{Binding MaximizeCommand}" IsVisible="{Binding !IsFileTab}">
                         <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
                             <Grid Width="24" Height="24">
                                 <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Maximize}" IsVisible="{Binding !IsMaximized}" Width="24" Height="24" Stretch="None"/>
-                                <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.SidebarRight}" IsVisible="{Binding IsMaximized}" Width="24" Height="24" Stretch="None"/>
+                                <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Minimize}" IsVisible="{Binding IsMaximized}" Width="24" Height="24" Stretch="None"/>
                             </Grid>
                         </Viewbox>
                     </Button>
@@ -332,69 +389,177 @@
                                         Background="{DynamicResource Kei.Text.Secondary}" IsVisible="{Binding HasTransferActivity}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </TabItem.Header>
-                        <Grid>
-                            <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-                                <ItemsControl x:Name="TransferTaskList" ItemsSource="{Binding TransferTasks}" Margin="8,6">
+                        <!-- 外层水平滚动：各列宽度之和超过面板时整体滚动（名称列先压到最小宽度），不裁剪操作按钮 -->
+                        <ScrollViewer x:Name="TransferTableScroller" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                        <Grid x:Name="TransferQueueContainer" RowDefinitions="Auto,*"
+                              Width="{Binding TransferView.ContentWidth}">
+                            <!-- 固定表头：列间分隔把手可拖动调整宽度，右键勾选显隐可选列 -->
+                            <Border x:Name="TransferTableHeader" Grid.Row="0" Background="{DynamicResource Kei.Bg.PanelAlt}" BorderBrush="{DynamicResource Kei.Border.Subtle}"
+                                    BorderThickness="0,0,0,1" Padding="8,2" Height="24">
+                                <Border.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="{loc:KeiString FileActivity.Header.RemotePath}" ToggleType="CheckBox" IsChecked="{Binding TransferLayout.RemotePath.IsVisible, Mode=TwoWay}"/>
+                                        <MenuItem Header="{loc:KeiString FileActivity.Header.Size}" ToggleType="CheckBox" IsChecked="{Binding TransferLayout.Size.IsVisible, Mode=TwoWay}"/>
+                                        <MenuItem Header="{loc:KeiString FileActivity.Header.Progress}" ToggleType="CheckBox" IsChecked="{Binding TransferLayout.Progress.IsVisible, Mode=TwoWay}"/>
+                                        <MenuItem Header="{loc:KeiString FileActivity.Header.Speed}" ToggleType="CheckBox" IsChecked="{Binding TransferLayout.Speed.IsVisible, Mode=TwoWay}"/>
+                                        <MenuItem Header="{loc:KeiString FileActivity.Header.Status}" ToggleType="CheckBox" IsChecked="{Binding TransferLayout.Status.IsVisible, Mode=TwoWay}"/>
+                                    </ContextMenu>
+                                </Border.ContextMenu>
+                                <Grid x:Name="TransferHeaderGrid">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="22"/>
+                                        <ColumnDefinition Width="*" MinWidth="60"/>
+                                        <ColumnDefinition Width="{Binding #TransferQueueContainer.((vm:RemoteFileManagerViewModel)DataContext).TransferView.RemotePath.GridWidth}" MinWidth="{Binding #TransferQueueContainer.((vm:RemoteFileManagerViewModel)DataContext).TransferView.RemotePath.GridMinWidth}"/>
+                                        <ColumnDefinition Width="{Binding #TransferQueueContainer.((vm:RemoteFileManagerViewModel)DataContext).TransferView.Size.GridWidth}" MinWidth="{Binding #TransferQueueContainer.((vm:RemoteFileManagerViewModel)DataContext).TransferView.Size.GridMinWidth}"/>
+                                        <ColumnDefinition Width="{Binding #TransferQueueContainer.((vm:RemoteFileManagerViewModel)DataContext).TransferView.Progress.GridWidth}" MinWidth="{Binding #TransferQueueContainer.((vm:RemoteFileManagerViewModel)DataContext).TransferView.Progress.GridMinWidth}"/>
+                                        <ColumnDefinition Width="{Binding #TransferQueueContainer.((vm:RemoteFileManagerViewModel)DataContext).TransferView.Speed.GridWidth}" MinWidth="{Binding #TransferQueueContainer.((vm:RemoteFileManagerViewModel)DataContext).TransferView.Speed.GridMinWidth}"/>
+                                        <ColumnDefinition Width="{Binding #TransferQueueContainer.((vm:RemoteFileManagerViewModel)DataContext).TransferView.Status.GridWidth}" MinWidth="{Binding #TransferQueueContainer.((vm:RemoteFileManagerViewModel)DataContext).TransferView.Status.GridMinWidth}"/>
+                                        <ColumnDefinition Width="50"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1" Text="{loc:KeiString FileActivity.Header.Name}" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}" VerticalAlignment="Center" Margin="4,0"/>
+                                    <Panel Grid.Column="2" ClipToBounds="True" IsVisible="{Binding TransferView.RemotePath.IsVisible}">
+                                        <TextBlock Text="{loc:KeiString FileActivity.Header.RemotePath}" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}" VerticalAlignment="Center" Margin="8,0,4,0" TextTrimming="CharacterEllipsis"/>
+                                        <Border Classes="columnGrip" Tag="RemotePath" ToolTip.Tip="{loc:KeiString FileActivity.Header.ResizeTip}"><Border/></Border>
+                                    </Panel>
+                                    <Panel Grid.Column="3" ClipToBounds="True" IsVisible="{Binding TransferView.Size.IsVisible}">
+                                        <TextBlock Text="{loc:KeiString FileActivity.Header.Size}" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="8,0,4,0" TextTrimming="CharacterEllipsis"/>
+                                        <Border Classes="columnGrip" Tag="Size" ToolTip.Tip="{loc:KeiString FileActivity.Header.ResizeTip}"><Border/></Border>
+                                    </Panel>
+                                    <Panel Grid.Column="4" ClipToBounds="True" IsVisible="{Binding TransferView.Progress.IsVisible}">
+                                        <TextBlock Text="{loc:KeiString FileActivity.Header.Progress}" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="8,0,4,0" TextTrimming="CharacterEllipsis"/>
+                                        <Border Classes="columnGrip" Tag="Progress" ToolTip.Tip="{loc:KeiString FileActivity.Header.ResizeTip}"><Border/></Border>
+                                    </Panel>
+                                    <Panel Grid.Column="5" ClipToBounds="True" IsVisible="{Binding TransferView.Speed.IsVisible}">
+                                        <TextBlock Text="{loc:KeiString FileActivity.Header.Speed}" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="8,0,4,0" TextTrimming="CharacterEllipsis"/>
+                                        <Border Classes="columnGrip" Tag="Speed" ToolTip.Tip="{loc:KeiString FileActivity.Header.ResizeTip}"><Border/></Border>
+                                    </Panel>
+                                    <Panel Grid.Column="6" ClipToBounds="True" IsVisible="{Binding TransferView.Status.IsVisible}">
+                                        <TextBlock Text="{loc:KeiString FileActivity.Header.Status}" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}" VerticalAlignment="Center" Margin="8,0,4,0" TextTrimming="CharacterEllipsis"/>
+                                        <Border Classes="columnGrip" Tag="Status" ToolTip.Tip="{loc:KeiString FileActivity.Header.ResizeTip}"><Border/></Border>
+                                    </Panel>
+                                    <TextBlock Grid.Column="7" Text="{loc:KeiString FileActivity.Header.Actions}" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,4,0"/>
+                                </Grid>
+                            </Border>
+
+                            <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                                <ItemsControl x:Name="TransferTaskList" ItemsSource="{Binding TransferTasks}" Margin="4,2">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
-                                            <StackPanel Spacing="4"/>
+                                            <StackPanel Spacing="1"/>
                                         </ItemsPanelTemplate>
                                     </ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate DataType="vm:FileTransferTaskItemViewModel" x:DataType="vm:FileTransferTaskItemViewModel">
-                                            <Border Classes="transferTask" Background="{DynamicResource Kei.Bg.Card}" CornerRadius="{DynamicResource Kei.Radius.Control}"
-                                                    BorderBrush="{DynamicResource Kei.Border.Subtle}" BorderThickness="1" Padding="8,4"
+                                            <Border Classes="transferTask transferTableRow" Background="Transparent" CornerRadius="{DynamicResource Kei.Radius.Control}"
+                                                    Padding="4,1" MinHeight="22" Height="24"
                                                     Classes.failed="{Binding State, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:FileTransferState.Failed}}"
                                                     Classes.skipped="{Binding State, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:FileTransferState.Skipped}}"
                                                     Classes.completed="{Binding State, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:FileTransferState.Completed}}">
-                                                <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,*,Auto">
-                                                    <!-- 方向图标 -->
-                                                    <Viewbox Width="14" Height="14" Stretch="Uniform" Margin="0,0,6,0" ToolTip.Tip="上传"
+                                                <Border.ContextMenu>
+                                                    <ContextMenu>
+                                                        <MenuItem Header="{loc:KeiString FileActivity.Retry}" Command="{Binding RetryCommand}"
+                                                                  IsVisible="{Binding State, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:FileTransferState.Failed}}"/>
+                                                        <MenuItem Header="{loc:KeiString FileActivity.CancelOrRemove}" Command="{Binding CancelCommand}"/>
+                                                        <MenuItem Header="{loc:KeiString FileActivity.Action.Remove}" Command="{Binding RemoveCommand}"/>
+                                                        <Separator/>
+                                                        <MenuItem Header="{loc:KeiString FileActivity.Action.CopyError}"
+                                                                  Command="{Binding $parent[UserControl].((vm:RemoteFileManagerViewModel)DataContext).CopyErrorMessageCommand}"
+                                                                  CommandParameter="{Binding ErrorMessage}"
+                                                                  IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                                        <MenuItem Header="{loc:KeiString FileActivity.Action.CopyRemotePath}"
+                                                                  Command="{Binding $parent[UserControl].((vm:RemoteFileManagerViewModel)DataContext).CopyTextToClipboardCommand}"
+                                                                  CommandParameter="{Binding RemotePath}"/>
+                                                        <MenuItem Header="{loc:KeiString FileActivity.Action.NavigateToRemote}" Command="{Binding NavigateToRemoteDirectoryCommand}"/>
+                                                    </ContextMenu>
+                                                </Border.ContextMenu>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="22"/>
+                                                        <ColumnDefinition Width="*" MinWidth="60"/>
+                                                        <ColumnDefinition Width="{Binding #TransferQueueContainer.((vm:RemoteFileManagerViewModel)DataContext).TransferView.RemotePath.GridWidth}" MinWidth="{Binding #TransferQueueContainer.((vm:RemoteFileManagerViewModel)DataContext).TransferView.RemotePath.GridMinWidth}"/>
+                                                        <ColumnDefinition Width="{Binding #TransferQueueContainer.((vm:RemoteFileManagerViewModel)DataContext).TransferView.Size.GridWidth}" MinWidth="{Binding #TransferQueueContainer.((vm:RemoteFileManagerViewModel)DataContext).TransferView.Size.GridMinWidth}"/>
+                                                        <ColumnDefinition Width="{Binding #TransferQueueContainer.((vm:RemoteFileManagerViewModel)DataContext).TransferView.Progress.GridWidth}" MinWidth="{Binding #TransferQueueContainer.((vm:RemoteFileManagerViewModel)DataContext).TransferView.Progress.GridMinWidth}"/>
+                                                        <ColumnDefinition Width="{Binding #TransferQueueContainer.((vm:RemoteFileManagerViewModel)DataContext).TransferView.Speed.GridWidth}" MinWidth="{Binding #TransferQueueContainer.((vm:RemoteFileManagerViewModel)DataContext).TransferView.Speed.GridMinWidth}"/>
+                                                        <ColumnDefinition Width="{Binding #TransferQueueContainer.((vm:RemoteFileManagerViewModel)DataContext).TransferView.Status.GridWidth}" MinWidth="{Binding #TransferQueueContainer.((vm:RemoteFileManagerViewModel)DataContext).TransferView.Status.GridMinWidth}"/>
+                                                        <ColumnDefinition Width="50"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <!-- 列 0: 方向图标 -->
+                                                    <Viewbox Grid.Column="0" Width="13" Height="13" Stretch="Uniform" Margin="2,0" ToolTip.Tip="上传"
                                                              IsVisible="{Binding Direction, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:FileTransferDirection.Upload}}" HorizontalAlignment="Center" VerticalAlignment="Center">
                                                         <Grid Width="24" Height="24">
                                                             <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Upload}" Stroke="{DynamicResource Kei.Text.Primary}" Width="24" Height="24" Stretch="None"/>
                                                         </Grid>
                                                     </Viewbox>
-                                                    <Viewbox Width="14" Height="14" Stretch="Uniform" Margin="0,0,6,0" ToolTip.Tip="下载"
+                                                    <Viewbox Grid.Column="0" Width="13" Height="13" Stretch="Uniform" Margin="2,0" ToolTip.Tip="下载"
                                                              IsVisible="{Binding Direction, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:FileTransferDirection.Download}}" HorizontalAlignment="Center" VerticalAlignment="Center">
                                                         <Grid Width="24" Height="24">
                                                             <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Download}" Stroke="{DynamicResource Kei.Text.Primary}" Width="24" Height="24" Stretch="None"/>
                                                         </Grid>
                                                     </Viewbox>
 
-                                                    <!-- 名称独占弹性列，状态另起一行，长文件名不会挤掉操作和速度。 -->
+                                                    <!-- 列 1: 名称（悬停显示 LocalPath → RemotePath） -->
                                                     <TextBlock Grid.Column="1" Text="{Binding FileName}" FontSize="12" Foreground="{DynamicResource Kei.Text.Primary}"
-                                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center" ToolTip.Tip="{Binding RemotePath}"/>
-                                                    <StackPanel Grid.Row="1" Grid.ColumnSpan="3" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="4,0" ToolTip.Tip="{Binding TransferPathTooltip}"/>
+
+                                                    <!-- 列 2: 远端路径（默认隐藏，表头右键勾选） -->
+                                                    <TextBlock Grid.Column="2" Text="{Binding RemotePath}" FontSize="12" Foreground="{DynamicResource Kei.Text.Secondary}"
+                                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="8,0,4,0" ClipToBounds="True" ToolTip.Tip="{Binding RemotePath}"
+                                                               IsVisible="{Binding #TransferQueueContainer.((vm:RemoteFileManagerViewModel)DataContext).TransferView.RemotePath.IsVisible}"/>
+
+                                                    <!-- 列 3: 大小（进行中 已传/总，完成后仅总大小），右对齐等宽 -->
+                                                    <TextBlock Grid.Column="3" Text="{Binding FormattedSizeText}" FontSize="12" FontFamily="{DynamicResource Kei.Font.Mono}"
+                                                               Foreground="{DynamicResource Kei.Text.Secondary}" VerticalAlignment="Center" TextAlignment="Right" Margin="8,0,4,0"
+                                                               TextTrimming="CharacterEllipsis" ClipToBounds="True" ToolTip.Tip="{Binding FormattedSizeText}"
+                                                               IsVisible="{Binding #TransferQueueContainer.((vm:RemoteFileManagerViewModel)DataContext).TransferView.Size.IsVisible}"/>
+
+                                                    <!-- 列 4: 进度：细进度条贴在行底部，百分比右对齐；非进行中状态留空 -->
+                                                    <Panel Grid.Column="4" ClipToBounds="True" Margin="8,0,4,0"
+                                                           IsVisible="{Binding #TransferQueueContainer.((vm:RemoteFileManagerViewModel)DataContext).TransferView.Progress.IsVisible}">
+                                                        <ProgressBar Value="{Binding Progress}" Minimum="0" Maximum="100" Height="2" MinHeight="2" VerticalAlignment="Bottom" Margin="0,0,0,1"
+                                                                     IsVisible="{Binding ShowsProgress}"
+                                                                     Foreground="{DynamicResource Kei.Accent}" Background="{DynamicResource Kei.Bg.PanelAlt}"/>
+                                                        <TextBlock Text="{Binding FormattedProgressText}" FontSize="12" FontFamily="{DynamicResource Kei.Font.Mono}"
+                                                                   Foreground="{DynamicResource Kei.Text.Muted}" VerticalAlignment="Center" TextAlignment="Right" TextTrimming="CharacterEllipsis"/>
+                                                    </Panel>
+
+                                                    <!-- 列 5: 即时速度（仅传输中），ETA 在 Tooltip -->
+                                                    <TextBlock Grid.Column="5" Text="{Binding FormattedSpeedText}" FontSize="12" FontFamily="{DynamicResource Kei.Font.Mono}"
+                                                               Foreground="{DynamicResource Kei.Text.Secondary}" VerticalAlignment="Center" TextAlignment="Right" Margin="8,0,4,0"
+                                                               TextTrimming="CharacterEllipsis" ClipToBounds="True"
+                                                               ToolTip.Tip="{Binding FormattedRemainingTimeText}"
+                                                               IsVisible="{Binding #TransferQueueContainer.((vm:RemoteFileManagerViewModel)DataContext).TransferView.Speed.IsVisible}"/>
+
+                                                    <!-- 列 6: 状态与未校验标记（失败时显示完整错误信息 Tooltip） -->
+                                                    <StackPanel Grid.Column="6" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="8,0,4,0" ClipToBounds="True"
+                                                                IsVisible="{Binding #TransferQueueContainer.((vm:RemoteFileManagerViewModel)DataContext).TransferView.Status.IsVisible}">
                                                         <TextBlock Classes="transferStatus" Text="{Binding StatusText}" FontSize="12"
-                                                                   TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding StatusText}" VerticalAlignment="Center"/>
+                                                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                                                                   ToolTip.Tip="{Binding ErrorMessage, TargetNullValue={Binding StatusText}}"/>
                                                         <Border Background="{DynamicResource Kei.Bg.PanelAlt}" BorderBrush="{DynamicResource Kei.Border.Subtle}"
                                                                 BorderThickness="1" CornerRadius="{DynamicResource Kei.Radius.Control}"
-                                                                Padding="4,1" VerticalAlignment="Center"
+                                                                Padding="3,0" Height="16" VerticalAlignment="Center"
                                                                 IsVisible="{Binding IsUnverified}" ToolTip.Tip="{loc:KeiString FileActivity.UnverifiedTip}">
                                                             <TextBlock Text="{loc:KeiString FileActivity.Unverified}" FontSize="12"
-                                                                       Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                                                       Foreground="{DynamicResource Kei.Text.Secondary}" VerticalAlignment="Center"/>
                                                         </Border>
                                                     </StackPanel>
-                                                    <ProgressBar Grid.Row="2" Grid.ColumnSpan="3" Value="{Binding Progress}" Minimum="0" Maximum="100" Height="3" Margin="0,5,0,3"
-                                                                 IsVisible="{Binding State, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:FileTransferState.Transferring}}"
-                                                                 Foreground="{DynamicResource Kei.Accent}" Background="{DynamicResource Kei.Bg.PanelAlt}"/>
 
-                                                    <!-- 操作按钮：失败时显示重试，以及取消/移除 -->
-                                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="2" Margin="4,0,0,0" VerticalAlignment="Center">
-                                                        <Button Classes="iconBtn" Width="28" Height="28"
+                                                    <!-- 列 7: 操作按钮（重试/取消/移除） -->
+                                                    <StackPanel Grid.Column="7" Orientation="Horizontal" Spacing="2" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                        <Button Classes="iconBtn" Width="22" Height="22"
                                                                 Command="{Binding RetryCommand}"
                                                                 IsVisible="{Binding State, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:FileTransferState.Failed}}"
                                                                 ToolTip.Tip="{loc:KeiString FileActivity.Retry}" AutomationProperties.Name="{loc:KeiString FileActivity.Retry}">
-                                                            <Viewbox Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                            <Viewbox Width="12" Height="12" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
                                                                 <Grid Width="24" Height="24">
                                                                     <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Refresh}" Stroke="{DynamicResource Kei.Text.Primary}" Width="24" Height="24" Stretch="None"/>
                                                                 </Grid>
                                                             </Viewbox>
                                                         </Button>
-                                                        <Button Classes="iconBtn" Width="28" Height="28"
+                                                        <Button Classes="iconBtn" Width="22" Height="22"
                                                                 Command="{Binding CancelCommand}" ToolTip.Tip="{loc:KeiString FileActivity.CancelOrRemove}" AutomationProperties.Name="{loc:KeiString FileActivity.CancelOrRemove}">
-                                                            <Viewbox Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                            <Viewbox Width="12" Height="12" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
                                                                 <Grid Width="24" Height="24">
                                                                     <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Close}" Width="24" Height="24" Stretch="None"/>
                                                                 </Grid>
@@ -407,7 +572,7 @@
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
                             </ScrollViewer>
-                            <TextBlock x:Name="NoTransfersMessage" Text="{loc:KeiString FileActivity.NoTransfers}" FontSize="12" Margin="12,8"
+                            <TextBlock x:Name="NoTransfersMessage" Grid.Row="1" Text="{loc:KeiString FileActivity.NoTransfers}" FontSize="12" Margin="12,8"
                                        Foreground="{DynamicResource Kei.Text.Secondary}" HorizontalAlignment="Center" VerticalAlignment="Center">
                                 <TextBlock.IsVisible>
                                     <Binding Path="TransferTasks.Count" Converter="{x:Static ObjectConverters.Equal}">
@@ -416,6 +581,7 @@
                                 </TextBlock.IsVisible>
                             </TextBlock>
                         </Grid>
+                        </ScrollViewer>
                     </TabItem>
                     <TabItem x:Name="TrackedActivityTab" Classes="fileActivityTab" Classes.activity="{Binding HasTrackedActivity}">
                         <TabItem.Header>
@@ -446,14 +612,14 @@
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="x:String">
                                             <Border Classes="trackedFile" Background="{DynamicResource Kei.Bg.Card}" CornerRadius="{DynamicResource Kei.Radius.Control}"
-                                                    Padding="8,1,4,1" BorderBrush="{DynamicResource Kei.Border.Subtle}" BorderThickness="1">
+                                                    Padding="8,1,4,1" MinHeight="24" Height="24" BorderBrush="{DynamicResource Kei.Border.Subtle}" BorderThickness="1">
                                                 <Grid ColumnDefinitions="*,Auto">
                                                     <TextBlock Text="{Binding}" FontSize="12" Foreground="{DynamicResource Kei.Text.Primary}"
                                                                TextTrimming="PathSegmentEllipsis" ToolTip.Tip="{Binding}" VerticalAlignment="Center"/>
-                                                    <Button Grid.Column="1" Classes="iconBtn" Width="28" Height="28" Margin="6,0,0,0"
+                                                    <Button Grid.Column="1" Classes="iconBtn" Width="22" Height="22" Margin="6,0,0,0"
                                                             Command="{Binding $parent[UserControl].((vm:RemoteFileManagerViewModel)DataContext).StopTrackingFileCommand}"
                                                             CommandParameter="{Binding}" ToolTip.Tip="停止监视此文件" AutomationProperties.Name="停止监视此文件">
-                                                        <Viewbox Width="14" Height="14" Stretch="Uniform">
+                                                        <Viewbox Width="12" Height="12" Stretch="Uniform">
                                                             <Grid Width="24" Height="24">
                                                                 <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Close}" Width="24" Height="24" Stretch="None"/>
                                                             </Grid>
@@ -476,8 +642,22 @@
                         </Grid>
                     </TabItem>
                 </TabControl>
-                <StackPanel x:Name="FileActivityHeaderActions" Orientation="Horizontal" Spacing="2" Margin="0,4,4,0"
+                <StackPanel x:Name="FileActivityHeaderActions" Orientation="Horizontal" Spacing="4" Margin="0,4,4,0"
                             HorizontalAlignment="Right" VerticalAlignment="Top">
+                    <!-- 传输摘要：进行中数量与总速度 -->
+                    <TextBlock x:Name="TransferActivitySummary" Text="{Binding TransferActivitySummaryText}" FontSize="12"
+                               Foreground="{DynamicResource Kei.Text.Secondary}" VerticalAlignment="Center" Margin="0,0,4,0">
+                        <TextBlock.IsVisible>
+                            <MultiBinding Converter="{x:Static BoolConverters.And}">
+                                <Binding Path="SelectedActivityTab" Converter="{x:Static ObjectConverters.Equal}">
+                                    <Binding.ConverterParameter><x:Int32>0</x:Int32></Binding.ConverterParameter>
+                                </Binding>
+                                <Binding Path="ActiveTransferCount" Converter="{x:Static ObjectConverters.NotEqual}">
+                                    <Binding.ConverterParameter><x:Int32>0</x:Int32></Binding.ConverterParameter>
+                                </Binding>
+                            </MultiBinding>
+                        </TextBlock.IsVisible>
+                    </TextBlock>
                     <Button x:Name="RetryAllFailedTasksButton" Classes="iconBtn" Width="28" Height="28" Foreground="{DynamicResource Kei.Text.Secondary}"
                             ToolTip.Tip="{loc:KeiString FileActivity.RetryAllFailed}" AutomationProperties.Name="{loc:KeiString FileActivity.RetryAllFailed}"
                             Command="{Binding RetryAllFailedTransfersCommand}">

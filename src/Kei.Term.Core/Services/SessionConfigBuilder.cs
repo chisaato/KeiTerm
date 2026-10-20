@@ -3,6 +3,7 @@ namespace Kei.Term.Core.Services;
 using System;
 using Kei.Term.Core.Models;
 using Kei.Term.Core.Settings;
+using Kei.Term.Core.Vault;
 
 // 扁平三层配置解析：会话自身 → 全局设置 → 内建兜底，无任何目录继承
 public static class SessionConfigBuilder
@@ -12,12 +13,11 @@ public static class SessionConfigBuilder
         // 端口：会话自身 → 全局默认端口
         var port = node.Port ?? settings.DefaultPort;
 
-        // 用户名：会话自身 → 全局默认用户名 → 当前系统用户
-        var username = !string.IsNullOrWhiteSpace(node.Username)
-            ? node.Username
-            : !string.IsNullOrWhiteSpace(settings.DefaultUsername)
-                ? settings.DefaultUsername
-                : Environment.UserName;
+        // 用户名：会话自身 → 全局默认用户名 → 当前系统用户；身份一层在解析出身份后由 ApplyIdentityUsername 补上
+        bool hasSessionUsername = !string.IsNullOrWhiteSpace(node.Username);
+        string username = hasSessionUsername
+            ? node.Username!.Trim()
+            : FallbackUsername(settings);
 
         // 身份：会话自身 → 全局默认身份
         var identityId = node.IdentityId ?? settings.DefaultIdentityId;
@@ -54,7 +54,25 @@ public static class SessionConfigBuilder
             MultiplexerMode: node.Overrides.MultiplexerMode ?? settings.TerminalMultiplexerMode,
             TabTitleTemplate: settings.TabTitleTemplate,
             VerifyHashOverride: node.Overrides.VerifyHashEnabled,
-            ArchiveDirectoriesOverride: node.Overrides.ArchiveDirectoriesEnabled
+            ArchiveDirectoriesOverride: node.Overrides.ArchiveDirectoriesEnabled,
+            HasSessionUsername: hasSessionUsername
         );
     }
+
+    // 身份持有登录用户名，会话用户名是可选覆盖：会话 → 身份 → 全局默认 → 系统用户
+    public static ResolvedSessionConfig ApplyIdentityUsername(ResolvedSessionConfig config, Identity? identity)
+    {
+        if (config.HasSessionUsername || string.IsNullOrWhiteSpace(identity?.Username))
+        {
+            return config;
+        }
+
+        return config with { Username = identity.Username.Trim() };
+    }
+
+    // 会话与身份都未提供用户名时的兜底
+    public static string FallbackUsername(AppSettings settings)
+        => !string.IsNullOrWhiteSpace(settings.DefaultUsername)
+            ? settings.DefaultUsername.Trim()
+            : Environment.UserName;
 }

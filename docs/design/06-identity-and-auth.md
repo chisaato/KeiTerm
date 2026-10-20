@@ -28,7 +28,7 @@ public class Identity
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
-    public string? Username { get; set; }          // 预填用户名（Interactive/弹窗兜底时使用）
+    public string? Username { get; set; }          // 登录用户名；会话显式填写时由会话覆盖（会话 → 身份 → 全局默认 → 系统用户）
     public List<AuthMethodEntry> Methods { get; set; } = [];  // 持久化为 methods_json（多态 JSON），数组序 = 尝试序
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }

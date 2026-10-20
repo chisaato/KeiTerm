@@ -5,9 +5,6 @@
     <!-- 自动生成：python3 third-party/lucide/generate.py。请修改 manifest 或 SVG 后重新生成。 -->
     <!-- 中心描边几何：24×24 视口、2px 线宽、Round 线帽/连接、Fill=null。 -->
 
-    <!-- lucide:menu -->
-    <StreamGeometry x:Key="Kei.Icon.Menu">M4 12h16M4 6h16M4 18h16</StreamGeometry>
-
     <!-- lucide:zap -->
     <StreamGeometry x:Key="Kei.Icon.QuickConnect">M15.914 4a1.5 1.5 0 0 0-2.474-1.561l-9 9A1.5 1.5 0 0 0 5.5 14h4.002a.5.5 0 0 1 .471.666L8.086 20a1.5 1.5 0 0 0 2.475 1.56l9-9A1.5 1.5 0 0 0 18.5 10h-3.997a.5.5 0 0 1-.472-.667z</StreamGeometry>
 
@@ -83,6 +80,18 @@
     <!-- lucide:folder -->
     <StreamGeometry x:Key="Kei.Icon.FileManager">M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z</StreamGeometry>
 
+    <!-- lucide:list-tree -->
+    <StreamGeometry x:Key="Kei.Icon.ListTree">M8 5h13m-8 7h8m-8 7h8M3 10a2 2 0 0 0 2 2h3 M3 5v12a2 2 0 0 0 2 2h3</StreamGeometry>
+
+    <!-- lucide:menu -->
+    <StreamGeometry x:Key="Kei.Icon.Menu">M4 5h16 M4 12h16 M4 19h16</StreamGeometry>
+
+    <!-- lucide:maximize -->
+    <StreamGeometry x:Key="Kei.Icon.Maximize">M8 3H5a2 2 0 0 0-2 2v3 M21 8V5a2 2 0 0 0-2-2h-3 M3 16v3a2 2 0 0 0 2 2h3 M16 21h3a2 2 0 0 0 2-2v-3</StreamGeometry>
+
+    <!-- lucide:minimize -->
+    <StreamGeometry x:Key="Kei.Icon.Minimize">M8 3v3a2 2 0 0 1-2 2H3 M21 8h-3a2 2 0 0 1-2-2V3 M3 16h3a2 2 0 0 1 2 2v3 M16 21v-3a2 2 0 0 1 2-2h3</StreamGeometry>
+
     <!-- lucide:text-cursor-input -->
     <StreamGeometry x:Key="Kei.Icon.Compose">M12 20h-1a2 2 0 0 1-2-2a2 2 0 0 1-2 2H6m7-12h7a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-7m-8 0H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h1m1-4h1a2 2 0 0 1 2 2a2 2 0 0 1 2-2h1M9 6v12</StreamGeometry>
 
@@ -103,9 +112,6 @@
 
     <!-- lucide:external-link -->
     <StreamGeometry x:Key="Kei.Icon.ExternalLink">M15 3h6v6m-11 5L21 3m-3 10v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6</StreamGeometry>
-
-    <!-- lucide:maximize -->
-    <StreamGeometry x:Key="Kei.Icon.Maximize">M8 3H5a2 2 0 0 0-2 2v3m13-5h3a2 2 0 0 1 2 2v3m-5 13h3a2 2 0 0 0 2-2v-3M8 21H5a2 2 0 0 1-2-2v-3</StreamGeometry>
 
     <!-- lucide:arrow-left-right -->
     <StreamGeometry x:Key="Kei.Icon.DockSwap">M8 3L4 7l4 4M4 7h16m-4 14l4-4l-4-4m4 4H4</StreamGeometry>

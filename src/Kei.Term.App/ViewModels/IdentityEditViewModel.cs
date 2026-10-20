@@ -384,6 +384,27 @@ public partial class IdentityEditViewModel : ViewModelBase
         return row;
     }
 
+    // 窗口注入完成、显示编辑器前调用：编辑身份几乎必然读写凭据材料，打开时即解锁，
+    // 避免用户填完表单才在导入/应用的瞬间被主密码框打断。
+    public async Task PrepareAsync()
+    {
+        bool unlocked = VaultSession == null || await VaultSession.EnsureUnlockedAsync();
+        if (unlocked)
+        {
+            await InitializeVaultKeyStatusAsync();
+        }
+        else
+        {
+            // 用户取消解锁：仍允许编辑非 Vault 字段；不再为私钥预览二次弹框，状态标为未知
+            foreach (IdentityMethodRowViewModel row in Methods.Where(r => r.IsVaultPrivateKey))
+            {
+                row.MarkVaultKeyStatusUnknown();
+            }
+        }
+
+        await InitializeVaultPasswordStatusAsync();
+    }
+
     // 窗口注入完成后调用：把委托下发到各行并回显已存 Vault 私钥状态
     public async Task InitializeVaultKeyStatusAsync()
     {

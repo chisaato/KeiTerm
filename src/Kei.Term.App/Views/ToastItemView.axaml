@@ -1,0 +1,140 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Kei.Term.App.ViewModels.Notifications"
+             xmlns:conv="using:Kei.Term.App.Converters"
+             xmlns:loc="using:Kei.Term.App.Helpers"
+             mc:Ignorable="d" d:DesignWidth="360" d:DesignHeight="120"
+             x:Class="Kei.Term.App.Views.ToastItemView"
+             x:DataType="vm:ToastItemViewModel"
+             PointerEntered="OnPointerEntered"
+             PointerExited="OnPointerExited">
+
+    <UserControl.Styles>
+        <Style Selector="Button.toastLinkBtn">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <ContentPresenter Content="{TemplateBinding Content}"
+                                      ContentTemplate="{TemplateBinding ContentTemplate}"/>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="Button.toastLinkBtn:pointerover TextBlock">
+            <Setter Property="TextDecorations" Value="Underline"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Border Background="{DynamicResource Kei.Bg.Panel}"
+            BorderBrush="{DynamicResource Kei.Border}"
+            BorderThickness="1"
+            CornerRadius="{DynamicResource Kei.Radius.Card}"
+            BoxShadow="0 4 14 0 #40000000"
+            Margin="0,0,0,8"
+            Width="340"
+            ClipToBounds="True">
+        <Grid ColumnDefinitions="4,Auto,*,Auto">
+            <!-- 级别指示色条 -->
+            <Border Grid.Column="0"
+                    Background="{Binding Level, Converter={x:Static conv:NotificationLevelConverters.LevelToBrush}}"/>
+
+            <!-- 级别图标 -->
+            <Viewbox Grid.Column="1"
+                     Width="16" Height="16"
+                     Margin="10,10,6,10"
+                     VerticalAlignment="Top"
+                     Stretch="Uniform">
+                <Grid Width="24" Height="24">
+                    <Path Data="{Binding Level, Converter={x:Static conv:NotificationLevelConverters.LevelToGeometry}}"
+                          Fill="{Binding Level, Converter={x:Static conv:NotificationLevelConverters.LevelToBrush}}"
+                          Stretch="Uniform"/>
+                </Grid>
+            </Viewbox>
+
+            <!-- 文本与操作内容 -->
+            <StackPanel Grid.Column="2" Margin="4,8,8,8" Spacing="4">
+                <!-- 标题 -->
+                <TextBlock Text="{Binding Title}"
+                           FontWeight="SemiBold"
+                           FontSize="12"
+                           Foreground="{DynamicResource Kei.Text.Primary}"
+                           IsVisible="{Binding Title, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                           TextTrimming="CharacterEllipsis"/>
+
+                <!-- 消息内容 -->
+                <Panel>
+                    <!-- 折叠状态（限制最多 3 行） -->
+                    <TextBlock Text="{Binding Message}"
+                               FontSize="12"
+                               Foreground="{DynamicResource Kei.Text.Secondary}"
+                               TextWrapping="Wrap"
+                               MaxLines="3"
+                               TextTrimming="CharacterEllipsis"
+                               IsVisible="{Binding !IsExpanded}"/>
+
+                    <!-- 展开状态（完整展示） -->
+                    <SelectableTextBlock Text="{Binding Message}"
+                                         FontSize="12"
+                                         Foreground="{DynamicResource Kei.Text.Secondary}"
+                                         TextWrapping="Wrap"
+                                         MaxHeight="200"
+                                         IsVisible="{Binding IsExpanded}"/>
+                </Panel>
+
+                <!-- 底部操作按钮：展开/收起、复制全文 -->
+                <Grid ColumnDefinitions="Auto,Auto,*" Margin="0,2,0,0">
+                    <Button Grid.Column="0"
+                            Classes="toastLinkBtn"
+                            IsVisible="{Binding CanExpand}"
+                            Command="{Binding ToggleExpandCommand}"
+                            Margin="0,0,10,0">
+                        <TextBlock FontSize="12"
+                                   Foreground="{DynamicResource Kei.Accent}"
+                                   Text="{Binding IsExpanded, Converter={x:Static conv:ToastExpandTextConverter.Instance}}"/>
+                    </Button>
+
+                    <Button Grid.Column="1"
+                            Classes="toastLinkBtn"
+                            Command="{Binding CopyFullTextCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <Viewbox Width="12" Height="12" Stretch="Uniform" VerticalAlignment="Center">
+                                <Grid Width="24" Height="24">
+                                    <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Copy}" Width="24" Height="24" Stretch="None"/>
+                                </Grid>
+                            </Viewbox>
+                            <TextBlock Text="{loc:KeiString Toast.Action.Copy}" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
+                    <!-- 复制成功反馈提示 -->
+                    <TextBlock Grid.Column="2"
+                               Text="✓"
+                               Foreground="{DynamicResource Kei.Status.Connected}"
+                               FontSize="12"
+                               Margin="6,0,0,0"
+                               VerticalAlignment="Center"
+                               IsVisible="{Binding IsCopyFeedbackVisible}"/>
+                </Grid>
+            </StackPanel>
+
+            <!-- 右上角关闭按钮 -->
+            <Button Grid.Column="3"
+                    Classes="iconBtn"
+                    Width="20" Height="20"
+                    Margin="0,6,6,0"
+                    VerticalAlignment="Top"
+                    Command="{Binding DismissCommand}"
+                    ToolTip.Tip="{loc:KeiString Toast.Action.Close}">
+                <Viewbox Width="10" Height="10" Stretch="Uniform">
+                    <Grid Width="24" Height="24">
+                        <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Close}" Width="24" Height="24" Stretch="None"/>
+                    </Grid>
+                </Viewbox>
+            </Button>
+        </Grid>
+    </Border>
+</UserControl>

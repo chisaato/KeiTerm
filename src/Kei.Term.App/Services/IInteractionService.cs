@@ -123,7 +123,7 @@ public interface IInteractionService
     Task<IReadOnlyList<string>?> PickFilesAsync(string title, CancellationToken ct = default)
         => Task.FromResult<IReadOnlyList<string>?>(null);
 
-    Task NotifyAsync(string title, string message);
+    Task NotifyAsync(string title, string message, NotificationLevel level = NotificationLevel.Info);
 
     // 单行文本输入（重命名等）；取消 = null
     Task<string?> PromptTextAsync(string title, string label, string? initialText);
@@ -174,7 +174,7 @@ public sealed class NullInteractionService : IInteractionService
 
     public Task<bool> ConfirmDeleteAsync(string name) => Task.FromResult(true);
 
-    public Task NotifyAsync(string title, string message) => Task.CompletedTask;
+    public Task NotifyAsync(string title, string message, NotificationLevel level = NotificationLevel.Info) => Task.CompletedTask;
 
     public Task<string?> PromptTextAsync(string title, string label, string? initialText) => Task.FromResult<string?>(null);
 

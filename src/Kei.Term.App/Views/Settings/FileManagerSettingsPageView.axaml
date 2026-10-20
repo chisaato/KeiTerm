@@ -54,6 +54,18 @@
                           IsChecked="{Binding IsFileManagerOnLeft}"
                           Content="{loc:KeiString Settings.FileTransfer.DockLeft}"/>
 
+                <Grid ColumnDefinitions="*,Auto" MinHeight="32">
+                    <StackPanel VerticalAlignment="Center" Spacing="2" Margin="0,2,16,2">
+                        <TextBlock Text="{loc:KeiString Settings.FileTransfer.SidebarWidth}" TextWrapping="Wrap"
+                                   FontSize="13" Foreground="{DynamicResource Kei.Text.Primary}"/>
+                        <TextBlock Text="{loc:KeiString Settings.FileTransfer.SidebarWidthTip}" TextWrapping="Wrap"
+                                   FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}"/>
+                    </StackPanel>
+                    <NumericUpDown x:Name="FileManagerSidebarWidthInput" Grid.Column="1" Width="120"
+                                   Minimum="20" Maximum="70" Increment="5" FormatString="0'%'"
+                                   Value="{Binding FileManagerSidebarWidthPercent}"/>
+                </Grid>
+
                 <Border Classes="settingRowDivider"/>
 
                 <!-- 目录跟随模式 -->

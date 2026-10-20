@@ -106,9 +106,11 @@ public partial class TerminalTabViewModel
                 Dispatcher.UIThread.Post(() => TrySyncTerminalSize(), DispatcherPriority.Render);
             };
             manager.ToggleDockPositionRequested += ToggleDockPosition;
+            manager.SetDockPositionRequested += SetDockPosition;
             if (settingsService != null)
             {
                 IsFileManagerOnLeft = settingsService.Current.FileTransfer.IsFileManagerOnLeft;
+                FileManagerSidebarRatio = FileManagerSidebarSizing.ClampDefaultRatio(settingsService.Current.FileTransfer.FileManagerSidebarRatio);
                 manager.IsOnLeft = IsFileManagerOnLeft;
             }
 

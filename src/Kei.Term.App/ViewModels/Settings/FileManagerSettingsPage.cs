@@ -37,6 +37,9 @@ public partial class FileManagerSettingsPage : ViewModelBase
     private bool _isFileManagerOnLeft;
 
     [ObservableProperty]
+    private double _fileManagerSidebarWidthPercent = FileManagerSidebarSizing.DefaultRatio * 100;
+
+    [ObservableProperty]
     private int _pollingIntervalSeconds = 3;
 
     [ObservableProperty]

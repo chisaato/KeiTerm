@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Input;
 using Kei.Term.App.Helpers;
 using Kei.Term.App.Logging;
+using Kei.Term.App.Models;
 using Kei.Term.App.ViewModels.BatchEdit;
 using Kei.Term.Core.Models;
 using Kei.Term.Core.Services;
@@ -27,11 +28,18 @@ public partial class MainViewModel
 
         await Interaction.OpenBatchEditAsync(batchVm);
 
-        // 修改先写入内存中的会话节点：无论保存成败都从库重载，保证树与库一致
-        if (batchVm.ApplyAttempted)
+        // 仅在实际发生变更时才弹出成功提示；取消或变更数为 0 时静默重载，避免虚假成功
+        if (batchVm.ApplyAttempted && batchVm.ChangedCount > 0)
         {
             await ReloadTreeAsync();
-            StatusMessage = Strings.Format("BatchEdit.Done", batchVm.ChangedCount);
+            await Interaction.NotifyAsync(
+                Strings.Get("BatchEdit.Title"),
+                Strings.Format("BatchEdit.Done", batchVm.ChangedCount),
+                NotificationLevel.Success);
+        }
+        else if (batchVm.ApplyAttempted)
+        {
+            await ReloadTreeAsync();
         }
     });
 

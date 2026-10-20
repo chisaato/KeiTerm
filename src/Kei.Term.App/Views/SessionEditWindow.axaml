@@ -66,7 +66,7 @@
 
                                 <!-- 用户名 -->
                                 <TextBlock Grid.Row="3" Grid.Column="0" Text="{loc:KeiString SessionEdit.Username}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
-                                <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding Username}" PlaceholderText="{loc:KeiString SessionEdit.Username.Placeholder}"/>
+                                <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding Username}" PlaceholderText="{Binding UsernamePlaceholder}"/>
 
                                 <!-- 身份绑定 -->
                                 <TextBlock Grid.Row="4" Grid.Column="0" Text="{loc:KeiString SessionEdit.Identity}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>

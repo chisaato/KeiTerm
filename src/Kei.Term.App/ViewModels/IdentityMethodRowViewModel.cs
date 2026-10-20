@@ -211,6 +211,14 @@ public partial class IdentityMethodRowViewModel : ViewModelBase
         }
     }
 
+    // 保管库保持锁定时无法确认已存材料，避免误显示「未导入」引导用户重复导入
+    public void MarkVaultKeyStatusUnknown()
+    {
+        if (!IsVaultPrivateKey) return;
+        VaultKeyStatus = Strings.Get("IdentityEdit.VaultKey.Unknown");
+        VaultKeyFingerprint = string.Empty;
+    }
+
     // 导入私钥：选文件 → 读内容 → 需口令则弹一次性口令框 → 暂存于内存（「应用」时落库）
     [RelayCommand]
     private async Task ImportVaultKeyAsync()
