@@ -32,6 +32,7 @@ public class SqliteProxyRepository : IProxyRepository
         IEnumerable<ProxyRow> rows = await conn.QueryAsync<ProxyRow>(new CommandDefinition(@"
             SELECT id, name, sort_order, config_json, created_at, updated_at
             FROM proxies
+            WHERE deleted_at IS NULL
             ORDER BY sort_order ASC, name COLLATE NOCASE ASC;
         ", cancellationToken: ct));
 
@@ -56,7 +57,7 @@ public class SqliteProxyRepository : IProxyRepository
         ProxyRow? row = await conn.QuerySingleOrDefaultAsync<ProxyRow>(new CommandDefinition(@"
             SELECT id, name, sort_order, config_json, created_at, updated_at
             FROM proxies
-            WHERE id = @id;
+            WHERE id = @id AND deleted_at IS NULL;
         ", new { id = id.ToString() }, cancellationToken: ct));
         if (row == null)
         {
@@ -72,16 +73,18 @@ public class SqliteProxyRepository : IProxyRepository
         using SqliteConnection conn = await _factory.OpenAsync(ct);
         DateTime now = DateTime.UtcNow;
         await conn.ExecuteAsync(new CommandDefinition(@"
-            INSERT INTO proxies (id, name, sort_order, config_json, created_at, updated_at)
-            VALUES (@Id, @Name, @SortOrder, @ConfigJson, @CreatedAt, @UpdatedAt)
+            INSERT INTO proxies (id, name, sort_order, config_json, created_at, updated_at, device_id, revision)
+            VALUES (@Id, @Name, @SortOrder, @ConfigJson, @CreatedAt, @UpdatedAt, @DeviceId, 1)
             ON CONFLICT(id) DO UPDATE SET
                 name = excluded.name,
                 sort_order = excluded.sort_order,
                 config_json = excluded.config_json,
-                updated_at = excluded.updated_at;
+                updated_at = excluded.updated_at, device_id = excluded.device_id,
+                revision = proxies.revision + 1, deleted_at = NULL;
         ", new
         {
             Id = proxy.Id.ToString(),
+            DeviceId = _factory.DeviceId,
             proxy.Name,
             proxy.SortOrder,
             ConfigJson = ProxyJsonCodec.WriteConfig(proxy.Config),
@@ -93,10 +96,13 @@ public class SqliteProxyRepository : IProxyRepository
     public async Task DeleteAsync(Guid id, CancellationToken ct = default)
     {
         using SqliteConnection conn = await _factory.OpenAsync(ct);
+        using var tx = conn.BeginTransaction();
         await conn.ExecuteAsync(new CommandDefinition(
-            "DELETE FROM proxies WHERE id = @id;",
-            new { id = id.ToString() },
-            cancellationToken: ct));
+            @"UPDATE proxy_secrets SET deleted_at = @now WHERE proxy_id = @id AND deleted_at IS NULL;
+              UPDATE proxies SET deleted_at = @now, updated_at = @now, device_id = @deviceId, revision = revision + 1 WHERE id = @id AND deleted_at IS NULL;",
+            new { id = id.ToString(), now = SqliteValue.FormatUtc(DateTime.UtcNow), deviceId = _factory.DeviceId },
+            transaction: tx, cancellationToken: ct));
+        tx.Commit();
     }
 
     private static ProxyProfile ToProfile(ProxyRow row, ProxyConfig config) => new()

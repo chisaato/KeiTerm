@@ -34,7 +34,7 @@ public sealed class SqliteSessionMetadataRepository : ISessionMetadataRepository
     {
         using SqliteConnection conn = await _factory.OpenAsync(cancellationToken);
         string? json = await conn.QuerySingleOrDefaultAsync<string>(new CommandDefinition(
-            "SELECT metadata_json FROM session_details WHERE node_id = @id;",
+            "SELECT metadata_json FROM session_details WHERE node_id = @id AND deleted_at IS NULL;",
             new { id = sessionId.ToString() },
             cancellationToken: cancellationToken));
         return Read(json);
@@ -55,6 +55,7 @@ public sealed class SqliteSessionMetadataRepository : ISessionMetadataRepository
         }, JsonOptions);
 
         using SqliteConnection conn = await _factory.OpenAsync(cancellationToken);
+        using var tx = conn.BeginTransaction();
         // 损坏的旧文档整段换成 {}，否则 json_set 会把这一列写成 NULL。
         int rows = await conn.ExecuteAsync(new CommandDefinition(@"
             UPDATE session_details
@@ -62,21 +63,28 @@ public sealed class SqliteSessionMetadataRepository : ISessionMetadataRepository
                 CASE WHEN json_valid(metadata_json) THEN metadata_json ELSE '{}' END,
                 '$.transferProbe',
                 json(@payload))
-            WHERE node_id = @id;
-        ", new { id = sessionId.ToString(), payload }, cancellationToken: cancellationToken));
+            WHERE node_id = @id AND deleted_at IS NULL;
+        ", new { id = sessionId.ToString(), payload }, transaction: tx, cancellationToken: cancellationToken));
+        if (rows > 0)
+            await SqliteLocalChangeTracker.TrackCoreAsync(conn, tx, "metadata", sessionId + "/" + ProbeKey, _factory.DeviceId, false, cancellationToken);
+        tx.Commit();
         return rows > 0;
     }
 
     public async Task ClearTransferProbeAsync(Guid sessionId, CancellationToken cancellationToken = default)
     {
         using SqliteConnection conn = await _factory.OpenAsync(cancellationToken);
-        await conn.ExecuteAsync(new CommandDefinition(@"
+        using var tx = conn.BeginTransaction();
+        int rows = await conn.ExecuteAsync(new CommandDefinition(@"
             UPDATE session_details
             SET metadata_json = json_remove(
                 CASE WHEN json_valid(metadata_json) THEN metadata_json ELSE '{}' END,
                 '$.transferProbe')
-            WHERE node_id = @id;
-        ", new { id = sessionId.ToString() }, cancellationToken: cancellationToken));
+            WHERE node_id = @id AND deleted_at IS NULL;
+        ", new { id = sessionId.ToString() }, transaction: tx, cancellationToken: cancellationToken));
+        if (rows > 0)
+            await SqliteLocalChangeTracker.TrackCoreAsync(conn, tx, "metadata", sessionId + "/" + ProbeKey, _factory.DeviceId, true, cancellationToken);
+        tx.Commit();
     }
 
     private static TransferProbeResult? Read(string? json)

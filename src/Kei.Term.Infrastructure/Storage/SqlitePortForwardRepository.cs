@@ -26,7 +26,7 @@ public class SqlitePortForwardRepository : IPortForwardRepository
         IEnumerable<ForwardRow> rows = await conn.QueryAsync<ForwardRow>(new CommandDefinition(@"
             SELECT id, session_id, name, mode, bind_address, listen_port, destination_host, destination_port
             FROM port_forwards
-            WHERE session_id = @id
+            WHERE session_id = @id AND deleted_at IS NULL
             ORDER BY listen_port ASC, mode ASC;
         ", new { id = sessionId.ToString() }, cancellationToken: ct));
         return rows.Select(ToModel).ToList();
@@ -57,6 +57,7 @@ public class SqlitePortForwardRepository : IPortForwardRepository
         long occupied = await conn.ExecuteScalarAsync<long>(new CommandDefinition(@"
             SELECT COUNT(*) FROM port_forwards
             WHERE session_id = @sessionId
+              AND deleted_at IS NULL
               AND bind_address = @bind
               AND listen_port = @port
               AND mode = @mode
@@ -75,8 +76,8 @@ public class SqlitePortForwardRepository : IPortForwardRepository
         }
 
         await conn.ExecuteAsync(new CommandDefinition(@"
-            INSERT INTO port_forwards (id, session_id, name, mode, bind_address, listen_port, destination_host, destination_port)
-            VALUES (@Id, @SessionId, @Name, @Mode, @Bind, @Listen, @DestHost, @DestPort)
+            INSERT INTO port_forwards (id, session_id, name, mode, bind_address, listen_port, destination_host, destination_port, updated_at, device_id, revision)
+            VALUES (@Id, @SessionId, @Name, @Mode, @Bind, @Listen, @DestHost, @DestPort, @UpdatedAt, @DeviceId, 1)
             ON CONFLICT(id) DO UPDATE SET
                 session_id = excluded.session_id,
                 name = excluded.name,
@@ -84,10 +85,14 @@ public class SqlitePortForwardRepository : IPortForwardRepository
                 bind_address = excluded.bind_address,
                 listen_port = excluded.listen_port,
                 destination_host = excluded.destination_host,
-                destination_port = excluded.destination_port;
+                destination_port = excluded.destination_port,
+                updated_at = excluded.updated_at, device_id = excluded.device_id,
+                revision = port_forwards.revision + 1, deleted_at = NULL;
         ", new
         {
             Id = forward.Id.ToString(),
+            UpdatedAt = SqliteValue.FormatUtc(DateTime.UtcNow),
+            DeviceId = _factory.DeviceId,
             SessionId = forward.SessionId.ToString(),
             Name = string.IsNullOrWhiteSpace(forward.Name) ? null : forward.Name.Trim(),
             Mode = mode,
@@ -102,8 +107,8 @@ public class SqlitePortForwardRepository : IPortForwardRepository
     {
         using SqliteConnection conn = await _factory.OpenAsync(ct);
         await conn.ExecuteAsync(new CommandDefinition(
-            "DELETE FROM port_forwards WHERE id = @id;",
-            new { id = id.ToString() },
+            "UPDATE port_forwards SET deleted_at = @now, updated_at = @now, device_id = @deviceId, revision = revision + 1 WHERE id = @id AND deleted_at IS NULL;",
+            new { id = id.ToString(), now = SqliteValue.FormatUtc(DateTime.UtcNow), deviceId = _factory.DeviceId },
             cancellationToken: ct));
     }
 

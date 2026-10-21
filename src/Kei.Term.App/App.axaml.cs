@@ -127,7 +127,8 @@ public partial class App : Application
             var vault = new InternalVaultManager(db, _loggerFactory.CreateLogger<InternalVaultManager>(), quickUnlockStore);
             VaultQuickUnlockService quickUnlock = new(vault, quickUnlockStore, _loggerFactory.CreateLogger<VaultQuickUnlockService>());
             var settingsPath = Path.Combine(appDataDir, "settings.json");
-            var settingsService = new JsonSettingsService(settingsPath);
+            var localChanges = new SqliteLocalChangeTracker(db);
+            var settingsService = new JsonSettingsService(settingsPath, localChanges);
             _systemContextMenus = new Services.ContextMenus.SystemContextMenuService(
                 () => settingsService.Current.UseNativeContextMenus,
                 logger: _loggerFactory.CreateLogger<Services.ContextMenus.SystemContextMenuService>());
@@ -140,7 +141,7 @@ public partial class App : Application
                     ? Task.FromResult(HostKeyDecision.Reject)
                     : interactionHost.Interaction.PromptHostKeyAsync(evaluation),
                 logger: _loggerFactory.CreateLogger<HostKeyTrustService>());
-            var profileManager = new ProfileManagerService(settingsService, appDataDir);
+            var profileManager = new ProfileManagerService(settingsService, appDataDir, tracker: localChanges);
             var sshFactory = new SshSessionFactory(_loggerFactory.CreateLogger<SshSessionFactory>());
 
             // 先在窗口创建前按默认 KeiClassic 挂载画刷与兼容样式，避免首帧无 Kei.* 资源；

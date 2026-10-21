@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Kei.Term.Core.Vault;
 using Kei.Term.Infrastructure.Storage;
 using Xunit;
+using Dapper;
 
 namespace Kei.Term.Tests;
 
@@ -49,6 +50,8 @@ public class SqliteIdentityRepositoryTests
             await repo.DeleteAsync(identity.Id);
             Assert.Null(await repo.GetByIdAsync(identity.Id));
             Assert.Empty(await repo.GetAllAsync());
+            using var conn = await new SqliteConnectionFactory($"Data Source={dbPath}").OpenAsync();
+            Assert.Equal(1, await conn.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM identities WHERE deleted_at IS NOT NULL"));
         }
         finally
         {
@@ -79,6 +82,8 @@ public class SqliteIdentityRepositoryTests
             Assert.Equal("After", loaded!.Name);
             Assert.IsType<InteractiveMethod>(Assert.Single(loaded.Methods));
             Assert.Single(await repo.GetAllAsync());
+            using var conn = await new SqliteConnectionFactory($"Data Source={dbPath}").OpenAsync();
+            Assert.Equal(2, await conn.ExecuteScalarAsync<int>("SELECT revision FROM identities"));
         }
         finally
         {

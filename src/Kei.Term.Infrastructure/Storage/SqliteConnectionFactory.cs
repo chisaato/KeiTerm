@@ -3,6 +3,7 @@ namespace Kei.Term.Infrastructure.Storage;
 using System.Globalization;
 using Dapper;
 using Microsoft.Data.Sqlite;
+using Kei.Term.Core.Storage;
 
 // 所有仓储共用的连接入口：统一连接级 PRAGMA，避免各仓储各自复制一份开连接样板
 public sealed class SqliteConnectionFactory
@@ -16,10 +17,14 @@ public sealed class SqliteConnectionFactory
         DefaultTypeMap.MatchNamesWithUnderscores = true;
     }
 
-    public SqliteConnectionFactory(string connectionString)
+    public SqliteConnectionFactory(string connectionString, ICurrentDeviceId? currentDevice = null)
     {
         ConnectionString = connectionString;
+        _currentDevice = currentDevice;
     }
+
+    private readonly ICurrentDeviceId? _currentDevice;
+    public string? DeviceId => _currentDevice?.DeviceId;
 
     public string ConnectionString { get; }
 

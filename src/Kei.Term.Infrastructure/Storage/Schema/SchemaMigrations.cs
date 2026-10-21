@@ -19,6 +19,7 @@ public static class SchemaMigrations
         new(6, "proxy_secrets", ApplyProxySecretsAsync),
         new(7, "sync_columns", ApplySyncColumnsAsync),
         new(8, "session_metadata", ApplySessionMetadataAsync),
+        new(9, "local_entity_stamps_and_tombstones", ApplyLocalEntityStampsAsync),
     ];
 
     // v1 基线：必须幂等，兼容三类库——全新库、user_version=0 的现行库、更早的 credentials 旧库
@@ -356,6 +357,49 @@ public static class SchemaMigrations
     // 以后新键只写 JSON，不再为元数据加列。不参与同步，仓储写入时也不改 revision。
     private static Task ApplySessionMetadataAsync(SqliteConnection conn, SqliteTransaction tx, CancellationToken ct)
         => AddColumnIfMissingAsync(conn, tx, "session_details", "metadata_json", "TEXT", ct);
+
+    private static async Task ApplyLocalEntityStampsAsync(SqliteConnection conn, SqliteTransaction tx, CancellationToken ct)
+    {
+        string[] entities = ["tree_nodes", "identities", "proxies", "port_forwards", "external_editors", "file_associations", "known_hosts"];
+        foreach (string table in entities)
+        {
+            await AddColumnIfMissingAsync(conn, tx, table, "device_id", "TEXT", ct);
+        }
+        foreach (string table in new[] { "port_forwards", "known_hosts" })
+        {
+            if (!await TableExistsAsync(conn, tx, table, ct)) continue;
+            await AddColumnIfMissingAsync(conn, tx, table, "updated_at", "TEXT", ct);
+            await conn.ExecuteAsync(new CommandDefinition($"UPDATE {table} SET updated_at = @now;",
+                new { now = SqliteValue.FormatUtc(DateTime.UtcNow) }, tx, cancellationToken: ct));
+        }
+        await AddColumnIfMissingAsync(conn, tx, "known_hosts", "revision", "INTEGER NOT NULL DEFAULT 0", ct);
+        foreach (string table in new[] { "known_hosts", "session_details", "identity_secrets", "proxy_secrets", "external_editor_paths" })
+        {
+            await AddColumnIfMissingAsync(conn, tx, table, "deleted_at", "TEXT", ct);
+        }
+        await ExecAsync(conn, tx, @"
+            DROP INDEX idx_port_forwards_listen;
+            CREATE UNIQUE INDEX idx_port_forwards_listen ON port_forwards(session_id, bind_address, listen_port, mode) WHERE deleted_at IS NULL;
+            CREATE TABLE local_entity_stamps (
+                entity_type TEXT NOT NULL,
+                entity_id TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                device_id TEXT,
+                deleted_at TEXT,
+                revision INTEGER NOT NULL DEFAULT 1,
+                PRIMARY KEY(entity_type, entity_id)
+            );
+        ", ct);
+        if (await ColumnExistsAsync(conn, tx, "session_details", "metadata_json", ct))
+        {
+            await ExecAsync(conn, tx, @"
+                INSERT INTO local_entity_stamps(entity_type, entity_id, updated_at, device_id, deleted_at, revision)
+                SELECT 'metadata', s.node_id || '/' || j.key, t.updated_at, t.device_id, t.deleted_at, 0
+                FROM session_details s JOIN tree_nodes t ON t.id = s.node_id,
+                    json_each(CASE WHEN json_valid(s.metadata_json) THEN s.metadata_json ELSE '{}' END) j;
+            ", ct);
+        }
+    }
 
     private sealed class JumpBackfillRow
     {

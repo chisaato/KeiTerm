@@ -77,8 +77,8 @@ public class PortForwardTests : IDisposable
 
         // v7 给 proxies 补了 revision/deleted_at；v4 原有的 6 列必须原样保留，且不得混入其它列
         var proxyColumns = (await check.QueryAsync<string>("SELECT name FROM pragma_table_info('proxies');")).ToList();
-        Assert.Equal(8, proxyColumns.Count);
-        foreach (string column in new[] { "id", "name", "sort_order", "config_json", "created_at", "updated_at", "revision", "deleted_at" })
+        Assert.Equal(9, proxyColumns.Count);
+        foreach (string column in new[] { "id", "name", "sort_order", "config_json", "created_at", "updated_at", "revision", "deleted_at", "device_id" })
         {
             Assert.Contains(column, proxyColumns);
         }

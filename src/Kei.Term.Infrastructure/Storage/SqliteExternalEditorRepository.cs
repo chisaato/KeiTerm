@@ -34,7 +34,7 @@ public class SqliteExternalEditorRepository : IExternalEditorRepository
     {
         using SqliteConnection conn = await _factory.OpenAsync(ct);
         IEnumerable<EditorRow> editorRows = await conn.QueryAsync<EditorRow>(new CommandDefinition(
-            SelectEditorsSql + " ORDER BY is_default DESC, name ASC;",
+            SelectEditorsSql + " WHERE deleted_at IS NULL ORDER BY is_default DESC, name ASC;",
             cancellationToken: ct));
         List<ExternalEditor> editors = editorRows.Select(ToEditor).ToList();
         if (editors.Count == 0)
@@ -42,7 +42,7 @@ public class SqliteExternalEditorRepository : IExternalEditorRepository
             return editors;
         }
 
-        IEnumerable<PathRow> pathRows = await conn.QueryAsync<PathRow>(new CommandDefinition(SelectPathsSql + ";", cancellationToken: ct));
+        IEnumerable<PathRow> pathRows = await conn.QueryAsync<PathRow>(new CommandDefinition(SelectPathsSql + " WHERE deleted_at IS NULL;", cancellationToken: ct));
         Dictionary<Guid, ExternalEditor> byId = editors.ToDictionary(e => e.Id);
         foreach (PathRow path in pathRows)
         {
@@ -59,7 +59,7 @@ public class SqliteExternalEditorRepository : IExternalEditorRepository
     {
         using SqliteConnection conn = await _factory.OpenAsync(ct);
         EditorRow? row = await conn.QuerySingleOrDefaultAsync<EditorRow>(new CommandDefinition(
-            SelectEditorsSql + " WHERE id = @id;",
+            SelectEditorsSql + " WHERE id = @id AND deleted_at IS NULL;",
             new { id = id.ToString() },
             cancellationToken: ct));
         if (row == null)
@@ -69,7 +69,7 @@ public class SqliteExternalEditorRepository : IExternalEditorRepository
 
         ExternalEditor editor = ToEditor(row);
         IEnumerable<PathRow> pathRows = await conn.QueryAsync<PathRow>(new CommandDefinition(
-            SelectPathsSql + " WHERE editor_id = @id;",
+            SelectPathsSql + " WHERE editor_id = @id AND deleted_at IS NULL;",
             new { id = id.ToString() },
             cancellationToken: ct));
         editor.Paths.AddRange(pathRows.Select(ToPath));
@@ -85,22 +85,25 @@ public class SqliteExternalEditorRepository : IExternalEditorRepository
         if (editor.IsDefault)
         {
             await conn.ExecuteAsync(new CommandDefinition(
-                "UPDATE external_editors SET is_default = 0;",
+                "UPDATE external_editors SET is_default = 0, updated_at = @now, device_id = @deviceId, revision = revision + 1 WHERE is_default = 1 AND id != @id AND deleted_at IS NULL;",
+                new { id = editor.Id.ToString(), now = SqliteValue.FormatUtc(DateTime.UtcNow), deviceId = _factory.DeviceId },
                 transaction: tx,
                 cancellationToken: ct));
         }
 
         await conn.ExecuteAsync(new CommandDefinition(@"
-            INSERT INTO external_editors (id, name, arguments_template, is_default, created_at, updated_at)
-            VALUES (@Id, @Name, @ArgumentsTemplate, @IsDefault, @CreatedAt, @UpdatedAt)
+            INSERT INTO external_editors (id, name, arguments_template, is_default, created_at, updated_at, device_id, revision)
+            VALUES (@Id, @Name, @ArgumentsTemplate, @IsDefault, @CreatedAt, @UpdatedAt, @DeviceId, 1)
             ON CONFLICT(id) DO UPDATE SET
                 name = excluded.name,
                 arguments_template = excluded.arguments_template,
                 is_default = excluded.is_default,
-                updated_at = excluded.updated_at;
+                updated_at = excluded.updated_at, device_id = excluded.device_id,
+                revision = external_editors.revision + 1, deleted_at = NULL;
         ", new
         {
             Id = editor.Id.ToString(),
+            DeviceId = _factory.DeviceId,
             editor.Name,
             editor.ArgumentsTemplate,
             IsDefault = editor.IsDefault ? 1 : 0,
@@ -110,15 +113,17 @@ public class SqliteExternalEditorRepository : IExternalEditorRepository
 
         // 路径集合整体替换
         await conn.ExecuteAsync(new CommandDefinition(
-            "DELETE FROM external_editor_paths WHERE editor_id = @id;",
-            new { id = editor.Id.ToString() },
+            "UPDATE external_editor_paths SET deleted_at = @now WHERE editor_id = @id AND deleted_at IS NULL;",
+            new { id = editor.Id.ToString(), now = SqliteValue.FormatUtc(DateTime.UtcNow) },
             transaction: tx,
             cancellationToken: ct));
 
         // Dapper 对参数序列逐条执行同一语句
         await conn.ExecuteAsync(new CommandDefinition(@"
             INSERT INTO external_editor_paths (id, editor_id, os, path)
-            VALUES (@Id, @EditorId, @Os, @Path);
+            VALUES (@Id, @EditorId, @Os, @Path)
+            ON CONFLICT(editor_id, os) DO UPDATE SET path = excluded.path, deleted_at = NULL
+            ON CONFLICT(id) DO UPDATE SET os = excluded.os, path = excluded.path, deleted_at = NULL;
         ", editor.Paths.Select(p => new
         {
             Id = (p.Id == Guid.Empty ? Guid.NewGuid() : p.Id).ToString(),
@@ -133,11 +138,14 @@ public class SqliteExternalEditorRepository : IExternalEditorRepository
     public async Task DeleteEditorAsync(Guid id, CancellationToken ct = default)
     {
         using SqliteConnection conn = await _factory.OpenAsync(ct);
-        // 路径与关联规则经 ON DELETE CASCADE 一并清除
+        using var tx = conn.BeginTransaction();
         await conn.ExecuteAsync(new CommandDefinition(
-            "DELETE FROM external_editors WHERE id = @id;",
-            new { id = id.ToString() },
-            cancellationToken: ct));
+            @"UPDATE external_editor_paths SET deleted_at = @now WHERE editor_id = @id AND deleted_at IS NULL;
+              UPDATE file_associations SET deleted_at = @now, updated_at = @now, device_id = @deviceId, revision = revision + 1 WHERE editor_id = @id AND deleted_at IS NULL;
+              UPDATE external_editors SET deleted_at = @now, updated_at = @now, device_id = @deviceId, revision = revision + 1 WHERE id = @id AND deleted_at IS NULL;",
+            new { id = id.ToString(), now = SqliteValue.FormatUtc(DateTime.UtcNow), deviceId = _factory.DeviceId },
+            transaction: tx, cancellationToken: ct));
+        tx.Commit();
     }
 
     public async Task<IReadOnlyList<FileAssociationRule>> GetAllAssociationsAsync(CancellationToken ct = default)
@@ -146,6 +154,7 @@ public class SqliteExternalEditorRepository : IExternalEditorRepository
         IEnumerable<AssociationRow> rows = await conn.QueryAsync<AssociationRow>(new CommandDefinition(@"
             SELECT id, pattern, editor_id, priority, created_at, updated_at
             FROM file_associations
+            WHERE deleted_at IS NULL
             ORDER BY priority DESC, created_at ASC;
         ", cancellationToken: ct));
 
@@ -164,16 +173,18 @@ public class SqliteExternalEditorRepository : IExternalEditorRepository
     {
         using SqliteConnection conn = await _factory.OpenAsync(ct);
         await conn.ExecuteAsync(new CommandDefinition(@"
-            INSERT INTO file_associations (id, pattern, editor_id, priority, created_at, updated_at)
-            VALUES (@Id, @Pattern, @EditorId, @Priority, @CreatedAt, @UpdatedAt)
+            INSERT INTO file_associations (id, pattern, editor_id, priority, created_at, updated_at, device_id, revision)
+            VALUES (@Id, @Pattern, @EditorId, @Priority, @CreatedAt, @UpdatedAt, @DeviceId, 1)
             ON CONFLICT(id) DO UPDATE SET
                 pattern = excluded.pattern,
                 editor_id = excluded.editor_id,
                 priority = excluded.priority,
-                updated_at = excluded.updated_at;
+                updated_at = excluded.updated_at, device_id = excluded.device_id,
+                revision = file_associations.revision + 1, deleted_at = NULL;
         ", new
         {
             Id = association.Id.ToString(),
+            DeviceId = _factory.DeviceId,
             association.Pattern,
             EditorId = association.EditorId.ToString(),
             association.Priority,
@@ -186,8 +197,8 @@ public class SqliteExternalEditorRepository : IExternalEditorRepository
     {
         using SqliteConnection conn = await _factory.OpenAsync(ct);
         await conn.ExecuteAsync(new CommandDefinition(
-            "DELETE FROM file_associations WHERE id = @id;",
-            new { id = id.ToString() },
+            "UPDATE file_associations SET deleted_at = @now, updated_at = @now, device_id = @deviceId, revision = revision + 1 WHERE id = @id AND deleted_at IS NULL;",
+            new { id = id.ToString(), now = SqliteValue.FormatUtc(DateTime.UtcNow), deviceId = _factory.DeviceId },
             cancellationToken: ct));
     }
 

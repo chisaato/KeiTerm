@@ -30,7 +30,7 @@ public class SqliteKnownHostRepository : IKnownHostRepository
     {
         using SqliteConnection conn = await _factory.OpenAsync(ct);
         IEnumerable<KnownHostRow> rows = await conn.QueryAsync<KnownHostRow>(new CommandDefinition(
-            SelectSql + " ORDER BY host, port, key_type;",
+            SelectSql + " WHERE deleted_at IS NULL ORDER BY host, port, key_type;",
             cancellationToken: ct));
         return rows.Select(ToEntry).ToList();
     }
@@ -39,7 +39,7 @@ public class SqliteKnownHostRepository : IKnownHostRepository
     {
         using SqliteConnection conn = await _factory.OpenAsync(ct);
         IEnumerable<KnownHostRow> rows = await conn.QueryAsync<KnownHostRow>(new CommandDefinition(
-            SelectSql + " WHERE (host = @host AND port = @port) OR port = 0;",
+            SelectSql + " WHERE deleted_at IS NULL AND ((host = @host AND port = @port) OR port = 0);",
             new { host = host.Trim().ToLowerInvariant(), port },
             cancellationToken: ct));
         return rows.Select(ToEntry).ToList();
@@ -49,18 +49,22 @@ public class SqliteKnownHostRepository : IKnownHostRepository
     {
         using SqliteConnection conn = await _factory.OpenAsync(ct);
         await conn.ExecuteAsync(new CommandDefinition(@"
-            INSERT INTO known_hosts (id, host, port, key_type, public_key, fingerprint_sha256, status, source, comment, created_at, last_seen_at)
-            VALUES (@Id, @Host, @Port, @KeyType, @PublicKey, @Fingerprint, @Status, @Source, @Comment, @CreatedAt, @LastSeenAt)
+            INSERT INTO known_hosts (id, host, port, key_type, public_key, fingerprint_sha256, status, source, comment, created_at, last_seen_at, updated_at, device_id, revision)
+            VALUES (@Id, @Host, @Port, @KeyType, @PublicKey, @Fingerprint, @Status, @Source, @Comment, @CreatedAt, @LastSeenAt, @UpdatedAt, @DeviceId, 1)
             ON CONFLICT(host, port, public_key) DO UPDATE SET
                 key_type = excluded.key_type,
                 fingerprint_sha256 = excluded.fingerprint_sha256,
                 status = excluded.status,
                 source = excluded.source,
                 comment = COALESCE(excluded.comment, known_hosts.comment),
-                last_seen_at = COALESCE(excluded.last_seen_at, known_hosts.last_seen_at);
+                last_seen_at = COALESCE(excluded.last_seen_at, known_hosts.last_seen_at),
+                updated_at = excluded.updated_at, device_id = excluded.device_id,
+                revision = known_hosts.revision + 1, deleted_at = NULL;
         ", new
         {
             Id = entry.Id.ToString(),
+            UpdatedAt = SqliteValue.FormatUtc(DateTime.UtcNow),
+            DeviceId = _factory.DeviceId,
             // 精确条目主机名统一小写；模式条目（哈希值大小写敏感）原样保存
             Host = entry.IsPattern ? entry.Host : entry.Host.Trim().ToLowerInvariant(),
             entry.Port,
@@ -79,8 +83,8 @@ public class SqliteKnownHostRepository : IKnownHostRepository
     {
         using SqliteConnection conn = await _factory.OpenAsync(ct);
         await conn.ExecuteAsync(new CommandDefinition(
-            "UPDATE known_hosts SET last_seen_at = @seen WHERE id = @id;",
-            new { id = id.ToString(), seen = SqliteValue.FormatUtc(seenAtUtc) },
+            "UPDATE known_hosts SET last_seen_at = @seen, updated_at = @now, device_id = @deviceId, revision = revision + 1 WHERE id = @id AND deleted_at IS NULL;",
+            new { id = id.ToString(), seen = SqliteValue.FormatUtc(seenAtUtc), now = SqliteValue.FormatUtc(DateTime.UtcNow), deviceId = _factory.DeviceId },
             cancellationToken: ct));
     }
 
@@ -88,8 +92,8 @@ public class SqliteKnownHostRepository : IKnownHostRepository
     {
         using SqliteConnection conn = await _factory.OpenAsync(ct);
         await conn.ExecuteAsync(new CommandDefinition(
-            "DELETE FROM known_hosts WHERE id = @id;",
-            new { id = id.ToString() },
+            "UPDATE known_hosts SET deleted_at = @now, updated_at = @now, device_id = @deviceId, revision = revision + 1 WHERE id = @id AND deleted_at IS NULL;",
+            new { id = id.ToString(), now = SqliteValue.FormatUtc(DateTime.UtcNow), deviceId = _factory.DeviceId },
             cancellationToken: ct));
     }
 

@@ -11,6 +11,8 @@ using Kei.Term.App.Models;
 using Kei.Term.Core.Models.Profiles;
 using Kei.Term.Core.Services;
 using Kei.Term.Core.Settings;
+using Kei.Term.Core.Storage;
+using System.Text.Json;
 
 namespace Kei.Term.App.Services;
 
@@ -78,6 +80,9 @@ public class ProfileManagerService
 {
     private readonly ISettingsService _settingsService;
     private readonly IProfileStore _profileStore;
+    private readonly ILocalChangeTracker? _tracker;
+    private Dictionary<string, string> _persistedProfiles = new(StringComparer.Ordinal);
+    private Dictionary<string, string> _persistedPreferences = new(StringComparer.Ordinal);
     private readonly string _profilesDirectory;
     private readonly string _customProfilesFilePath;
 
@@ -96,10 +101,11 @@ public class ProfileManagerService
     private string? _committedSelectedGuiProfileId;
     private string? _committedDefaultTerminalProfileId;
 
-    public ProfileManagerService(ISettingsService settingsService, string? dataDirectory = null, IProfileStore? profileStore = null)
+    public ProfileManagerService(ISettingsService settingsService, string? dataDirectory = null, IProfileStore? profileStore = null, ILocalChangeTracker? tracker = null)
     {
         _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
         _profileStore = profileStore ?? new AtomicProfileStore();
+        _tracker = tracker;
         _profilesDirectory = dataDirectory ?? Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             ".local", "share", "KeiTerm");
@@ -212,13 +218,15 @@ public class ProfileManagerService
 
         // 磁盘加载即为已提交权威
         CaptureCommittedFromWorking();
+        await SeedTrackingBaselineAsync(BuildBundle(_committedTerminalProfiles, _committedGuiProfiles,
+            _committedSelectedGuiProfileId, _committedDefaultTerminalProfileId, _committedTabBarSettings));
 
         // 应用当前的 GUI Profile 笔刷
         ApplyGuiProfile(ActiveGuiProfile);
     }
 
     // 持久化当前“已提交”权威（补偿写回用；不推进权威）
-    public Task SaveCommittedProfilesAsync(CancellationToken ct = default)
+    public async Task SaveCommittedProfilesAsync(CancellationToken ct = default)
     {
         var bundle = BuildBundle(
             _committedTerminalProfiles,
@@ -226,7 +234,8 @@ public class ProfileManagerService
             _committedSelectedGuiProfileId,
             _committedDefaultTerminalProfileId,
             _committedTabBarSettings);
-        return _profileStore.WriteAsync(_customProfilesFilePath, ProfileBundleSerializer.Serialize(bundle), ct);
+        await _profileStore.WriteAsync(_customProfilesFilePath, ProfileBundleSerializer.Serialize(bundle), ct);
+        await TrackBundleAsync(bundle, ct);
     }
 
     // 将当前有效（working）状态原子落盘；仅写入成功后推进“已提交”权威。
@@ -245,6 +254,7 @@ public class ProfileManagerService
 
         var bundle = BuildBundle(terminal, gui, selectedGui, defaultTerminal, tabBar);
         await _profileStore.WriteAsync(_customProfilesFilePath, ProfileBundleSerializer.Serialize(bundle), ct);
+        await TrackBundleAsync(bundle, ct);
 
         // 写入成功后才推进权威
         _committedTerminalProfiles = terminal;
@@ -459,6 +469,45 @@ public class ProfileManagerService
         var (subtleBorder, treeLine) = CalculateTreeAndSubtleBorder(profile.PanelBackground, profile.BorderBrush);
         UpdateBrush(app, "Kei.Border.Subtle", subtleBorder);
         UpdateBrush(app, "Kei.Tree.Line", treeLine);
+    }
+
+    private static (Dictionary<string, string> Profiles, Dictionary<string, string> Preferences) SnapshotTrackingItems(ProfileBundle bundle)
+    {
+        var profiles = bundle.TerminalProfiles.ToDictionary(p => p.Id, p => JsonSerializer.Serialize(p), StringComparer.Ordinal);
+        foreach (var profile in bundle.GuiProfiles) profiles[profile.Id] = JsonSerializer.Serialize(profile);
+        var preferences = LocalChangeTracking.Flatten(JsonSerializer.SerializeToElement(new
+        {
+            bundle.SelectedGuiProfileId, bundle.DefaultTerminalProfileId, bundle.TabBarSettings
+        }), "profiles");
+        return (profiles, preferences);
+    }
+
+    private async Task SeedTrackingBaselineAsync(ProfileBundle bundle)
+    {
+        var (profiles, preferences) = SnapshotTrackingItems(bundle);
+        // 加载不是用户修改：只补缺失记账，绝不通过内容比较刷新已有版本。
+        if (_tracker != null)
+        {
+            var known = (await _tracker.GetAllAsync()).Select(s => (s.EntityType, s.EntityId)).ToHashSet();
+            foreach (var id in profiles.Keys)
+                if (!known.Contains(("profile", id))) await _tracker.TrackAsync("profile", id);
+            foreach (var id in preferences.Keys)
+                if (!known.Contains(("setting", id))) await _tracker.TrackAsync("setting", id);
+        }
+        _persistedProfiles = profiles;
+        _persistedPreferences = preferences;
+    }
+
+    private async Task TrackBundleAsync(ProfileBundle bundle, CancellationToken ct)
+    {
+        var (profiles, preferences) = SnapshotTrackingItems(bundle);
+        if (_tracker != null)
+        {
+            await LocalChangeTracking.TrackChangesAsync(_tracker, "profile", _persistedProfiles, profiles, ct);
+            await LocalChangeTracking.TrackChangesAsync(_tracker, "setting", _persistedPreferences, preferences, ct);
+        }
+        _persistedProfiles = profiles;
+        _persistedPreferences = preferences;
     }
 
     private void CaptureCommittedFromWorking()

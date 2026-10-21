@@ -5,6 +5,7 @@ namespace Kei.Term.Infrastructure.Settings;
 
 using Kei.Term.Core.Models.Profiles;
 using Kei.Term.Core.Settings;
+using Kei.Term.Core.Storage;
 
 public class JsonSettingsService : ISettingsService, INotifySettingsCommitted
 {
@@ -12,6 +13,8 @@ public class JsonSettingsService : ISettingsService, INotifySettingsCommitted
     private static readonly JsonSerializerOptions SerializerOptions = CreateSerializerOptions();
 
     private readonly string _filePath;
+    private readonly ILocalChangeTracker? _tracker;
+    private Dictionary<string, string> _persistedItems = new(StringComparer.Ordinal);
     // 串行化并发保存，避免两次写入交错
     private readonly SemaphoreSlim _saveLock = new(1, 1);
     private AppSettings _current;
@@ -26,9 +29,10 @@ public class JsonSettingsService : ISettingsService, INotifySettingsCommitted
     // 内存中的已提交设置已变化。在调用线程、落盘之前触发，便于设置页立刻看到新字号。
     public event EventHandler? SettingsCommitted;
 
-    public JsonSettingsService(string filePath)
+    public JsonSettingsService(string filePath, ILocalChangeTracker? tracker = null)
     {
         _filePath = filePath;
+        _tracker = tracker;
         _current = new AppSettings();
     }
 
@@ -37,6 +41,8 @@ public class JsonSettingsService : ISettingsService, INotifySettingsCommitted
         if (!File.Exists(_filePath))
         {
             _current = new AppSettings();
+            _persistedItems = Snapshot(_current);
+            await TrackCurrentAsync(ct);
             return _current;
         }
 
@@ -57,6 +63,8 @@ public class JsonSettingsService : ISettingsService, INotifySettingsCommitted
             _current = new AppSettings();
         }
 
+        _persistedItems = Snapshot(_current);
+        await TrackCurrentAsync(ct);
         return _current;
     }
 
@@ -154,6 +162,21 @@ public class JsonSettingsService : ISettingsService, INotifySettingsCommitted
         var json = JsonSerializer.Serialize(_current, SerializerOptions);
         await File.WriteAllTextAsync(tempPath, json, ct);
         File.Move(tempPath, _filePath, overwrite: true);
+        await TrackCurrentAsync(ct);
+    }
+
+    private async Task TrackCurrentAsync(CancellationToken ct)
+    {
+        var items = Snapshot(_current);
+        if (_tracker != null)
+            await LocalChangeTracking.TrackChangesAsync(_tracker, "setting", _persistedItems, items, ct);
+        _persistedItems = items;
+    }
+
+    private static Dictionary<string, string> Snapshot(AppSettings settings)
+    {
+        var options = new JsonSerializerOptions(SerializerOptions) { IgnoreReadOnlyProperties = true };
+        return LocalChangeTracking.Flatten(JsonSerializer.SerializeToElement(settings, options));
     }
 
     private void BackupCorruptFile()

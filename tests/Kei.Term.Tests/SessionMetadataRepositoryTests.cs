@@ -33,8 +33,8 @@ public class SessionMetadataRepositoryTests
 
             SqliteConnectionFactory factory = new(connectionString);
             int version = await SchemaMigrator.MigrateAsync(factory);
-            Assert.Equal(8, version);
-            Assert.Equal(8, await SchemaMigrator.MigrateAsync(factory));
+            Assert.Equal(SchemaMigrator.LatestVersion, version);
+            Assert.Equal(SchemaMigrator.LatestVersion, await SchemaMigrator.MigrateAsync(factory));
 
             using SqliteConnection conn = await factory.OpenAsync();
             Assert.True(await ColumnExistsAsync(conn, "metadata_json"));
@@ -110,7 +110,7 @@ public class SessionMetadataRepositoryTests
                 long revision = await conn.ExecuteScalarAsync<long>(
                     "SELECT revision FROM tree_nodes WHERE id = @id;",
                     new { id = session.Id.ToString() });
-                Assert.Equal(0L, revision);
+                Assert.Equal(1L, revision);
 
                 await conn.ExecuteAsync(
                     "UPDATE session_details SET options_json = '{\"FollowRemoteTitle\":false}' WHERE node_id = @id;",
@@ -143,7 +143,7 @@ public class SessionMetadataRepositoryTests
                 long revision = await after.ExecuteScalarAsync<long>(
                     "SELECT revision FROM tree_nodes WHERE id = @id;",
                     new { id = session.Id.ToString() });
-                Assert.Equal(0L, revision);
+                Assert.Equal(2L, revision);
             }
 
             Assert.Equal(beforeSave, afterSave);
@@ -198,9 +198,9 @@ public class SessionMetadataRepositoryTests
             Assert.Null(await metadata.GetTransferProbeAsync(session.Id));
             using SqliteConnection gone = await factory.OpenAsync();
             long rows = await gone.ExecuteScalarAsync<long>(
-                "SELECT COUNT(*) FROM session_details WHERE node_id = @id;",
+                "SELECT COUNT(*) FROM session_details WHERE node_id = @id AND deleted_at IS NOT NULL;",
                 new { id = session.Id.ToString() });
-            Assert.Equal(0L, rows);
+            Assert.Equal(1L, rows);
         }
         finally
         {

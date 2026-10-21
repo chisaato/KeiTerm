@@ -51,7 +51,7 @@ public class SqliteTreeRepository : ITreeRepository
     {
         using SqliteConnection conn = await _factory.OpenAsync(ct);
         IEnumerable<NodeRow> rows = await conn.QueryAsync<NodeRow>(new CommandDefinition(
-            SelectNodesSql + " ORDER BY t.node_type ASC, t.sort_order ASC, t.name COLLATE NOCASE ASC;",
+            SelectNodesSql + " WHERE t.deleted_at IS NULL ORDER BY t.node_type ASC, t.sort_order ASC, t.name COLLATE NOCASE ASC;",
             cancellationToken: ct));
 
         // SQL 的 NOCASE 排序只是粗略基线，真正的同级顺序统一交给 Core 自然排序，
@@ -65,7 +65,7 @@ public class SqliteTreeRepository : ITreeRepository
     {
         using SqliteConnection conn = await _factory.OpenAsync(ct);
         NodeRow? row = await conn.QuerySingleOrDefaultAsync<NodeRow>(new CommandDefinition(
-            SelectNodesSql + " WHERE t.id = @id;",
+            SelectNodesSql + " WHERE t.id = @id AND t.deleted_at IS NULL;",
             new { id = id.ToString() },
             cancellationToken: ct));
         return row == null ? null : ToNode(row);
@@ -92,12 +92,12 @@ public class SqliteTreeRepository : ITreeRepository
         tx.Commit();
     }
 
-    private static async Task SaveNodeCoreAsync(SqliteConnection conn, SqliteTransaction tx, TreeNodeBase node, CancellationToken ct)
+    private async Task SaveNodeCoreAsync(SqliteConnection conn, SqliteTransaction tx, TreeNodeBase node, CancellationToken ct)
     {
         string protocol = node is SessionNode p && !string.IsNullOrWhiteSpace(p.Protocol) ? p.Protocol : SessionProtocols.Ssh;
         await conn.ExecuteAsync(new CommandDefinition(@"
-            INSERT INTO tree_nodes (id, parent_id, node_type, name, description, sort_order, protocol, is_expanded, created_at, updated_at)
-            VALUES (@Id, @ParentId, @NodeType, @Name, @Description, @SortOrder, @Protocol, @IsExpanded, @CreatedAt, @UpdatedAt)
+            INSERT INTO tree_nodes (id, parent_id, node_type, name, description, sort_order, protocol, is_expanded, created_at, updated_at, device_id, revision)
+            VALUES (@Id, @ParentId, @NodeType, @Name, @Description, @SortOrder, @Protocol, @IsExpanded, @CreatedAt, @UpdatedAt, @DeviceId, 1)
             ON CONFLICT(id) DO UPDATE SET
                 parent_id = excluded.parent_id,
                 name = excluded.name,
@@ -105,10 +105,12 @@ public class SqliteTreeRepository : ITreeRepository
                 sort_order = excluded.sort_order,
                 protocol = excluded.protocol,
                 is_expanded = excluded.is_expanded,
-                updated_at = excluded.updated_at;
+                updated_at = excluded.updated_at, device_id = excluded.device_id,
+                revision = tree_nodes.revision + 1, deleted_at = NULL;
         ", new
         {
             Id = node.Id.ToString(),
+            DeviceId = _factory.DeviceId,
             ParentId = node.ParentId?.ToString(),
             NodeType = (int)node.NodeType,
             node.Name,
@@ -140,7 +142,7 @@ public class SqliteTreeRepository : ITreeRepository
                     file_transfer_protocol = excluded.file_transfer_protocol,
                     sftp_mode = excluded.sftp_mode,
                     options_json = excluded.options_json,
-                    proxy_json = excluded.proxy_json;
+                    proxy_json = excluded.proxy_json, deleted_at = NULL;
             ", new
             {
                 NodeId = session.Id.ToString(),
@@ -187,11 +189,29 @@ public class SqliteTreeRepository : ITreeRepository
     public async Task DeleteNodeAsync(Guid id, CancellationToken ct = default)
     {
         using SqliteConnection conn = await _factory.OpenAsync(ct);
-        // 子树与 session_details 经 ON DELETE CASCADE 一并清除
-        await conn.ExecuteAsync(new CommandDefinition(
-            "DELETE FROM tree_nodes WHERE id = @id;",
-            new { id = id.ToString() },
-            cancellationToken: ct));
+        using var tx = conn.BeginTransaction();
+        var nodes = (await conn.QueryAsync<NodeRow>(new CommandDefinition("SELECT id, parent_id FROM tree_nodes;", transaction: tx, cancellationToken: ct))).ToList();
+        var children = nodes.Where(n => n.ParentId != null).ToLookup(n => n.ParentId!);
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        var pending = new Stack<string>();
+        pending.Push(id.ToString());
+        while (pending.TryPop(out string? current))
+        {
+            if (!ids.Add(current)) continue;
+            foreach (var child in children[current]) pending.Push(child.Id);
+        }
+        var args = new { ids = ids.ToArray(), now = SqliteValue.FormatUtc(DateTime.UtcNow), deviceId = _factory.DeviceId };
+        var metadata = await conn.QueryAsync<MetadataKeyRow>(new CommandDefinition(@"
+            SELECT s.node_id, j.key FROM session_details s, json_each(CASE WHEN json_valid(s.metadata_json) THEN s.metadata_json ELSE '{}' END) j
+            WHERE s.node_id IN @ids AND s.deleted_at IS NULL;", args, tx, cancellationToken: ct));
+        foreach (var key in metadata)
+            await SqliteLocalChangeTracker.TrackCoreAsync(conn, tx, "metadata", key.NodeId + "/" + key.Key, _factory.DeviceId, true, ct);
+        await conn.ExecuteAsync(new CommandDefinition(@"
+            UPDATE session_details SET deleted_at = @now WHERE node_id IN @ids AND deleted_at IS NULL;
+            UPDATE port_forwards SET deleted_at = @now, updated_at = @now, device_id = @deviceId, revision = revision + 1 WHERE session_id IN @ids AND deleted_at IS NULL;
+            UPDATE tree_nodes SET deleted_at = @now, updated_at = @now, device_id = @deviceId, revision = revision + 1 WHERE id IN @ids AND deleted_at IS NULL;",
+            args, tx, cancellationToken: ct));
+        tx.Commit();
     }
 
     public async Task MoveNodeAsync(Guid nodeId, Guid? newParentId, int sortOrder, CancellationToken ct = default)
@@ -199,11 +219,12 @@ public class SqliteTreeRepository : ITreeRepository
         using SqliteConnection conn = await _factory.OpenAsync(ct);
         await conn.ExecuteAsync(new CommandDefinition(@"
             UPDATE tree_nodes
-            SET parent_id = @parentId, sort_order = @sortOrder, updated_at = @updatedAt
-            WHERE id = @id;
+            SET parent_id = @parentId, sort_order = @sortOrder, updated_at = @updatedAt, device_id = @deviceId, revision = revision + 1
+            WHERE id = @id AND deleted_at IS NULL;
         ", new
         {
             id = nodeId.ToString(),
+            deviceId = _factory.DeviceId,
             parentId = newParentId?.ToString(),
             sortOrder,
             updatedAt = SqliteValue.FormatUtc(DateTime.UtcNow)
@@ -217,7 +238,7 @@ public class SqliteTreeRepository : ITreeRepository
         await conn.ExecuteAsync(new CommandDefinition(@"
             UPDATE tree_nodes
             SET is_expanded = @isExpanded
-            WHERE id = @id AND node_type = @nodeType;
+            WHERE id = @id AND node_type = @nodeType AND deleted_at IS NULL;
         ", new
         {
             id = folderId.ToString(),
@@ -281,6 +302,12 @@ public class SqliteTreeRepository : ITreeRepository
     }
 
     // 行对象与表列一一对应（snake_case 自动映射）；SQLite INTEGER 统一按 long 读取
+    private sealed class MetadataKeyRow
+    {
+        public string NodeId { get; set; } = "";
+        public string Key { get; set; } = "";
+    }
+
     private sealed class NodeRow
     {
         public string Id { get; set; } = string.Empty;

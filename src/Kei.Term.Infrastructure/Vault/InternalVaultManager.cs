@@ -454,7 +454,7 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
 
         using var conn = await CreateConnectionAsync(ct);
         var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT secrets_blob, encryption_algorithm FROM identity_secrets WHERE identity_id = $id;";
+        cmd.CommandText = "SELECT secrets_blob, encryption_algorithm FROM identity_secrets WHERE identity_id = $id AND deleted_at IS NULL;";
         cmd.Parameters.AddWithValue("$id", identityId.ToString());
 
         using var reader = await cmd.ExecuteReaderAsync(ct);
@@ -482,7 +482,9 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
 
         using var conn = await CreateConnectionAsync(ct);
         await CompletePendingCleanupAsync(conn, ct);
+        using var tx = conn.BeginTransaction();
         var cmd = conn.CreateCommand();
+        cmd.Transaction = tx;
         cmd.CommandText = @"
             INSERT INTO identity_secrets (identity_id, secrets_blob, encryption_algorithm, nonce, tag)
             VALUES ($id, $blob, $alg, $nonce, $tag)
@@ -490,14 +492,18 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
                 secrets_blob = $blob,
                 encryption_algorithm = $alg,
                 nonce = $nonce,
-                tag = $tag;
+                tag = $tag, deleted_at = NULL;
+            UPDATE identities SET updated_at = $now, device_id = $device, revision = revision + 1 WHERE id = $id AND deleted_at IS NULL;
         ";
         cmd.Parameters.AddWithValue("$id", identityId.ToString());
+        cmd.Parameters.AddWithValue("$now", SqliteValue.FormatUtc(DateTime.UtcNow));
+        cmd.Parameters.AddWithValue("$device", (object?)_factory.DeviceId ?? DBNull.Value);
         cmd.Parameters.Add("$blob", SqliteType.Blob).Value = blob;
         cmd.Parameters.AddWithValue("$alg", algorithm);
         cmd.Parameters.AddWithValue("$nonce", (object?)nonce ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$tag", (object?)tag ?? DBNull.Value);
         await cmd.ExecuteNonQueryAsync(ct);
+        tx.Commit();
     }
 
     public async Task<string?> GetPasswordAsync(Guid proxyId, CancellationToken ct = default)
@@ -506,7 +512,7 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
 
         using var conn = await CreateConnectionAsync(ct);
         var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT secrets_blob, encryption_algorithm FROM proxy_secrets WHERE proxy_id = $id;";
+        cmd.CommandText = "SELECT secrets_blob, encryption_algorithm FROM proxy_secrets WHERE proxy_id = $id AND deleted_at IS NULL;";
         cmd.Parameters.AddWithValue("$id", proxyId.ToString());
 
         using var reader = await cmd.ExecuteReaderAsync(ct);
@@ -533,9 +539,15 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
         {
             using var deleteConn = await CreateConnectionAsync(ct);
             var delete = deleteConn.CreateCommand();
-            delete.CommandText = "DELETE FROM proxy_secrets WHERE proxy_id = $id;";
+            using var deleteTx = deleteConn.BeginTransaction();
+            delete.Transaction = deleteTx;
+            delete.CommandText = @"UPDATE proxy_secrets SET deleted_at = $now WHERE proxy_id = $id AND deleted_at IS NULL;
+                UPDATE proxies SET updated_at = $now, device_id = $device, revision = revision + 1 WHERE id = $id AND deleted_at IS NULL;";
             delete.Parameters.AddWithValue("$id", proxyId.ToString());
+            delete.Parameters.AddWithValue("$now", SqliteValue.FormatUtc(DateTime.UtcNow));
+            delete.Parameters.AddWithValue("$device", (object?)_factory.DeviceId ?? DBNull.Value);
             await delete.ExecuteNonQueryAsync(ct);
+            deleteTx.Commit();
             return;
         }
 
@@ -544,7 +556,9 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
 
         using var conn = await CreateConnectionAsync(ct);
         await CompletePendingCleanupAsync(conn, ct);
+        using var tx = conn.BeginTransaction();
         var cmd = conn.CreateCommand();
+        cmd.Transaction = tx;
         cmd.CommandText = @"
             INSERT INTO proxy_secrets (proxy_id, secrets_blob, encryption_algorithm, nonce, tag)
             VALUES ($id, $blob, $alg, $nonce, $tag)
@@ -552,14 +566,18 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
                 secrets_blob = $blob,
                 encryption_algorithm = $alg,
                 nonce = $nonce,
-                tag = $tag;
+                tag = $tag, deleted_at = NULL;
+            UPDATE proxies SET updated_at = $now, device_id = $device, revision = revision + 1 WHERE id = $id AND deleted_at IS NULL;
         ";
         cmd.Parameters.AddWithValue("$id", proxyId.ToString());
+        cmd.Parameters.AddWithValue("$now", SqliteValue.FormatUtc(DateTime.UtcNow));
+        cmd.Parameters.AddWithValue("$device", (object?)_factory.DeviceId ?? DBNull.Value);
         cmd.Parameters.Add("$blob", SqliteType.Blob).Value = blob;
         cmd.Parameters.AddWithValue("$alg", algorithm);
         cmd.Parameters.AddWithValue("$nonce", (object?)nonce ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$tag", (object?)tag ?? DBNull.Value);
         await cmd.ExecuteNonQueryAsync(ct);
+        tx.Commit();
     }
 
     public async Task<bool> HasPasswordAsync(Guid proxyId, CancellationToken ct = default)
@@ -568,7 +586,7 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
 
         using var conn = await CreateConnectionAsync(ct);
         var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT 1 FROM proxy_secrets WHERE proxy_id = $id;";
+        cmd.CommandText = "SELECT 1 FROM proxy_secrets WHERE proxy_id = $id AND deleted_at IS NULL;";
         cmd.Parameters.AddWithValue("$id", proxyId.ToString());
         var value = await cmd.ExecuteScalarAsync(ct);
         return value != null && value != DBNull.Value;
@@ -579,10 +597,16 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
         await EnsureInitializedAsync(ct);
 
         using var conn = await CreateConnectionAsync(ct);
+        using var tx = conn.BeginTransaction();
         var cmd = conn.CreateCommand();
-        cmd.CommandText = "DELETE FROM identity_secrets WHERE identity_id = $id;";
+        cmd.Transaction = tx;
+        cmd.CommandText = @"UPDATE identity_secrets SET deleted_at = $now WHERE identity_id = $id AND deleted_at IS NULL;
+            UPDATE identities SET updated_at = $now, device_id = $device, revision = revision + 1 WHERE id = $id AND deleted_at IS NULL;";
         cmd.Parameters.AddWithValue("$id", identityId.ToString());
+        cmd.Parameters.AddWithValue("$now", SqliteValue.FormatUtc(DateTime.UtcNow));
+        cmd.Parameters.AddWithValue("$device", (object?)_factory.DeviceId ?? DBNull.Value);
         await cmd.ExecuteNonQueryAsync(ct);
+        tx.Commit();
     }
 
     private void EnsureUnlocked()
