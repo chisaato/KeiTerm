@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
@@ -38,9 +39,9 @@ public class RemoteFileManagerLayoutTests
         window.Show();
         try
         {
-            await AdvanceAnimationAsync(300);
             Grid toolbar = view.FindControl<Grid>("FileManagerToolbar")!;
             ProgressBar progress = view.FindControl<ProgressBar>("FileManagerLoadingProgressBar")!;
+            await WaitForAnimationAsync(() => progress.Opacity == 1);
             TextBlock heading = view.FindControl<TextBlock>("FileManagerHeading")!;
             TextBox pathInput = view.FindControl<TextBox>("FileManagerPathInput")!;
             Assert.Equal(1, progress.Opacity);
@@ -64,7 +65,7 @@ public class RemoteFileManagerLayoutTests
             await CaptureAsync(window, width, "loading-toolbar");
             Assert.Equal(2, progress.Bounds.Height);
             model.IsLoadingIndicatorVisible = false;
-            await AdvanceAnimationAsync(300);
+            await WaitForAnimationAsync(() => progress.Opacity == 0);
             Assert.Equal(0, progress.Opacity);
             // 显隐前后布局不变：路径栏与标题栏高度一致。
             Assert.Equal(pathTop, WindowBounds(pathInput, window).Top);
@@ -414,7 +415,7 @@ public class RemoteFileManagerLayoutTests
             Assert.Equal(revision, model.TransferActivityRevision);
             transfer.State = FileTransferState.Transferring;
             transfer.State = FileTransferState.Completed;
-            await AdvanceAnimationAsync(1200);
+            await WaitForAnimationAsync(() => dimPhases >= 2 && header.Opacity == 1, minimumMilliseconds: 1200);
             Assert.Equal(2, dimPhases);
             Assert.True(intermediateOpacity);
             Assert.Equal(1, header.Opacity);
@@ -651,11 +652,29 @@ public class RemoteFileManagerLayoutTests
 
     private static async Task AdvanceAnimationAsync(int milliseconds)
     {
-        for (int elapsed = 0; elapsed < milliseconds; elapsed += 16)
+        Stopwatch watch = Stopwatch.StartNew();
+        do
         {
             await Task.Delay(16);
             HeadlessAvalonia.Pump();
         }
+        while (watch.ElapsedMilliseconds < milliseconds);
+    }
+
+    private static async Task WaitForAnimationAsync(Func<bool> completed, int minimumMilliseconds = 0)
+    {
+        // 每轮推进真实渲染时钟；以最终画面而非固定帧数判定完成。
+        Stopwatch watch = Stopwatch.StartNew();
+        do
+        {
+            HeadlessAvalonia.Pump();
+            // 保留两次提醒的完整观察窗口，不能在中途的亮相位提前结束测试。
+            if (watch.ElapsedMilliseconds >= minimumMilliseconds && completed()) return;
+            await Task.Delay(16);
+        }
+        while (watch.ElapsedMilliseconds < 2000);
+        HeadlessAvalonia.Pump();
+        Assert.True(completed(), "动画最终状态在 2s 内未达到");
     }
 
     private static async Task CaptureAsync(Window window, int width, string page)
