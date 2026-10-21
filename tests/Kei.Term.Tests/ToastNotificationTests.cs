@@ -243,6 +243,96 @@ public class ToastNotificationTests
     }
 
     [Fact]
+    public void ToastItem_RemainingFraction_DecreasesLinearlyWithTime()
+    {
+        TestTimeProvider clock = new();
+        ToastManagerViewModel manager = new(timeProvider: clock, dispatchToUi: a => a());
+
+        ToastItemViewModel toast = manager.Show("Info", "msg", NotificationLevel.Info);
+        Assert.Equal(1d, toast.RemainingFraction, 3);
+
+        clock.Advance(TimeSpan.FromSeconds(1));
+        Assert.Equal(0.75d, toast.RemainingFraction, 3);
+        Assert.Equal(TimeSpan.FromSeconds(3), toast.RemainingTime);
+
+        // Warning 总时长 8 秒
+        ToastItemViewModel warn = manager.Show("Warn", "msg", NotificationLevel.Warning);
+        clock.Advance(TimeSpan.FromSeconds(2));
+        Assert.Equal(0.75d, warn.RemainingFraction, 3);
+    }
+
+    [Fact]
+    public void ToastItem_RemainingFraction_FreezesWhilePaused_AndContinuesAfterResume()
+    {
+        TestTimeProvider clock = new();
+        ToastManagerViewModel manager = new(timeProvider: clock, dispatchToUi: a => a());
+
+        ToastItemViewModel toast = manager.Show("Info", "msg", NotificationLevel.Info);
+        clock.Advance(TimeSpan.FromSeconds(1));
+        toast.PauseDismiss();
+
+        clock.Advance(TimeSpan.FromSeconds(10));
+        Assert.Equal(0.75d, toast.RemainingFraction, 3);
+
+        toast.ResumeDismiss();
+        clock.Advance(TimeSpan.FromSeconds(1.5));
+        Assert.Equal(0.375d, toast.RemainingFraction, 3);
+    }
+
+    [Fact]
+    public void ToastManager_DuplicateMessage_ResetsCountdownToFull()
+    {
+        TestTimeProvider clock = new();
+        ToastManagerViewModel manager = new(timeProvider: clock, dispatchToUi: a => a());
+
+        ToastItemViewModel first = manager.Show("Same", "msg", NotificationLevel.Info);
+        clock.Advance(TimeSpan.FromSeconds(3));
+        Assert.Equal(0.25d, first.RemainingFraction, 3);
+
+        manager.Show("Same", "msg", NotificationLevel.Info);
+        Assert.Equal(1d, first.RemainingFraction, 3);
+
+        // 原定 4s 的到期点已过，但重置后仍应存在
+        clock.Advance(TimeSpan.FromSeconds(2));
+        Assert.Single(manager.ActiveToasts);
+        clock.Advance(TimeSpan.FromSeconds(2.5));
+        Assert.Empty(manager.ActiveToasts);
+    }
+
+    [Fact]
+    public void ToastManager_DuplicateWhileHovered_ResetsToFullAndStaysPaused()
+    {
+        TestTimeProvider clock = new();
+        ToastManagerViewModel manager = new(timeProvider: clock, dispatchToUi: a => a());
+
+        ToastItemViewModel toast = manager.Show("Same", "msg", NotificationLevel.Info);
+        clock.Advance(TimeSpan.FromSeconds(2));
+        toast.PauseDismiss();
+
+        manager.Show("Same", "msg", NotificationLevel.Info);
+        clock.Advance(TimeSpan.FromSeconds(10));
+        Assert.Single(manager.ActiveToasts);
+        Assert.Equal(1d, toast.RemainingFraction, 3);
+
+        toast.ResumeDismiss();
+        clock.Advance(TimeSpan.FromSeconds(1));
+        Assert.Equal(0.75d, toast.RemainingFraction, 3);
+    }
+
+    [Fact]
+    public void ToastItem_Error_HasNoCountdown()
+    {
+        TestTimeProvider clock = new();
+        ToastManagerViewModel manager = new(timeProvider: clock, dispatchToUi: a => a());
+
+        ToastItemViewModel toast = manager.Show("Fatal", "boom", NotificationLevel.Error);
+        clock.Advance(TimeSpan.FromSeconds(5));
+        Assert.False(toast.HasAutoDismiss);
+        Assert.Equal(0d, toast.RemainingFraction);
+        Assert.Equal(TimeSpan.Zero, toast.RemainingTime);
+    }
+
+    [Fact]
     public void ToastItem_CanExpand_TrueOnlyForLongOrMultilineText()
     {
         ToastItemViewModel shortToast = new("Short", "Hello world", NotificationLevel.Info, _ => { });

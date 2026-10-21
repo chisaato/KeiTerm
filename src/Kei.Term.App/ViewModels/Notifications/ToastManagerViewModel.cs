@@ -56,7 +56,8 @@ public partial class ToastManagerViewModel : ObservableObject
 
                 if (existing != null)
                 {
-                    existing.ResumeDismiss();
+                    // 重复消息把倒计时重置为满
+                    existing.RestartDismiss();
                     item = existing;
                     return;
                 }

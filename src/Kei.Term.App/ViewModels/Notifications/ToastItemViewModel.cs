@@ -14,6 +14,7 @@ public partial class ToastItemViewModel : ObservableObject
     private readonly Func<string, Task>? _copyToClipboard;
     private readonly TimeProvider _timeProvider;
     private ITimer? _timer;
+    private readonly TimeSpan _duration;
     private TimeSpan _remainingTime;
     private DateTimeOffset _lastResumeTime;
     private bool _isPaused;
@@ -64,6 +65,7 @@ public partial class ToastItemViewModel : ObservableObject
             _ => TimeSpan.Zero,
         };
 
+        _duration = duration;
         _remainingTime = duration;
         if (duration > TimeSpan.Zero)
         {
@@ -72,11 +74,47 @@ public partial class ToastItemViewModel : ObservableObject
         }
     }
 
+    // 距自动消失的剩余时长；与真实计时器同源（暂停时停住，Error 恒为零）
+    public TimeSpan RemainingTime
+    {
+        get
+        {
+            lock (_timerLock)
+            {
+                if (_timer == null || _isPaused) return _remainingTime;
+                TimeSpan elapsed = _timeProvider.GetUtcNow() - _lastResumeTime;
+                if (elapsed < TimeSpan.Zero) elapsed = TimeSpan.Zero;
+                TimeSpan left = _remainingTime - elapsed;
+                return left < TimeSpan.Zero ? TimeSpan.Zero : left;
+            }
+        }
+    }
+
+    // 剩余比例：1 为刚出现，0 为即将消失；无自动倒计时的 Toast 恒为 0
+    public double RemainingFraction =>
+        _duration > TimeSpan.Zero ? RemainingTime / _duration : 0d;
+
+    // 重复消息到达时把倒计时重置为满；悬停中保持暂停，移出后再从满值开始
+    public void RestartDismiss()
+    {
+        lock (_timerLock)
+        {
+            if (_timer == null || !HasAutoDismiss) return;
+            _remainingTime = _duration;
+            _lastResumeTime = _timeProvider.GetUtcNow();
+            if (!_isPaused)
+            {
+                _timer.Change(_duration, Timeout.InfiniteTimeSpan);
+            }
+        }
+    }
+
     private void OnTimerTick(object? state)
     {
         lock (_timerLock)
         {
             if (_isPaused) return;
+            _remainingTime = TimeSpan.Zero;
             _timer?.Dispose();
             _timer = null;
         }

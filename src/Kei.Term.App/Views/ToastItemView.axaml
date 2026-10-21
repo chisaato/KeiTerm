@@ -37,6 +37,7 @@
             Margin="0,0,0,8"
             Width="340"
             ClipToBounds="True">
+        <Panel>
         <Grid ColumnDefinitions="4,Auto,*,Auto">
             <!-- 级别指示色条 -->
             <Border Grid.Column="0"
@@ -136,5 +137,16 @@
                 </Viewbox>
             </Button>
         </Grid>
+
+        <!-- 自动消失倒计时条：宽度由代码后置按真实剩余比例刷新 -->
+        <Border x:Name="CountdownBar"
+                Height="2"
+                Width="0"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Bottom"
+                IsHitTestVisible="False"
+                IsVisible="{Binding HasAutoDismiss}"
+                Background="{Binding Level, Converter={x:Static conv:NotificationLevelConverters.LevelToBrush}}"/>
+        </Panel>
     </Border>
 </UserControl>
