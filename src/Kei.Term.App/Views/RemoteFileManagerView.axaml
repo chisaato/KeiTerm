@@ -295,6 +295,10 @@
                      DoubleTapped="OnListBoxDoubleTapped"
                      PointerPressed="OnListBoxPointerPressed"
                      Background="Transparent">
+                <!-- 绑定在列表上：路径输入框里的 Delete 仍按文本编辑处理 -->
+                <ListBox.KeyBindings>
+                    <KeyBinding Gesture="Delete" Command="{Binding DeleteItemCommand}" CommandParameter="{Binding SelectedItem}"/>
+                </ListBox.KeyBindings>
                 <ListBox.ContextMenu>
                     <ContextMenu Opening="OnContextMenuOpening">
                         <MenuItem Classes="selection-action" Header="打开" Command="{Binding EnterOrOpenFileCommand}" CommandParameter="{Binding SelectedItem}"/>
@@ -316,7 +320,7 @@
                         <MenuItem Classes="selection-action" Header="{loc:KeiString FileManager.CopyRemotePath}" Click="OnCopyRemotePath"/>
                         <Separator Classes="selection-action"/>
                         <MenuItem x:Name="RenameMenuItem" Header="{loc:KeiString FileManager.Rename}" Command="{Binding RenameItemCommand}" CommandParameter="{Binding SelectedItem}"/>
-                        <MenuItem Classes="selection-action" Header="删除" Command="{Binding DeleteItemCommand}" CommandParameter="{Binding SelectedItem}"/>
+                        <MenuItem Classes="selection-action" Header="删除" InputGesture="Delete" Command="{Binding DeleteItemCommand}" CommandParameter="{Binding SelectedItem}"/>
                         <Separator Classes="selection-action"/>
                         <MenuItem Header="{loc:KeiString FileManager.CreateFile}" Command="{Binding CreateFileCommand}"/>
                         <MenuItem Header="{loc:KeiString FileManager.CreateDirectory}" Command="{Binding CreateDirectoryCommand}"/>

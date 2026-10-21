@@ -1,4 +1,8 @@
+using Avalonia.Controls;
+using Avalonia.Headless;
+using Avalonia.Input;
 using Kei.Term.App.ViewModels;
+using Kei.Term.App.Views;
 using Kei.Term.Core.Abstractions;
 using Kei.Term.Core.Models;
 using Kei.Term.Core.Services;
@@ -123,6 +127,44 @@ public class RemoteFileOperationsTests
         Assert.Single(interaction.DeletePrompts);
         Assert.Equal(confirmed ? 0 : multiple ? 2 : 1, fs.Entries.Count);
     }
+
+    [Fact]
+    public Task DeleteKey_OnFileList_DeletesSelection_ButNotFromPathInput() => HeadlessAvalonia.RunAsync(async () =>
+    {
+        MemoryFileSystem fs = new();
+        RemoteFileItem target = Item("/target");
+        fs.Entries.Add(target.FullPath, target);
+        ScriptedInteraction interaction = new();
+        await using RemoteFileManagerViewModel vm = new(Guid.NewGuid(), fs, new IdleTracker(), interaction: interaction);
+        await vm.RefreshDirectoryAsync();
+        RemoteFileManagerView view = new() { DataContext = vm };
+        Window window = new() { Width = 820, Height = 400, Content = view };
+        try
+        {
+            window.Show();
+            HeadlessAvalonia.Pump();
+            ListBox list = view.FindControl<ListBox>("FileListBox")!;
+            TextBox path = view.FindControl<TextBox>("FileManagerPathInput")!;
+            list.SelectedItem = vm.Items.Single(item => item.FullPath == target.FullPath);
+
+            // 路径框里的 Delete 属于文本编辑，不能删除列表选中项。
+            Assert.True(path.Focus());
+            window.KeyPress(Key.Delete, RawInputModifiers.None, PhysicalKey.Delete, null);
+            HeadlessAvalonia.Pump();
+            Assert.Empty(interaction.DeletePrompts);
+
+            // 点击条目后焦点落在 ListBoxItem 上，按键沿冒泡到达列表的 KeyBindings。
+            Assert.True(list.ContainerFromItem(list.SelectedItem!)!.Focus());
+            window.KeyPress(Key.Delete, RawInputModifiers.None, PhysicalKey.Delete, null);
+            HeadlessAvalonia.Pump();
+            Assert.Equal(["target"], interaction.DeletePrompts);
+            Assert.False(fs.Entries.ContainsKey(target.FullPath));
+        }
+        finally
+        {
+            window.Close();
+        }
+    });
 
     private static RemoteFileItem Item(string path, bool directory = false)
         => new(path[(path.LastIndexOf('/') + 1)..], path, directory, 0, DateTimeOffset.UtcNow, "");
