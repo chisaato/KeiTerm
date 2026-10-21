@@ -4,6 +4,7 @@ using System.Globalization;
 using Dapper;
 using Microsoft.Data.Sqlite;
 using Kei.Term.Core.Storage;
+using Kei.Term.Core.Sync;
 
 // 所有仓储共用的连接入口：统一连接级 PRAGMA，避免各仓储各自复制一份开连接样板
 public sealed class SqliteConnectionFactory
@@ -17,13 +18,16 @@ public sealed class SqliteConnectionFactory
         DefaultTypeMap.MatchNamesWithUnderscores = true;
     }
 
-    public SqliteConnectionFactory(string connectionString, ICurrentDeviceId? currentDevice = null)
+    public SqliteConnectionFactory(string connectionString, ICurrentDeviceId? currentDevice = null,
+        ISyncChangeSignal? changes = null)
     {
         ConnectionString = connectionString;
         _currentDevice = currentDevice;
+        _changes = changes;
     }
 
     private readonly ICurrentDeviceId? _currentDevice;
+    private readonly ISyncChangeSignal? _changes;
     public string? DeviceId => _currentDevice?.DeviceId;
 
     public string ConnectionString { get; }
@@ -37,6 +41,7 @@ public sealed class SqliteConnectionFactory
         await conn.ExecuteAsync(new CommandDefinition(
             $"PRAGMA foreign_keys = ON; PRAGMA busy_timeout = {BusyTimeoutMilliseconds};",
             cancellationToken: ct));
+        if (_changes != null) SqliteSyncChangeObserver.Attach(conn, _changes);
 
         return conn;
     }

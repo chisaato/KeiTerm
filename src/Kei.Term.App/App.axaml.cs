@@ -8,11 +8,14 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Styling;
 using Avalonia.Threading;
+using CommunityToolkit.Mvvm.Messaging;
 using Kei.Term.App.Helpers;
 using Kei.Term.App.Logging;
+using Kei.Term.App.Models;
 using Kei.Term.App.Services;
 using Kei.Term.App.ViewModels;
 using Kei.Term.App.Views;
+using Kei.Term.Core.Sync;
 using Kei.Term.Infrastructure.Settings;
 using Kei.Term.Core.Security;
 using Kei.Term.Core.Vault;
@@ -30,6 +33,8 @@ public partial class App : Application
     private SimpleLoggerFactory? _loggerFactory;
     private Services.ContextMenus.SystemContextMenuService? _systemContextMenus;
     private QuitConfirmationService? _quitConfirmation;
+    private InternalVaultManager? _vault;
+    private SyncScheduler? _syncScheduler;
 
     public override void Initialize()
     {
@@ -90,6 +95,14 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var appDataDir = AppPaths.DataDirectory;
+            int preparedSchemaVersion;
+            try { preparedSchemaVersion = AppPaths.PrepareStorage(); }
+            catch (SyncFileRecoveryException ex)
+            {
+                Console.Error.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
+                desktop.Shutdown(1);
+                return;
+            }
             Directory.CreateDirectory(appDataDir);
             var dbPath = AppPaths.DatabaseFile;
             var connStr = $"Data Source={dbPath}";
@@ -114,10 +127,15 @@ public partial class App : Application
             // 关键：全部同步构造，主窗口必须在任何 await 之前赋值。
             // lifetime 在 OnFrameworkInitializationCompleted 同步段结束后即进入 Start() 显示阶段，
             // 此时 MainWindow 若为 null，之后再赋值不会触发 Show → 进程存活但窗口永不出现。
-            // 全部仓储共用一个连接工厂（统一 PRAGMA），Schema 由迁移器在下方一次性升级
+            // 全部仓储共用一个连接工厂（统一 PRAGMA）；Schema/文件恢复已在最早设置读取前完成。
             var syncDevice = new Kei.Term.Infrastructure.Sync.PersistentDeviceId(Path.Combine(appDataDir, "sync-device-id.txt"));
-            var db = new SqliteConnectionFactory(connStr, syncDevice);
-            var treeRepo = new SqliteTreeRepository(db, _loggerFactory.CreateLogger<SqliteTreeRepository>());
+            var syncChanges = new SyncChangeSignal();
+            var db = new SqliteConnectionFactory(connStr, syncDevice, syncChanges);
+            ProfileManagerService? syncProfiles = null;
+            JsonSettingsService? syncSettings = null;
+            var treeRepo = new SqliteTreeRepository(db, _loggerFactory.CreateLogger<SqliteTreeRepository>(),
+                profileExists: id => syncProfiles?.HasCompleteProfileReferences(id) ?? true,
+                defaultIdentityId: () => syncSettings?.Current.DefaultIdentityId);
             var proxyRepo = new SqliteProxyRepository(db, _loggerFactory.CreateLogger<SqliteProxyRepository>());
             var portForwards = new SqlitePortForwardRepository(db);
             var identityRepo = new SqliteIdentityRepository(db);
@@ -126,10 +144,12 @@ public partial class App : Application
             var sessionMetadata = new SqliteSessionMetadataRepository(db);
             IDeviceQuickUnlockStore quickUnlockStore = CreateQuickUnlockStore();
             var vault = new InternalVaultManager(db, _loggerFactory.CreateLogger<InternalVaultManager>(), quickUnlockStore);
+            _vault = vault;
             VaultQuickUnlockService quickUnlock = new(vault, quickUnlockStore, _loggerFactory.CreateLogger<VaultQuickUnlockService>());
             var settingsPath = Path.Combine(appDataDir, "settings.json");
             var localChanges = new SqliteLocalChangeTracker(db);
             var settingsService = new JsonSettingsService(settingsPath, localChanges);
+            syncSettings = settingsService;
             _systemContextMenus = new Services.ContextMenus.SystemContextMenuService(
                 () => settingsService.Current.UseNativeContextMenus,
                 logger: _loggerFactory.CreateLogger<Services.ContextMenus.SystemContextMenuService>());
@@ -143,6 +163,7 @@ public partial class App : Application
                     : interactionHost.Interaction.PromptHostKeyAsync(evaluation),
                 logger: _loggerFactory.CreateLogger<HostKeyTrustService>());
             var profileManager = new ProfileManagerService(settingsService, appDataDir, tracker: localChanges);
+            syncProfiles = profileManager;
             var sshFactory = new SshSessionFactory(_loggerFactory.CreateLogger<SshSessionFactory>());
 
             // 先在窗口创建前按默认 KeiClassic 挂载画刷与兼容样式，避免首帧无 Kei.* 资源；
@@ -172,9 +193,23 @@ public partial class App : Application
                 vault,
                 vault,
                 _loggerFactory.CreateLogger<IdentityManagerViewModel>());
-            var syncCoordinator = new Kei.Term.Core.Sync.SyncCoordinator(new SqliteSyncSnapshotStore(db),
+            var syncSnapshotStore = new SqliteSyncSnapshotStore(db, vault, settingsPath, Path.Combine(appDataDir, "profiles.json"));
+            syncSnapshotStore.Imported += async () =>
+            {
+                Task reload = await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync<Task>(async () =>
+                {
+                    await settingsService.ReloadSynchronizedAsync();
+                    await profileManager.ReloadSynchronizedAsync();
+                    await mainVm.ReloadTreeAsync();
+                });
+                await reload;
+            };
+            var syncCoordinator = new Kei.Term.Core.Sync.SyncCoordinator(syncSnapshotStore,
                 new Kei.Term.Infrastructure.Sync.AgeSyncPackage(), vault, syncDevice);
-            var syncPage = new ViewModels.Settings.SyncSettingsPage(appDataDir, syncCoordinator, vault);
+            var syncScheduler = new SyncScheduler(new SystemSyncClock(), new FileSyncLocationSource(appDataDir, vault),
+                vault, syncChanges, syncCoordinator.SyncAsync);
+            _syncScheduler = syncScheduler;
+            var syncPage = new ViewModels.Settings.SyncSettingsPage(appDataDir, syncScheduler, vault, vault);
             syncPage.Synchronized += mainVm.ReloadTreeAsync;
             var settingsVm = new SettingsViewModel(
                 settingsService,
@@ -211,13 +246,20 @@ public partial class App : Application
             logger.LogInformation("启动完成: 主窗口已在 await 之前同步赋值");
 
             // 异步初始化延后到窗口赋值之后：续体经 Dispatcher 回 UI 线程，安全
-            var schemaVersion = await SchemaMigrator.MigrateAsync(db);
+            var schemaVersion = preparedSchemaVersion;
             logger.LogInformation("数据库 Schema 版本={Version}", schemaVersion);
             // 加密模式保留懒解锁；启动时不主动弹出系统认证窗口。
             await vault.TryAutoUnlockAsync();
+            WeakReferenceMessenger.Default.Register<App, VaultLockStateChangedMessage>(this, static (app, message) =>
+            {
+                if (app._vault != null && !ReferenceEquals(app._vault, message.Vault)) return;
+                app._syncScheduler?.NotifyVault(message.Vault.IsUnlocked);
+            });
             await settingsService.LoadSettingsAsync();
             mainWindow.FinalizeStartupLayout();
             await profileManager.InitializeAsync();
+            // 初始基线完成后再启动，避免同步与首次设置/Profile 加载交错。
+            syncScheduler.Start();
 
             // 按设置应用主题变体："System" 跟随系统，其余（"Dark"）固定深色
             RequestedThemeVariant = string.Equals(
@@ -277,6 +319,7 @@ public partial class App : Application
         desktop.Exit += (_, _) =>
         {
             logger.LogInformation("应用正常退出");
+            _syncScheduler?.Dispose();
             _quitConfirmation?.Dispose();
             _systemContextMenus?.Dispose();
             _loggerFactory?.Dispose();

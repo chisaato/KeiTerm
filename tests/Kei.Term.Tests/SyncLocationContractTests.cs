@@ -3,18 +3,16 @@ using System.IO;
 using System.Threading.Tasks;
 using Kei.Term.Core.Sync;
 using Kei.Term.Infrastructure.Sync;
-using Xunit;
 
 namespace Kei.Term.Tests;
 
-// 06/07 可继承同一契约并只替换 CreateLocation；网络位置的 opt-in 夹具由各工单提供。
+// 网络位置继承同一套行为。基类方法本身不是测试，便于 WebDAV/S3 在环境变量未开启时整组跳过。
 public abstract class SyncLocationContractTests : IDisposable
 {
     protected abstract ISyncLocation CreateLocation();
     public abstract void Dispose();
 
-    [Fact]
-    public async Task MissingReadAndRoundTrip()
+    protected async Task RunMissingReadAndRoundTrip()
     {
         ISyncLocation location = CreateLocation();
         await location.TestConnectionAsync();
@@ -26,7 +24,12 @@ public abstract class SyncLocationContractTests : IDisposable
         Assert.Equal(bytes, result.Content);
         Assert.False(string.IsNullOrEmpty(result.VersionTag));
         if (location.SupportsConditionalWrites)
+        {
             await Assert.ThrowsAsync<SyncWriteConflictException>(() => location.WriteAsync([3], "stale"));
+            await Assert.ThrowsAsync<SyncWriteConflictException>(() => location.WriteAsync([3]));
+            await location.WriteAsync([6, 7], result.VersionTag);
+            Assert.Equal(new byte[] { 6, 7 }, (await location.ReadAsync())!.Content);
+        }
         else
         {
             await location.WriteAsync([3], "stale");
@@ -34,8 +37,7 @@ public abstract class SyncLocationContractTests : IDisposable
         }
     }
 
-    [Fact]
-    public async Task HistoryRoundTripListAndDelete()
+    protected async Task RunHistoryRoundTrip()
     {
         ISyncLocation location = CreateLocation();
         Assert.Empty(await location.ListHistoryAsync());
@@ -46,6 +48,14 @@ public abstract class SyncLocationContractTests : IDisposable
         await location.DeleteHistoryAsync("2026-10-22.age");
         Assert.Empty(await location.ListHistoryAsync());
         Assert.Null(await location.ReadHistoryAsync("2026-10-22.age"));
+        const string special = "历史 空格 #1?%字面量-%23.age";
+        await location.WriteHistoryAsync(special, [8, 9]);
+        string listedName = Assert.Single(await location.ListHistoryAsync()).Name;
+        Assert.Equal(special, listedName);
+        Assert.Equal(new byte[] { 8, 9 }, await location.ReadHistoryAsync(listedName));
+        await location.DeleteHistoryAsync(listedName);
+        await location.DeleteHistoryAsync(special);
+        Assert.Empty(await location.ListHistoryAsync());
     }
 }
 
@@ -53,6 +63,12 @@ public sealed class LocalFolderSyncLocationTests : SyncLocationContractTests
 {
     private readonly string _directory = Path.Combine(Path.GetTempPath(), "keiterm-location-" + Guid.NewGuid().ToString("N"));
     protected override ISyncLocation CreateLocation() => new LocalFolderSyncLocation(_directory);
+
+    [Fact]
+    public Task MissingReadAndRoundTrip() => RunMissingReadAndRoundTrip();
+
+    [Fact]
+    public Task HistoryRoundTripListAndDelete() => RunHistoryRoundTrip();
 
     [Fact]
     public async Task HistoryNamesCannotEscapeDirectory()

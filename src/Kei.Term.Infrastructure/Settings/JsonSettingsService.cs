@@ -24,6 +24,12 @@ public class JsonSettingsService : ISettingsService, INotifySettingsCommitted
 
     public AppSettings Current => _current;
 
+    public async Task ReloadSynchronizedAsync(CancellationToken ct = default)
+    {
+        await LoadSettingsAsync(ct);
+        SettingsCommitted?.Invoke(this, EventArgs.Empty);
+    }
+
     private double LatestFontSize => BitConverter.Int64BitsToDouble(Volatile.Read(ref _latestFontBits));
 
     // 内存中的已提交设置已变化。在调用线程、落盘之前触发，便于设置页立刻看到新字号。
@@ -38,6 +44,8 @@ public class JsonSettingsService : ISettingsService, INotifySettingsCommitted
 
     public async Task<AppSettings> LoadSettingsAsync(CancellationToken ct = default)
     {
+        using var persistence = await LocalPersistenceGate.EnterAsync(ct);
+        if (_tracker is ILocalPersistenceReadiness readiness) await readiness.EnsureReadyAsync(ct);
         if (!File.Exists(_filePath))
         {
             _current = new AppSettings();
@@ -151,6 +159,8 @@ public class JsonSettingsService : ISettingsService, INotifySettingsCommitted
 
     private async Task WriteCurrentAsync(CancellationToken ct)
     {
+        using var persistence = await LocalPersistenceGate.EnterAsync(ct);
+        if (_tracker is ILocalPersistenceReadiness readiness) await readiness.EnsureReadyAsync(ct);
         var dir = Path.GetDirectoryName(_filePath);
         if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
         {
@@ -178,6 +188,9 @@ public class JsonSettingsService : ISettingsService, INotifySettingsCommitted
         var options = new JsonSerializerOptions(SerializerOptions) { IgnoreReadOnlyProperties = true };
         return LocalChangeTracking.Flatten(JsonSerializer.SerializeToElement(settings, options));
     }
+
+    internal static JsonElement DefaultSyncSnapshot() => JsonSerializer.SerializeToElement(new AppSettings(),
+        new JsonSerializerOptions(SerializerOptions) { IgnoreReadOnlyProperties = true });
 
     private void BackupCorruptFile()
     {

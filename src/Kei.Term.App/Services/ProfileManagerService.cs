@@ -173,6 +173,16 @@ public class ProfileManagerService
     // 当前有效（可能是预览草稿）的全局默认终端配色 ID；null 表示使用内置默认
     public string? DefaultTerminalProfileId => _defaultTerminalProfileId;
 
+    // 用于读取会话时的完整性标记；解析仍安全回退，不改写丢失的引用。
+    public bool HasCompleteProfileReferences(string? terminalProfileId)
+    {
+        bool TerminalExists(string? id) => string.IsNullOrEmpty(id) || AllTerminalProfiles.Any(p => string.Equals(p.Id, id, StringComparison.OrdinalIgnoreCase));
+        bool GuiExists(string? id) => string.IsNullOrEmpty(id) || AllGuiProfiles.Any(p => string.Equals(p.Id, id, StringComparison.OrdinalIgnoreCase));
+        return TerminalExists(terminalProfileId) && TerminalExists(_committedDefaultTerminalProfileId)
+            && TerminalExists(_settingsService.Current.ActiveTerminalProfileId)
+            && GuiExists(_committedSelectedGuiProfileId) && GuiExists(_settingsService.Current.ActiveGuiProfileId);
+    }
+
     // 统一解析顺序：会话显式 ID → 全局默认 ID → 内置默认
     public TerminalProfile ResolveEffectiveTerminalProfile(string? explicitProfileId)
     {
@@ -193,8 +203,19 @@ public class ProfileManagerService
         TerminalProfileChanged?.Invoke(new TerminalProfileChange(profileId, TerminalProfileChangeReason.DefaultSelectionChanged));
     }
 
+    public async Task ReloadSynchronizedAsync()
+    {
+        var previous = _committedTerminalProfiles.Select(p => p.Id).ToArray();
+        await InitializeAsync();
+        foreach (string id in previous.Concat(_committedTerminalProfiles.Select(p => p.Id)).Distinct(StringComparer.OrdinalIgnoreCase))
+            TerminalProfileChanged?.Invoke(new(id, TerminalProfileChangeReason.ProfileContentEdited));
+        TerminalProfileChanged?.Invoke(new(_committedDefaultTerminalProfileId, TerminalProfileChangeReason.DefaultSelectionChanged));
+    }
+
     public async Task InitializeAsync()
     {
+        using var persistence = await LocalPersistenceGate.EnterAsync();
+        if (_tracker is ILocalPersistenceReadiness readiness) await readiness.EnsureReadyAsync();
         // 加载持久化的自定义 Profile 与选中的 Profile ID
         if (File.Exists(_customProfilesFilePath))
         {
@@ -228,6 +249,8 @@ public class ProfileManagerService
     // 持久化当前“已提交”权威（补偿写回用；不推进权威）
     public async Task SaveCommittedProfilesAsync(CancellationToken ct = default)
     {
+        using var persistence = await LocalPersistenceGate.EnterAsync(ct);
+        if (_tracker is ILocalPersistenceReadiness readiness) await readiness.EnsureReadyAsync(ct);
         var bundle = BuildBundle(
             _committedTerminalProfiles,
             _committedGuiProfiles,
@@ -244,6 +267,8 @@ public class ProfileManagerService
         IReadOnlyList<TerminalProfile>? terminalProfilesOverride = null,
         CancellationToken ct = default)
     {
+        using var persistence = await LocalPersistenceGate.EnterAsync(ct);
+        if (_tracker is ILocalPersistenceReadiness readiness) await readiness.EnsureReadyAsync(ct);
         var terminal = terminalProfilesOverride != null
             ? terminalProfilesOverride.Select(p => p.DeepCopy()).ToList()
             : _customTerminalProfiles.Select(p => p.DeepCopy()).ToList();
@@ -310,6 +335,13 @@ public class ProfileManagerService
         profile.IsBuiltIn = false;
         _customGuiProfiles.RemoveAll(p => string.Equals(p.Id, profile.Id, StringComparison.OrdinalIgnoreCase));
         _customGuiProfiles.Add(profile);
+    }
+
+    public void RemoveCustomGuiProfile(string profileId)
+    {
+        if (BuiltInPresets.DefaultGuiProfiles.Any(p => string.Equals(p.Id, profileId, StringComparison.OrdinalIgnoreCase))) return;
+        _customGuiProfiles.RemoveAll(p => string.Equals(p.Id, profileId, StringComparison.OrdinalIgnoreCase));
+        if (string.Equals(_selectedGuiProfileId, profileId, StringComparison.OrdinalIgnoreCase)) _selectedGuiProfileId = null;
     }
 
     public void AddCustomTerminalProfile(TerminalProfile profile)

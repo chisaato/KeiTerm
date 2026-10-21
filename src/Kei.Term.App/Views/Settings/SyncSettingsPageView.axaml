@@ -5,24 +5,59 @@
              x:Class="Kei.Term.App.Views.Settings.SyncSettingsPageView"
              x:DataType="settings:SyncSettingsPage">
     <StackPanel Spacing="16" IsEnabled="{Binding !IsBusy}">
-        <controls:SettingsPageHeader Group="应用" Title="同步" Description="用同一目录和同步口令，在设备间合并会话树与会话配置。"/>
+        <controls:SettingsPageHeader Group="应用" Title="同步" Description="用同一同步位置和同步口令，在设备间合并会话树与会话配置。"/>
         <Border Classes="settingsCard">
             <StackPanel Spacing="10">
-                <TextBlock Classes="settingsSectionTitle" Text="同步位置：本地目录"/>
-                <TextBox Text="{Binding DirectoryPath}" PlaceholderText="选择一个同步目录"/>
-                <WrapPanel>
-                    <Button Content="选择目录" Command="{Binding ChooseDirectoryCommand}"/>
-                    <Button Content="测试连接" Command="{Binding TestConnectionCommand}" Margin="8,0,0,0"/>
-                </WrapPanel>
+                <TextBlock Classes="settingsSectionTitle" Text="同步位置"/>
+                <ComboBox ItemsSource="{Binding LocationKinds}" SelectedItem="{Binding SelectedKind}" MinWidth="220" HorizontalAlignment="Left">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="settings:SyncLocationKindOption">
+                            <TextBlock Text="{Binding Label}"/>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+
+                <StackPanel Spacing="8" IsVisible="{Binding IsLocalFolder}">
+                    <TextBox Text="{Binding DirectoryPath}" PlaceholderText="选择一个同步目录"/>
+                    <Button Content="选择目录" Command="{Binding ChooseDirectoryCommand}" HorizontalAlignment="Left"/>
+                </StackPanel>
+
+                <StackPanel Spacing="8" IsVisible="{Binding IsWebDav}">
+                    <TextBox Text="{Binding WebDavUrl}" PlaceholderText="https://example.com/remote.php/dav/files/user/KeiTerm/"/>
+                    <TextBox Text="{Binding WebDavUser}" PlaceholderText="用户名"/>
+                    <TextBox Text="{Binding WebDavPassword}" PasswordChar="●" PlaceholderText="密码，留空则继续使用保险库中的密码"/>
+                    <CheckBox Content="使用条件写（If-Match / If-None-Match）" IsChecked="{Binding WebDavConditionalWrites}"/>
+                </StackPanel>
+
+                <StackPanel Spacing="8" IsVisible="{Binding IsS3}">
+                    <ComboBox ItemsSource="{Binding S3Providers}" SelectedItem="{Binding SelectedS3Provider}" MinWidth="220" HorizontalAlignment="Left">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="settings:S3ProviderOption">
+                                <TextBlock Text="{Binding Label}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <TextBox Text="{Binding S3Endpoint}" PlaceholderText="端点，例如 https://s3.amazonaws.com 或 http://127.0.0.1:9000"/>
+                    <TextBox Text="{Binding S3Region}" PlaceholderText="区域，留空则使用 us-east-1"/>
+                    <TextBox Text="{Binding S3Bucket}" PlaceholderText="存储桶"/>
+                    <TextBox Text="{Binding S3Prefix}" PlaceholderText="对象前缀，可空"/>
+                    <TextBox Text="{Binding S3AccessKeyId}" PlaceholderText="Access Key ID，保存在本机配置"/>
+                    <TextBox Text="{Binding S3SecretKey}" PasswordChar="●" PlaceholderText="Secret Key，留空则继续使用保险库中的密钥"/>
+                    <CheckBox Content="使用路径风格（path-style）" IsChecked="{Binding S3PathStyle}"/>
+                    <CheckBox Content="使用条件写（If-Match / If-None-Match）" IsChecked="{Binding S3ConditionalWrites}"/>
+                    <TextBlock Text="阿里云 OSS 与腾讯云 COS 默认关闭条件写，关闭后上传会读回检查。" TextWrapping="Wrap" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                </StackPanel>
+
+                <Button Content="测试连接" Command="{Binding TestConnectionCommand}" HorizontalAlignment="Left"/>
                 <TextBlock Text="设定或加入同步口令"/>
                 <TextBox Text="{Binding Passphrase}" PasswordChar="●" PlaceholderText="与其他设备使用相同口令"/>
-                <Button Content="保存同步口令到保险库" Command="{Binding SavePassphraseCommand}"/>
-                <TextBlock Text="此页操作立即生效；目前仅手动同步会话树，不包含身份秘密。" TextWrapping="Wrap" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                <Button Content="保存同步口令到保险库" Command="{Binding SavePassphraseCommand}" HorizontalAlignment="Left"/>
+                <TextBlock Text="此页操作立即生效。密码和 Secret Key 只进入保险库。" TextWrapping="Wrap" Foreground="{DynamicResource Kei.Text.Secondary}"/>
             </StackPanel>
         </Border>
         <Border Classes="settingsCard">
             <StackPanel Spacing="10">
-                <Button Content="立即同步" Command="{Binding SyncNowCommand}"/>
+                <Button Content="立即同步" Command="{Binding SyncNowCommand}" HorizontalAlignment="Left"/>
                 <TextBlock Text="{Binding Status}" TextWrapping="Wrap"/>
             </StackPanel>
         </Border>

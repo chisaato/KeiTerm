@@ -25,7 +25,11 @@ public abstract class TreeNodeBase : INotifyPropertyChanged
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
+    [System.Text.Json.Serialization.JsonIgnore]
+    public virtual string ConfigurationWarning => "";
+
     // 展开状态提升至基类：消除 Avalonia 样式编译绑定的类型强转冲突，且叶子节点展开状态天然为 false
+    [System.Text.Json.Serialization.JsonIgnore]
     public bool IsExpanded
     {
         get => _isExpanded;
@@ -55,6 +59,13 @@ public class FolderNode : TreeNodeBase
 
 public class SessionNode : TreeNodeBase
 {
+    // 只在读取时计算，绝不参与内容或版本比较。
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool IsConfigurationIncomplete { get; set; }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public override string ConfigurationWarning => IsConfigurationIncomplete ? "配置不完整：引用的身份、跳板、代理或 Profile 不存在" : "";
+
     public override NodeType NodeType => NodeType.Session;
     public string Host { get; set; } = string.Empty;
     public int? Port { get; set; }

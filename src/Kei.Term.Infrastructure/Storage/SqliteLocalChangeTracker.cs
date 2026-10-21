@@ -4,8 +4,14 @@ using Dapper;
 using Kei.Term.Core.Storage;
 using Microsoft.Data.Sqlite;
 
-public sealed class SqliteLocalChangeTracker(SqliteConnectionFactory factory) : ILocalChangeTracker
+public sealed class SqliteLocalChangeTracker(SqliteConnectionFactory factory) : ILocalChangeTracker, ILocalPersistenceReadiness
 {
+    public async Task EnsureReadyAsync(CancellationToken ct = default)
+    {
+        using var conn = await factory.OpenAsync(ct);
+        await SyncFileRecovery.EnsureReadyAsync(conn, null, ct);
+    }
+
     public async Task TrackAsync(string entityType, string entityId, bool deleted = false, CancellationToken cancellationToken = default)
     {
         using var conn = await factory.OpenAsync(cancellationToken);

@@ -38,11 +38,17 @@ public class SqliteTreeRepository : ITreeRepository
     {
     }
 
-    public SqliteTreeRepository(SqliteConnectionFactory factory, ILogger? logger = null)
+    public SqliteTreeRepository(SqliteConnectionFactory factory, ILogger? logger = null, Func<string, bool>? profileExists = null,
+        Func<Guid?>? defaultIdentityId = null)
     {
         _factory = factory;
         _logger = logger ?? NullLogger.Instance;
+        _profileExists = profileExists;
+        _defaultIdentityId = defaultIdentityId;
     }
+
+    private readonly Func<string, bool>? _profileExists;
+    private readonly Func<Guid?>? _defaultIdentityId;
 
     // Schema 统一由迁移器维护；保留该入口兼容既有调用方
     public Task InitializeAsync(CancellationToken ct = default) => SchemaMigrator.MigrateAsync(_factory, ct);
@@ -57,6 +63,7 @@ public class SqliteTreeRepository : ITreeRepository
         // SQL 的 NOCASE 排序只是粗略基线，真正的同级顺序统一交给 Core 自然排序，
         // 使仓库加载顺序与视图层建树（TreeNodeOrdering）完全一致（数字段按数值、忽略大小写）。
         List<TreeNodeBase> nodes = rows.Select(ToNode).ToList();
+        await MarkIncompleteAsync(conn, nodes, ct);
         TreeNodeOrdering.Sort(nodes);
         return nodes;
     }
@@ -68,7 +75,30 @@ public class SqliteTreeRepository : ITreeRepository
             SelectNodesSql + " WHERE t.id = @id AND t.deleted_at IS NULL;",
             new { id = id.ToString() },
             cancellationToken: ct));
-        return row == null ? null : ToNode(row);
+        if (row == null) return null;
+        var node = ToNode(row);
+        await MarkIncompleteAsync(conn, [node], ct);
+        return node;
+    }
+
+    private async Task MarkIncompleteAsync(SqliteConnection conn, IReadOnlyList<TreeNodeBase> nodes, CancellationToken ct)
+    {
+        var identities = (await conn.QueryAsync<string>(new CommandDefinition("SELECT id FROM identities WHERE deleted_at IS NULL;", cancellationToken: ct))).ToHashSet();
+        var sessions = (await conn.QueryAsync<string>(new CommandDefinition("SELECT id FROM tree_nodes WHERE node_type = 1 AND deleted_at IS NULL;", cancellationToken: ct))).ToHashSet();
+        var proxyRows = await conn.QueryAsync<ProxyReferenceRow>(new CommandDefinition("SELECT id, config_json FROM proxies WHERE deleted_at IS NULL;", cancellationToken: ct));
+        var proxies = proxyRows.Where(p => ProxyJsonCodec.ReadConfig(p.ConfigJson, null, p.Id) is { } config &&
+            (config is not SessionProxyConfig jump || sessions.Contains(jump.SessionId.ToString()))).Select(p => p.Id).ToHashSet();
+        foreach (var session in nodes.OfType<SessionNode>())
+            session.IsConfigurationIncomplete = (session.IdentityId ?? _defaultIdentityId?.Invoke()) is { } identity && !identities.Contains(identity.ToString())
+                || session.ProxyProfileId is { } proxy && !proxies.Contains(proxy.ToString())
+                || session.JumpHostSessionId is { } jump && !sessions.Contains(jump.ToString())
+                || _profileExists != null && !_profileExists(session.TerminalProfileId ?? "");
+    }
+
+    private sealed class ProxyReferenceRow
+    {
+        public string Id { get; set; } = "";
+        public string ConfigJson { get; set; } = "";
     }
 
     public async Task SaveNodeAsync(TreeNodeBase node, CancellationToken ct = default)
@@ -105,12 +135,13 @@ public class SqliteTreeRepository : ITreeRepository
                 description = excluded.description,
                 sort_order = excluded.sort_order,
                 protocol = excluded.protocol,
-                is_expanded = excluded.is_expanded,
+                is_expanded = CASE WHEN @Imported THEN tree_nodes.is_expanded ELSE excluded.is_expanded END,
                 updated_at = excluded.updated_at, device_id = excluded.device_id,
                 revision = tree_nodes.revision + 1, deleted_at = NULL;
         ", new
         {
             Id = node.Id.ToString(),
+            Imported = imported != null,
             DeviceId = imported == null ? _factory.DeviceId : imported.DeviceId,
             ParentId = node.ParentId?.ToString(),
             NodeType = (int)node.NodeType,

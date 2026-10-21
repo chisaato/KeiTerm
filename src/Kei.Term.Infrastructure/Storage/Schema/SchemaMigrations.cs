@@ -21,7 +21,15 @@ public static class SchemaMigrations
         new(8, "session_metadata", ApplySessionMetadataAsync),
         new(9, "local_entity_stamps_and_tombstones", ApplyLocalEntityStampsAsync),
         new(10, "sync_local_secrets_and_dangling_identity", ApplySyncLocalSecretsAsync),
+        new(11, "sync_file_redo_journal", ApplySyncFileJournalAsync),
     ];
+
+    private static Task ApplySyncFileJournalAsync(SqliteConnection conn, SqliteTransaction tx, CancellationToken ct)
+        => ExecAsync(conn, tx, @"
+            CREATE TABLE sync_file_journal (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                payload TEXT NOT NULL
+            );", ct);
 
     private static async Task ApplySyncLocalSecretsAsync(SqliteConnection conn, SqliteTransaction tx, CancellationToken ct)
     {

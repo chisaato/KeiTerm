@@ -6,11 +6,10 @@ namespace Kei.Term.Infrastructure.Sync;
 public sealed class LocalFolderSyncLocation(string directory) : ISyncLocation
 {
     public bool SupportsConditionalWrites => false;
-    private string MainPath => Path.Combine(directory, "keiterm-sync.age");
+    private string MainPath => Path.Combine(directory, SyncObjectNames.PackageFileName);
     private string HistoryPath(string name)
     {
-        if (string.IsNullOrWhiteSpace(name) || name != Path.GetFileName(name) || name.Contains('/') || name.Contains('\\') || name is "." or "..")
-            throw new ArgumentException("无效历史同步包名称", nameof(name));
+        SyncObjectNames.ValidateHistoryName(name);
         return Path.Combine(directory, "history", name);
     }
 

@@ -4,6 +4,7 @@ using Avalonia.X11;
 using Avalonia.Skia;
 using Kei.Term.App.Services;
 using System;
+using Kei.Term.Infrastructure.Storage;
 
 namespace Kei.Term.App;
 
@@ -13,12 +14,21 @@ sealed class Program
     // SynchronizationContext-reliant code before AppMain is called: things aren't initialized
     // yet and stuff might break.
     [STAThread]
-    public static void Main(string[] args) => BuildAvaloniaApp()
-        .StartWithClassicDesktopLifetime(args);
+    public static void Main(string[] args)
+    {
+        try { BuildAvaloniaApp().StartWithClassicDesktopLifetime(args); }
+        catch (SyncFileRecoveryException ex)
+        {
+            Console.Error.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
+            Environment.ExitCode = 1;
+        }
+    }
 
     // Avalonia configuration, don't remove; also used by visual designer.
     public static AppBuilder BuildAvaloniaApp()
     {
+        // 必须早于 NativeMenuSettings 的首次设置预读，也早于任何设置基线记账。
+        AppPaths.PrepareStorage();
         // 必须早于 X11 平台初始化：Avalonia 只在初始化时读取一次输入法环境变量
         LinuxImeEnvironment.Apply();
 

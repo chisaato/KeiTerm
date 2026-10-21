@@ -42,6 +42,9 @@
         </Viewbox>
         <TextBlock Classes="name" Text="{Binding Name}"
                    FontSize="{DynamicResource Kei.Tree.FontSize}"
-                   VerticalAlignment="Center"/>
+                    VerticalAlignment="Center"/>
+        <!-- 这里只提供最小可见提示，视觉与布局优化交给 designer。 -->
+        <TextBlock Text="{Binding ConfigurationWarning}" Foreground="{DynamicResource Kei.Text.Muted}"
+                   FontSize="{DynamicResource Kei.Tree.FontSize}" VerticalAlignment="Center"/>
     </StackPanel>
 </UserControl>
