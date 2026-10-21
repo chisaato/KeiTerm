@@ -37,6 +37,26 @@ public partial class RemoteDirectoryNodeViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isLoading;
 
+    // 节点图标的加载提示：延迟亮起并保持最短时间，快速展开的目录不会闪动。
+    [ObservableProperty]
+    private bool _isLoadingIndicatorVisible;
+
+    // 树里节点很多，指示器等到第一次加载时才创建。
+    private DelayedBusyIndicator? _loadingIndicator;
+    private readonly TimeProvider? _timeProvider;
+
+    partial void OnIsLoadingChanged(bool value)
+    {
+        if (_loadingIndicator == null)
+        {
+            if (!value) return;
+            _loadingIndicator = new DelayedBusyIndicator(_timeProvider,
+                marshal: _timeProvider == null ? RemoteFileManagerViewModel.PostToUiThread : null);
+            _loadingIndicator.Changed += shown => IsLoadingIndicatorVisible = shown;
+        }
+        _loadingIndicator.SetBusy(value);
+    }
+
     public ObservableCollection<RemoteDirectoryNodeViewModel> Children { get; } = [];
 
     public RemoteDirectoryNodeViewModel(
@@ -44,12 +64,14 @@ public partial class RemoteDirectoryNodeViewModel : ViewModelBase
         string fullPath,
         IRemoteFileSystem fileSystem,
         Func<bool> showHiddenFilesFunc,
-        bool hasDummyChild = true)
+        bool hasDummyChild = true,
+        TimeProvider? timeProvider = null)
     {
         Name = name;
         FullPath = fullPath;
         _fileSystem = fileSystem;
         _showHiddenFilesFunc = showHiddenFilesFunc;
+        _timeProvider = timeProvider;
 
         if (hasDummyChild)
         {
@@ -108,7 +130,7 @@ public partial class RemoteDirectoryNodeViewModel : ViewModelBase
                 {
                     // 构造规范的绝对子路径
                     string childPath = FullPath == "/" ? "/" + x.Name : FullPath.TrimEnd('/') + "/" + x.Name;
-                    return new RemoteDirectoryNodeViewModel(x.Name, childPath, _fileSystem, _showHiddenFilesFunc, hasDummyChild: true);
+                    return new RemoteDirectoryNodeViewModel(x.Name, childPath, _fileSystem, _showHiddenFilesFunc, hasDummyChild: true, _timeProvider);
                 })
                 .ToList();
 

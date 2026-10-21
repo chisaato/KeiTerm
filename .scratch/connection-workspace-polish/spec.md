@@ -26,6 +26,8 @@ Status: resolved
 ## 验收后追加
 
 - [07 Toast 倒计时进度条](issues/07-toast-countdown-bar.md)：验收反馈的小改动，已实现，待桌面确认。
+- [08 文件管理加载条导致路径栏与列表抖动](issues/08-loading-bar-layout-shift.md)：已实现，待桌面确认。
+- [09 侧栏动画测试偶发失败](issues/09-flaky-sidebar-transition-test.md)：待处理。
 
 ## 关键决策
 
@@ -38,7 +40,7 @@ Status: resolved
 ## 不在已完成范围 / 已知限制
 
 - 任务项 `NavigateDirectoryRequested` 以 `??=` 绑定，同一连接的侧栏与文件标签同时打开时，“定位到远端目录”只作用于最先绑定的视图。
-- `SidebarTransitionTests.FileManagerSidebar_AnimatesBothDirections_AndReclaimsOnlyItsColumn(onLeft: True)` 依赖真实计时，全量高负载下偶发失败一次，单独重跑 3 次及全量重跑均通过。
+- `SidebarTransitionTests.FileManagerSidebar_AnimatesBothDirections_AndReclaimsOnlyItsColumn(onLeft: True)` 依赖真实计时，全量高负载下已偶发失败两次，单独重跑与全量重跑均通过，见 [09](issues/09-flaky-sidebar-transition-test.md)。
 
 ## 验证记录
 

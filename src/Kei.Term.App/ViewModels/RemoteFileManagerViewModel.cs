@@ -46,6 +46,14 @@ public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposabl
     [ObservableProperty]
     private bool _isLoading;
 
+    // 视图绑定的加载指示：IsLoading 持续 150ms 才亮起、亮起后至少 300ms，避免快速目录切换时闪烁。
+    [ObservableProperty]
+    private bool _isLoadingIndicatorVisible;
+
+    private readonly DelayedBusyIndicator _loadingIndicator;
+
+    partial void OnIsLoadingChanged(bool value) => _loadingIndicator.SetBusy(value);
+
     [ObservableProperty]
     private bool _showHiddenFiles;
 
@@ -112,8 +120,9 @@ public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposabl
         IExternalEditorRepository? editorRepo = null,
         ILogger? logger = null,
         ConnectionTransferBoard? transfers = null,
-        IInteractionService? interaction = null)
-        : this(sessionId, fileSystem, fileTracker, settingsService, editorRepo, logger, null, transfers, interaction)
+        IInteractionService? interaction = null,
+        TimeProvider? timeProvider = null)
+        : this(sessionId, fileSystem, fileTracker, settingsService, editorRepo, logger, null, transfers, interaction, timeProvider)
     {
     }
 
@@ -126,8 +135,13 @@ public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposabl
         ILogger? logger,
         RemoteFileManagerViewModel? owningFileView,
         ConnectionTransferBoard? transfers = null,
-        IInteractionService? interaction = null)
+        IInteractionService? interaction = null,
+        TimeProvider? timeProvider = null)
     {
+        // 生产环境的定时器回调在线程池上，需回到 UI 线程再改绑定属性；注入时间源的测试直接同步通知。
+        _loadingIndicator = new DelayedBusyIndicator(timeProvider,
+            marshal: timeProvider == null ? PostToUiThread : null);
+        _loadingIndicator.Changed += shown => IsLoadingIndicatorVisible = shown;
         _owningFileView = owningFileView;
         _interaction = owningFileView?._interaction ?? interaction;
         _board = owningFileView?._board ?? transfers;
@@ -154,6 +168,12 @@ public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposabl
             _fileTracker.FileChanged += OnTrackedFileChanged;
             _fileTracker.FileUntracked += OnFileUntracked;
         }
+    }
+
+    internal static void PostToUiThread(Action action)
+    {
+        if (Dispatcher.UIThread.CheckAccess()) action();
+        else Dispatcher.UIThread.Post(action);
     }
 
     private void OnFileUntracked(object? sender, string localFilePath)

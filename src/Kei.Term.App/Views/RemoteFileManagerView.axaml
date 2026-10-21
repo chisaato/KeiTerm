@@ -22,6 +22,38 @@
             <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
             <Setter Property="IsVisible" Value="{Binding !IsDummy}"/>
         </Style>
+        <!-- 加载细条：始终参与布局但透明，显隐只改透明度 -->
+        <Style Selector="ProgressBar.fileLoadingBar">
+            <Setter Property="Opacity" Value="0"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.12"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="ProgressBar.fileLoadingBar.loading">
+            <Setter Property="Opacity" Value="1"/>
+        </Style>
+        <!-- 刷新期间保留旧列表，仅略微变淡表示正在加载 -->
+        <Style Selector="ListBox.fileList">
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.15"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="ListBox.fileList.loading">
+            <Setter Property="Opacity" Value="0.6"/>
+        </Style>
+        <Style Selector="Viewbox.nodeIcon.loading">
+            <Style.Animations>
+                <Animation Duration="0:0:0.9" IterationCount="Infinite" Easing="SineEaseInOut">
+                    <KeyFrame Cue="0%"><Setter Property="Opacity" Value="1"/></KeyFrame>
+                    <KeyFrame Cue="50%"><Setter Property="Opacity" Value="0.3"/></KeyFrame>
+                    <KeyFrame Cue="100%"><Setter Property="Opacity" Value="1"/></KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
         <Style Selector="TextBlock.transferStatus">
             <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Muted}"/>
         </Style>
@@ -142,7 +174,7 @@
                     <MenuItem Header="{loc:KeiString FileManager.Hide}" Command="{Binding CloseCommand}" IsVisible="{Binding !IsFileTab}"/>
                 </ContextMenu>
             </Border.ContextMenu>
-            <Grid x:Name="FileManagerToolbar" ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+            <Grid x:Name="FileManagerToolbar" ColumnDefinitions="*,Auto">
                 <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6" Margin="0,0,6,0" VerticalAlignment="Center">
                     <Viewbox Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
                         <Grid Width="24" Height="24">
@@ -229,12 +261,13 @@
                         </Viewbox>
                     </Button>
                 </StackPanel>
-                <!-- 加载状态独占底行；标题列在窄面板中可收缩，不覆盖操作按钮。 -->
-                <ProgressBar x:Name="FileManagerLoadingProgressBar" Grid.Row="1" Grid.ColumnSpan="2" IsIndeterminate="True"
-                             Height="3" MinHeight="3" Margin="0,4,0,0" IsVisible="{Binding IsLoading}"
-                             Foreground="{DynamicResource Kei.Text.Secondary}" Background="{DynamicResource Kei.Bg.Input}"/>
             </Grid>
         </Border>
+        <!-- 加载细条叠在标题栏与路径栏之间的分隔线上，不占布局；用透明度显隐，目录切换时下方内容不会上下跳动。 -->
+        <!-- 不确定动画只在显示时运行，避免透明时持续重绘；Value 为 0 时空条透明，淡出无可见差异。 -->
+        <ProgressBar x:Name="FileManagerLoadingProgressBar" Grid.Row="0" Classes="fileLoadingBar" Classes.loading="{Binding IsLoadingIndicatorVisible}"
+                     IsIndeterminate="{Binding IsLoadingIndicatorVisible}" Height="2" MinHeight="2" VerticalAlignment="Bottom" IsHitTestVisible="False"
+                     Foreground="{DynamicResource Kei.Text.Secondary}" Background="Transparent"/>
 
         <!-- 路径导航栏 -->
         <Border Grid.Row="1" Background="{DynamicResource Kei.Bg.Panel}" BorderBrush="{DynamicResource Kei.Border}" BorderThickness="0,0,0,1" Padding="6,4">
@@ -270,13 +303,13 @@
                 <TreeView.DataTemplates>
                     <TreeDataTemplate DataType="vm:RemoteDirectoryNodeViewModel" ItemsSource="{Binding Children}">
                         <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,1" VerticalAlignment="Center">
-                            <Viewbox Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <!-- 加载提示改为文件夹图标呼吸，不再往节点里塞控件，布局宽度恒定。 -->
+                            <Viewbox Classes="nodeIcon" Classes.loading="{Binding IsLoadingIndicatorVisible}" Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
                                 <Grid Width="24" Height="24">
                                     <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Folder}" Stroke="{DynamicResource Kei.Text.Muted}" Width="24" Height="24" Stretch="None"/>
                                 </Grid>
                             </Viewbox>
                             <TextBlock Text="{Binding Name}" VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource Kei.Text.Primary}"/>
-                            <ProgressBar IsIndeterminate="True" Width="20" Height="2" IsVisible="{Binding IsLoading}" VerticalAlignment="Center"/>
                         </StackPanel>
                     </TreeDataTemplate>
                 </TreeView.DataTemplates>
@@ -288,6 +321,7 @@
 
             <!-- 右栏：当前目录下文件列表（含 .. 回上级、文件图标、大小、权限等） -->
             <ListBox x:Name="FileListBox"
+                     Classes="fileList" Classes.loading="{Binding IsLoadingIndicatorVisible}"
                      Grid.Column="2"
                      ItemsSource="{Binding Items}"
                      SelectedItem="{Binding SelectedItem}"

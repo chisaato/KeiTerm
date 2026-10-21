@@ -56,6 +56,7 @@ public partial class RemoteFileManagerViewModel
 
     private async Task DisposeCoreAsync(Task[] pending)
     {
+        _loadingIndicator.Dispose();
         DisposeSizeDisplay();
         DisposeFileActivities();
         if (_owningFileView == null)

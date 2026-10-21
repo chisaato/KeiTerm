@@ -23,13 +23,13 @@ public class RemoteFileManagerLayoutTests
     [Theory]
     [InlineData(300)]
     [InlineData(450)]
-    public Task LoadingToolbar_ReservesProgressRowAndKeepsActionsReachable(int width) => HeadlessAvalonia.RunAsync(async () =>
+    public Task LoadingToolbar_OverlaysProgressWithoutShiftingLayoutAndKeepsActionsReachable(int width) => HeadlessAvalonia.RunAsync(async () =>
     {
         UiDesignSystemService.Apply();
         LayoutFileServices services = new();
         await using RemoteFileManagerViewModel model = new(Guid.NewGuid(), services, services)
         {
-            IsLoading = true,
+            IsLoadingIndicatorVisible = true,
             IsShellVisible = false,
             TerminalDirectory = "/srv/project"
         };
@@ -38,11 +38,15 @@ public class RemoteFileManagerLayoutTests
         window.Show();
         try
         {
-            HeadlessAvalonia.Pump();
+            await AdvanceAnimationAsync(300);
             Grid toolbar = view.FindControl<Grid>("FileManagerToolbar")!;
             ProgressBar progress = view.FindControl<ProgressBar>("FileManagerLoadingProgressBar")!;
             TextBlock heading = view.FindControl<TextBlock>("FileManagerHeading")!;
+            TextBox pathInput = view.FindControl<TextBox>("FileManagerPathInput")!;
+            Assert.Equal(1, progress.Opacity);
             Assert.True(progress.IsEffectivelyVisible);
+            double pathTop = WindowBounds(pathInput, window).Top;
+            double toolbarHeight = toolbar.Bounds.Height;
             AssertInsideHorizontally(progress, window);
             Button[] actions = toolbar.GetVisualDescendants().OfType<Button>().Where(button => button.IsEffectivelyVisible).ToArray();
             Rect progressBounds = WindowBounds(progress, window);
@@ -53,17 +57,18 @@ public class RemoteFileManagerLayoutTests
                 Rect buttonBounds = WindowBounds(button, window);
                 Assert.False(progressBounds.Intersects(buttonBounds), "加载条不得覆盖工具栏按钮");
                 Assert.False(headingBounds.Intersects(buttonBounds), "标题应在按钮前截断");
-                Assert.True(progressBounds.Top >= buttonBounds.Bottom + 3.9);
                 Control? hit = window.InputHitTest(buttonBounds.Center) as Control;
                 Assert.True(ReferenceEquals(hit, button) || hit?.GetVisualAncestors().Contains(button) == true,
                     $"{button.Name} 的点击区域被其他控件覆盖");
             }
             await CaptureAsync(window, width, "loading-toolbar");
-            double loadingHeight = toolbar.Bounds.Height;
-            model.IsLoading = false;
-            HeadlessAvalonia.Pump();
-            Assert.False(progress.IsVisible);
-            Assert.True(toolbar.Bounds.Height < loadingHeight);
+            Assert.Equal(2, progress.Bounds.Height);
+            model.IsLoadingIndicatorVisible = false;
+            await AdvanceAnimationAsync(300);
+            Assert.Equal(0, progress.Opacity);
+            // 显隐前后布局不变：路径栏与标题栏高度一致。
+            Assert.Equal(pathTop, WindowBounds(pathInput, window).Top);
+            Assert.Equal(toolbarHeight, toolbar.Bounds.Height);
         }
         finally { window.Close(); }
     });
