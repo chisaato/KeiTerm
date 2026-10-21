@@ -84,22 +84,29 @@ public sealed partial class SqliteSyncSnapshotStore(SqliteConnectionFactory fact
     }
 
     public async Task<List<SyncEntity>> ImportAsync(IReadOnlyList<SyncEntity> entities, CancellationToken ct = default)
+        => await ImportWithGuardAsync(entities, null, ct);
+
+    public Task<List<SyncEntity>> ImportGuardedAsync(IReadOnlyList<SyncEntity> entities, IReadOnlyList<SyncEntity> expectedLocal, CancellationToken ct = default)
+        => ImportWithGuardAsync(entities, expectedLocal, ct);
+
+    private async Task<List<SyncEntity>> ImportWithGuardAsync(IReadOnlyList<SyncEntity> entities, IReadOnlyList<SyncEntity>? expectedLocal, CancellationToken ct)
     {
         List<SyncEntity> result;
         using (await Kei.Term.Core.Storage.LocalPersistenceGate.EnterAsync(ct))
-            result = vault == null ? await ImportCoreAsync(entities, ct) : await vault.WithSnapshotSecretsAsync(() => ImportCoreAsync(entities, ct), ct);
+            result = vault == null ? await ImportCoreAsync(entities, expectedLocal, ct) : await vault.WithSnapshotSecretsAsync(() => ImportCoreAsync(entities, expectedLocal, ct), ct);
         if (Imported != null)
             foreach (Func<Task> handler in Imported.GetInvocationList()) await handler();
         return result;
     }
 
-    private async Task<List<SyncEntity>> ImportCoreAsync(IReadOnlyList<SyncEntity> entities, CancellationToken ct)
+    private async Task<List<SyncEntity>> ImportCoreAsync(IReadOnlyList<SyncEntity> entities, IReadOnlyList<SyncEntity>? expectedLocal, CancellationToken ct)
     {
         using var conn = await factory.OpenAsync(ct);
         using var tx = conn.BeginTransaction();
         await SyncFileRecovery.EnsureReadyAsync(conn, tx, ct);
         await conn.ExecuteAsync(new CommandDefinition("PRAGMA defer_foreign_keys = ON;", transaction: tx, cancellationToken: ct));
         var current = await ExportAllAsync(conn, tx, ct);
+        if (expectedLocal != null && !SyncCoordinator.SameEntities(current, expectedLocal)) throw new SyncPreviewChangedException();
         var merged = SyncCoordinator.Merge(current, entities.Where(e => e.EntityType != "setting" || !SyncLocalOnly.IsSettingExcluded(e.EntityId)).ToList());
         var existing = current.ToDictionary(e => (e.EntityType, e.EntityId));
         var changed = merged.Where(e => !existing.TryGetValue((e.EntityType, e.EntityId), out var old) || JsonSerializer.Serialize(old) != JsonSerializer.Serialize(e)).ToList();

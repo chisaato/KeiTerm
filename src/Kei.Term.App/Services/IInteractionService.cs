@@ -20,6 +20,13 @@ namespace Kei.Term.App.Services;
 // 约定：返回 null / false 表示用户取消。
 public interface IInteractionService
 {
+    // 同步的默认选择为合并；返回 null 表示取消。后台永不调用这些入口。
+    Task<Kei.Term.Core.Sync.SyncJoinChoice?> PromptSyncJoinAsync(Kei.Term.Core.Sync.SyncConfirmation preview)
+        => Task.FromResult<Kei.Term.Core.Sync.SyncJoinChoice?>(null);
+    Task<bool> ConfirmSyncDeletionAsync(Kei.Term.Core.Sync.SyncConfirmation preview) => Task.FromResult(false);
+    Task<string?> PromptSyncPassphraseAsync(bool changing, string? error = null) => Task.FromResult<string?>(null);
+    // null 取消；false 保留远端；true 删除远端主包及历史。
+    Task<bool?> PromptDisableSyncAsync() => Task.FromResult<bool?>(null);
     // === 认证与 Vault ===
     Task<AuthPromptResult?> PromptAuthAsync(string prefillUsername, IReadOnlyList<VaultKeyOption> vaultKeys, AuthPromptMethod? defaultMethod);
 

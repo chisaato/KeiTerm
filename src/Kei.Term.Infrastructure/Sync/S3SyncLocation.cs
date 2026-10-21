@@ -40,6 +40,10 @@ public sealed class S3SyncLocation : ISyncLocation, IDisposable
     }
 
     public bool SupportsConditionalWrites => _conditional;
+    public Task DeleteAsync(CancellationToken ct = default) => Guard(async () =>
+    {
+        await _client.DeleteObjectAsync(new DeleteObjectRequest { BucketName = _bucket, Key = Key(SyncObjectNames.PackageFileName) }, ct);
+    }, ct);
 
     public Task TestConnectionAsync(CancellationToken ct = default) => Guard(async () =>
     {

@@ -57,12 +57,15 @@ public sealed partial class FullSyncSnapshotTests : IDisposable
             await settings.ReloadSynchronizedAsync();
             await profiles.ReloadSynchronizedAsync();
         };
-        return new(dir, db, vault, tree, settings, profiles, store, new(store, new AgeSyncPackage(), vault, id));
+        return new(dir, db, vault, tree, settings, profiles, store, new(store, new AgeSyncPackage(), vault, id, vault));
     }
 
     private async Task SyncAsync(Device device)
     {
         var result = await device.Coordinator.SyncAsync(Location);
+        // 这些往返用例模拟用户明确选择合并，并确认当前精确的删除预览；门禁本身由 Safety 用例验证。
+        while (result.Confirmation is { } preview)
+            result = await device.Coordinator.SyncApprovedAsync(Location, new(preview.Token));
         Assert.True(result.Success, result.Message);
     }
 

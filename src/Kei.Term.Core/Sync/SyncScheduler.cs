@@ -273,10 +273,17 @@ public sealed class SyncScheduler : IDisposable
 
     private async Task<SyncResult?> RunOnceAsync()
     {
+        // 未使用同步的明文 Vault 仍可正常工作，不显示同步前置条件错误。
+        if (!_locations.HasConfiguration) return null;
         if (!_secrets.IsUnlocked)
         {
             lock (_gate) _unlocked = false;
             return null;
+        }
+        if (_secrets is ISyncSafetyStore safety)
+        {
+            try { await safety.EnsureSyncMasterPasswordAsync(_stop.Token).ConfigureAwait(false); }
+            catch (InvalidOperationException ex) { return new(false, ex.Message); }
         }
         ISyncLocation? location = await _locations.OpenAsync(_stop.Token).ConfigureAwait(false);
         if (location == null) return null;

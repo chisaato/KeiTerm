@@ -37,6 +37,11 @@ public sealed class WebDavSyncLocation : ISyncLocation, IDisposable
     }
 
     public bool SupportsConditionalWrites => ConditionalWrites;
+    public Task DeleteAsync(CancellationToken ct = default) => Guard(async () =>
+    {
+        var response = await _client.Delete(SyncObjectNames.PackageFileName, new DeleteParameters { CancellationToken = ct });
+        if (response.StatusCode != 404) EnsureSuccess(response, "删除同步包");
+    }, ct);
     private bool ConditionalWrites { get; }
 
     public Task TestConnectionAsync(CancellationToken ct = default) => Guard(async () =>

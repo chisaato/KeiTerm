@@ -205,11 +205,11 @@ public partial class App : Application
                 await reload;
             };
             var syncCoordinator = new Kei.Term.Core.Sync.SyncCoordinator(syncSnapshotStore,
-                new Kei.Term.Infrastructure.Sync.AgeSyncPackage(), vault, syncDevice);
+                new Kei.Term.Infrastructure.Sync.AgeSyncPackage(), vault, syncDevice, vault, syncChanges);
             var syncScheduler = new SyncScheduler(new SystemSyncClock(), new FileSyncLocationSource(appDataDir, vault),
                 vault, syncChanges, syncCoordinator.SyncAsync);
             _syncScheduler = syncScheduler;
-            var syncPage = new ViewModels.Settings.SyncSettingsPage(appDataDir, syncScheduler, vault, vault);
+            var syncPage = new ViewModels.Settings.SyncSettingsPage(appDataDir, syncScheduler, vault, vault, syncCoordinator);
             syncPage.Synchronized += mainVm.ReloadTreeAsync;
             var settingsVm = new SettingsViewModel(
                 settingsService,

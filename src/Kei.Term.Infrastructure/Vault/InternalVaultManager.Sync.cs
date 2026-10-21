@@ -12,6 +12,15 @@ public partial class InternalVaultManager
     private static readonly Guid WebDavPasswordId = Guid.Parse("7f3c1a2e-9b64-4d15-8e70-2c4a6f8b1d33");
     private static readonly Guid S3SecretKeyId = Guid.Parse("c1a84e20-5d77-4b09-9f31-6e2b0a8c4d55");
 
+    public Task DeletePassphraseAsync(CancellationToken ct = default)
+        => WithSecretWriteLockAsync(async () =>
+        {
+            await EnsureInitializedAsync(ct);
+            EnsureUnlocked();
+            using var conn = await _factory.OpenAsync(ct);
+            await conn.ExecuteAsync(new CommandDefinition("DELETE FROM local_vault_secrets WHERE id=@id;", new { id = SyncPassphraseId.ToString() }, cancellationToken: ct));
+        }, ct);
+
     public async Task<char[]?> GetPassphraseAsync(CancellationToken ct = default)
     {
         await EnsureInitializedAsync(ct);
@@ -29,8 +38,7 @@ public partial class InternalVaultManager
     public Task SavePassphraseAsync(ReadOnlyMemory<char> passphrase, CancellationToken ct = default)
         => WithSecretWriteLockAsync(async () =>
         {
-            await EnsureInitializedAsync(ct);
-            EnsureUnlocked();
+            await EnsureSyncMasterPasswordAsync(ct);
             if (passphrase.IsEmpty) throw new ArgumentException("同步口令不能为空");
             byte[] plain = new byte[Encoding.UTF8.GetByteCount(passphrase.Span)];
             Encoding.UTF8.GetBytes(passphrase.Span, plain);

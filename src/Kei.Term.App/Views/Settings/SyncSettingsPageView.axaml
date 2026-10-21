@@ -2,64 +2,260 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:settings="using:Kei.Term.App.ViewModels.Settings"
              xmlns:controls="using:Kei.Term.App.Views.Settings.Controls"
+             xmlns:sync="using:Kei.Term.Core.Sync"
+             xmlns:loc="using:Kei.Term.App.Helpers"
              x:Class="Kei.Term.App.Views.Settings.SyncSettingsPageView"
              x:DataType="settings:SyncSettingsPage">
-    <StackPanel Spacing="16" IsEnabled="{Binding !IsBusy}">
-        <controls:SettingsPageHeader Group="应用" Title="同步" Description="用同一同步位置和同步口令，在设备间合并会话树与会话配置。"/>
-        <Border Classes="settingsCard">
-            <StackPanel Spacing="10">
-                <TextBlock Classes="settingsSectionTitle" Text="同步位置"/>
-                <ComboBox ItemsSource="{Binding LocationKinds}" SelectedItem="{Binding SelectedKind}" MinWidth="220" HorizontalAlignment="Left">
-                    <ComboBox.ItemTemplate>
-                        <DataTemplate x:DataType="settings:SyncLocationKindOption">
-                            <TextBlock Text="{Binding Label}"/>
-                        </DataTemplate>
-                    </ComboBox.ItemTemplate>
-                </ComboBox>
 
-                <StackPanel Spacing="8" IsVisible="{Binding IsLocalFolder}">
-                    <TextBox Text="{Binding DirectoryPath}" PlaceholderText="选择一个同步目录"/>
-                    <Button Content="选择目录" Command="{Binding ChooseDirectoryCommand}" HorizontalAlignment="Left"/>
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" MaxWidth="{StaticResource Kei.Settings.ContentMaxWidth}"/>
+            <ColumnDefinition Width="0.001*"/>
+        </Grid.ColumnDefinitions>
+
+        <StackPanel Grid.Column="0" Spacing="16" IsEnabled="{Binding !IsBusy}">
+            <!-- 页头：面包屑导航 + 标题 + 描述 -->
+            <controls:SettingsPageHeader Group="{loc:KeiString Settings.Groups.App}"
+                                         Title="同步"
+                                         Description="用同一同步位置和同步口令，在设备间端到端加密合并会话树与全部应用配置。"/>
+
+            <!-- 1. 待续作口令更换横幅（若存在） -->
+            <Border Classes="settingsCard"
+                    IsVisible="{Binding HasPendingPassphraseChange}"
+                    BorderBrush="{DynamicResource Kei.Status.Connecting}"
+                    Background="{DynamicResource Kei.Bg.Card}">
+                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+                    <StackPanel Grid.Column="0" Spacing="4">
+                        <TextBlock Text="存在未完成的同步口令更换" FontWeight="SemiBold" FontSize="13"
+                                   Foreground="{DynamicResource Kei.Status.Connecting}"/>
+                        <TextBlock Text="上次更换口令因网络中断或清理历史未完成，新口令已安全保留在保险库中。请点击继续完成更换。"
+                                   FontSize="12" Foreground="{DynamicResource Kei.Text.Secondary}" TextWrapping="Wrap"/>
+                    </StackPanel>
+                    <Button Grid.Column="1" VerticalAlignment="Center"
+                            Content="继续完成更换" Command="{Binding ResumePassphraseChangeCommand}"
+                            Classes="accent" MinWidth="110"/>
+                </Grid>
+            </Border>
+
+            <!-- 2. 同步位置与传输配置卡片 -->
+            <Border Classes="settingsCard">
+                <StackPanel Spacing="12">
+                    <TextBlock Classes="settingsSectionTitle" Text="同步位置与存储"/>
+
+                    <controls:SettingRow Title="存储类型" Description="选择存放加密同步包的后端服务">
+                        <ComboBox ItemsSource="{Binding LocationKinds}" SelectedItem="{Binding SelectedKind}"
+                                  MinWidth="220" HorizontalAlignment="Right">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="settings:SyncLocationKindOption">
+                                    <TextBlock Text="{Binding Label}"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </controls:SettingRow>
+
+                    <!-- 本地目录字段 -->
+                    <StackPanel Spacing="10" IsVisible="{Binding IsLocalFolder}">
+                        <Border Classes="settingRowDivider"/>
+                        <controls:SettingRow Title="同步目录路径" Description="配合 Syncthing、Dropbox、iCloud Drive 等网盘使用">
+                            <Grid ColumnDefinitions="*,8" ColumnSpacing="8">
+                                <TextBox Text="{Binding DirectoryPath}" PlaceholderText="选择或输入本地同步目录路径"
+                                         MinWidth="280" HorizontalAlignment="Right"/>
+                            </Grid>
+                        </controls:SettingRow>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button Content="浏览选择目录..." Command="{Binding ChooseDirectoryCommand}"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- WebDAV 字段 -->
+                    <StackPanel Spacing="10" IsVisible="{Binding IsWebDav}">
+                        <Border Classes="settingRowDivider"/>
+                        <controls:SettingRow Title="WebDAV 服务器 URL" Description="支持 Nextcloud、ownCloud、群晖或坚果云">
+                            <TextBox Text="{Binding WebDavUrl}" PlaceholderText="https://example.com/remote.php/dav/files/user/KeiTerm/"
+                                     MinWidth="320" HorizontalAlignment="Right"/>
+                        </controls:SettingRow>
+                        <controls:SettingRow Title="用户名">
+                            <TextBox Text="{Binding WebDavUser}" PlaceholderText="WebDAV 账户"
+                                     MinWidth="240" HorizontalAlignment="Right"/>
+                        </controls:SettingRow>
+                        <controls:SettingRow Title="密码" Description="留空则继续使用保险库中已保存的密码">
+                            <TextBox Text="{Binding WebDavPassword}" PasswordChar="●" PlaceholderText="密码"
+                                     MinWidth="240" HorizontalAlignment="Right"/>
+                        </controls:SettingRow>
+                        <controls:SettingRow Title="条件写保护" Description="使用 If-Match / If-None-Match 避免并发覆盖冲突">
+                            <CheckBox IsChecked="{Binding WebDavConditionalWrites}" HorizontalAlignment="Right"/>
+                        </controls:SettingRow>
+                    </StackPanel>
+
+                    <!-- S3 兼容对象存储字段 -->
+                    <StackPanel Spacing="10" IsVisible="{Binding IsS3}">
+                        <Border Classes="settingRowDivider"/>
+                        <controls:SettingRow Title="服务商预设">
+                            <ComboBox ItemsSource="{Binding S3Providers}" SelectedItem="{Binding SelectedS3Provider}"
+                                      MinWidth="220" HorizontalAlignment="Right">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="settings:S3ProviderOption">
+                                        <TextBlock Text="{Binding Label}"/>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </controls:SettingRow>
+                        <controls:SettingRow Title="服务端点 (Endpoint)">
+                            <TextBox Text="{Binding S3Endpoint}" PlaceholderText="例如 https://s3.amazonaws.com"
+                                     MinWidth="300" HorizontalAlignment="Right"/>
+                        </controls:SettingRow>
+                        <controls:SettingRow Title="区域 (Region)" Description="留空则默认使用 us-east-1">
+                            <TextBox Text="{Binding S3Region}" PlaceholderText="us-east-1"
+                                     MinWidth="200" HorizontalAlignment="Right"/>
+                        </controls:SettingRow>
+                        <controls:SettingRow Title="存储桶 (Bucket)">
+                            <TextBox Text="{Binding S3Bucket}" PlaceholderText="Bucket 名称"
+                                     MinWidth="240" HorizontalAlignment="Right"/>
+                        </controls:SettingRow>
+                        <controls:SettingRow Title="对象前缀 (Prefix)" Description="可选的前缀目录路径">
+                            <TextBox Text="{Binding S3Prefix}" PlaceholderText="可选，例如 devices/main/"
+                                     MinWidth="240" HorizontalAlignment="Right"/>
+                        </controls:SettingRow>
+                        <controls:SettingRow Title="Access Key ID">
+                            <TextBox Text="{Binding S3AccessKeyId}" PlaceholderText="保存在本机配置"
+                                     MinWidth="260" HorizontalAlignment="Right"/>
+                        </controls:SettingRow>
+                        <controls:SettingRow Title="Secret Access Key" Description="留空则继续使用保险库中已保存的密钥">
+                            <TextBox Text="{Binding S3SecretKey}" PasswordChar="●" PlaceholderText="Secret Key"
+                                     MinWidth="260" HorizontalAlignment="Right"/>
+                        </controls:SettingRow>
+                        <controls:SettingRow Title="路径风格 (Path-Style)" Description="自建 MinIO 或国内对象存储通常需要开启">
+                            <CheckBox IsChecked="{Binding S3PathStyle}" HorizontalAlignment="Right"/>
+                        </controls:SettingRow>
+                        <controls:SettingRow Title="条件写保护" Description="阿里云 OSS 与腾讯云 COS 默认关闭，关闭后上传会读回检查">
+                            <CheckBox IsChecked="{Binding S3ConditionalWrites}" HorizontalAlignment="Right"/>
+                        </controls:SettingRow>
+                    </StackPanel>
+
+                    <Border Classes="settingRowDivider"/>
+
+                    <!-- 测试连接 -->
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                        <Button Content="测试位置连接" Command="{Binding TestConnectionCommand}"/>
+                    </StackPanel>
                 </StackPanel>
+            </Border>
 
-                <StackPanel Spacing="8" IsVisible="{Binding IsWebDav}">
-                    <TextBox Text="{Binding WebDavUrl}" PlaceholderText="https://example.com/remote.php/dav/files/user/KeiTerm/"/>
-                    <TextBox Text="{Binding WebDavUser}" PlaceholderText="用户名"/>
-                    <TextBox Text="{Binding WebDavPassword}" PasswordChar="●" PlaceholderText="密码，留空则继续使用保险库中的密码"/>
-                    <CheckBox Content="使用条件写（If-Match / If-None-Match）" IsChecked="{Binding WebDavConditionalWrites}"/>
+            <!-- 3. 同步口令管理与安全状态卡片 -->
+            <Border Classes="settingsCard">
+                <StackPanel Spacing="12">
+                    <TextBlock Classes="settingsSectionTitle" Text="端到端加密与口令"/>
+
+                    <TextBlock Text="启用或加入同步前，保险库必须已设置主密码。同步口令保存在本机保险库中，用于端到端 age 加密。"
+                               FontSize="12" Foreground="{DynamicResource Kei.Text.Secondary}" TextWrapping="Wrap"/>
+
+                    <controls:SettingRow Title="首次设定/加入口令" Description="与其他设备使用完全相同的口令；已加入时请使用更换口令流程">
+                        <TextBox Text="{Binding Passphrase}" PasswordChar="●" PlaceholderText="输入同步口令"
+                                 MinWidth="240" HorizontalAlignment="Right"/>
+                    </controls:SettingRow>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                        <Button Content="保存同步口令" Command="{Binding SavePassphraseCommand}"/>
+                        <Button Content="更换同步口令..." Command="{Binding ChangePassphraseCommand}"/>
+                    </StackPanel>
                 </StackPanel>
+            </Border>
 
-                <StackPanel Spacing="8" IsVisible="{Binding IsS3}">
-                    <ComboBox ItemsSource="{Binding S3Providers}" SelectedItem="{Binding SelectedS3Provider}" MinWidth="220" HorizontalAlignment="Left">
-                        <ComboBox.ItemTemplate>
-                            <DataTemplate x:DataType="settings:S3ProviderOption">
-                                <TextBlock Text="{Binding Label}"/>
-                            </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                    </ComboBox>
-                    <TextBox Text="{Binding S3Endpoint}" PlaceholderText="端点，例如 https://s3.amazonaws.com 或 http://127.0.0.1:9000"/>
-                    <TextBox Text="{Binding S3Region}" PlaceholderText="区域，留空则使用 us-east-1"/>
-                    <TextBox Text="{Binding S3Bucket}" PlaceholderText="存储桶"/>
-                    <TextBox Text="{Binding S3Prefix}" PlaceholderText="对象前缀，可空"/>
-                    <TextBox Text="{Binding S3AccessKeyId}" PlaceholderText="Access Key ID，保存在本机配置"/>
-                    <TextBox Text="{Binding S3SecretKey}" PasswordChar="●" PlaceholderText="Secret Key，留空则继续使用保险库中的密钥"/>
-                    <CheckBox Content="使用路径风格（path-style）" IsChecked="{Binding S3PathStyle}"/>
-                    <CheckBox Content="使用条件写（If-Match / If-None-Match）" IsChecked="{Binding S3ConditionalWrites}"/>
-                    <TextBlock Text="阿里云 OSS 与腾讯云 COS 默认关闭条件写，关闭后上传会读回检查。" TextWrapping="Wrap" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+            <!-- 4. 同步状态与手动触发卡片 -->
+            <Border Classes="settingsCard">
+                <StackPanel Spacing="12">
+                    <TextBlock Classes="settingsSectionTitle" Text="同步状态"/>
+
+                    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto">
+                        <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Status}" TextWrapping="Wrap" FontSize="13"
+                                       Foreground="{DynamicResource Kei.Text.Primary}"/>
+                            <TextBlock Text="自动同步规则：启动时、本地变更 30 秒后、运行中每 5 分钟"
+                                       FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <Button Content="立即同步" Command="{Binding SyncNowCommand}" Classes="accent" MinWidth="90"/>
+                            <Button Content="停用同步..." Command="{Binding DisableCommand}" Classes="danger" MinWidth="80"/>
+                        </StackPanel>
+                    </Grid>
                 </StackPanel>
+            </Border>
 
-                <Button Content="测试连接" Command="{Binding TestConnectionCommand}" HorizontalAlignment="Left"/>
-                <TextBlock Text="设定或加入同步口令"/>
-                <TextBox Text="{Binding Passphrase}" PasswordChar="●" PlaceholderText="与其他设备使用相同口令"/>
-                <Button Content="保存同步口令到保险库" Command="{Binding SavePassphraseCommand}" HorizontalAlignment="Left"/>
-                <TextBlock Text="此页操作立即生效。密码和 Secret Key 只进入保险库。" TextWrapping="Wrap" Foreground="{DynamicResource Kei.Text.Secondary}"/>
-            </StackPanel>
-        </Border>
-        <Border Classes="settingsCard">
-            <StackPanel Spacing="10">
-                <Button Content="立即同步" Command="{Binding SyncNowCommand}" HorizontalAlignment="Left"/>
-                <TextBlock Text="{Binding Status}" TextWrapping="Wrap"/>
-            </StackPanel>
-        </Border>
-    </StackPanel>
+            <!-- 5. 数据恢复与安全快照卡片 -->
+            <Border Classes="settingsCard">
+                <StackPanel Spacing="12">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="2">
+                            <TextBlock Classes="settingsSectionTitle" Text="数据恢复安全网"/>
+                            <TextBlock Text="每次合并与上传前均会自动保留快照，发生误操作或冲突时可在此单向恢复。"
+                                       FontSize="12" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Content="刷新恢复列表" Command="{Binding RefreshRecoveryCommand}"
+                                VerticalAlignment="Center" Height="26" Padding="8,2"/>
+                    </Grid>
+
+                    <!-- 本地合并前快照（最多 10 份，由 Vault Key 加密保存在本机） -->
+                    <Border Classes="settingRowDivider"/>
+                    <Grid ColumnDefinitions="*,Auto" Margin="0,2,0,0">
+                        <TextBlock Text="本机合并前快照（保留最近 10 份，随主密码加密保存在本地）"
+                                   FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource Kei.Text.Primary}"/>
+                        <Button Grid.Column="1" Content="清空全部快照" Command="{Binding DeleteLocalBackupsCommand}"
+                                Classes="danger" Height="24" Padding="6,1" FontSize="12"/>
+                    </Grid>
+
+                    <Border BorderBrush="{DynamicResource Kei.Border.Subtle}" BorderThickness="1"
+                            CornerRadius="{DynamicResource Kei.Radius.Card}" Background="{DynamicResource Kei.Bg.Input}">
+                        <ListBox ItemsSource="{Binding LocalBackups}" SelectedItem="{Binding SelectedLocalBackup}"
+                                 MinHeight="72" MaxHeight="140" Background="Transparent">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="sync:SyncLocalBackup">
+                                    <Grid ColumnDefinitions="*,Auto" Margin="4,2">
+                                        <TextBlock Text="{Binding CreatedAtUtc, StringFormat='快照时间：{0:yyyy-MM-dd HH:mm:ss} (UTC)'}"
+                                                   FontSize="12" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Primary}"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding Id}" FontSize="12"
+                                                   FontFamily="{DynamicResource Kei.Font.Mono}" Foreground="{DynamicResource Kei.Text.Muted}"
+                                                   VerticalAlignment="Center"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Border>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                        <Button Content="从所选本机快照恢复" Command="{Binding RestoreLocalCommand}"
+                                IsEnabled="{Binding SelectedLocalBackup, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                    </StackPanel>
+
+                    <!-- 远端历史同步包（最多 5 份） -->
+                    <Border Classes="settingRowDivider"/>
+                    <TextBlock Text="远端历史同步包（保留最近 5 份，保存在同步位置 history/ 目录下）"
+                               FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource Kei.Text.Primary}"/>
+
+                    <Border BorderBrush="{DynamicResource Kei.Border.Subtle}" BorderThickness="1"
+                            CornerRadius="{DynamicResource Kei.Radius.Card}" Background="{DynamicResource Kei.Bg.Input}">
+                        <ListBox ItemsSource="{Binding RemoteHistory}" SelectedItem="{Binding SelectedRemoteHistory}"
+                                 MinHeight="72" MaxHeight="140" Background="Transparent">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="sync:SyncHistoryEntry">
+                                    <Grid ColumnDefinitions="*,Auto" Margin="4,2">
+                                        <TextBlock Text="{Binding WrittenAtUtc, StringFormat='写入时间：{0:yyyy-MM-dd HH:mm:ss} (UTC)'}"
+                                                   FontSize="12" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Primary}"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="12"
+                                                   FontFamily="{DynamicResource Kei.Font.Mono}" Foreground="{DynamicResource Kei.Text.Muted}"
+                                                   VerticalAlignment="Center"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Border>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                        <Button Content="从所选远端历史恢复" Command="{Binding RestoreHistoryCommand}"
+                                IsEnabled="{Binding SelectedRemoteHistory, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </Grid>
 </UserControl>

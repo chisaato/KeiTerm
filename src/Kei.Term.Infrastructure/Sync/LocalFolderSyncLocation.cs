@@ -6,6 +6,12 @@ namespace Kei.Term.Infrastructure.Sync;
 public sealed class LocalFolderSyncLocation(string directory) : ISyncLocation
 {
     public bool SupportsConditionalWrites => false;
+    public Task DeleteAsync(CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        File.Delete(MainPath);
+        return Task.CompletedTask;
+    }
     private string MainPath => Path.Combine(directory, SyncObjectNames.PackageFileName);
     private string HistoryPath(string name)
     {

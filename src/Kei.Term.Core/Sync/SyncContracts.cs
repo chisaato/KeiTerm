@@ -18,6 +18,7 @@ public interface ISyncLocation
     Task<byte[]?> ReadHistoryAsync(string name, CancellationToken ct = default);
     Task WriteHistoryAsync(string name, byte[] content, CancellationToken ct = default);
     Task DeleteHistoryAsync(string name, CancellationToken ct = default);
+    Task DeleteAsync(CancellationToken ct = default) => throw new NotSupportedException("同步位置不支持删除主包");
 }
 
 public sealed class SyncWriteConflictException : IOException
@@ -46,6 +47,8 @@ public interface ISyncSnapshotStore
     Task<List<SyncEntity>> ExportAsync(CancellationToken ct = default);
     // 所有已注册实体类型在同一事务中导入，保留远端版本戳；不得按本机修改重新盖章。
     Task<List<SyncEntity>> ImportAsync(IReadOnlyList<SyncEntity> entities, CancellationToken ct = default);
+    Task<List<SyncEntity>> ImportGuardedAsync(IReadOnlyList<SyncEntity> entities, IReadOnlyList<SyncEntity> expectedLocal, CancellationToken ct = default)
+        => throw new InvalidOperationException("快照存储不支持安全预览校验");
     Task PurgeTombstonesBeforeAsync(DateTime cutoffUtc, CancellationToken ct = default);
 }
 
@@ -59,6 +62,31 @@ public interface ISyncPassphraseStore
     bool IsUnlocked { get; }
     Task<char[]?> GetPassphraseAsync(CancellationToken ct = default);
     Task SavePassphraseAsync(ReadOnlyMemory<char> passphrase, CancellationToken ct = default);
+    Task DeletePassphraseAsync(CancellationToken ct = default) => throw new NotSupportedException();
 }
 
-public sealed record SyncResult(bool Success, string Message, DateTime? WrittenAtUtc = null, string? WriterDeviceId = null);
+public enum SyncJoinChoice { Merge, Remote, Local }
+public enum SyncConfirmationKind { FirstJoin, BulkDeletion }
+public sealed record SyncConfirmation(string Token, SyncConfirmationKind Kind, int DeletedCount, int LocalLiveCount);
+public sealed record SyncApproval(string Token, SyncJoinChoice Choice = SyncJoinChoice.Merge);
+public sealed record SyncResult(bool Success, string Message, DateTime? WrittenAtUtc = null, string? WriterDeviceId = null,
+    SyncConfirmation? Confirmation = null);
+
+public sealed record SyncLocalBackup(string Id, DateTime CreatedAtUtc);
+public interface ISyncSafetyStore
+{
+    Task EnsureSyncMasterPasswordAsync(CancellationToken ct = default);
+    Task<bool> HasJoinedAsync(CancellationToken ct = default);
+    Task SetJoinedAsync(bool joined, CancellationToken ct = default);
+    Task SaveBackupAsync(IReadOnlyList<SyncEntity> entities, CancellationToken ct = default);
+    Task<IReadOnlyList<SyncLocalBackup>> ListBackupsAsync(CancellationToken ct = default);
+    Task<List<SyncEntity>> ReadBackupAsync(string id, CancellationToken ct = default);
+    Task DeleteSyncBackupsAsync(CancellationToken ct = default);
+    // 在任何远端写入之前持久化新旧口令，网络结果不确定时仍可恢复。
+    Task SavePendingPassphraseAsync(ReadOnlyMemory<char> passphrase, CancellationToken ct = default);
+    Task<char[]?> GetPendingPassphraseAsync(CancellationToken ct = default);
+    Task<char[]?> GetPreviousPassphraseAsync(CancellationToken ct = default);
+    Task ClearPendingPassphraseAsync(CancellationToken ct = default);
+}
+
+public sealed class SyncPreviewChangedException() : InvalidOperationException("本机数据已变化，请重新预览确认");

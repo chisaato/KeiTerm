@@ -63,6 +63,23 @@ public sealed class MainWindowInteractionService : IInteractionService
         _log = log;
     }
 
+    // === 同步交互统一入口 ===
+    public Task<Kei.Term.Core.Sync.SyncJoinChoice?> PromptSyncJoinAsync(Kei.Term.Core.Sync.SyncConfirmation preview)
+        => Safe.RunAsync<Kei.Term.Core.Sync.SyncJoinChoice?>(_log, "打开首次加入同步选择窗口",
+            () => new Sync.SyncJoinChoiceWindow(preview).ShowDialog<Kei.Term.Core.Sync.SyncJoinChoice?>(DialogOwner));
+
+    public Task<bool> ConfirmSyncDeletionAsync(Kei.Term.Core.Sync.SyncConfirmation preview)
+        => Safe.RunAsync(_log, "打开批量删除确认窗口",
+            () => new Sync.SyncDeletionConfirmationWindow(preview).ShowDialog<bool>(DialogOwner));
+
+    public Task<string?> PromptSyncPassphraseAsync(bool changing, string? error = null)
+        => Safe.RunAsync<string?>(_log, "打开同步口令输入窗口",
+            () => new Sync.SyncPassphrasePromptWindow(changing, error).ShowDialog<string?>(DialogOwner));
+
+    public Task<bool?> PromptDisableSyncAsync()
+        => Safe.RunAsync<bool?>(_log, "打开停用同步窗口",
+            () => new Sync.SyncDisablePromptWindow().ShowDialog<bool?>(DialogOwner));
+
     // === 认证与 Vault ===
 
     public Task<AuthPromptResult?> PromptAuthAsync(string prefillUsername, IReadOnlyList<VaultKeyOption> vaultKeys, AuthPromptMethod? defaultMethod)

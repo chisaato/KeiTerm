@@ -26,6 +26,7 @@ public partial class SyncSettingsPage : ViewModelBase
     private readonly SyncScheduler _scheduler;
     private readonly ISyncPassphraseStore _secrets;
     private readonly ISyncLocationCredentialStore _credentials;
+    private readonly SyncCoordinator? _coordinator;
     private bool _loading;
 
     public IInteractionService Interaction { get; set; } = NullInteractionService.Instance;
@@ -71,13 +72,14 @@ public partial class SyncSettingsPage : ViewModelBase
     public bool IsWebDav => SelectedKind.Id == SyncLocationKinds.WebDav;
     public bool IsS3 => SelectedKind.Id == SyncLocationKinds.S3;
 
-    public SyncSettingsPage(string dataDirectory, SyncScheduler scheduler, ISyncPassphraseStore secrets, ISyncLocationCredentialStore credentials)
+    public SyncSettingsPage(string dataDirectory, SyncScheduler scheduler, ISyncPassphraseStore secrets, ISyncLocationCredentialStore credentials, SyncCoordinator? coordinator = null)
     {
         _dataDirectory = dataDirectory;
         _statusPath = Path.Combine(dataDirectory, "sync-status.txt");
         _scheduler = scheduler;
         _secrets = secrets;
         _credentials = credentials;
+        _coordinator = coordinator;
         if (File.Exists(_statusPath)) Status = File.ReadAllText(_statusPath);
         try { Apply(SyncLocationSettingsStore.Load(dataDirectory)); }
         catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
@@ -157,13 +159,25 @@ public partial class SyncSettingsPage : ViewModelBase
     [RelayCommand]
     private async Task SavePassphraseAsync()
     {
+        if (IsBusy) return;
+        IsBusy = true;
         try
         {
+            if (_secrets is ISyncSafetyStore safety)
+            {
+                await safety.EnsureSyncMasterPasswordAsync();
+                if (await safety.HasJoinedAsync())
+                {
+                    Status = "已加入同步，请使用更换同步口令；其他设备口令更新请在立即同步时输入";
+                    return;
+                }
+            }
             await _secrets.SavePassphraseAsync(Passphrase.AsMemory());
             Passphrase = "";
             Status = "同步口令已保存到保险库";
         }
         catch (Exception ex) when (ex is InvalidOperationException or ArgumentException) { Status = ex.Message; }
+        finally { IsBusy = false; }
     }
 
     [RelayCommand]
@@ -174,9 +188,11 @@ public partial class SyncSettingsPage : ViewModelBase
         ISyncLocation? location = null;
         try
         {
+            if (_secrets is ISyncSafetyStore safety) await safety.EnsureSyncMasterPasswordAsync();
             location = await OpenLocationAsync();
             // 先保存位置，再交给调度器。正在进行的一轮不会并行，结束后再补一轮。
-            await _scheduler.SyncNowAsync();
+            var result = await _scheduler.SyncNowAsync();
+            Status = (await CompleteManualAsync(location, result)).Message;
         }
         catch (Exception ex) when (IsSyncFailure(ex)) { Status = ex.Message; }
         finally

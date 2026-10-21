@@ -61,7 +61,7 @@ public sealed partial class FullSyncSnapshotTests
             });
             await reload;
         };
-        var coordinator = new SyncCoordinator(store, new AgeSyncPackage(), local.Vault, new PersistentDeviceId(Path.Combine(local.Directory, "sync-device-id.txt")));
+        var coordinator = new SyncCoordinator(store, new AgeSyncPackage(), local.Vault, new PersistentDeviceId(Path.Combine(local.Directory, "sync-device-id.txt")), local.Vault);
         var clock = new ReviewClock();
         int rounds = 0, signals = 0;
         changes.Changed += () => Interlocked.Increment(ref signals);
@@ -69,6 +69,9 @@ public sealed partial class FullSyncSnapshotTests
         {
             Interlocked.Increment(ref rounds);
             var result = await coordinator.SyncAsync(location, ct);
+            // 本例验证已授权的导入重载，不把首次加入交互放到后台生产代码里。
+            while (result.Confirmation is { } preview)
+                result = await coordinator.SyncApprovedAsync(location, new(preview.Token), ct);
             Assert.True(result.Success, result.Message);
             return result;
         });

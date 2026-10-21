@@ -32,7 +32,16 @@ public sealed class SyncCoordinatorTests : IDisposable
         await vault.SetMasterPasswordAsync("vault-password");
         await vault.SavePassphraseAsync(Passphrase.AsMemory());
         var store = new SqliteSyncSnapshotStore(db);
-        return new DeviceFixture(db, tree, vault, device, store, new SyncCoordinator(store, new AgeSyncPackage(), vault, device));
+        return new DeviceFixture(db, tree, vault, device, store, new SyncCoordinator(store, new AgeSyncPackage(), vault, device, vault));
+    }
+
+    // 往返/并发用例模拟用户选择合并及确认精确预览；无交互门禁由 Safety 用例独立验证。
+    private static async Task<SyncResult> SyncConfirmedAsync(SyncCoordinator coordinator, ISyncLocation location)
+    {
+        var result = await coordinator.SyncAsync(location);
+        while (result.Confirmation is { } preview)
+            result = await coordinator.SyncApprovedAsync(location, new(preview.Token));
+        return result;
     }
 
     private ISyncLocation Location => new LocalFolderSyncLocation(Path.Combine(_root, "shared"));
@@ -49,8 +58,8 @@ public sealed class SyncCoordinatorTests : IDisposable
             IdentityId = Guid.NewGuid(), ProxyProfileId = Guid.NewGuid(), TerminalProfileId = "profile",
             Overrides = new() { ConnectTimeoutSeconds = 42 } };
         await a.Tree.SaveNodesAsync([folder, session]);
-        Assert.True((await a.Coordinator.SyncAsync(Location)).Success);
-        Assert.True((await b.Coordinator.SyncAsync(Location)).Success);
+        Assert.True((await SyncConfirmedAsync(a.Coordinator, Location)).Success);
+        Assert.True((await SyncConfirmedAsync(b.Coordinator, Location)).Success);
         var imported = Assert.IsType<SessionNode>(await b.Tree.GetNodeByIdAsync(session.Id));
         Assert.Equal("example.org", imported.Host);
         Assert.Equal(2222, imported.Port);
@@ -71,20 +80,20 @@ public sealed class SyncCoordinatorTests : IDisposable
         imported.Host = "new.example.org";
         await b.Tree.SaveNodeAsync(imported);
         await b.Tree.MoveNodeAsync(session.Id, null, 7);
-        Assert.True((await b.Coordinator.SyncAsync(Location)).Success);
-        Assert.True((await a.Coordinator.SyncAsync(Location)).Success);
+        Assert.True((await SyncConfirmedAsync(b.Coordinator, Location)).Success);
+        Assert.True((await SyncConfirmedAsync(a.Coordinator, Location)).Success);
         var changed = Assert.IsType<SessionNode>(await a.Tree.GetNodeByIdAsync(session.Id));
         Assert.Equal("new.example.org", changed.Host);
         Assert.Equal("renamed", changed.Name);
         Assert.Null(changed.ParentId);
         Assert.Equal(7, changed.SortOrder);
         await a.Tree.DeleteNodeAsync(session.Id);
-        Assert.True((await a.Coordinator.SyncAsync(Location)).Success);
-        Assert.True((await b.Coordinator.SyncAsync(Location)).Success);
+        Assert.True((await SyncConfirmedAsync(a.Coordinator, Location)).Success);
+        Assert.True((await SyncConfirmedAsync(b.Coordinator, Location)).Success);
         Assert.Null(await b.Tree.GetNodeByIdAsync(session.Id));
         // 空闲轮次不重写远端，导入不会把远端版本变为本机新修改。
         byte[] before = (await Location.ReadAsync())!.Content;
-        Assert.True((await b.Coordinator.SyncAsync(Location)).Success);
+        Assert.True((await SyncConfirmedAsync(b.Coordinator, Location)).Success);
         Assert.Equal(before, (await Location.ReadAsync())!.Content);
     }
 
@@ -97,15 +106,15 @@ public sealed class SyncCoordinatorTests : IDisposable
         var child = new SessionNode { ParentId = folder.Id, Name = "child", Host = "old" };
         var sibling = new SessionNode { ParentId = folder.Id, Name = "sibling", Host = "deleted" };
         await a.Tree.SaveNodesAsync([folder, child, sibling]);
-        Assert.True((await a.Coordinator.SyncAsync(Location)).Success);
-        Assert.True((await b.Coordinator.SyncAsync(Location)).Success);
+        Assert.True((await SyncConfirmedAsync(a.Coordinator, Location)).Success);
+        Assert.True((await SyncConfirmedAsync(b.Coordinator, Location)).Success);
         await a.Tree.DeleteNodeAsync(folder.Id);
         var edited = Assert.IsType<SessionNode>(await b.Tree.GetNodeByIdAsync(child.Id));
         edited.Host = "new";
         await b.Tree.SaveNodeAsync(edited);
-        Assert.True((await a.Coordinator.SyncAsync(Location)).Success);
-        Assert.True((await b.Coordinator.SyncAsync(Location)).Success);
-        Assert.True((await a.Coordinator.SyncAsync(Location)).Success);
+        Assert.True((await SyncConfirmedAsync(a.Coordinator, Location)).Success);
+        Assert.True((await SyncConfirmedAsync(b.Coordinator, Location)).Success);
+        Assert.True((await SyncConfirmedAsync(a.Coordinator, Location)).Success);
         Assert.Null(await a.Tree.GetNodeByIdAsync(folder.Id));
         Assert.Null(await a.Tree.GetNodeByIdAsync(sibling.Id));
         var survivor = Assert.IsType<SessionNode>(await a.Tree.GetNodeByIdAsync(child.Id));
@@ -130,9 +139,9 @@ public sealed class SyncCoordinatorTests : IDisposable
             await conn.ExecuteAsync("UPDATE tree_nodes SET updated_at = @instant;", new { instant });
         }
         string winner = StringComparer.Ordinal.Compare(a.Device.DeviceId, b.Device.DeviceId) > 0 ? "a" : "b";
-        Assert.True((await a.Coordinator.SyncAsync(Location)).Success);
-        Assert.True((await b.Coordinator.SyncAsync(Location)).Success);
-        Assert.True((await a.Coordinator.SyncAsync(Location)).Success);
+        Assert.True((await SyncConfirmedAsync(a.Coordinator, Location)).Success);
+        Assert.True((await SyncConfirmedAsync(b.Coordinator, Location)).Success);
+        Assert.True((await SyncConfirmedAsync(a.Coordinator, Location)).Success);
         Assert.Equal(winner, Assert.IsType<SessionNode>(await a.Tree.GetNodeByIdAsync(id)).Host);
         Assert.Equal(winner, Assert.IsType<SessionNode>(await b.Tree.GetNodeByIdAsync(id)).Host);
     }
@@ -144,7 +153,7 @@ public sealed class SyncCoordinatorTests : IDisposable
         var b = await CreateDeviceAsync("b");
         await a.Tree.SaveNodeAsync(new FolderNode { Name = "remote" });
         await b.Tree.SaveNodeAsync(new FolderNode { Name = "local" });
-        Assert.True((await a.Coordinator.SyncAsync(Location)).Success);
+        Assert.True((await SyncConfirmedAsync(a.Coordinator, Location)).Success);
         var before = JsonSerializer.Serialize(await b.Store.ExportAsync());
         var remoteBefore = (await Location.ReadAsync())!.Content;
         await b.Vault.SavePassphraseAsync("wrong".AsMemory());
@@ -173,9 +182,9 @@ public sealed class SyncCoordinatorTests : IDisposable
         var bSnapshot = new SyncSnapshot(1, b.Device.EnsureCreated(), DateTime.UtcNow, await b.Store.ExportAsync());
         byte[] otherBytes = new AgeSyncPackage().Encrypt(JsonSerializer.SerializeToUtf8Bytes(bSnapshot), Passphrase);
         var racing = new RacingLocation(Location, otherBytes, conditional, always: false);
-        Assert.True((await a.Coordinator.SyncAsync(racing)).Success);
+        Assert.True((await SyncConfirmedAsync(a.Coordinator, racing)).Success);
         Assert.True(racing.WriteCount >= 2);
-        Assert.True((await b.Coordinator.SyncAsync(Location)).Success);
+        Assert.True((await SyncConfirmedAsync(b.Coordinator, Location)).Success);
         Assert.NotNull(await b.Tree.GetNodeByIdAsync(nodeA.Id));
         Assert.NotNull(await b.Tree.GetNodeByIdAsync(nodeB.Id));
         Assert.NotNull(await a.Tree.GetNodeByIdAsync(nodeB.Id));
@@ -186,7 +195,12 @@ public sealed class SyncCoordinatorTests : IDisposable
     {
         var a = await CreateDeviceAsync("a");
         var b = await CreateDeviceAsync("b");
-        await a.Tree.SaveNodeAsync(new FolderNode { Name = "A" });
+        var node = new FolderNode { Name = "A" };
+        await a.Tree.SaveNodeAsync(node);
+        // 已完成首次初始化，单独验证持续覆盖时三轮上限。
+        Assert.True((await SyncConfirmedAsync(a.Coordinator, Location)).Success);
+        node.Name = "A-edited";
+        await a.Tree.SaveNodeAsync(node);
         var racing = new RacingLocation(Location, new AgeSyncPackage().Encrypt(
             JsonSerializer.SerializeToUtf8Bytes(new SyncSnapshot(1, b.Device.EnsureCreated(), DateTime.UtcNow, [])), Passphrase), false, always: true);
         var result = await a.Coordinator.SyncAsync(racing);
@@ -221,7 +235,7 @@ public sealed class SyncCoordinatorTests : IDisposable
         using (var conn = await a.Db.OpenAsync())
             await conn.ExecuteAsync("UPDATE tree_nodes SET deleted_at = @date, updated_at = @date WHERE id = @id;",
                 new { date = DateTime.UtcNow.AddDays(-181).ToString("O"), id = old.Id.ToString() });
-        Assert.True((await a.Coordinator.SyncAsync(Location)).Success);
+        Assert.True((await SyncConfirmedAsync(a.Coordinator, Location)).Success);
         var entities = await a.Store.ExportAsync();
         Assert.DoesNotContain(entities, e => e.EntityId == old.Id.ToString());
         Assert.Contains(entities, e => e.EntityId == recent.Id.ToString() && e.DeletedAtUtc != null);

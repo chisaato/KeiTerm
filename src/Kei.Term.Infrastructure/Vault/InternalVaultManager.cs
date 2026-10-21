@@ -681,6 +681,17 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
 
         using SqliteConnection conn = await CreateConnectionAsync(ct);
         await CompletePendingCleanupAsync(conn, ct);
+        using (var safetyCheck = conn.CreateCommand())
+        {
+            safetyCheck.CommandText = "SELECT COUNT(*) FROM local_vault_secrets WHERE id IN ($backups,$pending);";
+            safetyCheck.Parameters.AddWithValue("$backups", SyncBackupsId.ToString());
+            safetyCheck.Parameters.AddWithValue("$pending", SyncPendingPassphraseId.ToString());
+            if (Convert.ToInt64(await safetyCheck.ExecuteScalarAsync(ct)) > 0)
+            {
+                CryptographicOperations.ZeroMemory(vaultKey);
+                throw new InvalidOperationException("请先显式删除同步快照并完成待处理的口令更换，再移除主密码；安全快照不会转换为明文");
+            }
+        }
         using (SqliteCommand secureDelete = conn.CreateCommand())
         {
             secureDelete.CommandText = "PRAGMA secure_delete = ON;";

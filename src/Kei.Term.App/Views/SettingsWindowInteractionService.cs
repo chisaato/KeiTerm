@@ -34,6 +34,19 @@ internal sealed class SettingsWindowInteractionService(Window owner, SettingsVie
         }
     }
 
+    // === 同步交互统一入口 ===
+    public Task<Kei.Term.Core.Sync.SyncJoinChoice?> PromptSyncJoinAsync(Kei.Term.Core.Sync.SyncConfirmation preview)
+        => new Sync.SyncJoinChoiceWindow(preview).ShowDialog<Kei.Term.Core.Sync.SyncJoinChoice?>(DialogOwner);
+
+    public Task<bool> ConfirmSyncDeletionAsync(Kei.Term.Core.Sync.SyncConfirmation preview)
+        => new Sync.SyncDeletionConfirmationWindow(preview).ShowDialog<bool>(DialogOwner);
+
+    public Task<string?> PromptSyncPassphraseAsync(bool changing, string? error = null)
+        => new Sync.SyncPassphrasePromptWindow(changing, error).ShowDialog<string?>(DialogOwner);
+
+    public Task<bool?> PromptDisableSyncAsync()
+        => new Sync.SyncDisablePromptWindow().ShowDialog<bool?>(DialogOwner);
+
     public async Task<ExternalEditor?> EditExternalEditorAsync(ExternalEditor? existing)
     {
         ExternalEditorEditViewModel draft = new(existing, this);
