@@ -92,7 +92,8 @@ public class SqliteTreeRepository : ITreeRepository
         tx.Commit();
     }
 
-    private async Task SaveNodeCoreAsync(SqliteConnection conn, SqliteTransaction tx, TreeNodeBase node, CancellationToken ct)
+    internal async Task SaveNodeCoreAsync(SqliteConnection conn, SqliteTransaction tx, TreeNodeBase node, CancellationToken ct,
+        Kei.Term.Core.Sync.SyncEntity? imported = null)
     {
         string protocol = node is SessionNode p && !string.IsNullOrWhiteSpace(p.Protocol) ? p.Protocol : SessionProtocols.Ssh;
         await conn.ExecuteAsync(new CommandDefinition(@"
@@ -110,7 +111,7 @@ public class SqliteTreeRepository : ITreeRepository
         ", new
         {
             Id = node.Id.ToString(),
-            DeviceId = _factory.DeviceId,
+            DeviceId = imported == null ? _factory.DeviceId : imported.DeviceId,
             ParentId = node.ParentId?.ToString(),
             NodeType = (int)node.NodeType,
             node.Name,
@@ -119,7 +120,7 @@ public class SqliteTreeRepository : ITreeRepository
             Protocol = protocol,
             IsExpanded = node is FolderNode f && f.IsExpanded ? 1 : 0,
             CreatedAt = SqliteValue.FormatUtc(node.CreatedAt),
-            UpdatedAt = SqliteValue.FormatUtc(DateTime.UtcNow)
+            UpdatedAt = SqliteValue.FormatUtc(imported?.UpdatedAtUtc ?? DateTime.UtcNow)
         }, transaction: tx, cancellationToken: ct));
 
         if (node is SessionNode session)
@@ -308,6 +309,21 @@ public class SqliteTreeRepository : ITreeRepository
         public string Key { get; set; } = "";
     }
 
+    internal async Task<List<Kei.Term.Core.Sync.SyncEntity>> ExportSyncEntitiesAsync(SqliteConnection conn, SqliteTransaction tx, CancellationToken ct)
+    {
+        var rows = await conn.QueryAsync<NodeRow>(new CommandDefinition(
+            SelectNodesSql.Replace("t.protocol, t.is_expanded,", "t.protocol, t.is_expanded, t.device_id, t.deleted_at,"),
+            transaction: tx, cancellationToken: ct));
+        return rows.Select(row =>
+        {
+            TreeNodeBase node = ToNode(row);
+            var data = new Kei.Term.Core.Sync.SyncTreeData(node as FolderNode, node as SessionNode);
+            return new Kei.Term.Core.Sync.SyncEntity(Kei.Term.Core.Sync.SyncSnapshot.TreeEntityType, row.Id,
+                SqliteValue.ParseUtc(row.UpdatedAt), row.DeviceId,
+                row.DeletedAt == null ? null : SqliteValue.ParseUtc(row.DeletedAt), JsonSerializer.SerializeToElement(data));
+        }).ToList();
+    }
+
     private sealed class NodeRow
     {
         public string Id { get; set; } = string.Empty;
@@ -318,6 +334,8 @@ public class SqliteTreeRepository : ITreeRepository
         public long SortOrder { get; set; }
         public string? CreatedAt { get; set; }
         public string? UpdatedAt { get; set; }
+        public string? DeviceId { get; set; }
+        public string? DeletedAt { get; set; }
         public string? Protocol { get; set; }
         public long IsExpanded { get; set; }
         public string? Host { get; set; }

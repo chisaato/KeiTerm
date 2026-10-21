@@ -15,7 +15,7 @@ using Kei.Term.Infrastructure.Storage.Schema;
 // 数据密钥是随机 32 字节 Vault Key；主密码经 Argon2id 得到包装密钥，只用于
 // XChaCha20-Poly1305 包装 Vault Key，不直接加密业务行。条目用 Vault Key 加密，
 // AAD 绑定该行主键。旧 PBKDF2 库仍能打开，成功后在同一次解锁里迁移到 Vault Key。
-public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IProxySecretStore, IQuickUnlockVault
+public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IProxySecretStore, IQuickUnlockVault, Kei.Term.Core.Sync.ISyncPassphraseStore
 {
     // vault_metadata 键
     private const string KeyPlainMode = "plain_mode";
@@ -694,6 +694,7 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
             {
                 await WritePlaintextAsync(conn, tx, vaultKey, "identity_secrets", "identity_id", ct);
                 await WritePlaintextAsync(conn, tx, vaultKey, "proxy_secrets", "proxy_id", ct);
+                await WritePlaintextAsync(conn, tx, vaultKey, "local_vault_secrets", "id", ct);
                 await UpsertMetadataAsync(conn, tx, KeyPlainMode, "1", ct);
                 await UpsertMetadataAsync(conn, tx, KeyCleanupPending, "1", ct);
                 await UpsertMetadataAsync(conn, tx, KeyRotationPending, "0", ct);
@@ -799,6 +800,7 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
     {
         int count = await ReEncryptTableAsync(conn, tx, oldKey, newKey, "identity_secrets", "identity_id", ct);
         count += await ReEncryptTableAsync(conn, tx, oldKey, newKey, "proxy_secrets", "proxy_id", ct);
+        count += await ReEncryptTableAsync(conn, tx, oldKey, newKey, "local_vault_secrets", "id", ct);
         return count;
     }
 

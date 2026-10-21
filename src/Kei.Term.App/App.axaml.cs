@@ -115,7 +115,8 @@ public partial class App : Application
             // lifetime 在 OnFrameworkInitializationCompleted 同步段结束后即进入 Start() 显示阶段，
             // 此时 MainWindow 若为 null，之后再赋值不会触发 Show → 进程存活但窗口永不出现。
             // 全部仓储共用一个连接工厂（统一 PRAGMA），Schema 由迁移器在下方一次性升级
-            var db = new SqliteConnectionFactory(connStr);
+            var syncDevice = new Kei.Term.Infrastructure.Sync.PersistentDeviceId(Path.Combine(appDataDir, "sync-device-id.txt"));
+            var db = new SqliteConnectionFactory(connStr, syncDevice);
             var treeRepo = new SqliteTreeRepository(db, _loggerFactory.CreateLogger<SqliteTreeRepository>());
             var proxyRepo = new SqliteProxyRepository(db, _loggerFactory.CreateLogger<SqliteProxyRepository>());
             var portForwards = new SqlitePortForwardRepository(db);
@@ -171,6 +172,10 @@ public partial class App : Application
                 vault,
                 vault,
                 _loggerFactory.CreateLogger<IdentityManagerViewModel>());
+            var syncCoordinator = new Kei.Term.Core.Sync.SyncCoordinator(new SqliteSyncSnapshotStore(db),
+                new Kei.Term.Infrastructure.Sync.AgeSyncPackage(), vault, syncDevice);
+            var syncPage = new ViewModels.Settings.SyncSettingsPage(appDataDir, syncCoordinator, vault);
+            syncPage.Synchronized += mainVm.ReloadTreeAsync;
             var settingsVm = new SettingsViewModel(
                 settingsService,
                 appDataDir,
@@ -181,7 +186,8 @@ public partial class App : Application
                 () => mainVm.SnapshotSessionNodes(),
                 () => mainVm.SnapshotSessionTree(),
                 proxySecrets: vault,
-                vault: vault);
+                vault: vault,
+                syncPage: syncPage);
             settingsVm.ConfigureQuickUnlock(quickUnlock);
 
             var mainWindow = new MainWindow(deferStartupLayout: true)

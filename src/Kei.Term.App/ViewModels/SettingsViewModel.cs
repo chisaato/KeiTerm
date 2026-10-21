@@ -37,6 +37,7 @@ public partial class SettingsViewModel : ViewModelBase
     public IReadOnlyList<SettingsCategoryItem> Categories { get; private set; }
 
     public ProxySettingsPage? ProxyPage { get; }
+    public SyncSettingsPage? SyncPage { get; }
 
     public IProxySecretStore? ProxySecrets { get; }
 
@@ -104,9 +105,11 @@ public partial class SettingsViewModel : ViewModelBase
         Func<IReadOnlyList<SessionNode>>? sessionSnapshot = null,
         Func<IReadOnlyList<TreeNodeBase>>? sessionTree = null,
         IProxySecretStore? proxySecrets = null,
-        IVaultManager? vault = null)
+        IVaultManager? vault = null,
+        SyncSettingsPage? syncPage = null)
     {
         ProxySecrets = proxySecrets;
+        SyncPage = syncPage;
         _settingsService = settingsService;
         _profileManager = profileManager ?? new Services.ProfileManagerService(settingsService, dataDirectory);
         _general = new GeneralSettingsPage(dataDirectory);
@@ -175,6 +178,12 @@ public partial class SettingsViewModel : ViewModelBase
                 SettingsIcons.Ssh,
                 Strings.Get("Settings.Groups.Connection")),
         };
+
+        if (SyncPage != null)
+        {
+            Categories = Categories.Append(new SettingsCategoryItem("同步", "本地目录端到端加密同步", SyncPage,
+                SettingsIcons.General, Strings.Get("Settings.Groups.App"))).ToArray();
+        }
 
         if (ProxyPage != null)
         {

@@ -13,6 +13,7 @@ public partial class SettingsViewModel
         _quickUnlockInteraction = interaction;
         _security.Interaction = () => interaction;
         _fileTransfer.Interaction = interaction;
+        if (SyncPage != null) SyncPage.Interaction = interaction;
         if (ProxyPage != null) ProxyPage.Interaction = interaction;
     }
 }

@@ -74,10 +74,23 @@ public class StorageConstraintTests
         { "external_editor_paths", "editor_id", "path", "external_editors", "editor", "CASCADE" },
         { "file_associations", "editor_id", "association", "external_editors", "editor", "CASCADE" },
         { "session_details", "node_id", "leaf", "tree_nodes", "leaf", "CASCADE" },
-        { "session_details", "identity_id", "leaf", "identities", "identity", "SET NULL" },
         { "proxy_secrets", "proxy_id", "proxy", "proxies", "proxy", "CASCADE" },
         { "port_forwards", "session_id", "forward", "tree_nodes", "leaf", "CASCADE" },
     };
+
+    [Fact]
+    public async Task SessionIdentityReference_CanRemainDanglingForSync()
+    {
+        using TestDatabase database = new();
+        await SchemaMigrator.MigrateAsync(database.Factory);
+        using SqliteConnection connection = await database.Factory.OpenAsync();
+        await connection.ExecuteAsync(SeedSql);
+        await connection.ExecuteAsync("DELETE FROM identities WHERE id = 'identity';");
+        Assert.Equal("identity", await connection.QuerySingleAsync<string>("SELECT identity_id FROM session_details WHERE node_id = 'leaf';"));
+        await connection.ExecuteAsync("UPDATE session_details SET identity_id = 'not-yet-synced' WHERE node_id = 'leaf';");
+        Assert.Equal("not-yet-synced", await connection.QuerySingleAsync<string>("SELECT identity_id FROM session_details WHERE node_id = 'leaf';"));
+        Assert.Empty(await connection.QueryAsync("PRAGMA foreign_key_check;"));
+    }
 
     [Fact]
     public async Task MigratedSchema_EveryForeignKeyHasABehaviorCase()

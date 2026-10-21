@@ -20,7 +20,35 @@ public static class SchemaMigrations
         new(7, "sync_columns", ApplySyncColumnsAsync),
         new(8, "session_metadata", ApplySessionMetadataAsync),
         new(9, "local_entity_stamps_and_tombstones", ApplyLocalEntityStampsAsync),
+        new(10, "sync_local_secrets_and_dangling_identity", ApplySyncLocalSecretsAsync),
     ];
+
+    private static async Task ApplySyncLocalSecretsAsync(SqliteConnection conn, SqliteTransaction tx, CancellationToken ct)
+    {
+        await ExecAsync(conn, tx, @"
+            CREATE TABLE local_vault_secrets (
+                id TEXT PRIMARY KEY NOT NULL, secrets_blob BLOB NOT NULL,
+                encryption_algorithm TEXT NOT NULL, nonce BLOB, tag BLOB
+            );", ct);
+        // 兼容仅构造部分旧表的历史迁移夹具；真实完整数据库始终具有会话详情表。
+        if (!await TableExistsAsync(conn, tx, "session_details", ct)) return;
+        // 同步保留悬空身份引用，不让另一设备缺少身份阻止整个会话配置导入。
+        // 节点外键仍受约束；身份存在性由读取/连接层处理。
+        await ExecAsync(conn, tx, @"
+            CREATE TABLE session_details_sync (
+                node_id TEXT PRIMARY KEY NOT NULL REFERENCES tree_nodes(id) ON DELETE CASCADE,
+                host TEXT NOT NULL, port INTEGER, username TEXT, identity_id TEXT,
+                terminal_type TEXT NOT NULL DEFAULT 'xterm-256color', startup_script TEXT,
+                jump_host_id TEXT, env_vars_json TEXT, terminal_profile_id TEXT,
+                file_transfer_protocol INTEGER NOT NULL DEFAULT 0, sftp_mode INTEGER NOT NULL DEFAULT 0,
+                options_json TEXT, proxy_json TEXT, metadata_json TEXT, deleted_at TEXT
+            );
+            INSERT INTO session_details_sync SELECT node_id, host, port, username, identity_id,
+                terminal_type, startup_script, jump_host_id, env_vars_json, terminal_profile_id,
+                file_transfer_protocol, sftp_mode, options_json, proxy_json, metadata_json, deleted_at FROM session_details;
+            DROP TABLE session_details;
+            ALTER TABLE session_details_sync RENAME TO session_details;", ct);
+    }
 
     // v1 基线：必须幂等，兼容三类库——全新库、user_version=0 的现行库、更早的 credentials 旧库
     private static async Task ApplyBaselineAsync(SqliteConnection conn, SqliteTransaction tx, CancellationToken ct)

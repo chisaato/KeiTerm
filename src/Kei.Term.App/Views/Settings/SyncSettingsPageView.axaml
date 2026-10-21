@@ -1,0 +1,30 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:settings="using:Kei.Term.App.ViewModels.Settings"
+             xmlns:controls="using:Kei.Term.App.Views.Settings.Controls"
+             x:Class="Kei.Term.App.Views.Settings.SyncSettingsPageView"
+             x:DataType="settings:SyncSettingsPage">
+    <StackPanel Spacing="16" IsEnabled="{Binding !IsBusy}">
+        <controls:SettingsPageHeader Group="应用" Title="同步" Description="用同一目录和同步口令，在设备间合并会话树与会话配置。"/>
+        <Border Classes="settingsCard">
+            <StackPanel Spacing="10">
+                <TextBlock Classes="settingsSectionTitle" Text="同步位置：本地目录"/>
+                <TextBox Text="{Binding DirectoryPath}" PlaceholderText="选择一个同步目录"/>
+                <WrapPanel>
+                    <Button Content="选择目录" Command="{Binding ChooseDirectoryCommand}"/>
+                    <Button Content="测试连接" Command="{Binding TestConnectionCommand}" Margin="8,0,0,0"/>
+                </WrapPanel>
+                <TextBlock Text="设定或加入同步口令"/>
+                <TextBox Text="{Binding Passphrase}" PasswordChar="●" PlaceholderText="与其他设备使用相同口令"/>
+                <Button Content="保存同步口令到保险库" Command="{Binding SavePassphraseCommand}"/>
+                <TextBlock Text="此页操作立即生效；目前仅手动同步会话树，不包含身份秘密。" TextWrapping="Wrap" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+            </StackPanel>
+        </Border>
+        <Border Classes="settingsCard">
+            <StackPanel Spacing="10">
+                <Button Content="立即同步" Command="{Binding SyncNowCommand}"/>
+                <TextBlock Text="{Binding Status}" TextWrapping="Wrap"/>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>
