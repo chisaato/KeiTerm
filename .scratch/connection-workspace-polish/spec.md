@@ -25,8 +25,8 @@ Status: resolved
 
 ## 验收后追加
 
-- [07 Toast 倒计时进度条](issues/07-toast-countdown-bar.md)：验收反馈的小改动，已实现，待桌面确认。
-- [08 文件管理加载条导致路径栏与列表抖动](issues/08-loading-bar-layout-shift.md)：已实现，待桌面确认。
+- [07 Toast 倒计时进度条](issues/07-toast-countdown-bar.md)：验收反馈的小改动，已实现，2026-10-21 用户桌面验收通过。
+- [08 文件管理加载条导致路径栏与列表抖动](issues/08-loading-bar-layout-shift.md)：已实现，2026-10-21 用户桌面验收通过。
 - [09 侧栏动画测试偶发失败](issues/09-flaky-sidebar-transition-test.md)：待处理。
 
 ## 关键决策
