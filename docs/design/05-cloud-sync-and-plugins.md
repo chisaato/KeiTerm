@@ -1,5 +1,7 @@
 # 05 - E2EE 云同步与插件化扩展设计 (Cloud Sync & Plugins)
 
+> ⚠️ 已被取代：同步的形态与范围以 [ADR-0004](../adr/0004-e2ee-sync-single-age-snapshot.md) 和 `.scratch/e2ee-sync/spec.md` 为准。本文的模式 A/B、AES-GCM 流程图与存储接口草稿不再有效。
+
 ## 1. 核心诉求与设计定位
 1. **端到端加密（E2EE, End-to-End Encryption）**：
    - 保证“零知识”（Zero-Knowledge）。云端存储介质只接收完全加密的密文包（Encrypted Payload Blob），无论传输通道或云服务商是否可信，数据都不会发生泄露。

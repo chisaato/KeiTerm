@@ -3,7 +3,7 @@
 **连接元数据**存于 `session_details.metadata_json`（迁移 v8）。它是本机自动发现的信息，与 `options_json`（用户意图，`SessionOverrides`）分开：
 
 - 按键定向读写（`json_set` / `json_remove`），不整体覆盖。会话保存路径不得读写这一列，保存会话也不得清掉它（禁止 `INSERT OR REPLACE` 整行）。
-- 不参与同步，不改 `revision`。
+- ~~不参与同步~~（已由 ADR-0004 改为随会话同步、按键合并）；后台写入仍不改所属会话的 `revision`。
 - 每个键对应 Core 中一个强类型模型，第一个键是 `transferProbe`。以后新增元数据只加键，不再迁移。
 
 远端哈希与归档命令不在调用处拼字符串，而是由**远端工具集**（`IRemoteToolset`，按 `RemotePlatform` 选择）生成和解析。设置与探测结果只记录算法/格式（`Sha256`、`Zstd`……），不记录命令，因而与平台无关。本次只实现 POSIX 工具集，面向 Linux；Darwin、Windows 后续各加一个工具集即可。
