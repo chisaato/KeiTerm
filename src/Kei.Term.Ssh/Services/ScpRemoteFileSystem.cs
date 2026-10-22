@@ -149,6 +149,14 @@ public partial class ScpRemoteFileSystem : IRemoteFileSystem, IRemoteShell
         await _shell.DeleteAsync(path, isDirectory, ct);
     }
 
+    public async Task DeleteEntryAsync(string path, bool isDirectory, CancellationToken ct = default)
+    {
+        ThrowIfDisposed();
+        EnsureConnected();
+
+        await _shell.DeleteEntryAsync(path, isDirectory, ct);
+    }
+
     public async Task RenameAsync(string oldPath, string newPath, CancellationToken ct = default)
     {
         ThrowIfDisposed();

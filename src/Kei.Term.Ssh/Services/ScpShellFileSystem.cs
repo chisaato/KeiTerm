@@ -140,6 +140,10 @@ internal sealed class ScpShellFileSystem(Func<string, CancellationToken, Task<Re
     public Task DeleteAsync(string path, bool isDirectory, CancellationToken ct)
         => ExecuteCheckedAsync($"rm {(isDirectory ? "-rf" : "-f")} -- {ScpRemoteFileSystem.ShellQuote(path)}", ct);
 
+    // 只删空目录、文件或链接本身。目录失败时不能改用 rm -rf。
+    public Task DeleteEntryAsync(string path, bool isDirectory, CancellationToken ct)
+        => ExecuteCheckedAsync($"{(isDirectory ? "rmdir" : "rm -f")} -- {ScpRemoteFileSystem.ShellQuote(path)}", ct);
+
     public Task RenameAsync(string oldPath, string newPath, CancellationToken ct)
         => ExecuteCheckedAsync($"mv -- {ScpRemoteFileSystem.ShellQuote(oldPath)} {ScpRemoteFileSystem.ShellQuote(newPath)}", ct);
 

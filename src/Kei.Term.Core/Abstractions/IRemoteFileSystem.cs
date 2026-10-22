@@ -46,6 +46,12 @@ public interface IRemoteFileSystem : IAsyncDisposable
 
     Task CommitWriteAsync(Stream stream, CancellationToken ct = default) => stream.FlushAsync(ct);
     Task DeleteAsync(string path, bool isDirectory, CancellationToken ct = default);
+
+    // 与 DeleteAsync 不同：只删除一个文件、符号链接或空目录，不递归，也不跟随链接。
+    // 传输清理必须继续调用 DeleteAsync，以保留其对符号链接的拒绝。
+    // 默认转调 DeleteAsync；会递归或会拒绝链接的实现必须覆盖，不能回退成递归删除。
+    Task DeleteEntryAsync(string path, bool isDirectory, CancellationToken ct = default)
+        => DeleteAsync(path, isDirectory, ct);
     Task RenameAsync(string oldPath, string newPath, CancellationToken ct = default);
 
     // 覆盖式改名。SFTP 优先 posix-rename@openssh.com。服务器没有该扩展且目标已存在时拒绝非原子覆盖，不删除任何一方。

@@ -316,42 +316,4 @@ public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposabl
         await RefreshDirectoryAsync();
     }
 
-    [RelayCommand]
-    public async Task DeleteItemAsync(RemoteFileItem? singleItem)
-    {
-        var targets = (SelectedItems.Count > 0)
-            ? SelectedItems.Where(x => x.Name != "..").ToList()
-            : (singleItem != null && singleItem.Name != ".." ? [singleItem] : []);
-
-        if (targets.Count == 0) return;
-
-        try
-        {
-            string confirmationName = targets.Count == 1 ? targets[0].Name
-                : string.Format(Helpers.Strings.Get("FileManager.ItemCount"), targets.Count);
-            if (!await (_interaction ?? NullInteractionService.Instance).ConfirmDeleteAsync(confirmationName)) return;
-            if (targets.Count == 1)
-            {
-                TransferStatusMessage = $"正在删除: {targets[0].Name}...";
-                await _fileSystem.DeleteAsync(targets[0].FullPath, targets[0].IsDirectory);
-                TransferStatusMessage = $"已删除: {targets[0].Name}";
-            }
-            else
-            {
-                TransferStatusMessage = $"正在批量删除 {targets.Count} 个项目...";
-                foreach (var item in targets)
-                {
-                    await _fileSystem.DeleteAsync(item.FullPath, item.IsDirectory);
-                }
-                TransferStatusMessage = $"已成功删除 {targets.Count} 个项目";
-            }
-            await RefreshDirectoryAsync();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "删除失败");
-            TransferStatusMessage = $"删除失败: {ex.Message}";
-        }
-    }
-
 }

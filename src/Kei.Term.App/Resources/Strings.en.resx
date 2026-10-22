@@ -631,6 +631,15 @@
   <data name="FileManager.TargetExists" xml:space="preserve"><value>The target already exists and will not be overwritten.</value></data>
   <data name="FileManager.OperationFailed" xml:space="preserve"><value>Operation failed: {0}</value></data>
   <data name="FileManager.ItemCount" xml:space="preserve"><value>{0} items</value></data>
+  <data name="FileManager.DeleteConfirm.Two" xml:space="preserve"><value>{0}, {1} ({2} items)</value></data>
+  <data name="FileManager.DeleteConfirm.Three" xml:space="preserve"><value>{0}, {1}, {2} ({3} items)</value></data>
+  <data name="FileManager.DeleteConfirm.Many" xml:space="preserve"><value>{0}, {1}, {2}, … ({3} items total)</value></data>
+  <data name="FileManager.Delete.Working" xml:space="preserve"><value>Deleting…</value></data>
+  <data name="FileManager.Delete.Scanning" xml:space="preserve"><value>Scanning {0}</value></data>
+  <data name="FileManager.Delete.Progress" xml:space="preserve"><value>Deleting {0} ({1}/{2})</value></data>
+  <data name="FileManager.Delete.Completed" xml:space="preserve"><value>Deleted {0} items</value></data>
+  <data name="FileManager.Delete.Cancelled" xml:space="preserve"><value>Deletion cancelled, {0}/{1} completed</value></data>
+  <data name="FileManager.Delete.Failed" xml:space="preserve"><value>Failed to delete {0}, completed {1}/{2}: {3}</value></data>
   <data name="Common.ConfirmDelete" xml:space="preserve"><value>Confirm deletion</value></data>
   <data name="Common.ConfirmDeleteMessage" xml:space="preserve"><value>Delete “{0}”? This action cannot be undone.</value></data>
   <data name="FileActivity.Header.Direction" xml:space="preserve"><value>Direction</value></data>

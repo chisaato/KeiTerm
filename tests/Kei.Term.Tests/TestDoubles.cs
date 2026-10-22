@@ -134,9 +134,13 @@ internal sealed class ScriptedInteraction : IInteractionService
     public Queue<bool> DeleteAnswers { get; } = new();
     public List<string> DeletePrompts { get; } = new();
 
+    // 未设置时仍走 DeleteAnswers，避免影响其它测试。
+    public Func<string, Task<bool>>? ConfirmDeleteHandler { get; set; }
+
     public Task<bool> ConfirmDeleteAsync(string name)
     {
         DeletePrompts.Add(name);
+        if (ConfirmDeleteHandler != null) return ConfirmDeleteHandler(name);
         return Task.FromResult(DeleteAnswers.Count == 0 || DeleteAnswers.Dequeue());
     }
 

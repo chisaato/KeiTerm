@@ -2804,6 +2804,15 @@ Latin: AaBb CcDd GgYy gypq
   <data name="FileManager.TargetExists" xml:space="preserve"><value>目标已存在，不会覆盖。</value></data>
   <data name="FileManager.OperationFailed" xml:space="preserve"><value>操作失败：{0}</value></data>
   <data name="FileManager.ItemCount" xml:space="preserve"><value>{0} 个项目</value></data>
+  <data name="FileManager.DeleteConfirm.Two" xml:space="preserve"><value>{0}、{1}（共 {2} 项）</value></data>
+  <data name="FileManager.DeleteConfirm.Three" xml:space="preserve"><value>{0}、{1}、{2}（共 {3} 项）</value></data>
+  <data name="FileManager.DeleteConfirm.Many" xml:space="preserve"><value>{0}、{1}、{2} 等共 {3} 项</value></data>
+  <data name="FileManager.Delete.Working" xml:space="preserve"><value>正在删除…</value></data>
+  <data name="FileManager.Delete.Scanning" xml:space="preserve"><value>正在扫描 {0}</value></data>
+  <data name="FileManager.Delete.Progress" xml:space="preserve"><value>正在删除 {0}（{1}/{2}）</value></data>
+  <data name="FileManager.Delete.Completed" xml:space="preserve"><value>已删除 {0} 项</value></data>
+  <data name="FileManager.Delete.Cancelled" xml:space="preserve"><value>已取消删除，已完成 {0}/{1}</value></data>
+  <data name="FileManager.Delete.Failed" xml:space="preserve"><value>删除 {0} 失败，已完成 {1}/{2}：{3}</value></data>
   <data name="Common.ConfirmDelete" xml:space="preserve"><value>确认删除</value></data>
   <data name="Common.ConfirmDeleteMessage" xml:space="preserve"><value>确定要删除“{0}”吗？此操作无法撤销。</value></data>
   <data name="FileActivity.Header.Direction" xml:space="preserve"><value>方向</value></data>

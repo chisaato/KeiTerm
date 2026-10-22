@@ -18,6 +18,7 @@ public partial class RemoteFileManagerView : UserControl
 {
     private readonly Func<Task<string?>> _pickExecutable;
     private RemoteFileManagerViewModel? _dialogOwner;
+    private bool _isSuppressingSelectionSync;
 
     public RemoteFileManagerView()
     {
@@ -37,6 +38,54 @@ public partial class RemoteFileManagerView : UserControl
         SetupPickExecutableDialog();
         BindFileActivities();
         BindDirectoryTreeLayout();
+        BindNavigationMonitoring();
+        RestoreSelectionFromViewModel();
+    }
+
+    private void RestoreSelectionFromViewModel()
+    {
+        if (DataContext is not RemoteFileManagerViewModel vm) return;
+        if (FileListBox.SelectedItems == null) return;
+
+        RemoteFileItem[] snapshot = vm.SelectedItems.Count > 0
+            ? vm.SelectedItems.ToArray()
+            : (vm.SelectedItem is { } selected ? [selected] : []);
+
+        if (FileListBox.SelectedItems.OfType<RemoteFileItem>().SequenceEqual(snapshot))
+        {
+            if (snapshot.Length > 0 && !vm.SelectedItems.SequenceEqual(snapshot))
+            {
+                vm.SelectedItems.Clear();
+                foreach (var item in snapshot)
+                {
+                    vm.SelectedItems.Add(item);
+                }
+            }
+            return;
+        }
+
+        _isSuppressingSelectionSync = true;
+        try
+        {
+            FileListBox.SelectedItems.Clear();
+            foreach (var item in snapshot)
+            {
+                FileListBox.SelectedItems.Add(item);
+            }
+
+            if (snapshot.Length > 0 && !vm.SelectedItems.SequenceEqual(snapshot))
+            {
+                vm.SelectedItems.Clear();
+                foreach (var item in snapshot)
+                {
+                    vm.SelectedItems.Add(item);
+                }
+            }
+        }
+        finally
+        {
+            _isSuppressingSelectionSync = false;
+        }
     }
 
     private void OnDataContextChanged(object? sender, EventArgs e)
@@ -44,6 +93,12 @@ public partial class RemoteFileManagerView : UserControl
         SetupPickExecutableDialog();
         BindFileActivities();
         BindDirectoryTreeLayout();
+        BindNavigationMonitoring();
+
+        if (DataContext is RemoteFileManagerViewModel)
+        {
+            RestoreSelectionFromViewModel();
+        }
     }
 
     private void SetupPickExecutableDialog()
@@ -61,6 +116,7 @@ public partial class RemoteFileManagerView : UserControl
         ReleasePickExecutableDialog();
         ReleaseFileActivities();
         ReleaseDirectoryTreeLayout();
+        ReleaseNavigationMonitoring();
         base.OnDetachedFromVisualTree(args);
     }
 
@@ -133,6 +189,84 @@ public partial class RemoteFileManagerView : UserControl
         }
     }
 
+    private RemoteFileManagerViewModel? _navigationOwner;
+
+    private void BindNavigationMonitoring()
+    {
+        ReleaseNavigationMonitoring();
+        if (DataContext is RemoteFileManagerViewModel vm)
+        {
+            _navigationOwner = vm;
+            vm.PropertyChanged += OnNavigationViewModelPropertyChanged;
+        }
+    }
+
+    private void ReleaseNavigationMonitoring()
+    {
+        if (_navigationOwner != null)
+        {
+            _navigationOwner.PropertyChanged -= OnNavigationViewModelPropertyChanged;
+            _navigationOwner = null;
+        }
+    }
+
+    private void OnNavigationViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(RemoteFileManagerViewModel.CurrentPath))
+        {
+            _isSuppressingSelectionSync = true;
+            try
+            {
+                FileListBox.SelectedItems?.Clear();
+            }
+            finally
+            {
+                _isSuppressingSelectionSync = false;
+            }
+
+            if (DataContext is RemoteFileManagerViewModel vm)
+            {
+                vm.SelectedItems.Clear();
+                vm.SelectedItem = null;
+            }
+        }
+    }
+
+    private void OnFileListBoxSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_isSuppressingSelectionSync) return;
+        SyncSelectedItemsToViewModel();
+    }
+
+    private void SyncSelectedItemsToViewModel()
+    {
+        if (_isSuppressingSelectionSync) return;
+        if (DataContext is not RemoteFileManagerViewModel vm)
+        {
+            return;
+        }
+
+        var listBoxSelected = FileListBox.SelectedItems?.OfType<RemoteFileItem>().ToList() ?? [];
+
+        // 仅在集合产生差异时同步，避免不必要的集合通知与循环
+        if (!vm.SelectedItems.SequenceEqual(listBoxSelected))
+        {
+            vm.SelectedItems.Clear();
+            foreach (var item in listBoxSelected)
+            {
+                vm.SelectedItems.Add(item);
+            }
+        }
+
+        // SelectedItem 采用 OneWay 绑定，在 guard 保护后的 SelectionChanged 里统一单向同步 vm.SelectedItem
+        RemoteFileItem? currentSelectedItem = FileListBox.SelectedItem as RemoteFileItem
+            ?? (listBoxSelected.Count > 0 ? listBoxSelected[0] : null);
+        if (!ReferenceEquals(vm.SelectedItem, currentSelectedItem))
+        {
+            vm.SelectedItem = currentSelectedItem;
+        }
+    }
+
     private void OnContextMenuOpening(object? sender, System.ComponentModel.CancelEventArgs e)
     {
         if (DataContext is not RemoteFileManagerViewModel vm)
@@ -142,14 +276,7 @@ public partial class RemoteFileManagerView : UserControl
         }
 
         // 同步 FileListBox.SelectedItems 到 vm.SelectedItems
-        vm.SelectedItems.Clear();
-        if (FileListBox.SelectedItems != null)
-        {
-            foreach (var sel in FileListBox.SelectedItems.OfType<RemoteFileItem>())
-            {
-                vm.SelectedItems.Add(sel);
-            }
-        }
+        SyncSelectedItemsToViewModel();
         if (vm.SelectedItems.Count == 0 && vm.SelectedItem != null)
         {
             vm.SelectedItems.Add(vm.SelectedItem);

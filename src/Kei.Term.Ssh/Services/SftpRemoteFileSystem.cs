@@ -192,6 +192,25 @@ public class SftpRemoteFileSystem : IRemoteFileSystem
         }, ct);
     }
 
+    public Task DeleteEntryAsync(string path, bool isDirectory, CancellationToken ct = default)
+    {
+        EnsureReady();
+
+        return Task.Run(() =>
+        {
+            // 传输清理仍走上面的拒绝逻辑。DeleteFile/DeleteDirectory 会先 REALPATH，
+            // 断链会被解析成目标路径。目录项自己的 Delete 直接对列出的名称发 REMOVE 或 RMDIR。
+            _ = isDirectory;
+            ISftpFile? file = FindChild(path);
+            if (file == null)
+            {
+                throw new SftpPathNotFoundException(path);
+            }
+
+            file.Delete();
+        }, ct);
+    }
+
     public Task RenameAsync(string oldPath, string newPath, CancellationToken ct = default)
     {
         EnsureReady();
@@ -372,12 +391,12 @@ public class SftpRemoteFileSystem : IRemoteFileSystem
     private bool TargetExists(string path) => FindChild(path) != null;
 
     // 不解析路径本身，避免 realpath 跟随最后一段符号链接。
+    // 反斜杠属于远端文件名，不能换成斜杠。属性、覆盖检查和删除都走这里。
     private ISftpFile? FindChild(string path)
     {
-        string normalized = path.Replace('\\', '/');
-        int slash = normalized.LastIndexOf('/');
-        string parent = slash <= 0 ? "/" : normalized[..slash];
-        string name = slash < 0 ? normalized : normalized[(slash + 1)..];
+        int slash = path.LastIndexOf('/');
+        string parent = slash <= 0 ? "/" : path[..slash];
+        string name = slash < 0 ? path : path[(slash + 1)..];
         if (name.Length == 0)
         {
             return null;
