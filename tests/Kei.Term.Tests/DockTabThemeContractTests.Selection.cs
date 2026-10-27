@@ -6,9 +6,11 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Media;
+using Avalonia.Controls.Shapes;
 using Avalonia.VisualTree;
 using Dock.Avalonia.Controls;
 using Kei.Term.App.Services;
+using Kei.Term.App.Services.Connection;
 using Kei.Term.App.ViewModels;
 using Kei.Term.App.Views;
 using Kei.Term.App.Workspaces;
@@ -116,9 +118,54 @@ public sealed partial class DockTabThemeContractTests
             Assert.IsAssignableFrom<ISolidColorBrush>(selectedBody.Background).Color);
         string titleText = Assert.IsAssignableFrom<WorkspaceDocument>(selected.DataContext).Title;
         TextBlock title = selected.GetVisualDescendants().OfType<TextBlock>().Single(control => control.Text == titleText);
-        Assert.Equal(FontWeight.SemiBold, title.FontWeight);
+        Assert.Equal(FontWeight.Normal, title.FontWeight);
+        string inactiveTitleText = Assert.IsAssignableFrom<WorkspaceDocument>(inactive.DataContext).Title;
+        TextBlock inactiveTitle = inactive.GetVisualDescendants().OfType<TextBlock>().Single(control => control.Text == inactiveTitleText);
+        Assert.Equal(FontWeight.Normal, inactiveTitle.FontWeight);
+        Border separatorRight = selected.GetVisualDescendants().OfType<Border>().Single(control => control.Name == "PART_TabSeparatorRight");
+        Assert.False(separatorRight.IsVisible);
         Panel separator = window.GetVisualDescendants().OfType<Panel>().Single(control => control.Name == "PART_DocumentSeperator");
         Color separatorColor = Assert.IsAssignableFrom<ISolidColorBrush>(window.FindResource("Kei.Border.Subtle")).Color;
         Assert.Equal(separatorColor, Assert.IsAssignableFrom<ISolidColorBrush>(separator.Background).Color);
     }
+
+    [Fact]
+    public Task ActivityBadge_DoesNotAlterTabWidth_WhenToggled() => HeadlessAvalonia.RunAsync(async () =>
+    {
+        UiDesignSystemService.Apply();
+        await using MainViewModel model = CreateModel();
+        MainWindow window = new() { DataContext = model, Width = 1000, Height = 700 };
+        try
+        {
+            window.Show();
+            ((IConnectionHost)model).OpenTab(CreateConfig("server-active-indicator"));
+            HeadlessAvalonia.Pump(20);
+
+            DocumentTabStripItem tabItem = window.GetVisualDescendants().OfType<DocumentTabStripItem>().Single();
+            TerminalTabViewModel tabModel = model.Tabs.Single();
+            tabModel.HasActivity = false;
+            HeadlessAvalonia.Pump(20);
+
+            double widthWithoutActivity = tabItem.Bounds.Width;
+            Assert.True(widthWithoutActivity > 0);
+
+            // 切换后台活动状态，小圆点以图标右上角标呈现，标签项横向尺寸纹丝不动
+            tabModel.HasActivity = true;
+            HeadlessAvalonia.Pump(20);
+
+            double widthWithActivity = tabItem.Bounds.Width;
+            Assert.Equal(widthWithoutActivity, widthWithActivity);
+
+            Ellipse badge = tabItem.GetVisualDescendants().OfType<Ellipse>().Single(e => e.Name == "TerminalActivityBadge");
+            Assert.True(badge.IsVisible);
+        }
+        finally
+        {
+            foreach (TerminalTabViewModel tab in model.Tabs.ToArray())
+            {
+                await model.CloseTabCommand.ExecuteAsync(tab);
+            }
+            window.Close();
+        }
+    });
 }

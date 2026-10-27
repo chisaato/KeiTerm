@@ -62,6 +62,7 @@
         <Setter Property="Focusable" Value="False" />
         <Setter Property="FontFamily" Value="{DynamicResource Kei.Font.UI}" />
         <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="Normal" />
         <Setter Property="MinHeight" Value="{DynamicResource Kei.Tab.Height}" />
         <Setter Property="Height" Value="{DynamicResource Kei.Tab.Height}" />
         <Setter Property="Padding" Value="6,2" />
@@ -79,13 +80,16 @@
         <Setter Property="Background" Value="{DynamicResource Kei.Bg.PanelAlt}" />
         <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}" />
         <Setter Property="BorderBrush" Value="{DynamicResource Kei.Accent}" />
-        <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
     <Style Selector="dc|DocumentTabStripItem:pointerover:not(:selected)">
         <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}" />
     </Style>
     <Style Selector="dc|DockControl.tabs-bottom dc|DocumentTabStripItem">
         <Setter Property="BorderThickness" Value="0,0,0,2" />
+    </Style>
+    <!-- 隐藏上游模板右侧多余的 1px 分割线，避免与 Margin 叠加在切换时产生双重明暗闪烁。 -->
+    <Style Selector="dc|DocumentTabStripItem /template/ Border#PART_TabSeparatorRight">
+        <Setter Property="IsVisible" Value="False" />
     </Style>
 
     <!-- 标签关闭按钮：移除复古凸起边框与实体背景，提供 24×24px 充裕易点热区与微圆角悬停底色 -->
@@ -225,18 +229,25 @@
                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                     <Border x:Name="ConnectionStateIndicator" Classes="workspaceTabState"
                                             Background="{Binding State, Converter={StaticResource ConnectionStateBrush}}"/>
-                                    <Viewbox Classes="workspaceTabIcon">
-                                        <Grid Width="24" Height="24">
-                                            <Path x:Name="TerminalKindIcon" Classes="kei-icon workspaceTabKind" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Terminal}"
-                                                  IsVisible="{Binding IsShellVisible}"/>
-                                            <Path x:Name="FileManagerKindIcon" Classes="kei-icon workspaceTabKind" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Folder}"
-                                                  IsVisible="{Binding !IsShellVisible}"/>
-                                        </Grid>
-                                    </Viewbox>
+                                    <!-- 终端图标与动态徽标容器：固定 16×16px，小圆点以右上角标呈现，零横向占位，绝不引起标签伸缩 -->
+                                    <Panel Width="16" Height="16" VerticalAlignment="Center">
+                                        <Viewbox Classes="workspaceTabIcon">
+                                            <Grid Width="24" Height="24">
+                                                <Path x:Name="TerminalKindIcon" Classes="kei-icon workspaceTabKind" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Terminal}"
+                                                      IsVisible="{Binding IsShellVisible}"/>
+                                                <Path x:Name="FileManagerKindIcon" Classes="kei-icon workspaceTabKind" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Folder}"
+                                                      IsVisible="{Binding !IsShellVisible}"/>
+                                            </Grid>
+                                        </Viewbox>
+                                        <Ellipse x:Name="TerminalActivityBadge"
+                                                 Width="5" Height="5"
+                                                 HorizontalAlignment="Right" VerticalAlignment="Top"
+                                                 Margin="0,-1,-1,0"
+                                                 Fill="{DynamicResource Kei.Accent}"
+                                                 IsVisible="{Binding HasActivity}"/>
+                                    </Panel>
                                     <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontSize="12"
                                                MaxWidth="200" TextTrimming="CharacterEllipsis"/>
-                                    <Ellipse Width="6" Height="6" VerticalAlignment="Center" Fill="{DynamicResource Kei.Accent}"
-                                             IsVisible="{Binding HasActivity}"/>
                                 </StackPanel>
                             </Grid>
                         </DataTemplate>
@@ -270,6 +281,7 @@
                                     </ContextMenu>
                                 </Grid.ContextMenu>
                                 <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Border Classes="workspaceTabState" Background="Transparent"/>
                                     <Viewbox Classes="workspaceTabIcon">
                                         <Grid Width="24" Height="24">
                                             <Path Classes="kei-icon workspaceTabKind" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Terminal}"/>
