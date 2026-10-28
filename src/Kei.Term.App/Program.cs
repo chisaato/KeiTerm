@@ -1,5 +1,6 @@
 ﻿using Avalonia;
 using Avalonia.Logging;
+using Avalonia.Media;
 using Avalonia.X11;
 using Avalonia.Skia;
 using Kei.Term.App.Services;
@@ -34,6 +35,11 @@ sealed class Program
 
         var builder = AppBuilder.Configure<App>()
             .WithInterFont()
+            // 回退字体族固定为内嵌 Inter：复合字体族（PingFang SC, …）在系统里全部查不到时，
+            // Avalonia 会回退到 Skia 的系统默认字体；若 fontconfig 返回无 cmap 的 Type1 字体
+            // （如 Bitstream Charter .pfb），GlyphTypeface 创建失败会直接抛出并崩溃。
+            // 内嵌字体不依赖系统，缺字形的 CJK 字符仍由系统字体按字符回退。
+            .With(new FontManagerOptions { DefaultFamilyName = "fonts:Inter#Inter" })
             // 诊断期调低阈值：框架内部（含平台后端）信息一并经 TraceToLogBridge 落盘
             .LogToTrace(LogEventLevel.Information);
 
