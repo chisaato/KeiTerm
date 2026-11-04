@@ -8,6 +8,9 @@ public partial class SshNetSession : ITerminalBinaryTransferSession
 {
     private readonly SemaphoreSlim _binaryGate = new(1, 1);
     private readonly object _outputGate = new();
+    // 输出路由与回放串行化，但输入和断开绝不等待此门；回调可因 UI 背压长时间阻塞。
+    // 不额外缓存终端输出，读取循环继续承担背压。
+    private readonly SemaphoreSlim _outputDispatchGate = new(1, 1);
     private BinaryChannel? _binaryChannel;
 
     // SSH.NET 的公开 API 无法复用已有 SshClient 的 SFTP subsystem；同一拨号器保留主机校验和现有跳板链。
@@ -17,44 +20,49 @@ public partial class SshNetSession : ITerminalBinaryTransferSession
     public async Task<ITerminalBinaryChannel> AcquireBinaryChannelAsync(CancellationToken ct = default)
     {
         await _binaryGate.WaitAsync(ct);
-        BinaryChannel channel;
-        lock (_outputGate)
-        {
-            if (!IsConnected)
-            {
-                _binaryGate.Release();
-                throw new IOException("终端连接已断开");
-            }
-
-            channel = new(this);
-            _binaryChannel = channel;
-        }
+        BinaryChannel? channel = null;
         try
         {
+            // 等待旧终端输出回调退出后再切换，避免锁外路由快照跨越独占边界。
+            await _outputDispatchGate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                lock (_outputGate)
+                {
+                    if (!IsConnected) throw new IOException("终端连接已断开");
+                    channel = new(this);
+                    _binaryChannel = channel;
+                }
+            }
+            finally { _outputDispatchGate.Release(); }
             // 键盘输入可能已入队但尚未写出；独占后先排空旧输入，再启动接收命令。
             await QueueInputAsync(ReadOnlyMemory<byte>.Empty, ct, throwOnFailure: true, flushOnly: true);
             return channel;
         }
         catch
         {
-            await channel.DisposeAsync();
+            if (channel != null) await channel.DisposeAsync();
+            else _binaryGate.Release();
             throw;
         }
     }
 
     private void DispatchOutput(byte[] chunk)
     {
-        lock (_outputGate)
+        _outputDispatchGate.Wait();
+        try
         {
-            if (_binaryChannel is { } channel)
+            lock (_outputGate)
             {
-                channel.Receive(chunk);
+                if (_binaryChannel is { } channel)
+                {
+                    channel.Receive(chunk);
+                    return;
+                }
             }
-            else
-            {
-                OutputReceived?.Invoke(chunk);
-            }
+            OutputReceived?.Invoke(chunk);
         }
+        finally { _outputDispatchGate.Release(); }
     }
 
     private void CompleteBinaryChannel(Exception? error)
@@ -100,31 +108,35 @@ public partial class SshNetSession : ITerminalBinaryTransferSession
 
         public ValueTask CompleteAsync()
         {
-            Release(replayOutput: true);
-            return ValueTask.CompletedTask;
+            return ReleaseAsync(replayOutput: true);
         }
 
         public ValueTask DisposeAsync()
         {
-            Release(replayOutput: false);
-            return ValueTask.CompletedTask;
+            return ReleaseAsync(replayOutput: false);
         }
 
-        private void Release(bool replayOutput)
+        private async ValueTask ReleaseAsync(bool replayOutput)
         {
             if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
             try
             {
-                lock (owner._outputGate)
+                await owner._outputDispatchGate.WaitAsync().ConfigureAwait(false);
+                try
                 {
-                    owner._binaryChannel = null;
-                    Complete(null);
+                    lock (owner._outputGate)
+                    {
+                        owner._binaryChannel = null;
+                        Complete(null);
+                    }
+                    // 状态锁外回调；仍持输出串行门和二进制独占门，确保回放先于后续输出/独占。
                     if (replayOutput)
                     {
                         if (!_remaining.IsEmpty) owner.OutputReceived?.Invoke(_remaining.ToArray());
                         while (_output.Reader.TryRead(out byte[]? pending)) owner.OutputReceived?.Invoke(pending);
                     }
                 }
+                finally { owner._outputDispatchGate.Release(); }
             }
             finally { owner._binaryGate.Release(); }
         }
