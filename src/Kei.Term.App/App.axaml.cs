@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -35,6 +36,7 @@ public partial class App : Application
     private QuitConfirmationService? _quitConfirmation;
     private InternalVaultManager? _vault;
     private SyncScheduler? _syncScheduler;
+    private Kei.Term.Transport.Go.GoSidecarProcessManager? _goSidecar;
 
     public override void Initialize()
     {
@@ -164,7 +166,23 @@ public partial class App : Application
                 logger: _loggerFactory.CreateLogger<HostKeyTrustService>());
             var profileManager = new ProfileManagerService(settingsService, appDataDir, tracker: localChanges);
             syncProfiles = profileManager;
-            var sshFactory = new SshSessionFactory(_loggerFactory.CreateLogger<SshSessionFactory>());
+            var sshFactory = new Kei.Term.Transport.Go.CompositeSshSessionFactory(
+                new SshSessionFactory(_loggerFactory.CreateLogger<SshSessionFactory>()),
+                () => new Kei.Term.Transport.Go.GoSshSessionFactory(_goSidecar ??= new Kei.Term.Transport.Go.GoSidecarProcessManager(),
+                    async (config, ct) =>
+                    {
+                        var candidates = await knownHostRepo.GetCandidatesAsync(config.Host, config.Port, ct);
+                        var trusted = candidates.FirstOrDefault(entry => entry.Status == KnownHostStatus.Trusted
+                            && KnownHostMatcher.Matches(entry, config.Host, config.Port));
+                        if (trusted == null)
+                            throw new System.NotSupportedException("Go 引擎需要预先导入已信任主机密钥；首次主机确认尚待 IPC 扩展");
+                        var presented = new PresentedHostKey(config.Host, config.Port, trusted.KeyType,
+                            System.Convert.FromBase64String(trusted.PublicKeyBase64));
+                        var outcome = await hostKeyTrust.VerifyAsync(presented, ct);
+                        if (!outcome.Accepted) throw new HostKeyRejectedException(outcome);
+                        return presented.FingerprintSha256;
+                    }),
+                () => settingsService.Current.SshTransportEngine);
 
             // 先在窗口创建前按默认 KeiClassic 挂载画刷与兼容样式，避免首帧无 Kei.* 资源；
             // 读取设置后（下方）再按实际档位幂等重挂。
@@ -322,6 +340,11 @@ public partial class App : Application
             _syncScheduler?.Dispose();
             _quitConfirmation?.Dispose();
             _systemContextMenus?.Dispose();
+            if (_goSidecar != null)
+            {
+                // Exit 为同步事件，在后台完成 IPC 关闭，避免阻塞 UI 同步上下文中的 await。
+                Task.Run(async () => await _goSidecar.DisposeAsync()).GetAwaiter().GetResult();
+            }
             _loggerFactory?.Dispose();
         };
 

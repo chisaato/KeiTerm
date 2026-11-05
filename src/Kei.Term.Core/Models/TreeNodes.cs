@@ -4,6 +4,12 @@ using System.Runtime.CompilerServices;
 
 namespace Kei.Term.Core.Models;
 
+public enum SshTransportEngine
+{
+    BuiltIn = 0,
+    GoSidecar = 1
+}
+
 public enum NodeType
 {
     Folder = 0,
@@ -153,5 +159,6 @@ public record ResolvedSessionConfig(
     bool? VerifyHashOverride = null,
     bool? ArchiveDirectoriesOverride = null,
     // 用户名是否来自会话显式填写；为 false 时允许身份用户名接管
-    bool HasSessionUsername = false
+    bool HasSessionUsername = false,
+    SshTransportEngine? TransportEngineOverride = null
 );

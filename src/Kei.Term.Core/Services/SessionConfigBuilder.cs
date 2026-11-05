@@ -55,7 +55,8 @@ public static class SessionConfigBuilder
             TabTitleTemplate: settings.TabTitleTemplate,
             VerifyHashOverride: node.Overrides.VerifyHashEnabled,
             ArchiveDirectoriesOverride: node.Overrides.ArchiveDirectoriesEnabled,
-            HasSessionUsername: hasSessionUsername
+            HasSessionUsername: hasSessionUsername,
+            TransportEngineOverride: node.Overrides.TransportEngine ?? settings.SshTransportEngine
         );
     }
 
