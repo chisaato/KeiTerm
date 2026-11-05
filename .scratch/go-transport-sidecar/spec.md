@@ -45,9 +45,12 @@ KeiTerm 现阶段使用纯 C#（基于 SSH.NET）作为默认 SSH、SFTP 与端�
                           +------------------------+             +------------------------+
 ```
 
-### 2.1 契约无侵入原则
+### 2.1 契约无侵入原则与引擎开关
 - 完全实现现有 `ISshSessionFactory`、`ISshSession`（`ITerminalSession`）、`IRemoteFileSystem` 与 `IRemoteTransferChannel`。
-- 上层 View / ViewModel / `TransferQueue` 无需改动一行代码，仅通过工厂切换或会话级别配置选择传输提供者（`SshEngineType.BuiltIn` vs `SshEngineType.GoEngine`）。
+- **双层开关机制**：
+  1. **全局设置**：在 `AppSettings` 中提供 `SshTransportEngine` 开关（枚举：`BuiltIn` = 纯 C# SSH.NET 原生，`GoSidecar` = Go 核心引擎），**默认值严格保持为 `BuiltIn`**。
+  2. **会话级覆盖**：在会话属性中支持继承全局或显式覆盖，支持针对特定目标主机试验或锁定引擎。
+- 上层 View / ViewModel / `TransferQueue` 无需改动核心逻辑，仅通过工厂路由切换传输提供者。
 
 ### 2.2 进程与通信模型
 - **桌面端**：**单守护进程模式**（Daemon Mode）。
