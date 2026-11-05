@@ -125,7 +125,28 @@ public class AppSettings : System.Text.Json.Serialization.IJsonOnDeserialized, S
 
     // 默认连接偏好
     public int DefaultPort { get; set; } = 22;
-    public SshTransportEngine SshTransportEngine { get; set; } = SshTransportEngine.BuiltIn;
+    public TransportEngine TransportEngine { get; set; } = TransportEngine.BuiltIn;
+
+    [System.Text.Json.Serialization.JsonPropertyName("SshTransportEngine")]
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public TransportEngine? LegacySshTransportEngine
+    {
+        get => null;
+        set
+        {
+            if (value.HasValue && TransportEngine == TransportEngine.BuiltIn)
+            {
+                TransportEngine = value.Value;
+            }
+        }
+    }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public TransportEngine SshTransportEngine
+    {
+        get => TransportEngine;
+        set => TransportEngine = value;
+    }
     public string DefaultTerminalType { get; set; } = "xterm-256color";
     public int KeepAliveIntervalSeconds { get; set; } = 30;
 

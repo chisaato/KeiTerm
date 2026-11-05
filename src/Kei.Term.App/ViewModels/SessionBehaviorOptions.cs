@@ -53,6 +53,22 @@ public static class SessionBehaviorOptions
     public static string Describe(bool followRemoteTitle)
         => Strings.Get(followRemoteTitle ? "Behavior.TabTitle.Remote" : "Behavior.TabTitle.SessionName");
 
+    public static string Describe(TransportEngine engine)
+        => engine switch
+        {
+            TransportEngine.BuiltIn => Strings.Get("Settings.Transport.Engine.BuiltIn"),
+            TransportEngine.GoCore => Strings.Get("Settings.Transport.Engine.GoCore"),
+            _ => engine.ToString()
+        };
+
+    // 「继承（当前全局：xxx）」+ 各显式值
+    public static IReadOnlyList<InheritableOption<TransportEngine>> InheritableTransportEngine(TransportEngine globalDefault)
+        => [
+            new(null, Strings.Format("Behavior.Inherit", Describe(globalDefault))),
+            new(TransportEngine.BuiltIn, Describe(TransportEngine.BuiltIn)),
+            new(TransportEngine.GoCore, Describe(TransportEngine.GoCore))
+        ];
+
     // 「继承（当前全局：xxx）」+ 各显式值
     public static IReadOnlyList<InheritableOption<CwdFollowMode>> InheritableCwdFollow(CwdFollowMode globalDefault)
         => [

@@ -25,10 +25,12 @@ public partial class SettingsViewModel : ViewModelBase
     private readonly GeneralSettingsPage _general;
     private readonly AppearanceSettingsPage _appearance;
     private readonly TerminalSettingsPage _terminal;
+    private readonly TransportSettingsPage _transport;
     private readonly SshSettingsPage _ssh;
     private readonly SecuritySettingsPage _security;
     private readonly FileTransferSettingsPage _fileTransfer;
 
+    public TransportSettingsPage Transport => _transport;
     public FileTransferSettingsPage FileTransfer => _fileTransfer;
 
     public SecuritySettingsPage Security => _security;
@@ -115,9 +117,26 @@ public partial class SettingsViewModel : ViewModelBase
         _general = new GeneralSettingsPage(dataDirectory);
         _appearance = new AppearanceSettingsPage();
         _terminal = new TerminalSettingsPage();
+        _transport = new TransportSettingsPage();
         _ssh = new SshSettingsPage(identityRepo, _general);
         _security = new SecuritySettingsPage(vault);
         _fileTransfer = new FileTransferSettingsPage(editorRepo, _terminal);
+
+        // 联动通用传输超时与保活心跳
+        _transport.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(TransportSettingsPage.ConnectTimeoutSeconds))
+                _ssh.ConnectTimeoutSeconds = _transport.ConnectTimeoutSeconds;
+            else if (e.PropertyName == nameof(TransportSettingsPage.KeepAliveIntervalSeconds))
+                _ssh.KeepAliveIntervalSeconds = _transport.KeepAliveIntervalSeconds;
+        };
+        _ssh.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(SshSettingsPage.ConnectTimeoutSeconds))
+                _transport.ConnectTimeoutSeconds = _ssh.ConnectTimeoutSeconds;
+            else if (e.PropertyName == nameof(SshSettingsPage.KeepAliveIntervalSeconds))
+                _transport.KeepAliveIntervalSeconds = _ssh.KeepAliveIntervalSeconds;
+        };
         if (proxyRepo != null)
         {
             ProxyPage = new ProxySettingsPage(proxyRepo, sessionSnapshot ?? (() => []));
@@ -171,6 +190,12 @@ public partial class SettingsViewModel : ViewModelBase
 
             // 连接
             SettingsCategoryItem.CreateHeader(Strings.Get("Settings.Groups.Connection")),
+            new SettingsCategoryItem(
+                Strings.Get("Settings.Categories.Transport"),
+                Strings.Get("Settings.Categories.TransportDesc"),
+                _transport,
+                SettingsIcons.Transport,
+                Strings.Get("Settings.Groups.Connection")),
             new SettingsCategoryItem(
                 Strings.Get("Settings.Categories.Ssh"),
                 Strings.Get("Settings.Categories.SshDesc"),
@@ -346,6 +371,10 @@ public partial class SettingsViewModel : ViewModelBase
         _ssh.CustomAgentSocketPath = current.CustomAgentSocketPath ?? string.Empty;
         _ssh.HostKeyPolicy = current.HostKeyPolicy;
 
+        _transport.SelectedEngine = current.TransportEngine;
+        _transport.ConnectTimeoutSeconds = current.ConnectTimeoutSeconds;
+        _transport.KeepAliveIntervalSeconds = current.KeepAliveIntervalSeconds;
+
         // 异步加载身份列表填充下拉，加载完成后按 SelectedIdentityId 恢复选中
         _ = _ssh.LoadIdentitiesAsync();
     }
@@ -427,6 +456,9 @@ public partial class SettingsViewModel : ViewModelBase
         settings.TabTitleTemplate = _terminal.TabTitleTemplate.Trim();
         settings.CwdFollowMode = _terminal.SelectedCwdFollow?.Mode ?? CwdFollowMode.Off;
         settings.TerminalMultiplexerMode = _terminal.SelectedMultiplexer?.Mode ?? TerminalMultiplexerMode.Auto;
+
+        // 传输引擎
+        settings.TransportEngine = _transport.SelectedEngine;
 
         // SSH
         settings.DefaultPort = _ssh.DefaultPort is >= 1 and <= 65535 ? _ssh.DefaultPort : 22;

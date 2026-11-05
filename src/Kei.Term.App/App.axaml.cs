@@ -182,7 +182,7 @@ public partial class App : Application
                         if (!outcome.Accepted) throw new HostKeyRejectedException(outcome);
                         return presented.FingerprintSha256;
                     }),
-                () => settingsService.Current.SshTransportEngine);
+                () => settingsService.Current.TransportEngine);
 
             // 先在窗口创建前按默认 KeiClassic 挂载画刷与兼容样式，避免首帧无 Kei.* 资源；
             // 读取设置后（下方）再按实际档位幂等重挂。

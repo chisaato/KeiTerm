@@ -9,15 +9,15 @@ public sealed class CompositeSshSessionFactory : ISshSessionFactory
 {
     private readonly ISshSessionFactory _builtIn;
     private readonly Lazy<ISshSessionFactory> _go;
-    private readonly Func<SshTransportEngine> _defaultEngine;
+    private readonly Func<TransportEngine> _defaultEngine;
     public CompositeSshSessionFactory(ISshSessionFactory builtIn, Func<ISshSessionFactory> go,
-        Func<SshTransportEngine>? defaultEngine = null)
-    { _builtIn = builtIn; _go = new(go); _defaultEngine = defaultEngine ?? (() => SshTransportEngine.BuiltIn); }
+        Func<TransportEngine>? defaultEngine = null)
+    { _builtIn = builtIn; _go = new(go); _defaultEngine = defaultEngine ?? (() => TransportEngine.BuiltIn); }
     private ISshSessionFactory Resolve(ResolvedSessionConfig config) => (config.TransportEngineOverride ?? _defaultEngine()) switch
     {
-        SshTransportEngine.BuiltIn => _builtIn,
-        SshTransportEngine.GoSidecar => _go.Value,
-        _ => throw new ArgumentOutOfRangeException(nameof(config), "未知 SSH 传输引擎")
+        TransportEngine.BuiltIn => _builtIn,
+        TransportEngine.GoCore => _go.Value,
+        _ => throw new ArgumentOutOfRangeException(nameof(config), "未知传输引擎")
     };
     public Task<ISshSession> CreateSessionAsync(ResolvedSessionConfig config, IReadOnlyList<MaterializedAuthMethod> methods,
         SshConnectOptions? options = null, CancellationToken ct = default) => Resolve(config).CreateSessionAsync(config, methods, options, ct);

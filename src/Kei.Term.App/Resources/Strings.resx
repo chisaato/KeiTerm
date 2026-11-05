@@ -2839,4 +2839,76 @@ Latin: AaBb CcDd GgYy gypq
   <data name="Toast.Action.Close" xml:space="preserve"><value>关闭</value></data>
   <data name="Toast.Action.Expand" xml:space="preserve"><value>展开</value></data>
   <data name="Toast.Action.Collapse" xml:space="preserve"><value>收起</value></data>
+  <data name="Settings.Categories.Transport" xml:space="preserve">
+    <value>传输引擎</value>
+  </data>
+  <data name="Settings.Categories.TransportDesc" xml:space="preserve">
+    <value>底层通信引擎与通道</value>
+  </data>
+  <data name="Settings.Categories.TransportPageDescription" xml:space="preserve">
+    <value>配置 SSH、SFTP 及通用流传输的底层引擎与通道参数</value>
+  </data>
+  <data name="Settings.Transport.EngineSection" xml:space="preserve">
+    <value>传输引擎</value>
+  </data>
+  <data name="Settings.Transport.Engine" xml:space="preserve">
+    <value>首选传输引擎</value>
+  </data>
+  <data name="Settings.Transport.EngineTip" xml:space="preserve">
+    <value>选择会话建立与数据流传输的底层核心实现</value>
+  </data>
+  <data name="Settings.Transport.Engine.BuiltIn" xml:space="preserve">
+    <value>原生托管 (.NET)</value>
+  </data>
+  <data name="Settings.Transport.Engine.BuiltInDesc" xml:space="preserve">
+    <value>基于纯 .NET/SSH.NET 实现，轻量稳定，进程内运行无额外依赖。</value>
+  </data>
+  <data name="Settings.Transport.Engine.GoCore" xml:space="preserve">
+    <value>Go 核心引擎 (实验性)</value>
+  </data>
+  <data name="Settings.Transport.Engine.GoCoreDesc" xml:space="preserve">
+    <value>基于 Go 独立进程引擎，支持并发 SFTP 分块、FIDO2 密钥直连，未来提供 Telnet 与串口通用通道。</value>
+  </data>
+  <data name="Settings.Transport.FeaturesSection" xml:space="preserve">
+    <value>引擎特性概览</value>
+  </data>
+  <data name="Settings.Transport.GeneralOptionsSection" xml:space="preserve">
+    <value>通道与传输参数</value>
+  </data>
+  <data name="Settings.Transport.Feature.SshSftp" xml:space="preserve">
+    <value>SSH 终端与 SFTP 传输</value>
+  </data>
+  <data name="Settings.Transport.Feature.Fido2" xml:space="preserve">
+    <value>硬件安全密钥 (FIDO2/SK)</value>
+  </data>
+  <data name="Settings.Transport.Feature.ConcurrentChunk" xml:space="preserve">
+    <value>SFTP 并发分块传输</value>
+  </data>
+  <data name="Settings.Transport.Feature.ExtendedProtocols" xml:space="preserve">
+    <value>扩展协议 (Telnet / Serial)</value>
+  </data>
+  <data name="Settings.Transport.Status.Stable" xml:space="preserve">
+    <value>稳定支持</value>
+  </data>
+  <data name="Settings.Transport.Status.AgentBridge" xml:space="preserve">
+    <value>通过 Agent 桥接</value>
+  </data>
+  <data name="Settings.Transport.Status.Direct" xml:space="preserve">
+    <value>原生直连</value>
+  </data>
+  <data name="Settings.Transport.Status.Planned" xml:space="preserve">
+    <value>架构规划中</value>
+  </data>
+  <data name="Settings.Transport.Status.Supported" xml:space="preserve">
+    <value>支持</value>
+  </data>
+  <data name="Settings.Transport.Status.Standard" xml:space="preserve">
+    <value>标准单通道</value>
+  </data>
+  <data name="SessionEdit.TransportEngine" xml:space="preserve">
+    <value>传输引擎:</value>
+  </data>
+  <data name="SessionEdit.TransportEngine.Tip" xml:space="preserve">
+    <value>覆盖此会话所使用的底层传输引擎</value>
+  </data>
 </root>

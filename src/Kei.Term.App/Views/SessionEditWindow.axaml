@@ -51,7 +51,7 @@
                         <StackPanel Spacing="14" IsVisible="{Binding SelectedCategory.Page, Converter={x:Static ObjectConverters.Equal}, ConverterParameter='Connection'}">
                             <TextBlock Text="{loc:KeiString SessionEdit.BasicSection}" FontWeight="Bold" Foreground="{DynamicResource Kei.Text.Primary}" FontSize="13"/>
 
-                            <Grid ColumnDefinitions="120, *" ColumnSpacing="12" RowDefinitions="Auto, Auto, Auto, Auto, Auto, Auto, Auto, Auto" RowSpacing="10">
+                            <Grid ColumnDefinitions="120, *" ColumnSpacing="12" RowDefinitions="Auto, Auto, Auto, Auto, Auto, Auto, Auto, Auto, Auto" RowSpacing="10">
                                 <!-- 显示名称 -->
                                 <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString SessionEdit.Name}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
                                 <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Name}" PlaceholderText="{loc:KeiString SessionEdit.Name.Placeholder}"/>
@@ -92,9 +92,13 @@
                                 <TextBlock Grid.Row="6" Grid.Column="0" Text="{loc:KeiString Settings.Ssh.ConnectTimeout}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
                                 <ComboBox Grid.Row="6" Grid.Column="1" ItemsSource="{Binding ConnectTimeoutOptions}" SelectedItem="{Binding SelectedConnectTimeout}" HorizontalAlignment="Stretch"/>
 
+                                <!-- 传输引擎覆盖 -->
+                                <TextBlock Grid.Row="7" Grid.Column="0" Text="{loc:KeiString SessionEdit.TransportEngine}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                <ComboBox x:Name="SessionTransportEngineComboBox" Grid.Row="7" Grid.Column="1" ItemsSource="{Binding TransportEngineOptions}" SelectedItem="{Binding SelectedTransportEngine}" HorizontalAlignment="Stretch"/>
+
                                 <!-- 描述说明 -->
-                                <TextBlock Grid.Row="7" Grid.Column="0" Text="{loc:KeiString SessionEdit.Description}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
-                                <TextBox Grid.Row="7" Grid.Column="1" Text="{Binding Description}" PlaceholderText="{loc:KeiString SessionEdit.Description.Placeholder}"/>
+                                <TextBlock Grid.Row="8" Grid.Column="0" Text="{loc:KeiString SessionEdit.Description}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                <TextBox Grid.Row="8" Grid.Column="1" Text="{Binding Description}" PlaceholderText="{loc:KeiString SessionEdit.Description.Placeholder}"/>
                             </Grid>
                         </StackPanel>
 

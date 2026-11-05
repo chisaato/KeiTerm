@@ -1,0 +1,129 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:settings="using:Kei.Term.App.ViewModels.Settings"
+             xmlns:controls="using:Kei.Term.App.Views.Settings.Controls"
+             xmlns:loc="using:Kei.Term.App.Helpers"
+             x:Class="Kei.Term.App.Views.Settings.TransportSettingsPageView"
+             x:DataType="settings:TransportSettingsPage">
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" MaxWidth="{StaticResource Kei.Settings.ContentMaxWidth}"/>
+            <ColumnDefinition Width="0.001*"/>
+        </Grid.ColumnDefinitions>
+
+        <StackPanel Grid.Column="0" Spacing="16">
+            <!-- 页头：面包屑 + 标题 + 描述 -->
+            <controls:SettingsPageHeader Group="{loc:KeiString Settings.Groups.Connection}"
+                                         Title="{loc:KeiString Settings.Categories.Transport}"
+                                         Description="{loc:KeiString Settings.Categories.TransportDesc}"/>
+
+            <!-- 1. 传输引擎选择卡片 -->
+            <Border Classes="settingsCard">
+                <StackPanel Spacing="10">
+                    <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.Transport.EngineSection}"/>
+
+                    <controls:SettingRow Title="{loc:KeiString Settings.Transport.Engine}"
+                                         Description="{loc:KeiString Settings.Transport.EngineTip}">
+                        <ComboBox HorizontalAlignment="Right" MinWidth="220"
+                                  ItemsSource="{Binding EngineOptions}"
+                                  SelectedItem="{Binding SelectedEngineOption}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="settings:TransportEngineOption">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center" FontFamily="{DynamicResource Kei.Font.UI}"/>
+                                        <Border IsVisible="{Binding Tag, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                Background="{DynamicResource Kei.Accent.Subtle}"
+                                                CornerRadius="4"
+                                                Padding="4,1"
+                                                VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Tag}" FontSize="12" Foreground="{DynamicResource Kei.Accent}" FontWeight="Bold"/>
+                                        </Border>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </controls:SettingRow>
+
+                    <Border Classes="settingRowDivider"/>
+
+                    <!-- 当前选中引擎特性说明条 -->
+                    <Border Background="{DynamicResource Kei.Bg.Subtle}"
+                            BorderBrush="{DynamicResource Kei.Border.Subtle}"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="12,10">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="{Binding CurrentEngineDescription}"
+                                       Foreground="{DynamicResource Kei.Text.Secondary}"
+                                       FontSize="12"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <!-- 2. 引擎能力与协议规划矩阵卡片 -->
+            <Border Classes="settingsCard">
+                <StackPanel Spacing="12">
+                    <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.Transport.FeaturesSection}"/>
+
+                    <!-- 特性对照列表 -->
+                    <Border BorderBrush="{DynamicResource Kei.Border.Subtle}"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            ClipToBounds="True">
+                        <StackPanel>
+                            <!-- 表头 -->
+                            <Grid ColumnDefinitions="140, 100, 110, *"
+                                  Background="{DynamicResource Kei.Bg.Subtle}"
+                                  Height="32">
+                                <TextBlock Grid.Column="0" Text="功能特性" VerticalAlignment="Center" Margin="10,0" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                <TextBlock Grid.Column="1" Text="原生托管" VerticalAlignment="Center" Margin="6,0" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                <TextBlock Grid.Column="2" Text="Go 核心引擎" VerticalAlignment="Center" Margin="6,0" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                <TextBlock Grid.Column="3" Text="技术说明" VerticalAlignment="Center" Margin="6,0" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                            </Grid>
+
+                            <!-- 行列表 -->
+                            <ItemsControl ItemsSource="{Binding Features}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="settings:TransportFeatureItem">
+                                        <Border BorderBrush="{DynamicResource Kei.Border.Subtle}" BorderThickness="0,1,0,0">
+                                            <Grid ColumnDefinitions="140, 100, 110, *" MinHeight="34" Margin="0,2">
+                                                <TextBlock Grid.Column="0" Text="{Binding FeatureName}" VerticalAlignment="Center" Margin="10,0" FontSize="12" Foreground="{DynamicResource Kei.Text.Primary}"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding BuiltInSupport}" VerticalAlignment="Center" Margin="6,0" FontSize="12" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                                <TextBlock Grid.Column="2" Text="{Binding GoCoreSupport}" VerticalAlignment="Center" Margin="6,0" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource Kei.Accent}"/>
+                                                <TextBlock Grid.Column="3" Text="{Binding Note}" VerticalAlignment="Center" Margin="6,0" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}" TextTrimming="CharacterEllipsis"/>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <!-- 3. 通用传输与通道参数卡片 -->
+            <Border Classes="settingsCard">
+                <StackPanel Spacing="10">
+                    <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.Transport.GeneralOptionsSection}"/>
+
+                    <controls:SettingRow Title="{loc:KeiString Settings.Ssh.ConnectTimeout}"
+                                         Description="{loc:KeiString Settings.Ssh.ConnectTimeoutTip}">
+                        <NumericUpDown HorizontalAlignment="Right" MinWidth="180"
+                                       Value="{Binding ConnectTimeoutSeconds}" Minimum="3" Maximum="300" FormatString="0"/>
+                    </controls:SettingRow>
+
+                    <Border Classes="settingRowDivider"/>
+
+                    <controls:SettingRow Title="{loc:KeiString Settings.Ssh.KeepAliveInterval}"
+                                         Description="{loc:KeiString Settings.Ssh.KeepAliveIntervalTip}">
+                        <NumericUpDown HorizontalAlignment="Right" MinWidth="180"
+                                       Value="{Binding KeepAliveIntervalSeconds}" Minimum="0" Maximum="300" FormatString="0"/>
+                    </controls:SettingRow>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </Grid>
+</UserControl>

@@ -22,6 +22,9 @@ public static class SettingsIcons
     // lucide:lock-keyhole
     public const string Ssh = "M11,16 A1,1 0 1 0 13,16 A1,1 0 1 0 11,16 Z M5,10 H19 A2,2 0 0 1 21,12 V20 A2,2 0 0 1 19,22 H5 A2,2 0 0 1 3,20 V12 A2,2 0 0 1 5,10 Z M7 10V7a5 5 0 0 1 10 0v3";
 
+    // lucide:plug
+    public const string Transport = "M12 22v-5m3-9V2m2 6a1 1 0 0 1 1 1v4a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1zM9 8V2";
+
     // lucide:folder-sync
     public const string FileTransfer = "M9 20H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H20a2 2 0 0 1 2 2v.5 M12 10v4h4 M12,14l1.535-1.605a5 5 0 0 1 8 1.5M22 22v-4h-4 M22,18l-1.535 1.605a5 5 0 0 1-8-1.5";
 }

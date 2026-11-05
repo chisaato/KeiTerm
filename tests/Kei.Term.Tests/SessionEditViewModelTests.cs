@@ -58,6 +58,33 @@ public class SessionEditViewModelTests
     }
 
     [Fact]
+    public void SessionEditViewModel_AppliesTransportEngineOverrideToModel()
+    {
+        var settings = new AppSettings { TransportEngine = TransportEngine.BuiltIn };
+        var existing = new SessionNode
+        {
+            Name = "Server",
+            Host = "1.2.3.4",
+            Overrides = new SessionOverrides { TransportEngine = TransportEngine.GoCore }
+        };
+
+        var vm = new SessionEditViewModel(existing, null, [], settings);
+
+        // 初始化时识别已存在的 GoCore 覆盖
+        Assert.Equal(TransportEngine.GoCore, vm.SelectedTransportEngine?.Value);
+
+        // 修改为 BuiltIn
+        vm.SelectedTransportEngine = vm.TransportEngineOptions.First(o => o.Value == TransportEngine.BuiltIn);
+        var updated = vm.ApplyToModel(existing);
+        Assert.Equal(TransportEngine.BuiltIn, updated.Overrides.TransportEngine);
+
+        // 修改为继承全局（null）
+        vm.SelectedTransportEngine = vm.TransportEngineOptions.First(o => o.Value == null);
+        updated = vm.ApplyToModel(existing);
+        Assert.Null(updated.Overrides.TransportEngine);
+    }
+
+    [Fact]
     public void NewSession_FirewallDefaultsToNone_AndDoesNotListSessions()
     {
         var bastion = new SessionNode { Name = "bastion", Host = "10.0.0.1", Username = "root", Port = 22 };

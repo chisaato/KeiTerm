@@ -19,15 +19,15 @@ namespace Kei.Term.Tests;
 public class GoTransportTests
 {
     [Theory]
-    [InlineData(SshTransportEngine.BuiltIn, null, SshTransportEngine.BuiltIn)]
-    [InlineData(SshTransportEngine.GoSidecar, null, SshTransportEngine.GoSidecar)]
-    [InlineData(SshTransportEngine.GoSidecar, SshTransportEngine.BuiltIn, SshTransportEngine.BuiltIn)]
-    [InlineData(SshTransportEngine.BuiltIn, SshTransportEngine.GoSidecar, SshTransportEngine.GoSidecar)]
-    public void Builder_ResolvesEngine(SshTransportEngine global, SshTransportEngine? session, SshTransportEngine expected)
+    [InlineData(TransportEngine.BuiltIn, null, TransportEngine.BuiltIn)]
+    [InlineData(TransportEngine.GoCore, null, TransportEngine.GoCore)]
+    [InlineData(TransportEngine.GoCore, TransportEngine.BuiltIn, TransportEngine.BuiltIn)]
+    [InlineData(TransportEngine.BuiltIn, TransportEngine.GoCore, TransportEngine.GoCore)]
+    public void Builder_ResolvesEngine(TransportEngine global, TransportEngine? session, TransportEngine expected)
     {
         var node = new SessionNode { Host = "example.test" };
         node.Overrides.TransportEngine = session;
-        Assert.Equal(expected, SessionConfigBuilder.Build(node, new AppSettings { SshTransportEngine = global }).TransportEngineOverride);
+        Assert.Equal(expected, SessionConfigBuilder.Build(node, new AppSettings { TransportEngine = global }).TransportEngineOverride);
     }
 
     [Fact]
@@ -51,7 +51,7 @@ public class GoTransportTests
     {
         await using var manager = new GoSidecarProcessManager("/nonexistent/kei-trans-daemon");
         var factory = new CompositeSshSessionFactory(new SshSessionFactory(), () => new GoSshSessionFactory(manager));
-        var config = SessionConfigBuilder.Build(new SessionNode { Host = "example.test" }, new AppSettings { SshTransportEngine = SshTransportEngine.GoSidecar });
+        var config = SessionConfigBuilder.Build(new SessionNode { Host = "example.test" }, new AppSettings { TransportEngine = TransportEngine.GoCore });
         await using var session = await factory.CreateSessionAsync(config, []);
         Assert.IsType<GoSshSession>(session);
         await Assert.ThrowsAsync<NotSupportedException>(() => session.ConnectAsync());

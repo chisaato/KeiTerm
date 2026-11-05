@@ -80,6 +80,12 @@
                                 <pages:TabBarSettingsPageView/>
                             </DataTemplate>
 
+                            <!-- 传输引擎页 -->
+                            <DataTemplate DataType="settings:TransportSettingsPage"
+                                          x:DataType="settings:TransportSettingsPage">
+                                <pages:TransportSettingsPageView/>
+                            </DataTemplate>
+
                             <!-- SSH 页 -->
                             <DataTemplate DataType="settings:SshSettingsPage"
                                           x:DataType="settings:SshSettingsPage">

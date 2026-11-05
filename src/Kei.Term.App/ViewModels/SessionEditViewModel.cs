@@ -108,6 +108,12 @@ public partial class SessionEditViewModel : ViewModelBase
 
     public IReadOnlyList<InheritableOption<int>> ConnectTimeoutOptions { get; }
 
+    // 选中的传输引擎选项（继承全局 / 原生托管 / Go核心引擎）
+    [ObservableProperty]
+    private InheritableOption<TransportEngine>? _selectedTransportEngine;
+
+    public IReadOnlyList<InheritableOption<TransportEngine>> TransportEngineOptions { get; }
+
     [ObservableProperty]
     private ObservableCollection<SettingsCategoryItem> _categories = [];
 
@@ -148,11 +154,13 @@ public partial class SessionEditViewModel : ViewModelBase
 
         TitleFollowOptions = SessionBehaviorOptions.InheritableTitleFollow(global.TabTitleFollowsRemote);
         ConnectTimeoutOptions = SessionBehaviorOptions.InheritableConnectTimeout(global.ConnectTimeoutSeconds);
+        TransportEngineOptions = SessionBehaviorOptions.InheritableTransportEngine(global.TransportEngine);
         SessionOverrides overrides = existing?.Overrides ?? new SessionOverrides();
         InitializeTerminalUploadPreference(overrides, global);
         InitializeDirectoryFollowPreferences(overrides, global);
         SelectedTitleFollow = TitleFollowOptions.First(o => o.Value == overrides.FollowRemoteTitle);
         SelectedConnectTimeout = ConnectTimeoutOptions.FirstOrDefault(o => o.Value == overrides.ConnectTimeoutSeconds) ?? ConnectTimeoutOptions[0];
+        SelectedTransportEngine = TransportEngineOptions.FirstOrDefault(o => o.Value == overrides.TransportEngine) ?? TransportEngineOptions[0];
 
         Identities.Add(new IdentityOption(null, Strings.Get("SessionEdit.IdentityNone")));
         foreach (var identity in availableIdentities)
@@ -356,6 +364,7 @@ public partial class SessionEditViewModel : ViewModelBase
         model.FileTransferProtocol = SelectedProtocol;
         model.SftpMode = SelectedSftpMode;
         // 只改本窗口管理的覆盖项，其余覆盖项（如批量修改设置的新项）原样保留
+        model.Overrides.TransportEngine = SelectedTransportEngine?.Value;
         model.Overrides.FollowRemoteTitle = SelectedTitleFollow?.Value;
         ApplyDirectoryFollowPreferences(model.Overrides);
         model.Overrides.ConnectTimeoutSeconds = SelectedConnectTimeout?.Value;

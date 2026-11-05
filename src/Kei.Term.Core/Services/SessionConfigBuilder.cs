@@ -56,7 +56,7 @@ public static class SessionConfigBuilder
             VerifyHashOverride: node.Overrides.VerifyHashEnabled,
             ArchiveDirectoriesOverride: node.Overrides.ArchiveDirectoriesEnabled,
             HasSessionUsername: hasSessionUsername,
-            TransportEngineOverride: node.Overrides.TransportEngine ?? settings.SshTransportEngine
+            TransportEngineOverride: node.Overrides.TransportEngine ?? settings.TransportEngine
         );
     }
 

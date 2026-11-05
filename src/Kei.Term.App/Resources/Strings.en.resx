@@ -666,4 +666,76 @@
   <data name="Toast.Action.Close" xml:space="preserve"><value>Close</value></data>
   <data name="Toast.Action.Expand" xml:space="preserve"><value>Expand</value></data>
   <data name="Toast.Action.Collapse" xml:space="preserve"><value>Collapse</value></data>
+  <data name="Settings.Categories.Transport" xml:space="preserve">
+    <value>Transport</value>
+  </data>
+  <data name="Settings.Categories.TransportDesc" xml:space="preserve">
+    <value>Underlying communication engine and channels</value>
+  </data>
+  <data name="Settings.Categories.TransportPageDescription" xml:space="preserve">
+    <value>Configure underlying engine and channel options for SSH, SFTP, and streaming transports</value>
+  </data>
+  <data name="Settings.Transport.EngineSection" xml:space="preserve">
+    <value>Transport Engine</value>
+  </data>
+  <data name="Settings.Transport.Engine" xml:space="preserve">
+    <value>Preferred Transport Engine</value>
+  </data>
+  <data name="Settings.Transport.EngineTip" xml:space="preserve">
+    <value>Select the underlying core implementation for session establishment and streaming data</value>
+  </data>
+  <data name="Settings.Transport.Engine.BuiltIn" xml:space="preserve">
+    <value>Managed Native (.NET)</value>
+  </data>
+  <data name="Settings.Transport.Engine.BuiltInDesc" xml:space="preserve">
+    <value>Pure .NET/SSH.NET implementation. Lightweight, stable, running in-process without external processes.</value>
+  </data>
+  <data name="Settings.Transport.Engine.GoCore" xml:space="preserve">
+    <value>Go Core Engine (Experimental)</value>
+  </data>
+  <data name="Settings.Transport.Engine.GoCoreDesc" xml:space="preserve">
+    <value>Out-of-process Go core engine supporting concurrent SFTP chunking, direct FIDO2 keys, and future Telnet/Serial adapters.</value>
+  </data>
+  <data name="Settings.Transport.FeaturesSection" xml:space="preserve">
+    <value>Engine Features</value>
+  </data>
+  <data name="Settings.Transport.GeneralOptionsSection" xml:space="preserve">
+    <value>Channel &amp; Transmission Parameters</value>
+  </data>
+  <data name="Settings.Transport.Feature.SshSftp" xml:space="preserve">
+    <value>SSH Terminal &amp; SFTP Transfer</value>
+  </data>
+  <data name="Settings.Transport.Feature.Fido2" xml:space="preserve">
+    <value>Hardware Security Keys (FIDO2/SK)</value>
+  </data>
+  <data name="Settings.Transport.Feature.ConcurrentChunk" xml:space="preserve">
+    <value>Concurrent SFTP Chunked Transfer</value>
+  </data>
+  <data name="Settings.Transport.Feature.ExtendedProtocols" xml:space="preserve">
+    <value>Extended Protocols (Telnet / Serial)</value>
+  </data>
+  <data name="Settings.Transport.Status.Stable" xml:space="preserve">
+    <value>Stable</value>
+  </data>
+  <data name="Settings.Transport.Status.AgentBridge" xml:space="preserve">
+    <value>Via Agent Bridge</value>
+  </data>
+  <data name="Settings.Transport.Status.Direct" xml:space="preserve">
+    <value>Native Direct</value>
+  </data>
+  <data name="Settings.Transport.Status.Planned" xml:space="preserve">
+    <value>Planned</value>
+  </data>
+  <data name="Settings.Transport.Status.Supported" xml:space="preserve">
+    <value>Supported</value>
+  </data>
+  <data name="Settings.Transport.Status.Standard" xml:space="preserve">
+    <value>Standard Single Channel</value>
+  </data>
+  <data name="SessionEdit.TransportEngine" xml:space="preserve">
+    <value>Transport Engine:</value>
+  </data>
+  <data name="SessionEdit.TransportEngine.Tip" xml:space="preserve">
+    <value>Override the underlying transport engine for this session</value>
+  </data>
 </root>
