@@ -473,6 +473,25 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
 
         _allNodesCache = fromDb;
         RefreshTreeFromCache();
+        RebindOpenTabsToSessions();
+    }
+
+    /* 树节点重新加载后，将当前打开的标签重新挂接到最新会话节点实例，若会话已不存在则解除旧订阅 */
+    private void RebindOpenTabsToSessions()
+    {
+        var sessionLookup = _allNodesCache.OfType<SessionNode>().ToDictionary(s => s.Id);
+        foreach (TerminalTabViewModel tab in Tabs)
+        {
+            if (tab.IsDisposed) continue;
+            if (tab.Config is { } config && sessionLookup.TryGetValue(config.SessionId, out SessionNode? matchingSession))
+            {
+                tab.BindSessionNode(matchingSession);
+            }
+            else
+            {
+                tab.BindSessionNode(null);
+            }
+        }
     }
 
     // 用缓存的扁平节点按过滤关键字重建树展示（命中节点 + 祖先链，不重复查库）

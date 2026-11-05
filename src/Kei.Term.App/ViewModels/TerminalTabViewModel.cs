@@ -447,6 +447,11 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
 
         WeakReferenceMessenger.Default.Unregister<FileManagerDockChangedMessage>(this);
         WeakReferenceMessenger.Default.Unregister<FileManagerSidebarRatioChangedMessage>(this);
+        if (_boundSessionNode != null)
+        {
+            _boundSessionNode.PropertyChanged -= OnBoundSessionNodePropertyChanged;
+            _boundSessionNode = null;
+        }
         _userDisconnect = true;
         CancelReconnect();
         await DrainDirectoryFollowAsync();

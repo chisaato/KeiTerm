@@ -30,6 +30,12 @@ public partial class MainViewModel
         // 构造只记录状态，此处显式注入配色（新标签立即生效）
         tab.ApplyTerminalProfile(effectiveProfile);
         tab.BindConfig(config);
+        SessionNode? sessionNode = _allNodesCache.OfType<SessionNode>().FirstOrDefault(n => n.Id == config.SessionId)
+            ?? ((SelectedTreeNode as SessionNode)?.Id == config.SessionId ? SelectedTreeNode as SessionNode : null);
+        if (sessionNode != null)
+        {
+            tab.BindSessionNode(sessionNode);
+        }
         tab.ConfigureTerminalFileDrop(_settingsService, Interaction);
         tab.CloseRequested += OnTabCloseRequested;
         tab.AutoReconnectEnabled = () => _settingsService.Current.AutoReconnectOnDisconnect;

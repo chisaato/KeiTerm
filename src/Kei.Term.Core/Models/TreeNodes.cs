@@ -15,11 +15,26 @@ public enum NodeType
 public abstract class TreeNodeBase : INotifyPropertyChanged
 {
     private bool _isExpanded;
+    private string _name = string.Empty;
 
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid? ParentId { get; set; }
     public abstract NodeType NodeType { get; }
-    public string Name { get; set; } = string.Empty;
+
+    /* 节点显示名称：原地重命名与界面数据绑定依赖属性变更通知 */
+    public string Name
+    {
+        get => _name;
+        set
+        {
+            if (_name != value)
+            {
+                _name = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
     public string? Description { get; set; }
     public int SortOrder { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

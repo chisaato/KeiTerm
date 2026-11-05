@@ -116,6 +116,105 @@ public class TerminalTabTitleTests
         Assert.False(tab.IsDisposed);
         Assert.Equal(ConnectionState.Disconnected, tab.State);
     }
+
+    [Fact]
+    public async Task BindSessionNode_PropagatesSessionRename_ToTabNameAndTitle()
+    {
+        var session = new SessionNode { Name = "db-primary" };
+        var tab = new TerminalTabViewModel("db-primary", "monospace", 14);
+        tab.BindConfig(new ResolvedSessionConfig(
+            session.Id, session.Name, "10.0.0.1", 22, "ops", null, "xterm-256color", null, null,
+            new Dictionary<string, string>(), FollowRemoteTitle: true));
+        tab.BindSessionNode(session);
+
+        // 未改名前
+        Assert.Equal("db-primary", tab.Title);
+
+        // 附加远端动态标题
+        tab.ApplyRemoteTitle("bash");
+        Assert.Equal("db-primary · bash", tab.Title);
+
+        // 连接管理器修改会话名
+        session.Name = "db-replica";
+
+        // TabName 与 Title 均自动联动更新，远端标题跟随保留
+        Assert.Equal("db-replica", tab.TabName);
+        Assert.Equal("db-replica · bash", tab.Title);
+        Assert.Equal("db-replica", tab.Config?.SessionName);
+
+        await tab.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task BindSessionNode_DoesNotOverrideManualRename()
+    {
+        var session = new SessionNode { Name = "db-primary" };
+        var tab = new TerminalTabViewModel("db-primary", "monospace", 14);
+        tab.BindConfig(new ResolvedSessionConfig(
+            session.Id, session.Name, "10.0.0.1", 22, "ops", null, "xterm-256color", null, null,
+            new Dictionary<string, string>()));
+        tab.BindSessionNode(session);
+
+        tab.Rename("my-special-db");
+        Assert.Equal("my-special-db", tab.Title);
+
+        session.Name = "db-replica";
+
+        // 手动自定义标题不被冲掉
+        Assert.Equal("my-special-db", tab.Title);
+        Assert.Equal("my-special-db", tab.TabName);
+        Assert.Equal("db-replica", tab.Config?.SessionName);
+
+        await tab.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task BindSessionNode_UnsubscribesOnDispose()
+    {
+        var session = new SessionNode { Name = "db-primary" };
+        var tab = new TerminalTabViewModel("db-primary", "monospace", 14);
+        tab.BindConfig(new ResolvedSessionConfig(
+            session.Id, session.Name, "10.0.0.1", 22, "ops", null, "xterm-256color", null, null,
+            new Dictionary<string, string>()));
+        tab.BindSessionNode(session);
+
+        // 释放前：修改会话名称能驱动标签名变更
+        session.Name = "db-live";
+        Assert.Equal("db-live", tab.TabName);
+
+        await tab.DisposeAsync();
+
+        // 释放后：修改会话名称不再影响已释放的标签
+        session.Name = "db-after-dispose";
+        Assert.Equal("db-live", tab.TabName);
+
+        // 已释放标签重新调用 BindSessionNode 不会重新订阅
+        tab.BindSessionNode(session);
+        session.Name = "db-never-subscribed";
+        Assert.Equal("db-live", tab.TabName);
+    }
+
+    [Fact]
+    public async Task BindSessionNode_RerendersTitleTemplate_WithNewLocalName()
+    {
+        var session = new SessionNode { Name = "db-master" };
+        var tab = new TerminalTabViewModel("db-master", "monospace", 14);
+        tab.BindConfig(new ResolvedSessionConfig(
+            session.Id, session.Name, "10.0.0.1", 22, "ops", null, "xterm-256color", null, null,
+            new Dictionary<string, string>(), TabTitleTemplate: "{local_name} | {local_host}:{local_port}"));
+        tab.BindSessionNode(session);
+
+        // 初始模板渲染
+        Assert.Equal("db-master | 10.0.0.1:22", tab.Title);
+
+        // 连接管理器修改会话名
+        session.Name = "db-standby";
+
+        // 模板自动采用新的 local_name 重新渲染
+        Assert.Equal("db-standby | 10.0.0.1:22", tab.Title);
+
+        await tab.DisposeAsync();
+    }
 }
 
 // 真实 TerminalControl：远端经 OSC 设置的标题到达标签，后台标签的响铃点亮活动标记

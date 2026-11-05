@@ -136,6 +136,69 @@ public partial class TerminalTabViewModel
         UpdateToolTip();
     }
 
+    private SessionNode? _boundSessionNode;
+
+    /* 绑定源会话节点并订阅其属性变更，若节点已有名称变更则同步最新会话名 */
+    public void BindSessionNode(SessionNode? sessionNode)
+    {
+        if (IsDisposed)
+        {
+            return;
+        }
+
+        if (ReferenceEquals(_boundSessionNode, sessionNode))
+        {
+            return;
+        }
+
+        if (_boundSessionNode != null)
+        {
+            _boundSessionNode.PropertyChanged -= OnBoundSessionNodePropertyChanged;
+        }
+
+        _boundSessionNode = sessionNode;
+
+        if (_boundSessionNode != null)
+        {
+            _boundSessionNode.PropertyChanged += OnBoundSessionNodePropertyChanged;
+            if (!string.IsNullOrWhiteSpace(_boundSessionNode.Name))
+            {
+                ApplySessionName(_boundSessionNode.Name);
+            }
+        }
+    }
+
+    private void OnBoundSessionNodePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(TreeNodeBase.Name) && sender is SessionNode session)
+        {
+            ApplySessionName(session.Name);
+        }
+    }
+
+    private void ApplySessionName(string newName)
+    {
+        if (string.IsNullOrWhiteSpace(newName))
+        {
+            return;
+        }
+
+        if (Config is { } config)
+        {
+            Config = config with { SessionName = newName };
+        }
+
+        /* 不覆盖用户在标签上的手动重命名 */
+        if (!_hasManualTitle)
+        {
+            TabName = newName;
+        }
+        else
+        {
+            UpdateToolTip();
+        }
+    }
+
     // 远端标题：去掉控制字符并截断；空标题表示远端清除了标题
     public static string? SanitizeRemoteTitle(string? raw)
     {
