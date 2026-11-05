@@ -3,10 +3,12 @@ package ipc
 import (
 	"context"
 	"crypto/subtle"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"os"
 	"strconv"
@@ -44,14 +46,18 @@ type Endpoint struct {
 	User string `json:"user"`
 	Auth Auth   `json:"auth"`
 	// The desktop must explicitly approve a SHA256 host key fingerprint first.
-	HostKeySHA256 string `json:"hostKeySha256"`
+	HostKeySHA256         string `json:"hostKeySha256"`
+	InsecureIgnoreHostKey bool   `json:"insecureIgnoreHostKey"`
 }
 type ConnectParams struct {
 	Endpoint
-	JumpHosts    []Endpoint `json:"jumpHosts"`
-	TerminalType string     `json:"terminalType"`
-	Cols         int        `json:"cols"`
-	Rows         int        `json:"rows"`
+	JumpHosts        []Endpoint        `json:"jumpHosts"`
+	TerminalType     string            `json:"terminalType"`
+	Cols             int               `json:"cols"`
+	Rows             int               `json:"rows"`
+	KeepAliveSeconds int               `json:"keepAliveSeconds"`
+	Env              map[string]string `json:"env"`
+	StartupScript    string            `json:"startupScript"`
 }
 type Shell interface {
 	io.ReadWriteCloser
@@ -81,25 +87,54 @@ func (s sshSession) OpenSFTP() (FileSystem, error)                   { return s.
 type Connector func(context.Context, ConnectParams) (Session, error)
 
 func connectSSH(ctx context.Context, p ConnectParams) (Session, error) {
+	return dialSSH(ctx, p, nil)
+}
+
+type presentedKey struct {
+	KeyType         string `json:"keyType"`
+	PublicKeyBase64 string `json:"publicKeyBase64"`
+	Fingerprint     string `json:"hostKeySha256"`
+}
+
+var errKeyProbed = errors.New("host key probe complete")
+
+func dialSSH(ctx context.Context, p ConnectParams, probe *presentedKey) (Session, error) {
 	convert := func(e Endpoint) (transport.Endpoint, error) {
 		if e.Port == 0 {
 			e.Port = 22
 		}
-		if e.Host == "" || e.User == "" || e.Port < 1 || e.Port > 65535 || e.HostKeySHA256 == "" {
+		if e.Host == "" || e.User == "" || e.Port < 1 || e.Port > 65535 || (e.HostKeySHA256 == "" && !e.InsecureIgnoreHostKey) {
 			return transport.Endpoint{}, errors.New("host, user, valid port and approved hostKeySha256 required")
 		}
 		return transport.Endpoint{Address: net.JoinHostPort(e.Host, strconv.Itoa(e.Port)), User: e.User,
 			Auth: transport.Auth{Password: e.Auth.Password, PrivateKey: []byte(e.Auth.PrivateKey), Passphrase: []byte(e.Auth.Passphrase)}, Timeout: 15 * time.Second,
 			HostKeyCallback: func(_ string, _ net.Addr, key ssh.PublicKey) error {
+				if e.HostKeySHA256 == "" && e.InsecureIgnoreHostKey {
+					log.Printf("Explicitly accepting unpinned SSH host key for %s:%d: %s", e.Host, e.Port, ssh.FingerprintSHA256(key))
+					return nil
+				}
 				if subtle.ConstantTimeCompare([]byte(ssh.FingerprintSHA256(key)), []byte(e.HostKeySHA256)) != 1 {
 					return errors.New("SSH host key fingerprint mismatch")
 				}
 				return nil
 			}}, nil
 	}
+	if probe != nil {
+		// The probe stops at key exchange, before any target authentication.
+		p.Endpoint.InsecureIgnoreHostKey = true
+		p.Endpoint.HostKeySHA256 = ""
+		password := ""
+		p.Endpoint.Auth = Auth{Password: &password}
+	}
 	target, err := convert(p.Endpoint)
 	if err != nil {
 		return nil, err
+	}
+	if probe != nil {
+		target.HostKeyCallback = func(_ string, _ net.Addr, key ssh.PublicKey) error {
+			*probe = presentedKey{key.Type(), base64.StdEncoding.EncodeToString(key.Marshal()), ssh.FingerprintSHA256(key)}
+			return errKeyProbed
+		}
 	}
 	jumps := make([]transport.Endpoint, 0, len(p.JumpHosts))
 	for _, hop := range p.JumpHosts {
@@ -113,6 +148,7 @@ func connectSSH(ctx context.Context, p ConnectParams) (Session, error) {
 	if err != nil {
 		return nil, err
 	}
+	s.StartKeepAlive(time.Duration(p.KeepAliveSeconds) * time.Second)
 	return sshSession{s}, nil
 }
 
@@ -306,6 +342,20 @@ func (r *Router) call(p *peer, req Request) (any, func(), error) {
 	if req.Method == "daemon.shutdown" {
 		return true, r.Shutdown, nil
 	}
+	if req.Method == "session.probeHostKey" {
+		var args ConnectParams
+		if json.Unmarshal(req.Params, &args) != nil {
+			return nil, nil, &RPCError{-32602, "Invalid probe params"}
+		}
+		ctx, cancel := context.WithTimeout(p.ctx, 30*time.Second)
+		defer cancel()
+		var key presentedKey
+		_, err := dialSSH(ctx, args, &key)
+		if errors.Is(err, errKeyProbed) {
+			return key, nil, nil
+		}
+		return nil, nil, err
+	}
 	if req.Method == "session.connect" {
 		var args ConnectParams
 		if json.Unmarshal(req.Params, &args) != nil || args.Cols <= 0 || args.Rows <= 0 {
@@ -322,7 +372,7 @@ func (r *Router) call(p *peer, req Request) (any, func(), error) {
 			return nil, nil, err
 		}
 		stopOpening := context.AfterFunc(ctx, func() { _ = session.Close() })
-		shell, err := session.OpenShell(transport.PTYOptions{Term: args.TerminalType, Columns: args.Cols, Rows: args.Rows})
+		shell, err := session.OpenShell(transport.PTYOptions{Term: args.TerminalType, Columns: args.Cols, Rows: args.Rows, Env: args.Env, StartupScript: args.StartupScript})
 		stopOpening()
 		if ctx.Err() != nil {
 			if shell != nil {

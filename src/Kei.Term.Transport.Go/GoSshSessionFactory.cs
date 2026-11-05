@@ -1,18 +1,26 @@
 using Kei.Term.Core.Abstractions;
 using Kei.Term.Core.Models;
+using Kei.Term.Core.Security;
 using Kei.Term.Ssh.Abstractions;
 
 namespace Kei.Term.Transport.Go;
 
 // 指纹必须来自已审批的信任记录，禁止自动接受探测到的远端密钥。
 public delegate Task<string> GoHostKeyFingerprintResolver(ResolvedSessionConfig config, CancellationToken ct);
+public delegate Task GoHostKeyApprover(PresentedHostKey key, CancellationToken ct);
 
 public sealed class GoSshSessionFactory : ISshSessionFactory
 {
-    private readonly GoSidecarProcessManager _manager;
+    private readonly Func<CancellationToken, Task<GoIpcClient>> _getClient;
     private readonly GoHostKeyFingerprintResolver? _fingerprints;
-    public GoSshSessionFactory(GoSidecarProcessManager manager, GoHostKeyFingerprintResolver? fingerprints = null)
-    { _manager = manager; _fingerprints = fingerprints; }
+    private readonly GoHostKeyApprover? _approveHostKey;
+    public GoSshSessionFactory(GoSidecarProcessManager manager, GoHostKeyFingerprintResolver? fingerprints = null,
+        GoHostKeyApprover? approveHostKey = null)
+        : this(manager.GetClientAsync, fingerprints, approveHostKey) { }
+
+    internal GoSshSessionFactory(Func<CancellationToken, Task<GoIpcClient>> getClient,
+        GoHostKeyFingerprintResolver? fingerprints = null, GoHostKeyApprover? approveHostKey = null)
+    { _getClient = getClient; _fingerprints = fingerprints; _approveHostKey = approveHostKey; }
 
     public Task<ISshSession> CreateSessionAsync(ResolvedSessionConfig config, IReadOnlyList<MaterializedAuthMethod> methods,
         SshConnectOptions? options = null, CancellationToken ct = default)
@@ -41,10 +49,11 @@ public sealed class GoSshSessionFactory : ISshSessionFactory
         IReadOnlyList<MaterializedAuthMethod> methods, SshConnectOptions? options, CancellationToken ct)
     {
         options ??= SshConnectOptions.Default;
-        if (_fingerprints == null) throw new NotSupportedException("Go Sidecar 需要已审批的主机密钥指纹解析器；尚未接入信任记录");
-        if (options.Socks5Host != null || options.PortForwards.Count > 0 || options.KeepAliveInterval > TimeSpan.Zero ||
-            config.EnvironmentVariables.Count > 0 || !string.IsNullOrEmpty(config.StartupScript))
-            throw new NotSupportedException("当前 Go IPC 尚不支持代理、端口转发、保活、环境变量或启动脚本");
+        if (_fingerprints == null && _approveHostKey == null) throw new NotSupportedException("Go Sidecar 需要主机密钥验证服务");
+        if (options.Socks5Host != null || options.PortForwards.Count > 0)
+            throw new NotSupportedException("当前 Go IPC 尚不支持代理或端口转发");
+
+        var jumps = new List<object>();
 
         async Task<object> Endpoint(ResolvedSessionConfig target, IReadOnlyList<MaterializedAuthMethod> auth)
         {
@@ -58,7 +67,20 @@ public sealed class GoSshSessionFactory : ISshSessionFactory
                 if (Kei.Term.Ssh.Services.SshKeyFingerprint.Compute(key.Secret?.PrivateKeyContent ?? "", key.Secret?.Passphrase) == null)
                     throw new NotSupportedException("Go IPC 仅接受有效普通私钥；硬件 SK 密钥必须经 SshNet.Agent 桥接");
             }
-            string fingerprint = await _fingerprints(target, ct);
+            string fingerprint;
+            if (_approveHostKey != null)
+            {
+                // 只探测密钥，不发送目标凭据。用户确认不受 Go 握手超时限制。
+                var probeClient = await _getClient(ct);
+                var key = await probeClient.CallAsync("session.probeHostKey", new {
+                    host = target.Host, port = target.Port, user = target.Username, jumpHosts = jumps.ToArray()
+                }, ct);
+                var presented = new PresentedHostKey(target.Host, target.Port, key.GetProperty("keyType").GetString()!,
+                    Convert.FromBase64String(key.GetProperty("publicKeyBase64").GetString()!));
+                await _approveHostKey(presented, ct);
+                fingerprint = presented.FingerprintSha256;
+            }
+            else fingerprint = await _fingerprints!(target, ct);
             if (string.IsNullOrWhiteSpace(fingerprint) || !fingerprint.StartsWith("SHA256:", StringComparison.Ordinal))
                 throw new InvalidOperationException("缺少有效的已审批主机密钥指纹");
             return new { host = target.Host, port = target.Port, user = target.Username, hostKeySha256 = fingerprint,
@@ -66,20 +88,22 @@ public sealed class GoSshSessionFactory : ISshSessionFactory
                     privateKey = auth.FirstOrDefault(a => a.Kind == AuthMaterialKind.PrivateKey)?.Secret?.PrivateKeyContent,
                     passphrase = auth.FirstOrDefault(a => a.Kind == AuthMaterialKind.PrivateKey)?.Secret?.Passphrase } };
         }
-        var endpoint = await Endpoint(config, methods);
-        var jumps = new List<object>();
         foreach (var hop in options.JumpHosts)
         {
             if (hop.Socks5Host != null) throw new NotSupportedException("Go IPC 尚不支持跳板代理");
             jumps.Add(await Endpoint(hop.Config, hop.Methods));
         }
+        var endpoint = await Endpoint(config, methods);
         // 使用扁平 wire DTO，字段名严格匹配 Go Endpoint 内嵌结构。
         var fields = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object?>>(System.Text.Json.JsonSerializer.Serialize(endpoint))!;
         fields["jumpHosts"] = jumps;
         fields["terminalType"] = config.TerminalType;
         fields["cols"] = 80;
         fields["rows"] = 24;
-        var client = await _manager.GetClientAsync(ct);
+        fields["keepAliveSeconds"] = options.KeepAliveInterval > TimeSpan.Zero ? (int)options.KeepAliveInterval.TotalSeconds : 0;
+        fields["env"] = config.EnvironmentVariables;
+        fields["startupScript"] = config.StartupScript;
+        var client = await _getClient(ct);
         var result = await client.CallAsync("session.connect", fields, ct);
         return (client, result.GetProperty("sessionId").GetString()!, client.GetStream(result.GetProperty("streamId").GetUInt32()));
     }

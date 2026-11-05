@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"sync"
+	"time"
 
 	"golang.org/x/crypto/ssh"
 )
@@ -11,10 +12,38 @@ import (
 // Session owns an authenticated client and its jump chain. Shells and SFTP
 // clients must be closed by their callers; closing Session terminates them all.
 type Session struct {
-	client   *ssh.Client
-	clients  []*ssh.Client
-	once     sync.Once
-	closeErr error
+	client        *ssh.Client
+	clients       []*ssh.Client
+	once          sync.Once
+	closeErr      error
+	done          chan struct{}
+	keepAliveOnce sync.Once
+}
+
+// StartKeepAlive sends global requests without requiring server support/replies.
+// Closing the SSH connection also interrupts a blocked request write.
+func (s *Session) StartKeepAlive(interval time.Duration) {
+	if interval <= 0 {
+		return
+	}
+	s.keepAliveOnce.Do(func() {
+		go func() {
+			ticker := time.NewTicker(interval)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-s.done:
+					return
+				case <-ticker.C:
+					for _, client := range s.clients {
+						if _, _, err := client.SendRequest("keepalive@openssh.com", false, nil); err != nil {
+							return
+						}
+					}
+				}
+			}
+		}()
+	})
 }
 
 // Client exposes the authenticated client for protocol extensions. Ownership
@@ -23,6 +52,9 @@ func (s *Session) Client() *ssh.Client { return s.client }
 
 func (s *Session) Close() error {
 	s.once.Do(func() {
+		if s.done != nil {
+			close(s.done)
+		}
 		for i := len(s.clients) - 1; i >= 0; i-- {
 			s.closeErr = errors.Join(s.closeErr, s.clients[i].Close())
 		}
@@ -31,10 +63,12 @@ func (s *Session) Close() error {
 }
 
 type PTYOptions struct {
-	Term    string
-	Columns int
-	Rows    int
-	Modes   ssh.TerminalModes
+	Term          string
+	Columns       int
+	Rows          int
+	Modes         ssh.TerminalModes
+	Env           map[string]string
+	StartupScript string
 }
 
 type shellSession interface {
@@ -43,6 +77,7 @@ type shellSession interface {
 	StderrPipe() (io.Reader, error)
 	RequestPty(string, int, int, ssh.TerminalModes) error
 	Shell() error
+	Setenv(string, string) error
 	WindowChange(int, int) error
 	Wait() error
 	Close() error
@@ -95,8 +130,18 @@ func openShell(session shellSession, options PTYOptions) (_ *Shell, err error) {
 	if err = session.RequestPty(options.Term, options.Rows, options.Columns, options.Modes); err != nil {
 		return nil, err
 	}
+	for key, value := range options.Env {
+		if err = session.Setenv(key, value); err != nil {
+			return nil, err
+		}
+	}
 	if err = session.Shell(); err != nil {
 		return nil, err
+	}
+	if options.StartupScript != "" {
+		if _, err = io.WriteString(shell.stdin, options.StartupScript+"\n"); err != nil {
+			return nil, err
+		}
 	}
 	return shell, nil
 }

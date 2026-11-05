@@ -7,6 +7,9 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Collections.Generic;
+using Kei.Term.Core.Security;
+using Kei.Term.Ssh.Abstractions;
 using Kei.Term.Core.Models;
 using Kei.Term.Core.Services;
 using Kei.Term.Core.Settings;
@@ -18,6 +21,80 @@ namespace Kei.Term.Tests;
 
 public class GoTransportTests
 {
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task GoConnection_ProbesApprovesAndPinsKeyBeforeSendingCredentials(bool accept)
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        try
+        {
+            using var socket = new TcpClient();
+            var accepting = listener.AcceptTcpClientAsync(timeout.Token);
+            await socket.ConnectAsync((IPEndPoint)listener.LocalEndpoint, timeout.Token);
+            using var server = await accepting;
+            await using var client = new GoIpcClient(socket.GetStream());
+            byte[] rawKey = Encoding.UTF8.GetBytes("test host public key");
+            var presented = new PresentedHostKey("example.test", 22, "ssh-ed25519", rawKey);
+            bool approved = false;
+            var factory = new GoSshSessionFactory(_ => Task.FromResult(client), approveHostKey: (key, _) =>
+            {
+                Assert.Equal(presented.FingerprintSha256, key.FingerprintSha256);
+                if (!accept) throw new InvalidOperationException("用户拒绝主机密钥");
+                approved = true;
+                return Task.CompletedTask;
+            });
+            var config = SessionConfigBuilder.Build(new SessionNode { Host = "example.test" }, new AppSettings()) with
+            {
+                EnvironmentVariables = new Dictionary<string, string> { ["LANG"] = "C.UTF-8" },
+                StartupScript = "cd /work"
+            };
+            await using var session = await factory.CreateSessionAsync(config,
+                [new(Kei.Term.Core.Abstractions.AuthMaterialKind.Password, new Kei.Term.Core.Vault.SecretPayload { Password = "secret" })],
+                new SshConnectOptions { KeepAliveInterval = TimeSpan.FromSeconds(30) }, timeout.Token);
+            var connecting = session.ConnectAsync(timeout.Token);
+            var wire = server.GetStream();
+            using var probe = await ReadRequestAsync(wire, timeout.Token);
+            Assert.Equal("session.probeHostKey", probe.RootElement.GetProperty("method").GetString());
+            Assert.False(probe.RootElement.GetProperty("params").TryGetProperty("auth", out _));
+            var reply = JsonSerializer.SerializeToUtf8Bytes(new { jsonrpc = "2.0", id = probe.RootElement.GetProperty("id").GetInt64(),
+                result = new { keyType = presented.KeyType, publicKeyBase64 = Convert.ToBase64String(rawKey) } });
+            await SendAsync(wire, 0, 5, reply, timeout.Token);
+            if (!accept)
+            {
+                await Assert.ThrowsAsync<InvalidOperationException>(() => connecting);
+                Assert.False(approved);
+                return;
+            }
+            using var connect = await ReadRequestAsync(wire, timeout.Token);
+            Assert.True(approved);
+            Assert.Equal("session.connect", connect.RootElement.GetProperty("method").GetString());
+            var args = connect.RootElement.GetProperty("params");
+            Assert.Equal(presented.FingerprintSha256, args.GetProperty("hostKeySha256").GetString());
+            Assert.Equal(30, args.GetProperty("keepAliveSeconds").GetInt32());
+            Assert.Equal("C.UTF-8", args.GetProperty("env").GetProperty("LANG").GetString());
+            Assert.Equal("cd /work", args.GetProperty("startupScript").GetString());
+            Assert.Equal("secret", args.GetProperty("auth").GetProperty("password").GetString());
+            long id = connect.RootElement.GetProperty("id").GetInt64();
+            await SendAsync(wire, 0, 5, Encoding.UTF8.GetBytes($"{{\"jsonrpc\":\"2.0\",\"id\":{id},\"result\":{{\"sessionId\":\"s\",\"streamId\":7}}}}"), timeout.Token);
+            await connecting;
+            await client.DisposeAsync();
+        }
+        finally { listener.Stop(); }
+    }
+
+    private static async Task<JsonDocument> ReadRequestAsync(Stream wire, CancellationToken ct)
+    {
+        byte[] header = new byte[9];
+        await wire.ReadExactlyAsync(header, ct);
+        Assert.Equal(5, header[4]);
+        byte[] payload = new byte[BinaryPrimitives.ReadUInt32BigEndian(header.AsSpan(5))];
+        await wire.ReadExactlyAsync(payload, ct);
+        return JsonDocument.Parse(payload);
+    }
+
     [Theory]
     [InlineData(TransportEngine.BuiltIn, null, TransportEngine.BuiltIn)]
     [InlineData(TransportEngine.GoCore, null, TransportEngine.GoCore)]

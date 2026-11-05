@@ -76,7 +76,7 @@ func (d Dialer) Dial(ctx context.Context, target Endpoint, jumps ...Endpoint) (*
 			return nil, fmt.Errorf("hop %d (%s): %w", i, endpoint.Address, err)
 		}
 	}
-	return &Session{client: clients[len(clients)-1], clients: clients}, nil
+	return &Session{client: clients[len(clients)-1], clients: clients, done: make(chan struct{})}, nil
 }
 
 func handshake(ctx context.Context, conn net.Conn, address string, config *ssh.ClientConfig) (*ssh.Client, error) {

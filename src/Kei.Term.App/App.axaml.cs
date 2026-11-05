@@ -169,18 +169,16 @@ public partial class App : Application
             var sshFactory = new Kei.Term.Transport.Go.CompositeSshSessionFactory(
                 new SshSessionFactory(_loggerFactory.CreateLogger<SshSessionFactory>()),
                 () => new Kei.Term.Transport.Go.GoSshSessionFactory(_goSidecar ??= new Kei.Term.Transport.Go.GoSidecarProcessManager(),
-                    async (config, ct) =>
+                    approveHostKey: async (presented, ct) =>
                     {
-                        var candidates = await knownHostRepo.GetCandidatesAsync(config.Host, config.Port, ct);
-                        var trusted = candidates.FirstOrDefault(entry => entry.Status == KnownHostStatus.Trusted
-                            && KnownHostMatcher.Matches(entry, config.Host, config.Port));
-                        if (trusted == null)
-                            throw new System.NotSupportedException("Go 引擎需要预先导入已信任主机密钥；首次主机确认尚待 IPC 扩展");
-                        var presented = new PresentedHostKey(config.Host, config.Port, trusted.KeyType,
-                            System.Convert.FromBase64String(trusted.PublicKeyBase64));
                         var outcome = await hostKeyTrust.VerifyAsync(presented, ct);
+                        if (outcome.RequiresConfirmation)
+                        {
+                            if (await hostKeyTrust.ConfirmAsync(outcome.Evaluation, ct)) return;
+                            // 已拒绝的提示不能被连接编排器再次当作待确认处理。
+                            outcome = outcome with { Decision = HostKeyDecision.Reject };
+                        }
                         if (!outcome.Accepted) throw new HostKeyRejectedException(outcome);
-                        return presented.FingerprintSha256;
                     }),
                 () => settingsService.Current.TransportEngine);
 

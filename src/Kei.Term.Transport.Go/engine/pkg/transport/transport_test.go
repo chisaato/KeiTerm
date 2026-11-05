@@ -361,6 +361,7 @@ type memoryShell struct {
 	rows, columns int
 	term          string
 	fail          string
+	env           map[string]string
 }
 
 type nopWriteCloser struct{ io.Writer }
@@ -395,6 +396,16 @@ func (m *memoryShell) Shell() error {
 	if m.fail == "shell" {
 		return errors.New("shell")
 	}
+	return nil
+}
+func (m *memoryShell) Setenv(key, value string) error {
+	if m.fail == "env" {
+		return errors.New("env rejected")
+	}
+	if m.env == nil {
+		m.env = make(map[string]string)
+	}
+	m.env[key] = value
 	return nil
 }
 func (m *memoryShell) WindowChange(rows, columns int) error {
@@ -450,10 +461,10 @@ func TestShellStreamsResizeAndClose(t *testing.T) {
 }
 
 func TestShellStartupFailureClosesSession(t *testing.T) {
-	for _, failure := range []string{"stdin", "stdout", "stderr", "pty", "shell", "dimensions"} {
+	for _, failure := range []string{"stdin", "stdout", "stderr", "pty", "shell", "dimensions", "env"} {
 		t.Run(failure, func(t *testing.T) {
 			peer := &memoryShell{fail: failure}
-			options := PTYOptions{Columns: 80, Rows: 24}
+			options := PTYOptions{Columns: 80, Rows: 24, Env: map[string]string{"LANG": "C"}}
 			if failure == "dimensions" {
 				options.Rows = -1
 			}
@@ -464,5 +475,17 @@ func TestShellStartupFailureClosesSession(t *testing.T) {
 				t.Fatalf("failed session closed %d times", peer.closed)
 			}
 		})
+	}
+}
+
+func TestShellEnvironmentAndStartupScript(t *testing.T) {
+	peer := &memoryShell{output: strings.NewReader("")}
+	shell, err := openShell(peer, PTYOptions{Columns: 80, Rows: 24, Env: map[string]string{"LANG": "C.UTF-8"}, StartupScript: "cd /work\nprintf ready"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer shell.Close()
+	if peer.env["LANG"] != "C.UTF-8" || peer.input.String() != "cd /work\nprintf ready\n" {
+		t.Fatalf("env/script lost: %v %q", peer.env, peer.input.String())
 	}
 }
