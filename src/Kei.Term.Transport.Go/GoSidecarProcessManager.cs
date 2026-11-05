@@ -84,19 +84,35 @@ public sealed class GoSidecarProcessManager : IAsyncDisposable
         catch (Exception ex) when (ex is OperationCanceledException or ObjectDisposedException or InvalidOperationException) { }
     }
 
-    private string FindBinary()
+    private string FindBinary() => FindBinary(_binaryPath,
+        Environment.GetEnvironmentVariable("KEITERM_GO_SIDECAR_PATH"), AppContext.BaseDirectory,
+        Environment.GetEnvironmentVariable("PATH"));
+
+    internal static string FindBinary(string? binaryPath, string? environmentPath, string baseDirectory, string? searchPath)
     {
-        string? configured = _binaryPath ?? Environment.GetEnvironmentVariable("KEITERM_GO_SIDECAR_PATH");
+        string? configured = !string.IsNullOrWhiteSpace(binaryPath) ? binaryPath : environmentPath;
         if (!string.IsNullOrWhiteSpace(configured))
             return File.Exists(configured) ? Path.GetFullPath(configured) : throw new FileNotFoundException("配置的 Go Sidecar 不存在", configured);
         string name = OperatingSystem.IsWindows() ? "kei-trans-daemon.exe" : "kei-trans-daemon";
-        foreach (string directory in new[] { AppContext.BaseDirectory }.Concat((Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator)))
+        foreach (string directory in GetSearchDirectories(baseDirectory).Concat((searchPath ?? "").Split(Path.PathSeparator)))
         {
             if (string.IsNullOrWhiteSpace(directory)) continue;
             string path = Path.Combine(directory, name);
             if (File.Exists(path)) return Path.GetFullPath(path);
         }
-        throw new FileNotFoundException("找不到 kei-trans-daemon；请设置 KEITERM_GO_SIDECAR_PATH");
+        throw new FileNotFoundException("找不到 Go Sidecar（kei-trans-daemon）；请安装 Go 后重新运行 dotnet build，或将 KEITERM_GO_SIDECAR_PATH 设置为已有二进制的路径。也可切换为 BuiltIn 引擎。");
+    }
+
+    private static IEnumerable<string> GetSearchDirectories(string baseDirectory)
+    {
+        yield return baseDirectory;
+        // 从实际输出目录逐层定位源码树，兼容 App、测试和自定义构建目录的不同深度。
+        for (DirectoryInfo? directory = new(baseDirectory); directory != null; directory = directory.Parent)
+        {
+            yield return Path.Combine(directory.FullName, "src", "Kei.Term.Transport.Go", "engine", "cmd", "daemon");
+            if (directory.Name == "Kei.Term.Transport.Go")
+                yield return Path.Combine(directory.FullName, "engine", "cmd", "daemon");
+        }
     }
 
     private async Task StopProcessAsync()

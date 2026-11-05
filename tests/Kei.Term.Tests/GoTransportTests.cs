@@ -21,6 +21,41 @@ namespace Kei.Term.Tests;
 
 public class GoTransportTests
 {
+    [Fact]
+    public void SidecarSearch_PrefersConfigurationThenOutputThenSourceTreeThenPath()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "keiterm-search-" + Guid.NewGuid().ToString("N"));
+        string output = Path.Combine(root, "src", "Kei.Term.App", "bin", "Debug", "net10.0");
+        string source = Path.Combine(root, "src", "Kei.Term.Transport.Go", "engine", "cmd", "daemon");
+        string path = Path.Combine(root, "tools");
+        string name = OperatingSystem.IsWindows() ? "kei-trans-daemon.exe" : "kei-trans-daemon";
+        Directory.CreateDirectory(output);
+        Directory.CreateDirectory(source);
+        Directory.CreateDirectory(path);
+        string outputBinary = Path.Combine(output, name);
+        string sourceBinary = Path.Combine(source, name);
+        string pathBinary = Path.Combine(path, name);
+        string configured = Path.Combine(root, "configured");
+        string environment = Path.Combine(root, "environment");
+        try
+        {
+            foreach (string file in new[] { outputBinary, sourceBinary, pathBinary, configured, environment })
+                File.WriteAllText(file, "test binary");
+            Assert.Equal(configured, GoSidecarProcessManager.FindBinary(configured, environment, output, path));
+            Assert.Equal(environment, GoSidecarProcessManager.FindBinary(null, environment, output, path));
+            Assert.Equal(outputBinary, GoSidecarProcessManager.FindBinary(null, null, output, path));
+            File.Delete(outputBinary);
+            Assert.Equal(sourceBinary, GoSidecarProcessManager.FindBinary(null, null, output, path));
+            File.Delete(sourceBinary);
+            Assert.Equal(pathBinary, GoSidecarProcessManager.FindBinary(null, null, output, path));
+            File.Delete(pathBinary);
+            var error = Assert.Throws<FileNotFoundException>(() => GoSidecarProcessManager.FindBinary(null, null, output, path));
+            Assert.Contains("dotnet build", error.Message);
+            Assert.Throws<FileNotFoundException>(() => GoSidecarProcessManager.FindBinary(outputBinary, environment, output, path));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
