@@ -15,6 +15,7 @@ using Kei.Term.Core.Services;
 using Kei.Term.Core.Settings;
 using Kei.Term.Ssh.Services;
 using Kei.Term.Transport.Go;
+using Kei.Term.Infrastructure.Storage;
 using Xunit;
 
 namespace Kei.Term.Tests;
@@ -57,11 +58,22 @@ public class GoTransportTests
     }
 
     [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task GoConnection_ProbesApprovesAndPinsKeyBeforeSendingCredentials(bool accept)
+    [InlineData(false, false, HostKeyPolicy.Ask, HostKeyDecision.AcceptOnce)]
+    [InlineData(false, true, HostKeyPolicy.Ask, HostKeyDecision.AcceptOnce)]
+    [InlineData(false, false, HostKeyPolicy.Ask, HostKeyDecision.AcceptAndRemember)]
+    [InlineData(false, true, HostKeyPolicy.Ask, HostKeyDecision.AcceptAndRemember)]
+    [InlineData(false, false, HostKeyPolicy.Ask, HostKeyDecision.Reject)]
+    [InlineData(false, true, HostKeyPolicy.Strict, HostKeyDecision.Reject)]
+    [InlineData(true, false, HostKeyPolicy.Ask, HostKeyDecision.Reject)]
+    [InlineData(true, true, HostKeyPolicy.Ask, HostKeyDecision.Reject)]
+    public async Task GoConnection_SharesTrustAndDefersConfirmationBeforeSendingCredentials(
+        bool known, bool useOptionsVerifier, HostKeyPolicy policy, HostKeyDecision decision)
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        string directory = Path.Combine(Path.GetTempPath(), "keiterm-go-trust-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var repository = new SqliteKnownHostRepository($"Data Source={Path.Combine(directory, "known-hosts.db")};Pooling=False");
+        await repository.InitializeAsync();
         var listener = new TcpListener(IPAddress.Loopback, 0);
         listener.Start();
         try
@@ -73,14 +85,19 @@ public class GoTransportTests
             await using var client = new GoIpcClient(socket.GetStream());
             byte[] rawKey = Encoding.UTF8.GetBytes("test host public key");
             var presented = new PresentedHostKey("example.test", 22, "ssh-ed25519", rawKey);
-            bool approved = false;
-            var factory = new GoSshSessionFactory(_ => Task.FromResult(client), approveHostKey: (key, _) =>
+            int prompts = 0;
+            var trust = new HostKeyTrustService(repository, () => policy, (_, _) =>
             {
-                Assert.Equal(presented.FingerprintSha256, key.FingerprintSha256);
-                if (!accept) throw new InvalidOperationException("用户拒绝主机密钥");
-                approved = true;
-                return Task.CompletedTask;
+                prompts++;
+                return Task.FromResult(decision);
             });
+            if (known)
+                await repository.SaveAsync(new KnownHostEntry { Host = presented.Host, Port = presented.Port,
+                    KeyType = presented.KeyType, PublicKeyBase64 = presented.PublicKeyBase64,
+                    FingerprintSha256 = presented.FingerprintSha256, Status = KnownHostStatus.Trusted });
+            // options 中的服务必须覆盖工厂回退（即使回退服务会拒绝未知主机）。
+            var fallback = new HostKeyTrustService(repository, () => HostKeyPolicy.Strict);
+            var factory = new GoSshSessionFactory(_ => Task.FromResult(client), useOptionsVerifier ? fallback : trust);
             var config = SessionConfigBuilder.Build(new SessionNode { Host = "example.test" }, new AppSettings()) with
             {
                 EnvironmentVariables = new Dictionary<string, string> { ["LANG"] = "C.UTF-8" },
@@ -88,7 +105,8 @@ public class GoTransportTests
             };
             await using var session = await factory.CreateSessionAsync(config,
                 [new(Kei.Term.Core.Abstractions.AuthMaterialKind.Password, new Kei.Term.Core.Vault.SecretPayload { Password = "secret" })],
-                new SshConnectOptions { KeepAliveInterval = TimeSpan.FromSeconds(30) }, timeout.Token);
+                new SshConnectOptions { KeepAliveInterval = TimeSpan.FromSeconds(30),
+                    HostKeyVerifier = useOptionsVerifier ? trust : null }, timeout.Token);
             var connecting = session.ConnectAsync(timeout.Token);
             var wire = server.GetStream();
             using var probe = await ReadRequestAsync(wire, timeout.Token);
@@ -97,14 +115,35 @@ public class GoTransportTests
             var reply = JsonSerializer.SerializeToUtf8Bytes(new { jsonrpc = "2.0", id = probe.RootElement.GetProperty("id").GetInt64(),
                 result = new { keyType = presented.KeyType, publicKeyBase64 = Convert.ToBase64String(rawKey) } });
             await SendAsync(wire, 0, 5, reply, timeout.Token);
-            if (!accept)
+            Assert.Equal(0, prompts);
+            if (!known)
             {
-                await Assert.ThrowsAsync<InvalidOperationException>(() => connecting);
-                Assert.False(approved);
-                return;
+                var failure = await Assert.ThrowsAsync<HostKeyRejectedException>(() => connecting);
+                Assert.Equal(HostKeyVerdict.Unknown, failure.Outcome.Evaluation.Verdict);
+                Assert.Equal(presented.FingerprintSha256, failure.Outcome.Evaluation.Presented.FingerprintSha256);
+                Assert.Equal(policy == HostKeyPolicy.Ask, failure.Outcome.RequiresConfirmation);
+                Assert.Equal(policy == HostKeyPolicy.Ask ? (HostKeyDecision?)null : HostKeyDecision.Reject,
+                    failure.Outcome.Decision);
+                Assert.Empty(await repository.GetAllAsync());
+                // 未信任的密钥不能触发连接 RPC 或泄露认证材料。
+                Assert.False(wire.DataAvailable);
+                if (!failure.Outcome.RequiresConfirmation) return;
+                // 模拟编排器在连接外确认后重试，复用同一信任服务与已有会话。
+                bool accepted = await trust.ConfirmAsync(failure.Outcome.Evaluation, timeout.Token);
+                Assert.Equal(1, prompts);
+                Assert.Equal(decision == HostKeyDecision.AcceptAndRemember ? 1 : 0,
+                    (await repository.GetAllAsync()).Count);
+                if (!accepted) return;
+                connecting = session.ConnectAsync(timeout.Token);
+                using var retryProbe = await ReadRequestAsync(wire, timeout.Token);
+                Assert.Equal("session.probeHostKey", retryProbe.RootElement.GetProperty("method").GetString());
+                Assert.False(retryProbe.RootElement.GetProperty("params").TryGetProperty("auth", out _));
+                await SendAsync(wire, 0, 5, JsonSerializer.SerializeToUtf8Bytes(new { jsonrpc = "2.0",
+                    id = retryProbe.RootElement.GetProperty("id").GetInt64(),
+                    result = new { keyType = presented.KeyType, publicKeyBase64 = Convert.ToBase64String(rawKey) } }), timeout.Token);
             }
             using var connect = await ReadRequestAsync(wire, timeout.Token);
-            Assert.True(approved);
+            Assert.Equal(known ? 0 : 1, prompts);
             Assert.Equal("session.connect", connect.RootElement.GetProperty("method").GetString());
             var args = connect.RootElement.GetProperty("params");
             Assert.Equal(presented.FingerprintSha256, args.GetProperty("hostKeySha256").GetString());
@@ -117,7 +156,7 @@ public class GoTransportTests
             await connecting;
             await client.DisposeAsync();
         }
-        finally { listener.Stop(); }
+        finally { listener.Stop(); Directory.Delete(directory, recursive: true); }
     }
 
     private static async Task<JsonDocument> ReadRequestAsync(Stream wire, CancellationToken ct)

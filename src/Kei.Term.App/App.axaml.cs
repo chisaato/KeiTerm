@@ -169,17 +169,7 @@ public partial class App : Application
             var sshFactory = new Kei.Term.Transport.Go.CompositeSshSessionFactory(
                 new SshSessionFactory(_loggerFactory.CreateLogger<SshSessionFactory>()),
                 () => new Kei.Term.Transport.Go.GoSshSessionFactory(_goSidecar ??= new Kei.Term.Transport.Go.GoSidecarProcessManager(),
-                    approveHostKey: async (presented, ct) =>
-                    {
-                        var outcome = await hostKeyTrust.VerifyAsync(presented, ct);
-                        if (outcome.RequiresConfirmation)
-                        {
-                            if (await hostKeyTrust.ConfirmAsync(outcome.Evaluation, ct)) return;
-                            // 已拒绝的提示不能被连接编排器再次当作待确认处理。
-                            outcome = outcome with { Decision = HostKeyDecision.Reject };
-                        }
-                        if (!outcome.Accepted) throw new HostKeyRejectedException(outcome);
-                    }),
+                    hostKeyVerifier: hostKeyTrust),
                 () => settingsService.Current.TransportEngine);
 
             // 先在窗口创建前按默认 KeiClassic 挂载画刷与兼容样式，避免首帧无 Kei.* 资源；
