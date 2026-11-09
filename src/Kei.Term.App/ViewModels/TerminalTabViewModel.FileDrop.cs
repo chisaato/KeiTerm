@@ -67,6 +67,14 @@ public partial class TerminalTabViewModel
         CancellationToken ct = cancellation.Token;
         try
         {
+            // 无文件系统能力时（例如 Telnet / Serial），绝不触发 SFTP/SCP 上传，只允许粘贴路径文本
+            if (!session.Capabilities.HasFileSystem)
+            {
+                string pasteText = TerminalFileDropPolicy.BuildPasteText(paths, TerminalFileDropAction.PastePath);
+                await session.SendInputAsync(Encoding.UTF8.GetBytes(pasteText), ct);
+                return;
+            }
+
             TerminalUploadProtocol protocol = EffectiveTerminalUploadProtocol;
             // 目录跟随与文件拖放共用同一份 OSC7/tracker 结果（见 DirectoryFollow 分部）；
             // 无有效远端目录时回退到文件管理器当前目录，再退到工作目录。

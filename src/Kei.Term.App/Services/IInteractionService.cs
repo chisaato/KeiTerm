@@ -62,6 +62,10 @@ public interface IInteractionService
     // 会话编辑确认后待写入的端口转发。默认空，测试替身不用实现。
     IReadOnlyList<PortForward> TakePendingForwards() => [];
 
+    // 树节点保存成功后才能提交其设备覆盖；异常由调用入口通知并记录。
+    Task CommitPendingSessionConfigurationAsync(Guid ownerId, CancellationToken ct = default) => Task.CompletedTask;
+    void DiscardPendingSessionConfiguration(Guid ownerId) { }
+
     Task<FolderNode?> EditFolderAsync(FolderNode? existing, Guid? parentId);
 
     Task<TerminalProfile?> EditTerminalProfileAsync(TerminalProfile? source, TerminalFontSnapshot font);
@@ -123,6 +127,10 @@ public interface IInteractionService
     Task<bool> ConfirmLargeScpTransferAsync(string fileName, long size, CancellationToken ct = default)
         => Task.FromResult(false);
 
+    // 串口连接前确认端口绑定：新安装实例没有当前设备明确端口绑定记录时必须提示。
+    Task<bool> PromptConfirmSerialBindingAsync(string sessionName, string portName, CancellationToken ct = default)
+        => Task.FromResult(false);
+
     // 选择本地下载目录。取消 = null。
     Task<string?> PickFolderAsync(string title, CancellationToken ct = default)
         => Task.FromResult<string?>(null);
@@ -180,6 +188,9 @@ public sealed class NullInteractionService : IInteractionService
     public Task OpenQuickConnectAsync() => Task.CompletedTask;
 
     public Task<bool> ConfirmDeleteAsync(string name) => Task.FromResult(true);
+
+    public Task<bool> PromptConfirmSerialBindingAsync(string sessionName, string portName, CancellationToken ct = default)
+        => Task.FromResult(false);
 
     public Task NotifyAsync(string title, string message, NotificationLevel level = NotificationLevel.Info) => Task.CompletedTask;
 

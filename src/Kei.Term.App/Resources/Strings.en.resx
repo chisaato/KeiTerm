@@ -688,13 +688,13 @@
     <value>Managed Native (.NET)</value>
   </data>
   <data name="Settings.Transport.Engine.BuiltInDesc" xml:space="preserve">
-    <value>Pure .NET/SSH.NET implementation. Lightweight, stable, running in-process without external processes.</value>
+    <value>In-process .NET engine with SSH/SFTP via SSH.NET, plus Telnet and serial connections.</value>
   </data>
   <data name="Settings.Transport.Engine.GoCore" xml:space="preserve">
     <value>Go Core Engine (Experimental)</value>
   </data>
   <data name="Settings.Transport.Engine.GoCoreDesc" xml:space="preserve">
-    <value>Out-of-process Go core engine supporting concurrent SFTP chunking, direct FIDO2 keys, and future Telnet/Serial adapters.</value>
+    <value>Out-of-process Go engine for SSH/SFTP, Telnet, and serial connections. Direct FIDO2 key support is not implemented.</value>
   </data>
   <data name="Settings.Transport.FeaturesSection" xml:space="preserve">
     <value>Engine Features</value>
@@ -737,5 +737,152 @@
   </data>
   <data name="SessionEdit.TransportEngine.Tip" xml:space="preserve">
     <value>Override the underlying transport engine for this session</value>
+  </data>
+  <data name="Interaction.SerialBinding.Title" xml:space="preserve">
+    <value>Confirm Serial Port Binding</value>
+  </data>
+  <data name="Interaction.SerialBinding.Message" xml:space="preserve">
+    <value>Session "{0}" has not confirmed a serial port binding on this device. The current configuration will use "{1}". Confirm this binding for this device and proceed?</value>
+  </data>
+  <data name="SessionEdit.ConnectionProtocol" xml:space="preserve">
+    <value>Protocol:</value>
+  </data>
+  <data name="SessionEdit.Protocol.Ssh" xml:space="preserve">
+    <value>SSH (Secure Shell)</value>
+  </data>
+  <data name="SessionEdit.Protocol.Telnet" xml:space="preserve">
+    <value>Telnet (Unencrypted)</value>
+  </data>
+  <data name="SessionEdit.Protocol.Serial" xml:space="preserve">
+    <value>Serial (Local Port)</value>
+  </data>
+  <data name="SessionEdit.Protocol.Unsupported" xml:space="preserve">
+    <value>Unsupported Protocol: {0}</value>
+  </data>
+  <data name="SessionEdit.Protocol.UnsupportedNotice" xml:space="preserve">
+    <value>This session uses an unsupported connection protocol. The original protocol will be preserved on save, but connecting will be rejected.</value>
+  </data>
+  <data name="SessionEdit.Telnet.SecurityWarning" xml:space="preserve">
+    <value>Security Notice: Telnet is an unencrypted plain-text protocol. Credentials and transmission contents are sent in plain text over the network. Do not use over untrusted networks.</value>
+  </data>
+  <data name="SessionEdit.Serial.Section" xml:space="preserve">
+    <value>Serial Parameters</value>
+  </data>
+  <data name="SessionEdit.Serial.PortName" xml:space="preserve">
+    <value>Serial Port:</value>
+  </data>
+  <data name="SessionEdit.Serial.PortName.Placeholder" xml:space="preserve">
+    <value>e.g. /dev/ttyUSB0 or COM1</value>
+  </data>
+  <data name="SessionEdit.Serial.BaudRate" xml:space="preserve">
+    <value>Baud Rate:</value>
+  </data>
+  <data name="SessionEdit.Serial.DataBits" xml:space="preserve">
+    <value>Data Bits:</value>
+  </data>
+  <data name="SessionEdit.Serial.Parity" xml:space="preserve">
+    <value>Parity:</value>
+  </data>
+  <data name="SessionEdit.Serial.StopBits" xml:space="preserve">
+    <value>Stop Bits:</value>
+  </data>
+  <data name="SessionEdit.Serial.FlowControl" xml:space="preserve">
+    <value>Flow Control:</value>
+  </data>
+  <data name="SessionEdit.Serial.FlowControl.None" xml:space="preserve">
+    <value>None</value>
+  </data>
+  <data name="SessionEdit.Serial.FlowControl.RtsCts" xml:space="preserve">
+    <value>RTS/CTS (Hardware)</value>
+  </data>
+  <data name="SessionEdit.Serial.FlowControl.XonXoff" xml:space="preserve">
+    <value>XON/XOFF (Software)</value>
+  </data>
+  <data name="SessionEdit.Serial.BindingSection" xml:space="preserve">
+    <value>Device Configuration &amp; Port Binding (Three-Level Override)</value>
+  </data>
+  <data name="SessionEdit.Serial.Binding.Generic" xml:space="preserve">
+    <value>Generic Default Port:</value>
+  </data>
+  <data name="SessionEdit.Serial.Binding.Os" xml:space="preserve">
+    <value>OS Default Port ({0}):</value>
+  </data>
+  <data name="SessionEdit.Serial.Binding.Device" xml:space="preserve">
+    <value>This Device Override:</value>
+  </data>
+  <data name="SessionEdit.Serial.DeviceId" xml:space="preserve">
+    <value>Current Device ID:</value>
+  </data>
+  <data name="SessionEdit.Serial.RegenerateDeviceId" xml:space="preserve">
+    <value>Use as New Device (Regenerate ID)</value>
+  </data>
+  <data name="SessionEdit.Serial.RegenerateDeviceIdTip" xml:space="preserve">
+    <value>Generate a new installation instance ID. Clears this device's serial binding override and requires reconfirmation on first connect.</value>
+  </data>
+  <data name="SessionEdit.Serial.RefreshPorts" xml:space="preserve">
+    <value>Refresh Available Serial Ports</value>
+  </data>
+  <data name="SessionEdit.Serial.RtsConflict" xml:space="preserve">
+    <value>RTS/CTS hardware flow control is enabled; manual RTS pin control is disabled to prevent conflicts.</value>
+  </data>
+  <data name="Terminal.Serial.Break" xml:space="preserve">
+    <value>Break</value>
+  </data>
+  <data name="Terminal.Serial.BreakTip" xml:space="preserve">
+    <value>Send Break signal to serial port</value>
+  </data>
+  <data name="Terminal.Serial.Dtr" xml:space="preserve">
+    <value>DTR</value>
+  </data>
+  <data name="Terminal.Serial.DtrTip" xml:space="preserve">
+    <value>Toggle DTR modem pin state</value>
+  </data>
+  <data name="Terminal.Serial.Rts" xml:space="preserve">
+    <value>RTS</value>
+  </data>
+  <data name="Terminal.Serial.RtsTip" xml:space="preserve">
+    <value>Toggle RTS modem pin state</value>
+  </data>
+  <data name="SessionEdit.Serial.Scope" xml:space="preserve">
+    <value>Configuration Scope:</value>
+  </data>
+  <data name="SessionEdit.Serial.Scope.Generic" xml:space="preserve">
+    <value>Generic Defaults (All Platforms &amp; Devices)</value>
+  </data>
+  <data name="SessionEdit.Serial.Scope.Os" xml:space="preserve">
+    <value>OS Default Override ({0})</value>
+  </data>
+  <data name="SessionEdit.Serial.Scope.Device" xml:space="preserve">
+    <value>This Device Override (Local Installation)</value>
+  </data>
+  <data name="SessionEdit.Serial.Inherited" xml:space="preserve">
+    <value>Inherited</value>
+  </data>
+  <data name="SessionEdit.Serial.Overridden" xml:space="preserve">
+    <value>Overridden</value>
+  </data>
+  <data name="SessionEdit.Serial.ResetOverride" xml:space="preserve">
+    <value>Reset to Inherited</value>
+  </data>
+  <data name="SessionEdit.Serial.ResetOverrideTip" xml:space="preserve">
+    <value>Clear explicit override in this scope and restore inheritance</value>
+  </data>
+  <data name="SessionEdit.Serial.Dtr" xml:space="preserve">
+    <value>DTR Pin:</value>
+  </data>
+  <data name="SessionEdit.Serial.Rts" xml:space="preserve">
+    <value>RTS Pin:</value>
+  </data>
+  <data name="SessionEdit.Serial.Pin.DriverDefault" xml:space="preserve">
+    <value>Driver Default</value>
+  </data>
+  <data name="SessionEdit.Serial.Pin.Enabled" xml:space="preserve">
+    <value>Enabled (High)</value>
+  </data>
+  <data name="SessionEdit.Serial.Pin.Disabled" xml:space="preserve">
+    <value>Disabled (Low)</value>
+  </data>
+  <data name="SessionEdit.Serial.LowerRtsConflict" xml:space="preserve">
+    <value>A lower configuration level sets manual RTS, conflicting with the effective RTS/CTS hardware flow control in this scope. Please clear the lower-level manual RTS setting to avoid hardware conflicts.</value>
   </data>
 </root>

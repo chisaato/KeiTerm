@@ -25,28 +25,37 @@ public sealed class GoIpcClient : IAsyncDisposable
     private readonly Task _reader;
     private long _nextId;
     private int _disposed;
-    public bool IsConnected => !_reader.IsCompleted && Volatile.Read(ref _disposed) == 0;
+    private int _ended;
+    private Exception? _failure;
+    private int _expectedEnding;
+    private readonly Action<SidecarDiagnostic>? _diagnostics;
+    public string ConnectionId { get; }
+    public bool IsConnected => Volatile.Read(ref _ended) == 0 && Volatile.Read(ref _disposed) == 0;
 
-    public GoIpcClient(Stream connection)
+    public GoIpcClient(Stream connection, Action<SidecarDiagnostic>? diagnostics = null, string? connectionId = null)
     {
         _connection = connection;
+        _diagnostics = diagnostics;
+        ConnectionId = connectionId ?? Guid.NewGuid().ToString("N");
+        Report("ipc-connected");
         _reader = ReadLoopAsync();
     }
 
-    public static async Task<GoIpcClient> ConnectAsync(string endpoint, CancellationToken ct = default)
+    public static async Task<GoIpcClient> ConnectAsync(string endpoint, CancellationToken ct = default,
+        Action<SidecarDiagnostic>? diagnostics = null, string? connectionId = null)
     {
         if (OperatingSystem.IsWindows())
         {
             var pipe = new NamedPipeClientStream(".", endpoint.StartsWith(@"\\.\pipe\") ? endpoint[9..] : endpoint,
                 PipeDirection.InOut, PipeOptions.Asynchronous);
-            try { await pipe.ConnectAsync(ct); return new(pipe); }
+            try { await pipe.ConnectAsync(ct); return new(pipe, diagnostics, connectionId); }
             catch { await pipe.DisposeAsync(); throw; }
         }
         var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
         try
         {
             await socket.ConnectAsync(new UnixDomainSocketEndPoint(endpoint), ct);
-            return new(new NetworkStream(socket, ownsSocket: true));
+            return new(new NetworkStream(socket, ownsSocket: true), diagnostics, connectionId);
         }
         catch { socket.Dispose(); throw; }
     }
@@ -59,6 +68,7 @@ public sealed class GoIpcClient : IAsyncDisposable
         _pending[id] = completion;
         try
         {
+            if (!IsConnected) throw _failure ?? new IOException("共享 Sidecar IPC 已结束");
             await SendFrameAsync(0, 5, JsonSerializer.SerializeToUtf8Bytes(new { jsonrpc = "2.0", id, method, @params = parameters }), ct);
             return await completion.Task.WaitAsync(ct);
         }
@@ -83,10 +93,9 @@ public sealed class GoIpcClient : IAsyncDisposable
             await _connection.WriteAsync(payload, _stop.Token);
             await _connection.FlushAsync(_stop.Token);
         }
-        catch
+        catch (Exception ex)
         {
-            _stop.Cancel();
-            _connection.Dispose();
+            Fail(new IOException("共享 Sidecar IPC 写入失败", ex));
             throw;
         }
         finally { _write.Release(); }
@@ -123,7 +132,12 @@ public sealed class GoIpcClient : IAsyncDisposable
                     var result = root.GetProperty("result").Clone();
                     // 注册必须先于唤醒调用方及读取后续数据帧，避免快速输出丢失。
                     if (result.ValueKind == JsonValueKind.Object && result.TryGetProperty("streamId", out var streamId))
-                        _streams.TryAdd(streamId.GetUInt32(), new GoIpcStream(this, streamId.GetUInt32()));
+                    {
+                        var opened = new GoIpcStream(this, streamId.GetUInt32());
+                        _streams.TryAdd(streamId.GetUInt32(), opened);
+                        // 进程监管可与响应分发并发结束 IPC，新注册的流也必须结束。
+                        if (!IsConnected) opened.Abort(_failure ?? new IOException("共享 Sidecar IPC 已结束"));
+                    }
                     if (_pending.TryGetValue(requestId, out var completed)) completed.TrySetResult(result);
                 }
                 else if (_streams.TryGetValue(id, out var stream)) stream.Receive(type, payload);
@@ -133,10 +147,31 @@ public sealed class GoIpcClient : IAsyncDisposable
         catch (Exception ex) { failure = ex; }
         finally
         {
-            _connection.Dispose();
-            foreach (var pending in _pending.Values) pending.TrySetException(failure);
-            foreach (var stream in _streams.Values) stream.Abort(failure);
+            End(failure, Volatile.Read(ref _disposed) != 0);
         }
+    }
+
+    internal void Report(string kind, uint? streamId = null, string? reason = null, bool expected = false)
+        => SidecarDiagnostics.Emit(_diagnostics, new(kind, ConnectionId, StreamId: streamId, Reason: reason, Expected: expected));
+
+    internal void Fail(Exception failure) => End(failure, Volatile.Read(ref _disposed) != 0);
+    internal void ExpectClose() => Interlocked.Exchange(ref _expectedEnding, 1);
+
+    private void End(Exception failure, bool expected)
+    {
+        expected |= Volatile.Read(ref _expectedEnding) != 0;
+        if (Interlocked.Exchange(ref _ended, 1) != 0) return;
+        _failure = expected ? new ObjectDisposedException(nameof(GoIpcClient))
+            : new IOException("共享 Sidecar IPC 已结束（所有关联连接断开）", failure);
+        _stop.Cancel();
+        _connection.Dispose();
+        foreach (var pending in _pending.Values) pending.TrySetException(_failure);
+        foreach (var stream in _streams.Values)
+        {
+            if (expected) stream.Receive(3, []);
+            else stream.Abort(_failure);
+        }
+        Report("ipc-ended", reason: expected ? "disposed" : failure.GetType().Name, expected: expected);
     }
 
     internal void Forget(uint id) => _streams.TryRemove(id, out _);
@@ -144,8 +179,7 @@ public sealed class GoIpcClient : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        _stop.Cancel();
-        await _connection.DisposeAsync();
+        End(new ObjectDisposedException(nameof(GoIpcClient)), true);
         await _reader;
         _stop.Dispose();
     }
@@ -174,15 +208,22 @@ public sealed class GoIpcStream : Stream
         }
         else if (type == 3)
         {
-            Interlocked.Exchange(ref _ended, 1);
+            if (Interlocked.Exchange(ref _ended, 1) != 0) return;
             _input.Writer.TryComplete();
             _finished.TrySetResult();
+            _client.Report("stream-ended", _id, "closed", true);
             if (Volatile.Read(ref _disposed) != 0) _client.Forget(_id);
         }
         else if (type == 4) Abort(new IOException(Encoding.UTF8.GetString(payload)));
         else Abort(new IOException("无效数据流帧"));
     }
-    internal void Abort(Exception error) { _input.Writer.TryComplete(error); _finished.TrySetException(error); }
+    internal void Abort(Exception error)
+    {
+        if (Interlocked.Exchange(ref _ended, 1) != 0) return;
+        _input.Writer.TryComplete(error);
+        _finished.TrySetException(error);
+        _client.Report("stream-ended", _id, error.GetType().Name);
+    }
     public Task ResizeAsync(int columns, int rows, CancellationToken ct = default)
         => _client.SendFrameAsync(_id, 2, JsonSerializer.SerializeToUtf8Bytes(new { cols = columns, rows }), ct);
     public async Task CompleteWriteAsync(CancellationToken ct = default)

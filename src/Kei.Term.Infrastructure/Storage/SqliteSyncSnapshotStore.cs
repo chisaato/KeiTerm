@@ -10,7 +10,8 @@ namespace Kei.Term.Infrastructure.Storage;
 
 // 只有这里列出的内容列可以进入包；版本戳在信封中，revision 与本机数据绝不混入。
 public sealed partial class SqliteSyncSnapshotStore(SqliteConnectionFactory factory, InternalVaultManager? vault = null,
-    string? settingsPath = null, string? profilesPath = null) : ISyncSnapshotStore
+    string? settingsPath = null, string? profilesPath = null,
+    IReadOnlyDictionary<string, Action<IReadOnlyDictionary<string, JsonElement>>>? deviceConfigurationValidators = null) : ISyncSnapshotStore
 {
     // 事务与持久化锁释放后通知宿主更新内存设置/Profile/树；自动与手动同步共用。
     public event Func<Task>? Imported;
@@ -23,6 +24,7 @@ public sealed partial class SqliteSyncSnapshotStore(SqliteConnectionFactory fact
     private static readonly Table[] Tables =
     [
         new(IdentityType, "identities", "id,name,description,username,methods_json,created_at"),
+        new(SqliteDeviceConfigurationStore.EntityType, "device_configurations", "id,owner_id,category,os,target_device_id,fields_json"),
         new(ProxyType, "proxies", "id,name,sort_order,config_json,created_at"),
         new(EditorType, "external_editors", "id,name,arguments_template,is_default,created_at"),
         new(AssociationType, "file_associations", "id,pattern,editor_id,priority,created_at"),
@@ -128,9 +130,15 @@ public sealed partial class SqliteSyncSnapshotStore(SqliteConnectionFactory fact
                 await ImportTrackedAsync(conn, tx, entity, ct);
             else throw new InvalidOperationException($"不支持的同步实体类型：{entity.EntityType}，请升级应用");
         }
+        // 删除父对象优先于离线修改的绑定，不能被更晚到达的子记录重新激活。
+        await conn.ExecuteAsync(new CommandDefinition(@"
+            UPDATE device_configurations SET deleted_at=(SELECT deleted_at FROM tree_nodes WHERE id=owner_id),
+                updated_at=(SELECT updated_at FROM tree_nodes WHERE id=owner_id),
+                device_id=(SELECT device_id FROM tree_nodes WHERE id=owner_id),fields_json='{}'
+            WHERE owner_id IN (SELECT id FROM tree_nodes WHERE deleted_at IS NOT NULL);", transaction: tx, cancellationToken: ct));
         // 实体/版本和 redo 同事务提交；提交后文件失败保留 journal，不能声称已回滚。
         await CommitFilesAsync(conn, tx, changed, ct);
-        return merged;
+        return await ExportCoreAsync(ct);
     }
 
     private async Task ImportRecordAsync(SqliteConnection conn, SqliteTransaction tx, Table table, SyncEntity entity, CancellationToken ct)
@@ -143,6 +151,20 @@ public sealed partial class SqliteSyncSnapshotStore(SqliteConnectionFactory fact
             string id = table.Type == KnownHostType ? KnownHostId(data.Fields) : data.Fields["id"].GetString()!;
             if (id != entity.EntityId) throw new JsonException("同步实体标识不匹配");
             if (table.Type != KnownHostType && !Guid.TryParse(id, out _)) throw new JsonException("无效同步实体标识");
+            if (table.Type == SqliteDeviceConfigurationStore.EntityType)
+            {
+                var owner = Guid.Parse(data.Fields["owner_id"].GetString()!);
+                var target = new Kei.Term.Core.Models.DeviceConfigurationTarget(
+                    data.Fields["os"].ValueKind == JsonValueKind.Null ? null : data.Fields["os"].GetString(),
+                    data.Fields["target_device_id"].ValueKind == JsonValueKind.Null ? null : data.Fields["target_device_id"].GetString());
+                target.Validate();
+                new SqliteDeviceConfigurationStore(factory, deviceConfigurationValidators).Validate(new(owner,
+                    data.Fields["category"].GetString()!, target,
+                    JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(data.Fields["fields_json"].GetString()!)
+                        ?? throw new JsonException("缺少设备配置字段")));
+                if (id != SqliteDeviceConfigurationStore.RecordId(owner, data.Fields["category"].GetString()!, target))
+                    throw new JsonException("设备配置自然键不匹配");
+            }
             var args = new DynamicParameters();
             foreach (string column in columns) args.Add(column, Scalar(data.Fields[column]));
             args.Add("updated_at", Date(entity.UpdatedAtUtc)); args.Add("device_id", entity.DeviceId); args.Add("deleted_at", Date(entity.DeletedAtUtc));

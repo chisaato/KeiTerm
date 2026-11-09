@@ -4,6 +4,7 @@
 - **日期**: 2026-11-06
 - **参与者**: KeiTerm Core Team
 - **关联规范**: `.scratch/go-transport-sidecar/spec.md`
+- **实现快照与限制**: [Go 传输引擎实现与排障](../design/go-transport-sidecar.md)（2026-11-09；以下动机与收益不代表全部能力已实现）
 
 ---
 

@@ -2861,13 +2861,13 @@ Latin: AaBb CcDd GgYy gypq
     <value>原生托管 (.NET)</value>
   </data>
   <data name="Settings.Transport.Engine.BuiltInDesc" xml:space="preserve">
-    <value>基于纯 .NET/SSH.NET 实现，轻量稳定，进程内运行无额外依赖。</value>
+    <value>进程内 .NET 引擎，使用 SSH.NET 提供 SSH/SFTP，并支持 Telnet 与串口。</value>
   </data>
   <data name="Settings.Transport.Engine.GoCore" xml:space="preserve">
     <value>Go 核心引擎 (实验性)</value>
   </data>
   <data name="Settings.Transport.Engine.GoCoreDesc" xml:space="preserve">
-    <value>基于 Go 独立进程引擎，支持并发 SFTP 分块、FIDO2 密钥直连，未来提供 Telnet 与串口通用通道。</value>
+    <value>独立进程 Go 引擎，提供 SSH/SFTP、Telnet 与串口。FIDO2 密钥直连尚未实现。</value>
   </data>
   <data name="Settings.Transport.FeaturesSection" xml:space="preserve">
     <value>引擎特性概览</value>
@@ -2910,5 +2910,152 @@ Latin: AaBb CcDd GgYy gypq
   </data>
   <data name="SessionEdit.TransportEngine.Tip" xml:space="preserve">
     <value>覆盖此会话所使用的底层传输引擎</value>
+  </data>
+  <data name="Interaction.SerialBinding.Title" xml:space="preserve">
+    <value>确认串口设备绑定</value>
+  </data>
+  <data name="Interaction.SerialBinding.Message" xml:space="preserve">
+    <value>会话“{0}”尚未在本机确认串口绑定。当前配置将使用串口“{1}”，是否确认为本机绑定并继续连接？</value>
+  </data>
+  <data name="SessionEdit.ConnectionProtocol" xml:space="preserve">
+    <value>协议类型:</value>
+  </data>
+  <data name="SessionEdit.Protocol.Ssh" xml:space="preserve">
+    <value>SSH (安全外壳协议)</value>
+  </data>
+  <data name="SessionEdit.Protocol.Telnet" xml:space="preserve">
+    <value>Telnet (未加密明文)</value>
+  </data>
+  <data name="SessionEdit.Protocol.Serial" xml:space="preserve">
+    <value>Serial (本地串口)</value>
+  </data>
+  <data name="SessionEdit.Protocol.Unsupported" xml:space="preserve">
+    <value>不支持的连接类型: {0}</value>
+  </data>
+  <data name="SessionEdit.Protocol.UnsupportedNotice" xml:space="preserve">
+    <value>当前会话使用了本版本不受支持的连接类型，保存时将保留原协议配置，但连接时将被拒绝。</value>
+  </data>
+  <data name="SessionEdit.Telnet.SecurityWarning" xml:space="preserve">
+    <value>安全提示：Telnet 为明文未加密协议，凭据与通信内容均在网络中明文传输，请勿在不受信任的网络中使用。</value>
+  </data>
+  <data name="SessionEdit.Serial.Section" xml:space="preserve">
+    <value>串口参数</value>
+  </data>
+  <data name="SessionEdit.Serial.PortName" xml:space="preserve">
+    <value>串口端点:</value>
+  </data>
+  <data name="SessionEdit.Serial.PortName.Placeholder" xml:space="preserve">
+    <value>例如 /dev/ttyUSB0 或 COM1</value>
+  </data>
+  <data name="SessionEdit.Serial.BaudRate" xml:space="preserve">
+    <value>波特率:</value>
+  </data>
+  <data name="SessionEdit.Serial.DataBits" xml:space="preserve">
+    <value>数据位:</value>
+  </data>
+  <data name="SessionEdit.Serial.Parity" xml:space="preserve">
+    <value>校验位:</value>
+  </data>
+  <data name="SessionEdit.Serial.StopBits" xml:space="preserve">
+    <value>停止位:</value>
+  </data>
+  <data name="SessionEdit.Serial.FlowControl" xml:space="preserve">
+    <value>自动流控:</value>
+  </data>
+  <data name="SessionEdit.Serial.FlowControl.None" xml:space="preserve">
+    <value>无 (None)</value>
+  </data>
+  <data name="SessionEdit.Serial.FlowControl.RtsCts" xml:space="preserve">
+    <value>RTS/CTS (硬件流控)</value>
+  </data>
+  <data name="SessionEdit.Serial.FlowControl.XonXoff" xml:space="preserve">
+    <value>XON/XOFF (软件流控)</value>
+  </data>
+  <data name="SessionEdit.Serial.BindingSection" xml:space="preserve">
+    <value>设备配置与端口绑定 (三级覆盖)</value>
+  </data>
+  <data name="SessionEdit.Serial.Binding.Generic" xml:space="preserve">
+    <value>通用默认端口:</value>
+  </data>
+  <data name="SessionEdit.Serial.Binding.Os" xml:space="preserve">
+    <value>系统默认端口 ({0}):</value>
+  </data>
+  <data name="SessionEdit.Serial.Binding.Device" xml:space="preserve">
+    <value>当前设备专属覆盖:</value>
+  </data>
+  <data name="SessionEdit.Serial.DeviceId" xml:space="preserve">
+    <value>当前设备标识:</value>
+  </data>
+  <data name="SessionEdit.Serial.RegenerateDeviceId" xml:space="preserve">
+    <value>作为新设备 (重建标识)</value>
+  </data>
+  <data name="SessionEdit.Serial.RegenerateDeviceIdTip" xml:space="preserve">
+    <value>生成新的安装实例标识。将清空当前设备的专属串口绑定，并在首次连接时重新确认绑定。</value>
+  </data>
+  <data name="SessionEdit.Serial.RefreshPorts" xml:space="preserve">
+    <value>刷新可用串口列表</value>
+  </data>
+  <data name="SessionEdit.Serial.RtsConflict" xml:space="preserve">
+    <value>已启用 RTS/CTS 自动流控，手动 RTS 已禁用以防止引脚冲突。</value>
+  </data>
+  <data name="Terminal.Serial.Break" xml:space="preserve">
+    <value>Break</value>
+  </data>
+  <data name="Terminal.Serial.BreakTip" xml:space="preserve">
+    <value>向串口发送 Break 信号</value>
+  </data>
+  <data name="Terminal.Serial.Dtr" xml:space="preserve">
+    <value>DTR</value>
+  </data>
+  <data name="Terminal.Serial.DtrTip" xml:space="preserve">
+    <value>切换 DTR 调制解调器引脚状态</value>
+  </data>
+  <data name="Terminal.Serial.Rts" xml:space="preserve">
+    <value>RTS</value>
+  </data>
+  <data name="Terminal.Serial.RtsTip" xml:space="preserve">
+    <value>切换 RTS 调制解调器引脚状态</value>
+  </data>
+  <data name="SessionEdit.Serial.Scope" xml:space="preserve">
+    <value>配置层级:</value>
+  </data>
+  <data name="SessionEdit.Serial.Scope.Generic" xml:space="preserve">
+    <value>通用默认 (所有平台与设备)</value>
+  </data>
+  <data name="SessionEdit.Serial.Scope.Os" xml:space="preserve">
+    <value>系统默认覆盖 ({0})</value>
+  </data>
+  <data name="SessionEdit.Serial.Scope.Device" xml:space="preserve">
+    <value>本机专属覆盖 (仅当前安装实例)</value>
+  </data>
+  <data name="SessionEdit.Serial.Inherited" xml:space="preserve">
+    <value>继承</value>
+  </data>
+  <data name="SessionEdit.Serial.Overridden" xml:space="preserve">
+    <value>已覆盖</value>
+  </data>
+  <data name="SessionEdit.Serial.ResetOverride" xml:space="preserve">
+    <value>恢复继承</value>
+  </data>
+  <data name="SessionEdit.Serial.ResetOverrideTip" xml:space="preserve">
+    <value>清除当前层级的显式覆盖，恢复继承下层配置</value>
+  </data>
+  <data name="SessionEdit.Serial.Dtr" xml:space="preserve">
+    <value>DTR 引脚:</value>
+  </data>
+  <data name="SessionEdit.Serial.Rts" xml:space="preserve">
+    <value>RTS 引脚:</value>
+  </data>
+  <data name="SessionEdit.Serial.Pin.DriverDefault" xml:space="preserve">
+    <value>驱动默认</value>
+  </data>
+  <data name="SessionEdit.Serial.Pin.Enabled" xml:space="preserve">
+    <value>高电平 (启用)</value>
+  </data>
+  <data name="SessionEdit.Serial.Pin.Disabled" xml:space="preserve">
+    <value>低电平 (禁用)</value>
+  </data>
+  <data name="SessionEdit.Serial.LowerRtsConflict" xml:space="preserve">
+    <value>下层配置了手动 RTS 引脚状态，与当前层级生效的 RTS/CTS 自动硬件流控冲突。请清除下层的手动 RTS 设置以避免冲突。</value>
   </data>
 </root>

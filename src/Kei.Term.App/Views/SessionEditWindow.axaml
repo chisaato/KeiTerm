@@ -51,54 +51,347 @@
                         <StackPanel Spacing="14" IsVisible="{Binding SelectedCategory.Page, Converter={x:Static ObjectConverters.Equal}, ConverterParameter='Connection'}">
                             <TextBlock Text="{loc:KeiString SessionEdit.BasicSection}" FontWeight="Bold" Foreground="{DynamicResource Kei.Text.Primary}" FontSize="13"/>
 
-                            <Grid ColumnDefinitions="120, *" ColumnSpacing="12" RowDefinitions="Auto, Auto, Auto, Auto, Auto, Auto, Auto, Auto, Auto" RowSpacing="10">
-                                <!-- 显示名称 -->
-                                <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString SessionEdit.Name}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
-                                <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Name}" PlaceholderText="{loc:KeiString SessionEdit.Name.Placeholder}"/>
-
-                                <!-- 主机地址 -->
-                                <TextBlock Grid.Row="1" Grid.Column="0" Text="{loc:KeiString SessionEdit.Host}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
-                                <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Host}" PlaceholderText="{loc:KeiString SessionEdit.Host.Placeholder}"/>
-
-                                <!-- 端口 -->
-                                <TextBlock Grid.Row="2" Grid.Column="0" Text="{loc:KeiString SessionEdit.Port}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
-                                <NumericUpDown Grid.Row="2" Grid.Column="1" Value="{Binding Port}" Minimum="1" Maximum="65535" FormatString="0" HorizontalAlignment="Left" MinWidth="180"/>
-
-                                <!-- 用户名 -->
-                                <TextBlock Grid.Row="3" Grid.Column="0" Text="{loc:KeiString SessionEdit.Username}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
-                                <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding Username}" PlaceholderText="{Binding UsernamePlaceholder}"/>
-
-                                <!-- 身份绑定 -->
-                                <TextBlock Grid.Row="4" Grid.Column="0" Text="{loc:KeiString SessionEdit.Identity}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
-                                <ComboBox Grid.Row="4" Grid.Column="1" ItemsSource="{Binding Identities}" SelectedItem="{Binding SelectedIdentity}" HorizontalAlignment="Stretch">
+                            <!-- 协议类型切换 -->
+                            <Grid ColumnDefinitions="120, *" ColumnSpacing="12">
+                                <TextBlock Text="{loc:KeiString SessionEdit.ConnectionProtocol}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                <ComboBox x:Name="SessionProtocolComboBox" Grid.Column="1" ItemsSource="{Binding AvailableConnectionProtocols}"
+                                          SelectedItem="{Binding SelectedConnectionProtocolOption}" HorizontalAlignment="Stretch">
                                     <ComboBox.ItemTemplate>
                                         <DataTemplate>
                                             <TextBlock Text="{Binding DisplayName}"/>
                                         </DataTemplate>
                                     </ComboBox.ItemTemplate>
                                 </ComboBox>
+                            </Grid>
 
-                                <!-- 防火墙：只列已保存代理，选会话/新建打开对话框 -->
-                                <TextBlock Grid.Row="5" Grid.Column="0" Text="{loc:KeiString SessionEdit.Firewall}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
-                                <ComboBox Grid.Row="5" Grid.Column="1" ItemsSource="{Binding FirewallOptions}" SelectedItem="{Binding SelectedFirewall}" HorizontalAlignment="Stretch">
-                                    <ComboBox.ItemTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding DisplayName}"/>
-                                        </DataTemplate>
-                                    </ComboBox.ItemTemplate>
-                                </ComboBox>
+                            <!-- Telnet 安全提示卡片 -->
+                            <Border IsVisible="{Binding IsTelnetProtocol}"
+                                    Background="{DynamicResource Kei.Bg.Card}"
+                                    BorderBrush="{DynamicResource Kei.Warning}"
+                                    BorderThickness="1" CornerRadius="{DynamicResource Kei.Radius.Control}"
+                                    Padding="12,10">
+                                <Grid ColumnDefinitions="Auto, *" ColumnSpacing="8">
+                                    <TextBlock Text="⚠" Foreground="{DynamicResource Kei.Warning}" FontWeight="Bold" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1" Text="{loc:KeiString SessionEdit.Telnet.SecurityWarning}"
+                                               Foreground="{DynamicResource Kei.Text.Primary}"
+                                               FontSize="12" TextWrapping="Wrap"/>
+                                </Grid>
+                            </Border>
 
-                                <!-- 连接超时覆盖 -->
-                                <TextBlock Grid.Row="6" Grid.Column="0" Text="{loc:KeiString Settings.Ssh.ConnectTimeout}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
-                                <ComboBox Grid.Row="6" Grid.Column="1" ItemsSource="{Binding ConnectTimeoutOptions}" SelectedItem="{Binding SelectedConnectTimeout}" HorizontalAlignment="Stretch"/>
+                            <!-- 不受支持协议提示卡片 -->
+                            <Border IsVisible="{Binding IsUnsupportedProtocol}"
+                                    Background="{DynamicResource Kei.Bg.Card}"
+                                    BorderBrush="{DynamicResource Kei.Warning}"
+                                    BorderThickness="1" CornerRadius="{DynamicResource Kei.Radius.Control}"
+                                    Padding="12,10">
+                                <Grid ColumnDefinitions="Auto, *" ColumnSpacing="8">
+                                    <TextBlock Text="⚠" Foreground="{DynamicResource Kei.Warning}" FontWeight="Bold" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1" Text="{loc:KeiString SessionEdit.Protocol.UnsupportedNotice}"
+                                               Foreground="{DynamicResource Kei.Text.Primary}"
+                                               FontSize="12" TextWrapping="Wrap"/>
+                                </Grid>
+                            </Border>
 
-                                <!-- 传输引擎覆盖 -->
-                                <TextBlock Grid.Row="7" Grid.Column="0" Text="{loc:KeiString SessionEdit.TransportEngine}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
-                                <ComboBox x:Name="SessionTransportEngineComboBox" Grid.Row="7" Grid.Column="1" ItemsSource="{Binding TransportEngineOptions}" SelectedItem="{Binding SelectedTransportEngine}" HorizontalAlignment="Stretch"/>
+                            <!-- 显示名称（所有协议通用） -->
+                            <Grid ColumnDefinitions="120, *" ColumnSpacing="12">
+                                <TextBlock Text="{loc:KeiString SessionEdit.Name}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                <TextBox Grid.Column="1" Text="{Binding Name}" PlaceholderText="{loc:KeiString SessionEdit.Name.Placeholder}"/>
+                            </Grid>
 
-                                <!-- 描述说明 -->
-                                <TextBlock Grid.Row="8" Grid.Column="0" Text="{loc:KeiString SessionEdit.Description}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
-                                <TextBox Grid.Row="8" Grid.Column="1" Text="{Binding Description}" PlaceholderText="{loc:KeiString SessionEdit.Description.Placeholder}"/>
+                            <!-- 网络协议（SSH & Telnet）参数 -->
+                            <StackPanel Spacing="10" IsVisible="{Binding IsNetworkProtocol}">
+                                <Grid ColumnDefinitions="120, *" ColumnSpacing="12">
+                                    <TextBlock Text="{loc:KeiString SessionEdit.Host}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                    <TextBox Grid.Column="1" Text="{Binding Host}" PlaceholderText="{loc:KeiString SessionEdit.Host.Placeholder}"/>
+                                </Grid>
+
+                                <Grid ColumnDefinitions="120, *" ColumnSpacing="12">
+                                    <TextBlock Text="{loc:KeiString SessionEdit.Port}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                    <NumericUpDown Grid.Column="1" Value="{Binding Port}" Minimum="1" Maximum="65535" FormatString="0" HorizontalAlignment="Left" MinWidth="180"/>
+                                </Grid>
+
+                                <!-- SSH 专属凭据与跳板/代理 -->
+                                <StackPanel Spacing="10" IsVisible="{Binding IsSshProtocol}">
+                                    <Grid ColumnDefinitions="120, *" ColumnSpacing="12">
+                                        <TextBlock Text="{loc:KeiString SessionEdit.Username}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                        <TextBox Grid.Column="1" Text="{Binding Username}" PlaceholderText="{Binding UsernamePlaceholder}"/>
+                                    </Grid>
+
+                                    <Grid ColumnDefinitions="120, *" ColumnSpacing="12">
+                                        <TextBlock Text="{loc:KeiString SessionEdit.Identity}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                        <ComboBox Grid.Column="1" ItemsSource="{Binding Identities}" SelectedItem="{Binding SelectedIdentity}" HorizontalAlignment="Stretch">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding DisplayName}"/>
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+                                    </Grid>
+
+                                    <Grid ColumnDefinitions="120, *" ColumnSpacing="12">
+                                        <TextBlock Text="{loc:KeiString SessionEdit.Firewall}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                        <ComboBox Grid.Column="1" ItemsSource="{Binding FirewallOptions}" SelectedItem="{Binding SelectedFirewall}" HorizontalAlignment="Stretch">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding DisplayName}"/>
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+                                    </Grid>
+                                </StackPanel>
+
+                                <!-- 网络超时与传输引擎 -->
+                                <Grid ColumnDefinitions="120, *" ColumnSpacing="12">
+                                    <TextBlock Text="{loc:KeiString Settings.Ssh.ConnectTimeout}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                    <ComboBox Grid.Column="1" ItemsSource="{Binding ConnectTimeoutOptions}" SelectedItem="{Binding SelectedConnectTimeout}" HorizontalAlignment="Stretch"/>
+                                </Grid>
+
+                                <Grid ColumnDefinitions="120, *" ColumnSpacing="12">
+                                    <TextBlock Text="{loc:KeiString SessionEdit.TransportEngine}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                    <ComboBox x:Name="SessionTransportEngineComboBox" Grid.Column="1" ItemsSource="{Binding TransportEngineOptions}" SelectedItem="{Binding SelectedTransportEngine}" HorizontalAlignment="Stretch"/>
+                                </Grid>
+                            </StackPanel>
+
+                            <!-- Serial 串口参数与三级逐字段覆盖 -->
+                            <StackPanel Spacing="14" IsVisible="{Binding IsSerialProtocol}">
+                                <TextBlock Text="{loc:KeiString SessionEdit.Serial.Section}" FontWeight="Bold" Foreground="{DynamicResource Kei.Text.Primary}" FontSize="13"/>
+
+                                <!-- 作用域层级切换 -->
+                                <Grid ColumnDefinitions="120, *" ColumnSpacing="12">
+                                    <TextBlock Text="{loc:KeiString SessionEdit.Serial.Scope}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                    <ComboBox x:Name="SessionSerialScopeComboBox" Grid.Column="1" ItemsSource="{Binding SerialScopes}"
+                                              SelectedItem="{Binding SelectedSerialScopeOption}" HorizontalAlignment="Stretch">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:SerialScopeOption">
+                                                <TextBlock Text="{Binding DisplayName}"/>
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                </Grid>
+
+                                <!-- 当前层级参数表格 -->
+                                <Grid ColumnDefinitions="140, *, Auto" ColumnSpacing="10" RowDefinitions="Auto, Auto, Auto, Auto, Auto, Auto, Auto, Auto" RowSpacing="10">
+                                    <!-- 端口端点 -->
+                                    <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                        <TextBlock Text="{loc:KeiString SessionEdit.Serial.PortName}" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                        <Border IsVisible="{Binding IsOverrideScopeSelected}" Background="{DynamicResource Kei.Bg.Card}" CornerRadius="2" Padding="4,1">
+                                            <TextBlock Text="{loc:KeiString SessionEdit.Serial.Overridden}" FontSize="12" Foreground="{DynamicResource Kei.Accent}" IsVisible="{Binding IsPortOverriddenInCurrentScope}"/>
+                                        </Border>
+                                        <Border IsVisible="{Binding IsOverrideScopeSelected}" Background="{DynamicResource Kei.Bg.Card}" CornerRadius="2" Padding="4,1">
+                                            <TextBlock Text="{loc:KeiString SessionEdit.Serial.Inherited}" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}" IsVisible="{Binding !IsPortOverriddenInCurrentScope}"/>
+                                        </Border>
+                                    </StackPanel>
+                                    <Grid Grid.Row="0" Grid.Column="1" ColumnDefinitions="*, Auto" ColumnSpacing="6">
+                                        <AutoCompleteBox x:Name="SerialScopePortAutoCompleteBox"
+                                                         Text="{Binding CurrentScopePortName}"
+                                                         ItemsSource="{Binding SerialPortNames}"
+                                                         FilterMode="ContainsOrdinal"
+                                                         PlaceholderText="{loc:KeiString SessionEdit.Serial.PortName.Placeholder}"/>
+                                        <Button x:Name="RefreshSerialPortsButton" Grid.Column="1"
+                                                Command="{Binding RefreshSerialPortsCommand}"
+                                                ToolTip.Tip="{loc:KeiString SessionEdit.Serial.RefreshPorts}"
+                                                Padding="6,2" MinWidth="32" VerticalAlignment="Stretch">
+                                            <Viewbox Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <Grid Width="24" Height="24">
+                                                    <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Refresh}"/>
+                                                </Grid>
+                                            </Viewbox>
+                                        </Button>
+                                    </Grid>
+                                    <Button Grid.Row="0" Grid.Column="2" Content="{loc:KeiString SessionEdit.Serial.ResetOverride}" Command="{Binding ResetPortOverrideCommand}"
+                                            IsVisible="{Binding IsPortOverriddenInCurrentScope}" ToolTip.Tip="{loc:KeiString SessionEdit.Serial.ResetOverrideTip}" Padding="6,2"/>
+
+                                    <!-- 波特率 -->
+                                    <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                        <TextBlock Text="{loc:KeiString SessionEdit.Serial.BaudRate}" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                        <Border IsVisible="{Binding IsOverrideScopeSelected}" Background="{DynamicResource Kei.Bg.Card}" CornerRadius="2" Padding="4,1">
+                                            <TextBlock Text="{loc:KeiString SessionEdit.Serial.Overridden}" FontSize="12" Foreground="{DynamicResource Kei.Accent}" IsVisible="{Binding IsBaudRateOverriddenInCurrentScope}"/>
+                                        </Border>
+                                        <Border IsVisible="{Binding IsOverrideScopeSelected}" Background="{DynamicResource Kei.Bg.Card}" CornerRadius="2" Padding="4,1">
+                                            <TextBlock Text="{loc:KeiString SessionEdit.Serial.Inherited}" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}" IsVisible="{Binding !IsBaudRateOverriddenInCurrentScope}"/>
+                                        </Border>
+                                    </StackPanel>
+                                    <ComboBox x:Name="SerialScopeBaudRateComboBox" Grid.Row="1" Grid.Column="1" ItemsSource="{Binding SerialBaudRates}" SelectedItem="{Binding CurrentScopeBaudRate}" HorizontalAlignment="Stretch"/>
+                                    <Button Grid.Row="1" Grid.Column="2" Content="{loc:KeiString SessionEdit.Serial.ResetOverride}" Command="{Binding ResetBaudRateOverrideCommand}"
+                                            IsVisible="{Binding IsBaudRateOverriddenInCurrentScope}" ToolTip.Tip="{loc:KeiString SessionEdit.Serial.ResetOverrideTip}" Padding="6,2"/>
+
+                                    <!-- 数据位 -->
+                                    <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                        <TextBlock Text="{loc:KeiString SessionEdit.Serial.DataBits}" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                        <Border IsVisible="{Binding IsOverrideScopeSelected}" Background="{DynamicResource Kei.Bg.Card}" CornerRadius="2" Padding="4,1">
+                                            <TextBlock Text="{loc:KeiString SessionEdit.Serial.Overridden}" FontSize="12" Foreground="{DynamicResource Kei.Accent}" IsVisible="{Binding IsDataBitsOverriddenInCurrentScope}"/>
+                                        </Border>
+                                        <Border IsVisible="{Binding IsOverrideScopeSelected}" Background="{DynamicResource Kei.Bg.Card}" CornerRadius="2" Padding="4,1">
+                                            <TextBlock Text="{loc:KeiString SessionEdit.Serial.Inherited}" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}" IsVisible="{Binding !IsDataBitsOverriddenInCurrentScope}"/>
+                                        </Border>
+                                    </StackPanel>
+                                    <ComboBox x:Name="SerialScopeDataBitsComboBox" Grid.Row="2" Grid.Column="1" ItemsSource="{Binding SerialDataBitsOptions}" SelectedItem="{Binding CurrentScopeDataBits}" HorizontalAlignment="Stretch"/>
+                                    <Button Grid.Row="2" Grid.Column="2" Content="{loc:KeiString SessionEdit.Serial.ResetOverride}" Command="{Binding ResetDataBitsOverrideCommand}"
+                                            IsVisible="{Binding IsDataBitsOverriddenInCurrentScope}" ToolTip.Tip="{loc:KeiString SessionEdit.Serial.ResetOverrideTip}" Padding="6,2"/>
+
+                                    <!-- 校验位 -->
+                                    <StackPanel Grid.Row="3" Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                        <TextBlock Text="{loc:KeiString SessionEdit.Serial.Parity}" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                        <Border IsVisible="{Binding IsOverrideScopeSelected}" Background="{DynamicResource Kei.Bg.Card}" CornerRadius="2" Padding="4,1">
+                                            <TextBlock Text="{loc:KeiString SessionEdit.Serial.Overridden}" FontSize="12" Foreground="{DynamicResource Kei.Accent}" IsVisible="{Binding IsParityOverriddenInCurrentScope}"/>
+                                        </Border>
+                                        <Border IsVisible="{Binding IsOverrideScopeSelected}" Background="{DynamicResource Kei.Bg.Card}" CornerRadius="2" Padding="4,1">
+                                            <TextBlock Text="{loc:KeiString SessionEdit.Serial.Inherited}" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}" IsVisible="{Binding !IsParityOverriddenInCurrentScope}"/>
+                                        </Border>
+                                    </StackPanel>
+                                    <ComboBox x:Name="SerialScopeParityComboBox" Grid.Row="3" Grid.Column="1" ItemsSource="{Binding SerialParities}" SelectedItem="{Binding CurrentScopeParity}" HorizontalAlignment="Stretch"/>
+                                    <Button Grid.Row="3" Grid.Column="2" Content="{loc:KeiString SessionEdit.Serial.ResetOverride}" Command="{Binding ResetParityOverrideCommand}"
+                                            IsVisible="{Binding IsParityOverriddenInCurrentScope}" ToolTip.Tip="{loc:KeiString SessionEdit.Serial.ResetOverrideTip}" Padding="6,2"/>
+
+                                    <!-- 停止位 -->
+                                    <StackPanel Grid.Row="4" Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                        <TextBlock Text="{loc:KeiString SessionEdit.Serial.StopBits}" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                        <Border IsVisible="{Binding IsOverrideScopeSelected}" Background="{DynamicResource Kei.Bg.Card}" CornerRadius="2" Padding="4,1">
+                                            <TextBlock Text="{loc:KeiString SessionEdit.Serial.Overridden}" FontSize="12" Foreground="{DynamicResource Kei.Accent}" IsVisible="{Binding IsStopBitsOverriddenInCurrentScope}"/>
+                                        </Border>
+                                        <Border IsVisible="{Binding IsOverrideScopeSelected}" Background="{DynamicResource Kei.Bg.Card}" CornerRadius="2" Padding="4,1">
+                                            <TextBlock Text="{loc:KeiString SessionEdit.Serial.Inherited}" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}" IsVisible="{Binding !IsStopBitsOverriddenInCurrentScope}"/>
+                                        </Border>
+                                    </StackPanel>
+                                    <ComboBox x:Name="SerialScopeStopBitsComboBox" Grid.Row="4" Grid.Column="1" ItemsSource="{Binding SerialStopBitsOptions}" SelectedItem="{Binding CurrentScopeStopBits}" HorizontalAlignment="Stretch"/>
+                                    <Button Grid.Row="4" Grid.Column="2" Content="{loc:KeiString SessionEdit.Serial.ResetOverride}" Command="{Binding ResetStopBitsOverrideCommand}"
+                                            IsVisible="{Binding IsStopBitsOverriddenInCurrentScope}" ToolTip.Tip="{loc:KeiString SessionEdit.Serial.ResetOverrideTip}" Padding="6,2"/>
+
+                                    <!-- 自动流控 -->
+                                    <StackPanel Grid.Row="5" Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                        <TextBlock Text="{loc:KeiString SessionEdit.Serial.FlowControl}" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                        <Border IsVisible="{Binding IsOverrideScopeSelected}" Background="{DynamicResource Kei.Bg.Card}" CornerRadius="2" Padding="4,1">
+                                            <TextBlock Text="{loc:KeiString SessionEdit.Serial.Overridden}" FontSize="12" Foreground="{DynamicResource Kei.Accent}" IsVisible="{Binding IsFlowControlOverriddenInCurrentScope}"/>
+                                        </Border>
+                                        <Border IsVisible="{Binding IsOverrideScopeSelected}" Background="{DynamicResource Kei.Bg.Card}" CornerRadius="2" Padding="4,1">
+                                            <TextBlock Text="{loc:KeiString SessionEdit.Serial.Inherited}" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}" IsVisible="{Binding !IsFlowControlOverriddenInCurrentScope}"/>
+                                        </Border>
+                                    </StackPanel>
+                                    <ComboBox x:Name="SerialScopeFlowControlComboBox" Grid.Row="5" Grid.Column="1" ItemsSource="{Binding SerialFlowControls}"
+                                              SelectedValue="{Binding CurrentScopeFlowControl}" SelectedValueBinding="{Binding Mode, DataType=vm:SerialFlowControlOption}" HorizontalAlignment="Stretch">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding DisplayName}"/>
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                    <Button Grid.Row="5" Grid.Column="2" Content="{loc:KeiString SessionEdit.Serial.ResetOverride}" Command="{Binding ResetFlowControlOverrideCommand}"
+                                            IsVisible="{Binding IsFlowControlOverriddenInCurrentScope}" ToolTip.Tip="{loc:KeiString SessionEdit.Serial.ResetOverrideTip}" Padding="6,2"/>
+
+                                    <!-- DTR 引脚 -->
+                                    <StackPanel Grid.Row="6" Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                        <TextBlock Text="{loc:KeiString SessionEdit.Serial.Dtr}" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                        <Border IsVisible="{Binding IsOverrideScopeSelected}" Background="{DynamicResource Kei.Bg.Card}" CornerRadius="2" Padding="4,1">
+                                            <TextBlock Text="{loc:KeiString SessionEdit.Serial.Overridden}" FontSize="12" Foreground="{DynamicResource Kei.Accent}" IsVisible="{Binding IsDtrOverriddenInCurrentScope}"/>
+                                        </Border>
+                                        <Border IsVisible="{Binding IsOverrideScopeSelected}" Background="{DynamicResource Kei.Bg.Card}" CornerRadius="2" Padding="4,1">
+                                            <TextBlock Text="{loc:KeiString SessionEdit.Serial.Inherited}" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}" IsVisible="{Binding !IsDtrOverriddenInCurrentScope}"/>
+                                        </Border>
+                                    </StackPanel>
+                                    <ComboBox x:Name="SerialScopeDtrComboBox" Grid.Row="6" Grid.Column="1" ItemsSource="{Binding SerialPinOptions}"
+                                              SelectedValue="{Binding CurrentScopeDtrEnable}" SelectedValueBinding="{Binding Value, DataType=vm:SerialPinOption}" HorizontalAlignment="Stretch">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding DisplayName}"/>
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                    <Button Grid.Row="6" Grid.Column="2" Content="{loc:KeiString SessionEdit.Serial.ResetOverride}" Command="{Binding ResetDtrOverrideCommand}"
+                                            IsVisible="{Binding IsDtrOverriddenInCurrentScope}" ToolTip.Tip="{loc:KeiString SessionEdit.Serial.ResetOverrideTip}" Padding="6,2"/>
+
+                                    <!-- RTS 引脚 -->
+                                    <StackPanel Grid.Row="7" Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                        <TextBlock Text="{loc:KeiString SessionEdit.Serial.Rts}" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                        <Border IsVisible="{Binding IsOverrideScopeSelected}" Background="{DynamicResource Kei.Bg.Card}" CornerRadius="2" Padding="4,1">
+                                            <TextBlock Text="{loc:KeiString SessionEdit.Serial.Overridden}" FontSize="12" Foreground="{DynamicResource Kei.Accent}" IsVisible="{Binding IsRtsOverriddenInCurrentScope}"/>
+                                        </Border>
+                                        <Border IsVisible="{Binding IsOverrideScopeSelected}" Background="{DynamicResource Kei.Bg.Card}" CornerRadius="2" Padding="4,1">
+                                            <TextBlock Text="{loc:KeiString SessionEdit.Serial.Inherited}" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}" IsVisible="{Binding !IsRtsOverriddenInCurrentScope}"/>
+                                        </Border>
+                                    </StackPanel>
+                                    <ComboBox x:Name="SerialScopeRtsComboBox" Grid.Row="7" Grid.Column="1" ItemsSource="{Binding SerialPinOptions}"
+                                              SelectedValue="{Binding CurrentScopeRtsEnable}" SelectedValueBinding="{Binding Value, DataType=vm:SerialPinOption}"
+                                              IsEnabled="{Binding IsSerialRtsManualAllowed}" HorizontalAlignment="Stretch">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding DisplayName}"/>
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                    <Button Grid.Row="7" Grid.Column="2" Content="{loc:KeiString SessionEdit.Serial.ResetOverride}" Command="{Binding ResetRtsOverrideCommand}"
+                                            IsVisible="{Binding IsRtsOverriddenInCurrentScope}" ToolTip.Tip="{loc:KeiString SessionEdit.Serial.ResetOverrideTip}" Padding="6,2"/>
+                                </Grid>
+
+                                <!-- 串口发现错误提示 -->
+                                <Border x:Name="SerialPortDiscoveryErrorBorder"
+                                        IsVisible="{Binding SerialPortDiscoveryError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                        Background="{DynamicResource Kei.Bg.Card}"
+                                        BorderBrush="{DynamicResource Kei.Warning}"
+                                        BorderThickness="1" CornerRadius="{DynamicResource Kei.Radius.Control}"
+                                        Padding="10,8">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <TextBlock Text="⚠" Foreground="{DynamicResource Kei.Warning}" FontWeight="Bold" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding SerialPortDiscoveryError}" FontSize="12" Foreground="{DynamicResource Kei.Text.Secondary}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- RTS 冲突警告 -->
+                                <Border IsVisible="{Binding IsSerialRtsConflict}"
+                                        Background="{DynamicResource Kei.Bg.Card}"
+                                        BorderBrush="{DynamicResource Kei.Border.Subtle}"
+                                        BorderThickness="1" CornerRadius="{DynamicResource Kei.Radius.Control}"
+                                        Padding="10,8">
+                                    <TextBlock Text="{Binding SerialRtsConflictWarning}"
+                                               FontSize="12" Foreground="{DynamicResource Kei.Text.Secondary}" TextWrapping="Wrap"/>
+                                </Border>
+
+                                <!-- 下层手动 RTS 冲突警告 -->
+                                <Border IsVisible="{Binding IsLowerLevelManualRtsConflict}"
+                                        Background="{DynamicResource Kei.Bg.Card}"
+                                        BorderBrush="{DynamicResource Kei.Warning}"
+                                        BorderThickness="1" CornerRadius="{DynamicResource Kei.Radius.Control}"
+                                        Padding="10,8">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <TextBlock Text="⚠" Foreground="{DynamicResource Kei.Warning}" FontWeight="Bold" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding LowerLevelRtsConflictWarning}"
+                                                   FontSize="12" Foreground="{DynamicResource Kei.Text.Primary}" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- 三级端口快速概览 -->
+                                <TextBlock Text="{loc:KeiString SessionEdit.Serial.BindingSection}" FontWeight="Bold" Foreground="{DynamicResource Kei.Text.Primary}" FontSize="13"/>
+
+                                <Grid ColumnDefinitions="140, *" ColumnSpacing="10" RowDefinitions="Auto, Auto, Auto" RowSpacing="8">
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString SessionEdit.Serial.Binding.Generic}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                    <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding SerialGenericPort}" PlaceholderText="{loc:KeiString SessionEdit.Serial.PortName.Placeholder}"/>
+
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding OsBindingLabel}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding SerialOsPort}" PlaceholderText="{loc:KeiString SessionEdit.Serial.PortName.Placeholder}"/>
+
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="{loc:KeiString SessionEdit.Serial.Binding.Device}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                    <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding SerialDevicePort}" PlaceholderText="{loc:KeiString SessionEdit.Serial.PortName.Placeholder}"/>
+                                </Grid>
+
+                                <!-- 设备标识与重建 -->
+                                <Border Background="{DynamicResource Kei.Bg.Card}" BorderBrush="{DynamicResource Kei.Border.Subtle}"
+                                        BorderThickness="1" CornerRadius="{DynamicResource Kei.Radius.Control}" Padding="10,8">
+                                    <Grid ColumnDefinitions="Auto, *, Auto" ColumnSpacing="8">
+                                        <TextBlock Text="{loc:KeiString SessionEdit.Serial.DeviceId}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}" FontSize="12"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding CurrentDeviceIdDisplay}" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource Kei.Text.Primary}" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                        <Button Grid.Column="2" Content="{loc:KeiString SessionEdit.Serial.RegenerateDeviceId}"
+                                                Command="{Binding RegenerateDeviceIdCommand}"
+                                                IsEnabled="{Binding CanRegenerateDeviceId}"
+                                                ToolTip.Tip="{loc:KeiString SessionEdit.Serial.RegenerateDeviceIdTip}"
+                                                Padding="6,2" FontSize="12" MinHeight="24"/>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+
+                            <!-- 描述说明（所有协议通用） -->
+                            <Grid ColumnDefinitions="120, *" ColumnSpacing="12">
+                                <TextBlock Text="{loc:KeiString SessionEdit.Description}" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                <TextBox Grid.Column="1" Text="{Binding Description}" PlaceholderText="{loc:KeiString SessionEdit.Description.Placeholder}"/>
                             </Grid>
                         </StackPanel>
 

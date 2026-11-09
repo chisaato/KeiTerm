@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.Json;
 
 namespace Kei.Term.Transport.Go;
 
@@ -12,7 +13,26 @@ public sealed class GoSidecarProcessManager : IAsyncDisposable
     private GoIpcClient? _client;
     private string? _directory;
     private int _disposed;
-    public GoSidecarProcessManager(string? binaryPath = null) => _binaryPath = binaryPath;
+    private readonly Action<SidecarDiagnostic>? _diagnostics;
+    private Generation? _generation;
+    private sealed class Generation(Process process, string binary, string endpoint)
+    {
+        internal readonly Process Process = process;
+        internal readonly string Binary = binary;
+        internal readonly string Endpoint = endpoint;
+        internal readonly string Id = Guid.NewGuid().ToString("N");
+        internal GoIpcClient? Client;
+        internal volatile bool Expected;
+        internal Task Output = Task.CompletedTask;
+        internal Task Error = Task.CompletedTask;
+        internal Task Monitor = Task.CompletedTask;
+    }
+    public GoSidecarProcessManager(string? binaryPath = null, Action<SidecarDiagnostic>? diagnostics = null)
+    { _binaryPath = binaryPath; _diagnostics = diagnostics; }
+
+    private void Report(Generation generation, string kind, string? reason = null, int? exitCode = null)
+        => SidecarDiagnostics.Emit(_diagnostics, new(kind, generation.Id, generation.Process.Id,
+            generation.Binary, exitCode, Reason: reason, Expected: generation.Expected, Endpoint: generation.Endpoint));
 
     public async Task<GoIpcClient> GetClientAsync(CancellationToken ct = default)
     {
@@ -23,7 +43,13 @@ public sealed class GoSidecarProcessManager : IAsyncDisposable
             ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
             if (_client?.IsConnected == true && _process?.HasExited == false) return _client;
             await StopProcessAsync();
-            string binary = FindBinary();
+            string binary;
+            try { binary = FindBinary(); }
+            catch
+            {
+                SidecarDiagnostics.Emit(_diagnostics, new("process-start-failed", Reason: "binary-not-found"));
+                throw;
+            }
             string name = "keiterm-" + Guid.NewGuid().ToString("N");
             string endpoint;
             if (OperatingSystem.IsWindows()) endpoint = @"\\.\pipe\" + name;
@@ -33,12 +59,24 @@ public sealed class GoSidecarProcessManager : IAsyncDisposable
                 Directory.CreateDirectory(_directory, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
                 endpoint = Path.Combine(_directory, "ipc.sock");
             }
-            var start = new ProcessStartInfo(binary) { UseShellExecute = false, CreateNoWindow = true };
+            var start = new ProcessStartInfo(binary) { UseShellExecute = false, CreateNoWindow = true,
+                RedirectStandardOutput = true, RedirectStandardError = true };
             start.ArgumentList.Add("-socket");
             start.ArgumentList.Add(endpoint);
             start.ArgumentList.Add("-parent-pid");
             start.ArgumentList.Add(Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture));
-            _process = Process.Start(start) ?? throw new IOException("无法启动 Go Sidecar");
+            try { _process = Process.Start(start) ?? throw new IOException("无法启动 Go Sidecar"); }
+            catch
+            {
+                SidecarDiagnostics.Emit(_diagnostics, new("process-start-failed", BinaryPath: binary, Reason: "launch-failed"));
+                await StopProcessAsync();
+                throw;
+            }
+            var generation = _generation = new Generation(_process, binary, endpoint);
+            Report(generation, "process-started");
+            generation.Output = CaptureAsync(generation, _process.StandardOutput, "stdout");
+            generation.Error = CaptureAsync(generation, _process.StandardError, "stderr");
+            generation.Monitor = SuperviseAsync(generation);
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct, _stop.Token);
             timeout.CancelAfter(TimeSpan.FromSeconds(10));
             try
@@ -46,14 +84,15 @@ public sealed class GoSidecarProcessManager : IAsyncDisposable
                 while (true)
                 {
                     timeout.Token.ThrowIfCancellationRequested();
-                    if (_process.HasExited) throw new IOException("Go Sidecar 在启动期间退出");
+                    if (_process.HasExited) throw new IOException($"Go Sidecar 在启动期间退出，退出码 {_process.ExitCode}（{binary}）");
                     try
                     {
                         using var attempt = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token);
                         attempt.CancelAfter(TimeSpan.FromMilliseconds(250));
-                        _client = await GoIpcClient.ConnectAsync(endpoint, attempt.Token);
-                        await _client.CallAsync("daemon.ping", ct: timeout.Token);
-                        _ = SuperviseAsync(_process);
+                        _client = await GoIpcClient.ConnectAsync(endpoint, attempt.Token, _diagnostics, generation.Id);
+                        generation.Client = _client;
+                        if (_process.HasExited) _client.Fail(new IOException($"Go Sidecar 进程退出，退出码 {_process.ExitCode}"));
+                        await _client.CallAsync("daemon.ping", ct: timeout.Token).WaitAsync(timeout.Token);
                         return _client;
                     }
                     catch (Exception ex) when (ex is IOException or System.Net.Sockets.SocketException or OperationCanceledException && !timeout.IsCancellationRequested)
@@ -63,25 +102,65 @@ public sealed class GoSidecarProcessManager : IAsyncDisposable
                     }
                 }
             }
-            catch { await StopProcessAsync(); throw; }
+            catch (Exception ex)
+            {
+                Report(generation, "startup-failed", ex.GetType().Name);
+                await StopProcessAsync();
+                throw;
+            }
         }
         finally { _gate.Release(); }
     }
 
-    private async Task SuperviseAsync(Process process)
+    private async Task SuperviseAsync(Generation generation)
+    {
+        await generation.Process.WaitForExitAsync();
+        int code = generation.Process.ExitCode;
+        if (!generation.Expected) generation.Client?.Fail(new IOException($"Go Sidecar 进程退出，退出码 {code}"));
+        Report(generation, "process-exited", exitCode: code);
+        // 只在下一次显式拨号重建 daemon；不恢复已失去的远端业务连接。
+    }
+
+    private async Task CaptureAsync(Generation generation, StreamReader reader, string source)
+    {
+        char[] buffer = new char[1024];
+        string line = "";
+        bool overflow = false;
+        try
+        {
+            int count;
+            while ((count = await reader.ReadAsync(buffer)) != 0)
+            {
+                // 原始输出可能包含私钥或终端内容，只记录来源，不记录原文。
+                Report(generation, "process-output", source);
+                for (int i = 0; i < count; i++)
+                {
+                    if (buffer[i] == '\n')
+                    {
+                        if (!overflow) CaptureDiagnostic(generation, line);
+                        line = "";
+                        overflow = false;
+                    }
+                    else if (line.Length < 4096) line += buffer[i];
+                    else overflow = true;
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or ObjectDisposedException) { }
+    }
+
+    private void CaptureDiagnostic(Generation generation, string line)
     {
         try
         {
-            await process.WaitForExitAsync(_stop.Token);
-            // 旧进程清理不能唤醒新一代进程；会话本身报断开，由上层决定是否重连。
-            for (int attempt = 0; attempt < 3 && !_stop.IsCancellationRequested && ReferenceEquals(_process, process); attempt++)
-            {
-                await Task.Delay(TimeSpan.FromMilliseconds(250 * (1 << attempt)), _stop.Token);
-                try { await GetClientAsync(_stop.Token); return; }
-                catch (Exception ex) when (ex is IOException or System.ComponentModel.Win32Exception or OperationCanceledException) { }
-            }
+            using var document = JsonDocument.Parse(line);
+            var root = document.RootElement;
+            if (root.TryGetProperty("event", out var kind) && kind.GetString() == "router-ended" &&
+                root.TryGetProperty("reason", out var reason) && reason.GetString() is
+                    "eof" or "canceled" or "timeout" or "protocol" or "io")
+                Report(generation, "router-ended", reason.GetString());
         }
-        catch (Exception ex) when (ex is OperationCanceledException or ObjectDisposedException or InvalidOperationException) { }
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException) { }
     }
 
     private string FindBinary() => FindBinary(_binaryPath,
@@ -117,10 +196,23 @@ public sealed class GoSidecarProcessManager : IAsyncDisposable
 
     private async Task StopProcessAsync()
     {
+        if (_generation != null && !_generation.Process.HasExited) _generation.Expected = true;
         if (_client != null) { await _client.DisposeAsync(); _client = null; }
         if (_process != null)
         {
-            if (!_process.HasExited) { _process.Kill(entireProcessTree: true); await _process.WaitForExitAsync(); }
+            if (!_process.HasExited)
+            {
+                try { _process.Kill(entireProcessTree: true); }
+                catch (InvalidOperationException) when (_process.HasExited) { }
+                await _process.WaitForExitAsync();
+            }
+            if (_generation != null)
+            {
+                await _generation.Monitor;
+                await Task.WhenAll(_generation.Output, _generation.Error).WaitAsync(TimeSpan.FromSeconds(2))
+                    .ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+                _generation = null;
+            }
             _process.Dispose();
             _process = null;
         }
@@ -138,10 +230,12 @@ public sealed class GoSidecarProcessManager : IAsyncDisposable
         await _gate.WaitAsync();
         try
         {
+            if (_generation != null) _generation.Expected = true;
+            _client?.ExpectClose();
             if (_client?.IsConnected == true)
             {
                 using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(1));
-                try { await _client.CallAsync("daemon.shutdown", ct: timeout.Token); }
+                try { await _client.CallAsync("daemon.shutdown", ct: timeout.Token).WaitAsync(timeout.Token); }
                 catch (Exception ex) when (ex is IOException or OperationCanceledException or ObjectDisposedException) { }
             }
             await StopProcessAsync();

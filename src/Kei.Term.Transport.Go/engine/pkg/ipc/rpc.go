@@ -177,13 +177,14 @@ type Router struct {
 	Shutdown func()
 }
 type peer struct {
-	codec    *Codec
-	sessions map[string]*liveSession
-	streams  map[uint32]*Stream
-	resize   map[uint32]Shell
-	next     uint32
-	wg       sync.WaitGroup
-	ctx      context.Context
+	protocols map[string]*protocolSession
+	codec     *Codec
+	sessions  map[string]*liveSession
+	streams   map[uint32]*Stream
+	resize    map[uint32]Shell
+	next      uint32
+	wg        sync.WaitGroup
+	ctx       context.Context
 }
 
 func (p *peer) stream() *Stream {
@@ -203,6 +204,9 @@ func (r *Router) Serve(ctx context.Context, conn net.Conn) error {
 	defer func() {
 		cancel()
 		_ = conn.Close()
+		for _, s := range p.protocols {
+			_ = s.port.Close()
+		}
 		for _, s := range p.streams {
 			s.abort(io.ErrClosedPipe)
 		}
@@ -248,6 +252,19 @@ func (r *Router) Serve(ctx context.Context, conn net.Conn) error {
 			return errors.New("unknown stream")
 		}
 		if f.Type == WindowResize {
+			if protocol := p.protocolStream(f.StreamID); protocol != nil {
+				var size struct {
+					Cols int `json:"cols"`
+					Rows int `json:"rows"`
+				}
+				resizer, ok := protocol.port.(interface{ Resize(int, int) error })
+				if json.Unmarshal(f.Payload, &size) != nil || !ok {
+					protocol.finish(errors.New("invalid protocol resize"))
+				} else if err := resizer.Resize(size.Cols, size.Rows); err != nil {
+					protocol.finish(err)
+				}
+				continue
+			}
 			var size struct {
 				Cols int `json:"cols"`
 				Rows int `json:"rows"`
@@ -260,6 +277,16 @@ func (r *Router) Serve(ctx context.Context, conn net.Conn) error {
 				return err
 			}
 		} else if err := s.Receive(f); err != nil {
+			s.mu.Lock()
+			closed := s.closed
+			s.mu.Unlock()
+			if f.Type == Close && closed {
+				continue
+			}
+			if protocol := p.protocolStream(f.StreamID); protocol != nil {
+				protocol.finish(err)
+				continue
+			}
 			return err
 		}
 	}
@@ -320,7 +347,11 @@ func (r *Router) dispatch(p *peer, data []byte) (*Response, func()) {
 }
 func (e *RPCError) Error() string { return e.Message }
 func (r *Router) call(p *peer, req Request) (any, func(), error) {
+	if handled, result, after, err := r.callProtocol(p, req); handled {
+		return result, after, err
+	}
 	if req.Method == "session.connect" || req.Method == "sftp.upload_stream" || req.Method == "sftp.download_stream" {
+		p.retireProtocols()
 		// Retire completed streams on the reader goroutine only. Keep live
 		// allocations bounded, including peers that never finish uploads.
 		for id, stream := range p.streams {
@@ -332,7 +363,7 @@ func (r *Router) call(p *peer, req Request) (any, func(), error) {
 				delete(p.resize, id)
 			}
 		}
-		if len(p.streams) >= 256 || p.next == ^uint32(0) || (req.Method == "session.connect" && len(p.sessions) >= 64) {
+		if len(p.streams) >= 256 || p.next == ^uint32(0) || (req.Method == "session.connect" && len(p.sessions)+len(p.protocols) >= 64) {
 			return nil, nil, &RPCError{-32002, "IPC resource limit exceeded"}
 		}
 	}

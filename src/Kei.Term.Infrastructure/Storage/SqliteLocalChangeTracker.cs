@@ -44,7 +44,7 @@ public sealed class SqliteLocalChangeTracker(SqliteConnectionFactory factory) : 
         using var tx = conn.BeginTransaction();
         var args = new { cutoff = SqliteValue.FormatUtc(cutoffUtc) };
         // 从叶子开始清理，且不让旧父墓碑的 FK 级联删掉较新的子实体。
-        foreach (string table in new[] { "external_editor_paths", "file_associations", "identity_secrets", "proxy_secrets", "port_forwards", "session_details", "known_hosts" })
+        foreach (string table in new[] { "device_configurations", "external_editor_paths", "file_associations", "identity_secrets", "proxy_secrets", "port_forwards", "session_details", "known_hosts" })
             await conn.ExecuteAsync(new CommandDefinition($"DELETE FROM {table} WHERE deleted_at < @cutoff;", args, tx, cancellationToken: cancellationToken));
         await conn.ExecuteAsync(new CommandDefinition(@"
             DELETE FROM external_editors WHERE deleted_at < @cutoff

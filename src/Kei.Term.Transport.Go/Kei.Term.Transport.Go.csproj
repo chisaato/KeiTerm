@@ -11,6 +11,10 @@
   </ItemGroup>
   <ItemGroup>
     <GoSidecarSource Include="engine/**/*.go;engine/go.mod;engine/go.sum;$(MSBuildProjectFullPath)" />
+    <None Update="engine/internal/serialnative/LICENSE" Link="Licenses/GoSerial/LICENSE"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Update="engine/internal/serialnative/UPSTREAM.md" Link="Licenses/GoSerial/UPSTREAM.md"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <Target Name="DetectGoSidecarToolchain" Condition="'$(DesignTimeBuild)' != 'true'">

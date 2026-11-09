@@ -76,6 +76,7 @@ public class StorageConstraintTests
         { "session_details", "node_id", "leaf", "tree_nodes", "leaf", "CASCADE" },
         { "proxy_secrets", "proxy_id", "proxy", "proxies", "proxy", "CASCADE" },
         { "port_forwards", "session_id", "forward", "tree_nodes", "leaf", "CASCADE" },
+        { "device_configurations", "owner_id", "device-config", "tree_nodes", "leaf", "CASCADE" },
     };
 
     [Fact]
@@ -194,6 +195,8 @@ public class StorageConstraintTests
         INSERT INTO proxies(id, name, config_json, created_at, updated_at) VALUES ('proxy', 'Proxy', '{}', '2026-10-19', '2026-10-19');
         INSERT INTO proxy_secrets(proxy_id, secrets_blob, encryption_algorithm) VALUES ('proxy', X'0102', 'AES-256-GCM');
         INSERT INTO port_forwards(id, session_id, mode, bind_address, listen_port) VALUES ('forward', 'leaf', 'local', '127.0.0.1', 8080);
+        INSERT INTO device_configurations(id, owner_id, category, os, fields_json, updated_at)
+            VALUES ('device-config', 'leaf', 'serial', 'linux', '{"baudRate":57600}', '2026-10-19');
         """;
 
     private sealed class TestDatabase : IDisposable

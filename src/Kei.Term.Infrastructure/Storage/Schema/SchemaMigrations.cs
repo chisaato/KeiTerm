@@ -22,7 +22,26 @@ public static class SchemaMigrations
         new(9, "local_entity_stamps_and_tombstones", ApplyLocalEntityStampsAsync),
         new(10, "sync_local_secrets_and_dangling_identity", ApplySyncLocalSecretsAsync),
         new(11, "sync_file_redo_journal", ApplySyncFileJournalAsync),
+        new(12, "device_configurations", ApplyDeviceConfigurationsAsync),
     ];
+
+    private static Task ApplyDeviceConfigurationsAsync(SqliteConnection conn, SqliteTransaction tx, CancellationToken ct)
+        => ExecAsync(conn, tx, @"
+            CREATE TABLE IF NOT EXISTS device_configurations (
+                id TEXT PRIMARY KEY NOT NULL,
+                owner_id TEXT NOT NULL REFERENCES tree_nodes(id) ON DELETE CASCADE,
+                category TEXT NOT NULL, os TEXT, target_device_id TEXT,
+                fields_json TEXT NOT NULL, updated_at TEXT NOT NULL, device_id TEXT,
+                deleted_at TEXT, revision INTEGER NOT NULL DEFAULT 1,
+                CHECK ((os IS NULL) != (target_device_id IS NULL))
+            );
+            CREATE INDEX IF NOT EXISTS idx_device_configurations_owner ON device_configurations(owner_id,category);
+            CREATE TRIGGER IF NOT EXISTS device_configurations_parent_deleted AFTER UPDATE OF deleted_at ON tree_nodes
+            WHEN NEW.deleted_at IS NOT NULL BEGIN
+                UPDATE device_configurations SET deleted_at=NEW.deleted_at,updated_at=NEW.updated_at,
+                    device_id=NEW.device_id,fields_json='{}',revision=revision+1
+                WHERE owner_id=NEW.id;
+            END;", ct);
 
     private static Task ApplySyncFileJournalAsync(SqliteConnection conn, SqliteTransaction tx, CancellationToken ct)
         => ExecAsync(conn, tx, @"

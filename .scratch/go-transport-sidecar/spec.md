@@ -84,7 +84,7 @@ KeiTerm 现阶段使用纯 C#（基于 SSH.NET）作为默认 SSH、SFTP 与端�
 ## 4. 交付清单与排期
 
 - [x] **01-spec-and-adr**: 落地 Spec 与 ADR-0005 架构决策。
-- [ ] **02-go-core-package**: 构建 Go 传输引擎核心库（`src/Kei.Term.Transport.GoEngine/` 或独立模块），实现基础 SSH Client、PTY 与 SFTP 封装。
-- [ ] **03-ipc-protocol-and-daemon**: 实现桌面 IPC 协议（UDS/NamedPipe + 多路复用帧）及 Go Sidecar Daemon。
-- [ ] **04-csharp-transport-adapter**: 在 C# 端实现 `Kei.Term.Transport.Go` 项目，实现 `ISshSessionFactory` 与进程监管。
-- [ ] **05-integration-and-tests**: 编写集成测试、性能基准比对测试与故障自愈测试。
+- [x] **02-go-core-package**: 构建 Go 传输引擎核心库（`src/Kei.Term.Transport.Go/engine`），实现基础 SSH Client、PTY 与 SFTP 封装。（2026-11-09 完成）
+- [x] **03-ipc-protocol-and-daemon**: 实现桌面 IPC 协议（UDS/NamedPipe + 多路复用帧）及 Go Sidecar Daemon。（2026-11-09 完成）
+- [x] **04-csharp-transport-adapter**: 在 C# 端实现 `Kei.Term.Transport.Go` 项目，实现 `ISshSessionFactory` 与进程监管。（2026-11-09 完成）
+- [x] **05-integration-and-tests**: 集成测试与故障传播测试完成（真实 sshd 端到端冒烟通过）；性能基准比对未做，已转留存工单 `issues/09-cross-engine-benchmark.md`。

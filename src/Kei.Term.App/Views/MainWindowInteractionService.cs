@@ -35,6 +35,7 @@ public sealed class MainWindowInteractionService : IInteractionService
     private readonly KnownHostsManagerViewModel? _knownHosts;
     private readonly ILogger _log;
     private IReadOnlyList<PortForward> _pendingForwards = [];
+    private SessionEditViewModel? _pendingSessionConfiguration;
 
     // 管理器已经模态打开时，解锁窗口必须挂在当前可交互的子窗口上。
     private Window DialogOwner
@@ -113,6 +114,8 @@ public sealed class MainWindowInteractionService : IInteractionService
     public Task<SessionNode?> EditSessionAsync(SessionNode? existing, Guid? parentId, IReadOnlyList<Identity> identities)
         => Safe.RunAsync<SessionNode?>(_log, "打开会话编辑窗口", async () =>
         {
+            _pendingSessionConfiguration = null;
+            _pendingForwards = [];
             _log.LogInformation("会话编辑窗口打开 模式={Mode}", existing == null ? "新建" : "编辑");
             IReadOnlyList<ProxyProfile> proxies = await _mainVm.LoadProxiesAsync();
             IReadOnlyList<PortForward> forwards = existing == null
@@ -127,12 +130,17 @@ public sealed class MainWindowInteractionService : IInteractionService
                 proxies,
                 _mainVm.SnapshotSessionTree(),
                 forwards,
-                _mainVm.SessionMetadata);
+                _mainVm.SessionMetadata,
+                deviceConfigService: _mainVm.DeviceConfiguration,
+                syncDeviceId: _mainVm.SyncDeviceId,
+                serialPortCatalog: _mainVm.SerialPortCatalog);
+            if (existing != null) await editVm.LoadSerialOverridesAsync(existing.Id);
             editVm.PickSessionAsync = request => PickSessionAsync(request);
             editVm.RequestCreateProxyAsync = () => CreateProxyFromSessionAsync(editVm);
             await new SessionEditWindow(editVm).ShowDialog(_owner);
             _pendingForwards = editVm.IsConfirmed ? editVm.CollectForwards() : [];
             SessionNode? result = editVm.IsConfirmed ? editVm.ApplyToModel(existing) : null;
+            if (result != null) _pendingSessionConfiguration = editVm;
             _log.LogInformation("会话编辑窗口关闭 结果={Result}", result == null ? "取消" : "确认");
             return result;
         });
@@ -178,6 +186,21 @@ public sealed class MainWindowInteractionService : IInteractionService
         }
 
         return built;
+    }
+
+    public async Task CommitPendingSessionConfigurationAsync(Guid ownerId, CancellationToken ct = default)
+    {
+        SessionEditViewModel? pending = _pendingSessionConfiguration;
+        if (pending == null) return;
+        if (pending.NodeId != ownerId)
+            throw new InvalidOperationException("待保存的设备配置不属于此会话。");
+        await pending.CommitSerialOverridesAsync(ownerId, ct);
+        if (ReferenceEquals(_pendingSessionConfiguration, pending)) _pendingSessionConfiguration = null;
+    }
+
+    public void DiscardPendingSessionConfiguration(Guid ownerId)
+    {
+        if (_pendingSessionConfiguration?.NodeId == ownerId) _pendingSessionConfiguration = null;
     }
 
     public IReadOnlyList<PortForward> TakePendingForwards()
@@ -366,6 +389,15 @@ public sealed class MainWindowInteractionService : IInteractionService
         {
             ct.ThrowIfCancellationRequested();
             return await TransferConflictWindow.ConfirmLargeScpAsync(DialogOwner, fileName, size);
+        });
+
+    public Task<bool> PromptConfirmSerialBindingAsync(string sessionName, string portName, CancellationToken ct = default)
+        => Safe.RunAsync(_log, "确认串口设备绑定", async () =>
+        {
+            ct.ThrowIfCancellationRequested();
+            string title = Strings.Get("Interaction.SerialBinding.Title");
+            string message = string.Format(Strings.Get("Interaction.SerialBinding.Message"), sessionName, portName);
+            return await Dispatcher.UIThread.InvokeAsync(() => SettingsWindowInteractionService.ShowConfirmationAsync(DialogOwner, title, message, ct));
         });
 
     public Task<string?> PickFolderAsync(string title, CancellationToken ct = default)

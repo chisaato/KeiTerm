@@ -17,6 +17,7 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using Kei.Term.App.Helpers;
 using Kei.Term.App.Services;
 
@@ -161,8 +162,9 @@ internal sealed class SettingsWindowInteractionService(Window owner, SettingsVie
     public Task<bool> ConfirmDeleteAsync(string name)
         => ShowConfirmationAsync(DialogOwner, Strings.Get("Settings.Security.RemoveMasterPassword"), name);
 
-    internal static Task<bool> ShowConfirmationAsync(Window owner, string title, string name)
+    internal static async Task<bool> ShowConfirmationAsync(Window owner, string title, string name, CancellationToken ct = default)
     {
+        ct.ThrowIfCancellationRequested();
         var message = new TextBlock
         {
             Text = name,
@@ -202,7 +204,12 @@ internal sealed class SettingsWindowInteractionService(Window owner, SettingsVie
         dialog.Bind(Window.FontFamilyProperty, dialog.GetResourceObservable("Kei.Font.UI"));
         cancel.Click += (_, _) => dialog.Close(false);
         confirm.Click += (_, _) => dialog.Close(true);
-        return dialog.ShowDialog<bool>(owner);
+
+        using var registration = ct.CanBeCanceled
+            ? ct.Register(() => Dispatcher.UIThread.Post(() => dialog.Close(false)))
+            : default;
+
+        return await dialog.ShowDialog<bool>(owner);
     }
 
     public Task NotifyAsync(string title, string message, Kei.Term.App.Models.NotificationLevel level = Kei.Term.App.Models.NotificationLevel.Info) => Task.CompletedTask;

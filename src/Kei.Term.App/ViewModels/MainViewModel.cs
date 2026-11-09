@@ -28,6 +28,7 @@ using Kei.Term.Core.Security;
 using Kei.Term.Core.Services;
 using Kei.Term.Core.Storage;
 using Kei.Term.Core.Settings;
+using Kei.Term.Core.Sync;
 using Kei.Term.Core.Vault;
 using Kei.Term.Ssh.Abstractions;
 using Kei.Term.Ssh.Services;
@@ -156,6 +157,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
     private readonly ISessionMetadataRepository? _sessionMetadata;
 
     public ISessionMetadataRepository? SessionMetadata => _sessionMetadata;
+    internal DeviceConfigurationService? DeviceConfiguration { get; }
+    internal ISerialPortCatalog? SerialPortCatalog { get; }
+    internal ISyncDeviceId? SyncDeviceId { get; }
 
     // 当前设置快照（供快速连接窗口取默认端口/用户名等）
     public AppSettings CurrentSettings => _settingsService.Current;
@@ -176,12 +180,17 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         IProxyRepository? proxyRepo = null,
         IPortForwardRepository? portForwards = null,
         IProxySecretStore? proxySecrets = null,
-        ISessionMetadataRepository? sessionMetadata = null)
+        ISessionMetadataRepository? sessionMetadata = null,
+        IProtocolSessionFactory? protocolSessions = null,
+        DeviceConfigurationService? deviceConfigurationService = null,
+        ISyncDeviceId? syncDeviceId = null)
     {
         _hostKeyTrust = hostKeyTrust;
         _treeRepo = treeRepo;
         _identityRepo = identityRepo;
         _sessionMetadata = sessionMetadata;
+        DeviceConfiguration = deviceConfigurationService;
+        SyncDeviceId = syncDeviceId;
         _editorRepo = editorRepo;
         _profileManager = profileManager;
         _settingsService = settingsService;
@@ -216,7 +225,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
             _proxyRepo,
             _portForwards,
             proxySecrets: proxySecrets,
-            ensureUnlocked: proxySecrets == null ? null : () => VaultSession.EnsureUnlockedAsync());
+            ensureUnlocked: proxySecrets == null ? null : () => VaultSession.EnsureUnlockedAsync(),
+            protocolSessions: protocolSessions);
+        SerialPortCatalog = protocolSessions as ISerialPortCatalog;
 
         Workspace = new WorkspaceCoordinator();
         Tabs = Workspace.AllTabs;
@@ -604,8 +615,21 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
             var result = await Interaction.EditSessionAsync(session, session.ParentId, identities);
             if (result != null)
             {
-                await _treeRepo.SaveNodeAsync(result);
-                await PersistPendingForwardsAsync(result.Id);
+                try
+                {
+                    await _treeRepo.SaveNodeAsync(result);
+                    await Interaction.CommitPendingSessionConfigurationAsync(result.Id);
+                    await PersistPendingForwardsAsync(result.Id);
+                }
+                catch (Exception ex)
+                {
+                    await Interaction.NotifyAsync("保存会话配置失败", ex.Message, NotificationLevel.Error);
+                    throw;
+                }
+                finally
+                {
+                    Interaction.DiscardPendingSessionConfiguration(result.Id);
+                }
                 await ReloadTreeAsync();
             }
         }

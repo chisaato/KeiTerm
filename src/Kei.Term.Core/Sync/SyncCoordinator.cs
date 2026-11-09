@@ -42,7 +42,7 @@ public sealed partial class SyncCoordinator(ISyncSnapshotStore store, ISyncPacka
                         remote = JsonSerializer.Deserialize<SyncSnapshot>(plaintext) ?? throw new JsonException("空同步快照");
                         if (remote.FormatVersion > SyncSnapshot.CurrentFormatVersion)
                             return new(false, "同步包来自更高版本，请升级应用");
-                        if (remote.FormatVersion != SyncSnapshot.CurrentFormatVersion)
+                        if (remote.FormatVersion is < 1 or > SyncSnapshot.CurrentFormatVersion)
                             return new(false, "不支持的同步快照版本");
                     }
                     finally { CryptographicOperations.ZeroMemory(plaintext); }

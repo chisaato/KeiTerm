@@ -2,8 +2,11 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
+	"io"
+	"log"
 	"net"
 	"os"
 	"os/signal"
@@ -42,6 +45,8 @@ func run(ctx context.Context, cancel context.CancelFunc, path string, idle, hand
 	active := 0
 	last := time.Now()
 	var wg sync.WaitGroup
+	diagnostics := log.New(os.Stderr, "", 0)
+	var connectionID uint64
 	stop := context.AfterFunc(ctx, func() { _ = listener.Close() })
 	defer stop()
 	go func() {
@@ -77,15 +82,34 @@ func run(ctx context.Context, cancel context.CancelFunc, path string, idle, hand
 		mu.Unlock()
 		_ = conn.SetReadDeadline(time.Now().Add(handshake))
 		wg.Add(1)
-		go func() {
+		connectionID++
+		go func(id uint64) {
 			defer wg.Done()
 			defer func() { mu.Lock(); active--; last = time.Now(); mu.Unlock() }()
 			// The initial deadline is cleared only after a complete first frame;
 			// partial headers cannot keep an orphan daemon alive indefinitely.
 			wrapped := &firstFrameConn{Conn: conn, remaining: 9}
-			_ = (&ipc.Router{Shutdown: cancel}).Serve(ctx, wrapped)
-		}()
+			serveConnection(ctx, wrapped, &ipc.Router{Shutdown: cancel}, diagnostics, id)
+		}(connectionID)
 	}
+}
+
+// 只输出固定原因和本地连接编号，禁止把错误原文或 RPC/SSH 数据写进日志。
+func serveConnection(ctx context.Context, conn net.Conn, router *ipc.Router, diagnostics *log.Logger, id uint64) {
+	err := router.Serve(ctx, conn)
+	reason := "protocol"
+	var timeout net.Error
+	switch {
+	case ctx.Err() != nil:
+		reason = "canceled"
+	case errors.Is(err, io.EOF), errors.Is(err, io.ErrUnexpectedEOF):
+		reason = "eof"
+	case errors.As(err, &timeout) && timeout.Timeout():
+		reason = "timeout"
+	case errors.As(err, &timeout):
+		reason = "io"
+	}
+	diagnostics.Printf(`{"event":"router-ended","connection":%d,"reason":"%s"}`, id, reason)
 }
 
 type firstFrameConn struct {

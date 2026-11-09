@@ -240,10 +240,10 @@ public class TerminalFileDropTests
             tab.AttachSession(session);
             tab.MarkConnected();
             Task dropping = tab.HandleTerminalFileDropAsync([path]);
-            await uploader.Started.Task;
+            await uploader.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
             Assert.True(tab.IsTerminalUploadActive);
             Task detaching = tab.DetachSessionAsync();
-            await uploader.Cancelling.Task;
+            await uploader.Cancelling.Task.WaitAsync(TimeSpan.FromSeconds(5));
             Assert.False(session.IsDisposed);
             Assert.False(detaching.IsCompleted);
             uploader.FinishCleanup.TrySetResult();
@@ -292,6 +292,8 @@ public class TerminalFileDropTests
 
     private sealed class RecordingSession : ITerminalSession
     {
+        // 此替身模拟 SSH：文件拖放选择/上传语义要求真实声明文件能力。
+        public TerminalSessionCapabilities Capabilities => new(CanResize: true, HasFileSystem: true);
         public List<byte[]> Input { get; } = [];
         public bool IsDisposed { get; private set; }
         public Guid SessionId { get; } = Guid.NewGuid();

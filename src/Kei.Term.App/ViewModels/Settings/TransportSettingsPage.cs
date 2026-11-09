@@ -79,17 +79,17 @@ public partial class TransportSettingsPage : ViewModelBase
                 Strings.Get("Settings.Transport.Feature.ConcurrentChunk"),
                 Strings.Get("Settings.Transport.Status.Standard"),
                 Strings.Get("Settings.Transport.Status.Supported"),
-                "Go 核心多路并发切片加速"),
+                "Go SFTP"),
             new(
                 Strings.Get("Settings.Transport.Feature.Fido2"),
                 Strings.Get("Settings.Transport.Status.AgentBridge"),
-                Strings.Get("Settings.Transport.Status.Direct"),
+                Strings.Get("Settings.Transport.Status.Planned"),
                 "ed25519-sk / ecdsa-sk"),
             new(
                 Strings.Get("Settings.Transport.Feature.ExtendedProtocols"),
-                "—",
-                Strings.Get("Settings.Transport.Status.Planned"),
-                "Telnet、Serial 串口统一通道")
+                Strings.Get("Settings.Transport.Status.Supported"),
+                Strings.Get("Settings.Transport.Status.Supported"),
+                "Telnet / Serial")
         ];
     }
 }
