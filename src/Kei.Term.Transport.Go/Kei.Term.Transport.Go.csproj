@@ -1,0 +1,53 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Kei.Term.Tests" />
+    <ProjectReference Include="../Kei.Term.Core/Kei.Term.Core.csproj" />
+    <ProjectReference Include="../Kei.Term.Ssh/Kei.Term.Ssh.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <GoSidecarSource Include="engine/**/*.go;engine/go.mod;engine/go.sum;$(MSBuildProjectFullPath)" />
+    <None Update="engine/internal/serialnative/LICENSE" Link="Licenses/GoSerial/LICENSE"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Update="engine/internal/serialnative/UPSTREAM.md" Link="Licenses/GoSerial/UPSTREAM.md"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <Target Name="DetectGoSidecarToolchain" Condition="'$(DesignTimeBuild)' != 'true'">
+    <PropertyGroup>
+      <GoSidecarName>kei-trans-daemon</GoSidecarName>
+      <GoSidecarName Condition="$([MSBuild]::IsOSPlatform('Windows'))">kei-trans-daemon.exe</GoSidecarName>
+      <GoSidecarOutput>$([System.IO.Path]::GetFullPath('$(IntermediateOutputPath)go/$(GoSidecarName)', '$(MSBuildProjectDirectory)'))</GoSidecarOutput>
+    </PropertyGroup>
+    <Exec Command="where go &gt;nul 2&gt;nul" Condition="$([MSBuild]::IsOSPlatform('Windows'))" IgnoreExitCode="true">
+      <Output TaskParameter="ExitCode" PropertyName="GoSidecarToolchainExitCode" />
+    </Exec>
+    <Exec Command="command -v go &gt;/dev/null 2&gt;&amp;1" Condition="!$([MSBuild]::IsOSPlatform('Windows'))" IgnoreExitCode="true">
+      <Output TaskParameter="ExitCode" PropertyName="GoSidecarToolchainExitCode" />
+    </Exec>
+    <Warning Condition="'$(GoSidecarToolchainExitCode)' != '0'"
+             Text="未找到 Go 工具链，跳过 Go Sidecar 编译；BuiltIn 引擎仍可正常使用。若需 Go 引擎，请安装 Go 后重新构建，或设置 KEITERM_GO_SIDECAR_PATH。" />
+  </Target>
+
+  <Target Name="BuildGoSidecar" DependsOnTargets="DetectGoSidecarToolchain"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(GoSidecarToolchainExitCode)' == '0'"
+          Inputs="@(GoSidecarSource)" Outputs="$(GoSidecarOutput)">
+    <MakeDir Directories="$([System.IO.Path]::GetDirectoryName('$(GoSidecarOutput)'))" />
+    <Exec WorkingDirectory="$(MSBuildProjectDirectory)/engine"
+          Command="go build -o &quot;$(GoSidecarOutput)&quot; ./cmd/daemon" />
+  </Target>
+
+  <!-- 在 SDK 收集输出项之前生成文件，引用本项目的 App 也会自动复制到输出根目录。 -->
+  <Target Name="PrepareGoSidecarOutput" BeforeTargets="AssignTargetPaths" DependsOnTargets="DetectGoSidecarToolchain;BuildGoSidecar"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+    <ItemGroup>
+      <None Include="$(GoSidecarOutput)" Condition="Exists('$(GoSidecarOutput)')"
+            Link="$(GoSidecarName)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+      <FileWrites Include="$(GoSidecarOutput)" Condition="Exists('$(GoSidecarOutput)')" />
+    </ItemGroup>
+  </Target>
+</Project>

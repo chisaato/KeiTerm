@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Threading;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Media;
@@ -13,6 +14,7 @@ using Kei.Term.App.ViewModels;
 using Kei.Term.App.ViewModels.Settings;
 using Kei.Term.App.Views;
 using Kei.Term.Core.Models;
+using Kei.Term.Core.Abstractions;
 using Kei.Term.Core.Models.Profiles;
 using Kei.Term.Core.Models.Profiles.BuiltIns.Gui;
 using Kei.Term.Core.Settings;
@@ -23,6 +25,17 @@ namespace Kei.Term.Tests;
 
 public class UiRefinementsContractTests
 {
+    private sealed class ToolbarSession(bool hasFiles) : ITerminalSession
+    {
+        public Guid SessionId { get; } = Guid.NewGuid();
+        public bool IsConnected => true;
+        public TerminalSessionCapabilities Capabilities => new(CanResize: true, HasFileSystem: hasFiles);
+        public event Action<byte[]>? OutputReceived { add { } remove { } }
+        public event Action<Exception?>? Disconnected { add { } remove { } }
+        public Task ConnectAsync(CancellationToken ct = default) => Task.CompletedTask;
+        public Task SendInputAsync(ReadOnlyMemory<byte> data, CancellationToken ct = default) => Task.CompletedTask;
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
     [Fact]
     public Task Settings_TabTitleVariableReference_IsAccessibleViaDrillDown() => HeadlessAvalonia.RunAsync(async () =>
     {
@@ -70,6 +83,11 @@ public class UiRefinementsContractTests
 
             Button toggleBtn = view.GetVisualDescendants().OfType<Button>().Single(b => b.Name == "TerminalFileManagerToggleButton");
             Assert.NotNull(toggleBtn);
+            Assert.False(toggleBtn.IsEffectivelyVisible);
+            tab.AttachSession(new ToolbarSession(hasFiles: true));
+            tab.MarkConnected();
+            HeadlessAvalonia.Pump();
+            Assert.True(toggleBtn.IsEffectivelyVisible);
             Assert.False(tab.IsFileManagerVisible);
             Assert.Equal(Strings.Get("Terminal.FileManager.Show"), AutomationProperties.GetName(toggleBtn));
             Assert.DoesNotContain("open", toggleBtn.Classes);
@@ -85,6 +103,14 @@ public class UiRefinementsContractTests
             Assert.False(tab.IsFileManagerVisible);
             Assert.Equal(Strings.Get("Terminal.FileManager.Show"), AutomationProperties.GetName(toggleBtn));
             Assert.DoesNotContain("open", toggleBtn.Classes);
+
+            await tab.DetachSessionAsync();
+            tab.AttachSession(new ToolbarSession(hasFiles: false));
+            tab.MarkConnected();
+            HeadlessAvalonia.Pump();
+            Assert.False(toggleBtn.IsEffectivelyVisible);
+            toggleBtn.Command?.Execute(null);
+            Assert.False(tab.IsFileManagerVisible);
         }
         finally
         {

@@ -37,6 +37,7 @@ public sealed class TerminalTabConnectionTarget : IConnectionTarget
     }
 
     public bool IsDisposed => _tab.IsDisposed;
+    public CancellationToken BeginConnectionAttempt() => _tab.BeginConnectionAttempt();
     public bool RequiresInteractiveAuthentication => _tab.RequiresInteractiveAuthentication;
     public void SetRequiresInteractiveAuthentication(bool value) => _tab.RequiresInteractiveAuthentication = value;
 

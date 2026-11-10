@@ -209,8 +209,8 @@ public sealed partial class FullSyncSnapshotTests
         byte[] bytes = await File.ReadAllBytesAsync(path);
         using (var conn = await device.Db.OpenAsync())
             await conn.ExecuteAsync("DROP TABLE sync_file_journal; PRAGMA user_version=10;");
-        Assert.Equal(11, await Recovery(device).PrepareStartupAsync());
-        Assert.Equal(11, await Recovery(device).PrepareStartupAsync());
+        Assert.Equal(12, await Recovery(device).PrepareStartupAsync());
+        Assert.Equal(12, await Recovery(device).PrepareStartupAsync());
         Assert.Equal(bytes, await File.ReadAllBytesAsync(path));
         Assert.Equal(stamps, await new SqliteLocalChangeTracker(device.Db).GetAllAsync());
         Assert.Equal(0, await JournalCountAsync(device));

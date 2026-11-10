@@ -634,6 +634,8 @@ public partial class FileManagerWorkspaceTests
 
     private sealed class RecordingSession : ITerminalSession
     {
+        // Host 模拟带 SFTP 的 SSH 连接；重新打开侧栏须声明其文件能力。
+        public TerminalSessionCapabilities Capabilities => new(CanResize: true, HasFileSystem: true);
         public Guid SessionId { get; } = Guid.NewGuid();
         public bool IsConnected => true;
         public int DisposeCount;

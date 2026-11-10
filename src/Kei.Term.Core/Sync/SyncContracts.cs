@@ -38,7 +38,7 @@ public sealed record SyncTreeData(FolderNode? Folder, SessionNode? Session)
 
 public sealed record SyncSnapshot(int FormatVersion, string WriterDeviceId, DateTime WrittenAtUtc, List<SyncEntity> Entities)
 {
-    public const int CurrentFormatVersion = 1;
+    public const int CurrentFormatVersion = 2;
     public const string TreeEntityType = "tree";
 }
 

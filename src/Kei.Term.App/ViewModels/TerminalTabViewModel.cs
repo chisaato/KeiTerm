@@ -82,6 +82,27 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
 
     public string FileManagerToggleToolTip => Strings.Get(IsFileManagerVisible ? "Terminal.FileManager.Hide" : "Terminal.FileManager.Show");
 
+    // 会话能力驱动的文件管理入口可用性（由 ITerminalSession.Capabilities 决定）
+    [ObservableProperty]
+    private bool _hasFileSystem;
+
+    // 串口操作支持
+    public bool IsSerialSession => Config?.Protocol == SessionProtocols.Serial;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanToggleRts))]
+    [NotifyPropertyChangedFor(nameof(RtsToolTip))]
+    private bool _isHardwareFlowControl;
+
+    [ObservableProperty]
+    private bool? _isDtrEnabled;
+
+    [ObservableProperty]
+    private bool? _isRtsEnabled;
+
+    public bool CanToggleRts => IsSerialSession && _sessionAttachment?.Session is ISerialControl { CanSetRts: true };
+    public string RtsToolTip => IsHardwareFlowControl ? Strings.Get("SessionEdit.Serial.RtsConflict") : Strings.Get("Terminal.Serial.RtsTip");
+
     // 文件管理侧栏停靠在左侧（false 为右侧，true 为左侧）
     [ObservableProperty]
     private bool _isFileManagerOnLeft;
@@ -90,6 +111,30 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
     private RemoteFileManagerViewModel? _fileManager;
 
     private ITerminalSession? _session;
+    private SessionAttachment? _sessionAttachment;
+
+    // 订阅与排队工作归属于一次挂载；即使同一会话对象重新挂载也不可复用旧回调。
+    private sealed class SessionAttachment(ITerminalSession session)
+    {
+        public ITerminalSession Session { get; } = session;
+        public Action<Exception?> DisconnectedHandler { get; set; } = null!;
+        public Action<byte[]> OutputHandler { get; set; } = null!;
+        public int Disconnected;
+        public int ActivityPending;
+        public bool DisconnectHandled;
+    }
+
+    private bool IsCurrentAttachment(SessionAttachment attachment)
+        => !IsDisposed && ReferenceEquals(_sessionAttachment, attachment);
+
+    private void UnsubscribeSessionEvents()
+    {
+        var attachment = _sessionAttachment;
+        _sessionAttachment = null;
+        if (attachment == null) return;
+        attachment.Session.Disconnected -= attachment.DisconnectedHandler;
+        attachment.Session.OutputReceived -= attachment.OutputHandler;
+    }
     private CancellationTokenSource? _reconnectWait;
     private int _reconnectAttempt;
     private bool _userDisconnect;
@@ -203,16 +248,27 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         }
 
         // 结旧：仅释放端点订阅，不断开状态机（重试场景由调用方先 Detach）
+        UnsubscribeSessionEvents();
         _endpoint?.Dispose();
         Terminal.DetachEndpoint();
 
         _session = session;
+        _userDisconnect = false;
+        HasFileSystem = session.Capabilities.HasFileSystem;
         _connectionDropAction = null;
         ResetDirectoryFollow();
         _endpoint = new TerminalSessionEndpoint(session, Terminal);
         Terminal.AttachEndpoint(_endpoint);
-        session.Disconnected += OnSessionDisconnected;
-        session.OutputReceived += OnSessionOutput;
+        var attachment = new SessionAttachment(session);
+        attachment.DisconnectedHandler = error => OnSessionDisconnected(attachment, error);
+        attachment.OutputHandler = data => OnSessionOutput(attachment, data);
+        _sessionAttachment = attachment;
+        IsHardwareFlowControl = session is ISerialControl { CanSetRts: false };
+        IsDtrEnabled = null;
+        IsRtsEnabled = null;
+        OnPropertyChanged(nameof(CanToggleRts));
+        session.Disconnected += attachment.DisconnectedHandler;
+        session.OutputReceived += attachment.OutputHandler;
 
         State = ConnectionState.Connecting;
         StatusMessage = null;
@@ -223,6 +279,8 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
     // 连接成功（UI 线程）
     public void MarkConnected()
     {
+        // 不以假会话的 IsConnected 初值推断失败；已观察到终止事件则绝不复活本世代。
+        if (IsDisposed || _sessionAttachment is { } attachment && Volatile.Read(ref attachment.Disconnected) != 0) return;
         State = ConnectionState.Connected;
         StatusMessage = null;
         _reconnectAttempt = 0;
@@ -277,6 +335,12 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
             await Task.Run(async () => await expectedSession.DisposeAsync());
             return;
         }
+        // 在任何 await 前使已排队回调失效。
+        UnsubscribeSessionEvents();
+        IsHardwareFlowControl = false;
+        IsDtrEnabled = null;
+        IsRtsEnabled = null;
+        OnPropertyChanged(nameof(CanToggleRts));
         _fileManagerInitializationCancellation?.Cancel();
         ResetDirectoryFollow();
         await DrainDirectoryFollowAsync();
@@ -287,10 +351,9 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
 
         var session = _session;
         _session = null;
+        HasFileSystem = false;
         if (session != null)
         {
-            session.Disconnected -= OnSessionDisconnected;
-            session.OutputReceived -= OnSessionOutput;
             // SSH 断开可能同步等待网络；先在 UI 线程卸下端点，再在后台释放连接。
             await Task.Run(async () => await session.DisposeAsync());
             _logger.LogInformation("终端标签释放会话 标题={Title} SessionId={SessionId}", Title, session.SessionId);
@@ -298,14 +361,16 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
     }
 
     // 会话断开事件：可能来自后台读取线程，统一 Post 回 UI 线程更新状态
-    private void OnSessionDisconnected(Exception? ex)
+    private void OnSessionDisconnected(SessionAttachment attachment, Exception? ex)
     {
+        Interlocked.Exchange(ref attachment.Disconnected, 1);
         Dispatcher.UIThread.Post(() =>
         {
-            if (_userDisconnect || IsDisposed)
+            if (!IsCurrentAttachment(attachment) || attachment.DisconnectHandled || _userDisconnect)
             {
                 return;
             }
+            attachment.DisconnectHandled = true;
 
             State = ex != null ? ConnectionState.Error : ConnectionState.Disconnected;
             _dropCancellation?.Cancel();
@@ -348,6 +413,12 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
     [RelayCommand]
     public void ToggleFileManager()
     {
+        if (!HasFileSystem)
+        {
+            IsFileManagerVisible = false;
+            return;
+        }
+
         if (IsFileManagerMaximized)
         {
             if (IsFileManagerVisible)
@@ -360,6 +431,57 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         }
         IsFileManagerVisible = !IsFileManagerVisible;
         Dispatcher.UIThread.Post(() => TrySyncTerminalSize(), DispatcherPriority.Render);
+    }
+
+    [RelayCommand]
+    public async Task SendBreakAsync()
+    {
+        if (_sessionAttachment is not { Session: ISerialControl serial } attachment) return;
+        try
+        {
+            await serial.SetBreakStateAsync(true);
+            await Task.Delay(250);
+        }
+        catch (Exception ex) { ReportSerialControlFailure(attachment, "Break", ex); }
+        finally
+        {
+            // 无论失败、关闭还是世代更替，只向捕获的原会话尽力释放 Break。
+            try { await serial.SetBreakStateAsync(false); }
+            catch (Exception ex) { ReportSerialControlFailure(attachment, "Break 释放", ex); }
+        }
+    }
+
+    [RelayCommand]
+    public async Task ToggleDtrAsync()
+    {
+        if (_sessionAttachment is not { Session: ISerialControl serial } attachment) return;
+        bool next = IsDtrEnabled != true;
+        try
+        {
+            await serial.SetDtrAsync(next);
+            if (IsCurrentAttachment(attachment) && Volatile.Read(ref attachment.Disconnected) == 0) IsDtrEnabled = next;
+        }
+        catch (Exception ex) { ReportSerialControlFailure(attachment, "DTR", ex); }
+    }
+
+    [RelayCommand]
+    public async Task ToggleRtsAsync()
+    {
+        if (_sessionAttachment is not { Session: ISerialControl { CanSetRts: true } serial } attachment) return;
+        bool next = IsRtsEnabled != true;
+        try
+        {
+            await serial.SetRtsAsync(next);
+            if (IsCurrentAttachment(attachment) && Volatile.Read(ref attachment.Disconnected) == 0) IsRtsEnabled = next;
+        }
+        catch (Exception ex) { ReportSerialControlFailure(attachment, "RTS", ex); }
+    }
+
+    private void ReportSerialControlFailure(SessionAttachment attachment, string operation, Exception error)
+    {
+        _logger.LogWarning(error, "串口可选控制失败 操作={Operation}", operation);
+        if (IsCurrentAttachment(attachment) && Volatile.Read(ref attachment.Disconnected) == 0)
+            StatusMessage = $"{operation} 操作失败：{error.Message}";
     }
 
     [RelayCommand]
@@ -395,9 +517,21 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         Dispatcher.UIThread.Post(() => TrySyncTerminalSize(), DispatcherPriority.Render);
     }
 
+    private CancellationTokenSource? _connectionAttempt;
+
+    public CancellationToken BeginConnectionAttempt()
+    {
+        _connectionAttempt?.Cancel();
+        _connectionAttempt?.Dispose();
+        _connectionAttempt = new CancellationTokenSource();
+        if (IsDisposed) _connectionAttempt.Cancel();
+        return _connectionAttempt.Token;
+    }
+
     // 主动断开：只卸下会话与文件视图，标签与终端内容保留，可原地重连
     public async Task DisconnectAsync()
     {
+        _connectionAttempt?.Cancel();
         IsShellVisible = true;
         _userDisconnect = true;
         CancelDirectoryFollow();
@@ -435,6 +569,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
             return;
         }
 
+        _connectionAttempt?.Cancel();
         // 控件可能从未创建（纯状态使用），仅在创建后解绑
         if (_terminal != null)
         {

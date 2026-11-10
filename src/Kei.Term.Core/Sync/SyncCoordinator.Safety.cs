@@ -89,7 +89,7 @@ public sealed partial class SyncCoordinator
         try
         {
             var snapshot = JsonSerializer.Deserialize<SyncSnapshot>(plain) ?? throw new JsonException("空同步快照");
-            if (snapshot.FormatVersion != SyncSnapshot.CurrentFormatVersion) throw new InvalidOperationException("不支持的同步快照版本，请升级应用");
+            if (snapshot.FormatVersion is < 1 or > SyncSnapshot.CurrentFormatVersion) throw new InvalidOperationException("不支持的同步快照版本，请升级应用");
             return snapshot;
         }
         finally { CryptographicOperations.ZeroMemory(plain); }

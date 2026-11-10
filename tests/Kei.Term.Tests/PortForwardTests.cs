@@ -43,24 +43,22 @@ public class PortForwardTests : IDisposable
     {
         var proxyId = Guid.NewGuid();
         var configJson = """{"type":"socks5","host":"127.0.0.1","port":2080}""";
-        using (var conn = new SqliteConnection(ConnStr))
+        var factory = new SqliteConnectionFactory(ConnStr);
+        using (var conn = await factory.OpenAsync())
         {
-            await conn.OpenAsync();
+            // 构造真实 v4 全库，不以只有 proxies 的残缺库冒充历史版本。
+            using var tx = conn.BeginTransaction();
+            foreach (var migration in SchemaMigrations.All.Where(m => m.Version <= 4))
+                await migration.Apply(conn, tx, default);
             await conn.ExecuteAsync(@"
-                CREATE TABLE proxies (
-                    id TEXT PRIMARY KEY NOT NULL,
-                    name TEXT NOT NULL,
-                    sort_order INTEGER NOT NULL DEFAULT 0,
-                    config_json TEXT NOT NULL,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL);
                 INSERT INTO proxies (id, name, sort_order, config_json, created_at, updated_at)
                     VALUES (@id, 'local-socks', 0, @json, '2026-01-01T00:00:00.0000000Z', '2026-01-01T00:00:00.0000000Z');
                 PRAGMA user_version = 4;
-            ", new { id = proxyId.ToString(), json = configJson });
+            ", new { id = proxyId.ToString(), json = configJson }, tx);
+            tx.Commit();
         }
 
-        var version = await SchemaMigrator.MigrateAsync(new SqliteConnectionFactory(ConnStr));
+        var version = await SchemaMigrator.MigrateAsync(factory);
         // v4 之后还会跑后续迁移；这里只要求升到当前最新，且不改 proxies。
         Assert.Equal(SchemaMigrator.LatestVersion, version);
 

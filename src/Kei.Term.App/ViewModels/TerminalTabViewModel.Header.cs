@@ -282,18 +282,19 @@ public partial class TerminalTabViewModel
     }
 
     // 后台线程上的输出回调：只在状态需要翻转时才投递到 UI 线程，避免每个数据块都排队
-    private void OnSessionOutput(byte[] data)
+    private void OnSessionOutput(SessionAttachment attachment, byte[] data)
     {
+        if (!IsCurrentAttachment(attachment)) return;
         if (data.Length > 0) _hasRemoteOutput = true;
-        if (_activityPending || IsSelected || HasActivity)
+        if (IsSelected || HasActivity || Interlocked.CompareExchange(ref attachment.ActivityPending, 1, 0) != 0)
         {
             return;
         }
 
-        _activityPending = true;
         Dispatcher.UIThread.Post(() =>
         {
-            _activityPending = false;
+            if (!IsCurrentAttachment(attachment)) return;
+            Interlocked.Exchange(ref attachment.ActivityPending, 0);
             if (!IsSelected)
             {
                 HasActivity = true;
@@ -301,7 +302,6 @@ public partial class TerminalTabViewModel
         });
     }
 
-    private volatile bool _activityPending;
     private volatile bool _hasRemoteOutput;
 
     private void OnRemoteBell()

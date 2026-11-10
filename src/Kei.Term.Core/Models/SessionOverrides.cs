@@ -15,6 +15,10 @@ public enum CwdFollowMode
 // 以 JSON 整体存于 session_details.options_json，新增覆盖项只需在此加可空属性，无需迁移。
 public sealed class SessionOverrides
 {
+    // 串口通用参数基底；OS 与安装实例覆盖由设备配置解析补充。
+    public SerialOptions? Serial { get; set; }
+
+    public TransportEngine? TransportEngine { get; set; }
     public TerminalUploadProtocol? TerminalUploadProtocol { get; set; }
 
     // 标签标题是否跟随远端（OSC 0/2）标题

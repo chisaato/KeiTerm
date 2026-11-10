@@ -7,10 +7,12 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Kei.Term.App.Helpers;
 using Kei.Term.App.ViewModels.Settings;
+using Kei.Term.Core.Abstractions;
 using Kei.Term.Core.Models;
 using Kei.Term.Core.Services;
 using Kei.Term.Core.Settings;
 using Kei.Term.Core.Storage;
+using Kei.Term.Core.Sync;
 using Kei.Term.Core.Vault;
 
 namespace Kei.Term.App.ViewModels;
@@ -108,6 +110,12 @@ public partial class SessionEditViewModel : ViewModelBase
 
     public IReadOnlyList<InheritableOption<int>> ConnectTimeoutOptions { get; }
 
+    // 选中的传输引擎选项（继承全局 / 原生托管 / Go核心引擎）
+    [ObservableProperty]
+    private InheritableOption<TransportEngine>? _selectedTransportEngine;
+
+    public IReadOnlyList<InheritableOption<TransportEngine>> TransportEngineOptions { get; }
+
     [ObservableProperty]
     private ObservableCollection<SettingsCategoryItem> _categories = [];
 
@@ -127,6 +135,7 @@ public partial class SessionEditViewModel : ViewModelBase
     private readonly IReadOnlyList<TreeNodeBase> _sessionTree;
     private FirewallOption? _committed;
     private bool _suppressFirewall;
+    private IReadOnlyList<SettingsCategoryItem> _allCategories = [];
 
     public SessionEditViewModel(
         SessionNode? existing,
@@ -148,11 +157,13 @@ public partial class SessionEditViewModel : ViewModelBase
 
         TitleFollowOptions = SessionBehaviorOptions.InheritableTitleFollow(global.TabTitleFollowsRemote);
         ConnectTimeoutOptions = SessionBehaviorOptions.InheritableConnectTimeout(global.ConnectTimeoutSeconds);
+        TransportEngineOptions = SessionBehaviorOptions.InheritableTransportEngine(global.TransportEngine);
         SessionOverrides overrides = existing?.Overrides ?? new SessionOverrides();
         InitializeTerminalUploadPreference(overrides, global);
         InitializeDirectoryFollowPreferences(overrides, global);
         SelectedTitleFollow = TitleFollowOptions.First(o => o.Value == overrides.FollowRemoteTitle);
         SelectedConnectTimeout = ConnectTimeoutOptions.FirstOrDefault(o => o.Value == overrides.ConnectTimeoutSeconds) ?? ConnectTimeoutOptions[0];
+        SelectedTransportEngine = TransportEngineOptions.FirstOrDefault(o => o.Value == overrides.TransportEngine) ?? TransportEngineOptions[0];
 
         Identities.Add(new IdentityOption(null, Strings.Get("SessionEdit.IdentityNone")));
         foreach (var identity in availableIdentities)
@@ -202,6 +213,7 @@ public partial class SessionEditViewModel : ViewModelBase
             PortForwards.Add(CloneForward(forward));
         }
         InitializeTransferCapabilities(overrides, global, metadataRepo: null);
+        InitializeMultiProtocol(existing, global, deviceConfigService: null, syncDeviceId: null);
     }
 
     public bool IsNewSession { get; }
@@ -222,6 +234,25 @@ public partial class SessionEditViewModel : ViewModelBase
         SessionOverrides overrides = existing?.Overrides ?? new SessionOverrides();
         AppSettings global = globalSettings ?? new AppSettings();
         InitializeTransferCapabilities(overrides, global, metadataRepo);
+    }
+
+    public SessionEditViewModel(
+        SessionNode? existing,
+        Guid? parentId,
+        IReadOnlyList<Identity> availableIdentities,
+        AppSettings? globalSettings,
+        IReadOnlyList<SessionNode>? jumpCandidates,
+        IReadOnlyList<ProxyProfile>? proxies,
+        IReadOnlyList<TreeNodeBase>? sessionTree,
+        IReadOnlyList<PortForward>? portForwards,
+        ISessionMetadataRepository? metadataRepo,
+        DeviceConfigurationService? deviceConfigService,
+        ISyncDeviceId? syncDeviceId = null,
+        ISerialPortCatalog? serialPortCatalog = null)
+        : this(existing, parentId, availableIdentities, globalSettings, jumpCandidates, proxies, sessionTree, portForwards, metadataRepo)
+    {
+        InitializeMultiProtocol(existing, globalSettings ?? new AppSettings(), deviceConfigService, syncDeviceId);
+        _serialPortCatalog = serialPortCatalog;
     }
 
     public IReadOnlyList<PortForward> CollectForwards()
@@ -311,7 +342,7 @@ public partial class SessionEditViewModel : ViewModelBase
 
     private void InitCategories()
     {
-        Categories =
+        _allCategories =
         [
             new SettingsCategoryItem(Strings.Get("SessionEdit.Category.Connection"), null, "Connection", SettingsIcons.Ssh, Strings.Get("SessionEdit.Category.Connection")),
             new SettingsCategoryItem(Strings.Get("SessionEdit.Category.Terminal"), null, "Terminal", SettingsIcons.Terminal, Strings.Get("SessionEdit.Category.Terminal")),
@@ -319,6 +350,7 @@ public partial class SessionEditViewModel : ViewModelBase
             new SettingsCategoryItem(Strings.Get("SessionEdit.Category.Behavior"), null, "Behavior", SettingsIcons.General, Strings.Get("SessionEdit.Category.Behavior")),
             new SettingsCategoryItem(Strings.Get("SessionEdit.Category.Ports"), null, "Ports", SettingsIcons.Ssh, Strings.Get("SessionEdit.Category.Ports"))
         ];
+        Categories = new ObservableCollection<SettingsCategoryItem>(_allCategories);
         SelectedCategory = Categories[0];
     }
 
@@ -327,7 +359,10 @@ public partial class SessionEditViewModel : ViewModelBase
     {
         if (string.IsNullOrWhiteSpace(Name))
         {
-            Name = string.IsNullOrWhiteSpace(Host) ? Strings.Get("SessionEdit.DefaultName") : Host;
+            string fallback = IsSerialProtocol
+                ? (string.IsNullOrWhiteSpace(EffectiveSerialPortName) ? Strings.Get("SessionEdit.DefaultName") : EffectiveSerialPortName)
+                : Host;
+            Name = string.IsNullOrWhiteSpace(fallback) ? Strings.Get("SessionEdit.DefaultName") : fallback;
         }
 
         IsConfirmed = true;
@@ -356,11 +391,13 @@ public partial class SessionEditViewModel : ViewModelBase
         model.FileTransferProtocol = SelectedProtocol;
         model.SftpMode = SelectedSftpMode;
         // 只改本窗口管理的覆盖项，其余覆盖项（如批量修改设置的新项）原样保留
+        model.Overrides.TransportEngine = SelectedTransportEngine?.Value;
         model.Overrides.FollowRemoteTitle = SelectedTitleFollow?.Value;
         ApplyDirectoryFollowPreferences(model.Overrides);
         model.Overrides.ConnectTimeoutSeconds = SelectedConnectTimeout?.Value;
         model.Overrides.TerminalUploadProtocol = SelectedTerminalUpload?.Value;
         ApplyTransferCapabilities(model.Overrides);
+        ApplyMultiProtocol(model);
         return model;
     }
 

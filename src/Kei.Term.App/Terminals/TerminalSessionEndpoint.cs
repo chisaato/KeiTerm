@@ -9,12 +9,20 @@ using Kei.Term.Core.Abstractions;
 public sealed class TerminalSessionEndpoint : ITerminalEndpoint, IDisposable
 {
     private readonly ITerminalSession _session;
-    private readonly TerminalControl _terminal;
+    private readonly Action<byte[]> _writeOutput;
+    private readonly Func<(int Columns, int Rows)> _getSize;
 
     public TerminalSessionEndpoint(ITerminalSession session, TerminalControl terminal)
+        : this(session, terminal.WriteOutput, () => (terminal.Columns, terminal.Rows))
+    {
+    }
+
+    // 字节流桥与控件调度解耦；生产构造器仍使用 TerminalControl 的安全输出调度。
+    internal TerminalSessionEndpoint(ITerminalSession session, Action<byte[]> writeOutput, Func<(int Columns, int Rows)> getSize)
     {
         _session = session;
-        _terminal = terminal;
+        _writeOutput = writeOutput;
+        _getSize = getSize;
 
         _session.OutputReceived += OnSessionOutputReceived;
     }
@@ -22,7 +30,7 @@ public sealed class TerminalSessionEndpoint : ITerminalEndpoint, IDisposable
     private void OnSessionOutputReceived(byte[] data)
     {
         // RoyalTerminal.Avalonia 的 TerminalControl.WriteOutput 内部安全调度到 UI 线程
-        _terminal.WriteOutput(data);
+        _writeOutput(data);
     }
 
     public void SendText(ReadOnlySpan<byte> utf8)
@@ -32,8 +40,8 @@ public sealed class TerminalSessionEndpoint : ITerminalEndpoint, IDisposable
 
     public void SetSize(int widthPx, int heightPx)
     {
-        int cols = _terminal.Columns;
-        int rows = _terminal.Rows;
+        if (!_session.Capabilities.CanResize) return;
+        (int cols, int rows) = _getSize();
         _ = _session.ResizeTerminalAsync(cols, rows, widthPx, heightPx);
     }
 

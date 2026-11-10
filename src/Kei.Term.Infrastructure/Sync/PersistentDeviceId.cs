@@ -32,4 +32,22 @@ public sealed class PersistentDeviceId : ISyncDeviceId
             finally { File.Delete(temp); }
         }
     }
+
+    // 显式操作，不改保管库、同步凭据或任何旧目标配置。
+    public string RecreateAsNewDevice()
+    {
+        lock (_gate)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(_path))!);
+            string id = Guid.NewGuid().ToString("N");
+            string temp = _path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+            try
+            {
+                File.WriteAllText(temp, id);
+                File.Move(temp, _path, true);
+                return DeviceId = id;
+            }
+            finally { File.Delete(temp); }
+        }
+    }
 }

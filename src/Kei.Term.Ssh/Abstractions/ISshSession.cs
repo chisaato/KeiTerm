@@ -7,6 +7,8 @@ using Kei.Term.Core.Security;
 // SSH 终端会话：在协议无关会话之上暴露 SSH 专属能力（文件通道借用跳板链等）
 public interface ISshSession : ITerminalSession
 {
+    TerminalSessionCapabilities ITerminalSession.Capabilities => new(CanResize: true, HasFileSystem: true);
+
     // 获取底层 SshClient，供 Subsystem 多路复用通道使用
     object? UnderlyingClient { get; }
 

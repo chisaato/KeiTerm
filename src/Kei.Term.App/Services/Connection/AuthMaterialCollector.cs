@@ -125,6 +125,10 @@ public sealed class AuthMaterialCollector
         var hops = new List<SshHop>();
         foreach (SessionNode jumpNode in chain)
         {
+            if (jumpNode.Protocol != SessionProtocols.Ssh)
+            {
+                throw new JumpChainException($"跳板连接类型不支持：{jumpNode.Protocol}（{jumpNode.Name}）");
+            }
             ResolvedSessionConfig hopConfig = SessionConfigBuilder.Build(jumpNode, _settings.Current);
             Identity? hopIdentity = await ResolveIdentityAsync(hopConfig);
             hopConfig = SessionConfigBuilder.ApplyIdentityUsername(hopConfig, hopIdentity);

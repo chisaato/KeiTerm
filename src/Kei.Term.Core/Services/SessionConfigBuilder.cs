@@ -1,6 +1,7 @@
 namespace Kei.Term.Core.Services;
 
 using System;
+using Kei.Term.Core.Abstractions;
 using Kei.Term.Core.Models;
 using Kei.Term.Core.Settings;
 using Kei.Term.Core.Vault;
@@ -10,8 +11,13 @@ public static class SessionConfigBuilder
 {
     public static ResolvedSessionConfig Build(SessionNode node, AppSettings settings)
     {
-        // 端口：会话自身 → 全局默认端口
-        var port = node.Port ?? settings.DefaultPort;
+        // 全局默认端口是既有 SSH 设置，不用于 Telnet 或设备端点。
+        var port = node.Protocol switch
+        {
+            SessionProtocols.Ssh => node.Port ?? settings.DefaultPort,
+            SessionProtocols.Telnet => node.Port ?? 23,
+            _ => 0
+        };
 
         // 用户名：会话自身 → 全局默认用户名 → 当前系统用户；身份一层在解析出身份后由 ApplyIdentityUsername 补上
         bool hasSessionUsername = !string.IsNullOrWhiteSpace(node.Username);
@@ -55,7 +61,10 @@ public static class SessionConfigBuilder
             TabTitleTemplate: settings.TabTitleTemplate,
             VerifyHashOverride: node.Overrides.VerifyHashEnabled,
             ArchiveDirectoriesOverride: node.Overrides.ArchiveDirectoriesEnabled,
-            HasSessionUsername: hasSessionUsername
+            HasSessionUsername: hasSessionUsername,
+            TransportEngineOverride: node.Overrides.TransportEngine ?? settings.TransportEngine,
+            Protocol: node.Protocol,
+            Serial: node.Overrides.Serial
         );
     }
 

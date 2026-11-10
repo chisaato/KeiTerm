@@ -4,6 +4,19 @@ using System.Runtime.CompilerServices;
 
 namespace Kei.Term.Core.Models;
 
+public enum TransportEngine
+{
+    BuiltIn = 0,
+    GoCore = 1
+}
+
+public enum SshTransportEngine
+{
+    BuiltIn = 0,
+    GoSidecar = 1,
+    GoCore = 1
+}
+
 public enum NodeType
 {
     Folder = 0,
@@ -87,7 +100,7 @@ public class SessionNode : TreeNodeBase
     public string? Username { get; set; }
     // 绑定的身份；未绑定则回退全局默认身份/弹窗
     public Guid? IdentityId { get; set; }
-    // 协议骨架，一期固定 ssh，多协议预留
+    // 连接类型与实现引擎独立；未知类型保留，由连接入口明确拒绝。
     public string Protocol { get; set; } = SessionProtocols.Ssh;
     // 空白继承全局默认 TERM；已保存的显式终端类型保持不变。
     public string TerminalType { get; set; } = string.Empty;
@@ -153,5 +166,12 @@ public record ResolvedSessionConfig(
     bool? VerifyHashOverride = null,
     bool? ArchiveDirectoriesOverride = null,
     // 用户名是否来自会话显式填写；为 false 时允许身份用户名接管
-    bool HasSessionUsername = false
-);
+    bool HasSessionUsername = false,
+    TransportEngine? TransportEngineOverride = null,
+    string Protocol = SessionProtocols.Ssh,
+    SerialOptions? Serial = null
+)
+{
+    // 保留 Port 的既有构造兼容性；设备连接不具有网络端口。
+    public int? NetworkPort => Protocol is SessionProtocols.Ssh or SessionProtocols.Telnet ? Port : null;
+}

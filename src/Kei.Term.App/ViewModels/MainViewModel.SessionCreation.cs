@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Input;
 using Kei.Term.App.Logging;
+using Kei.Term.App.Models;
 using Kei.Term.Core.Models;
 using Kei.Term.Core.Services;
 
@@ -26,8 +27,21 @@ public partial class MainViewModel
         SessionNode? result = await Interaction.EditSessionAsync(null, parentId, identities);
         if (result == null) return null;
 
-        await _treeRepo.SaveNodeAsync(result);
-        await PersistPendingForwardsAsync(result.Id);
+        try
+        {
+            await _treeRepo.SaveNodeAsync(result);
+            await Interaction.CommitPendingSessionConfigurationAsync(result.Id);
+            await PersistPendingForwardsAsync(result.Id);
+        }
+        catch (Exception ex)
+        {
+            await Interaction.NotifyAsync("保存会话配置失败", ex.Message, NotificationLevel.Error);
+            throw;
+        }
+        finally
+        {
+            Interaction.DiscardPendingSessionConfiguration(result.Id);
+        }
         await ReloadTreeAsync();
         return result;
     }

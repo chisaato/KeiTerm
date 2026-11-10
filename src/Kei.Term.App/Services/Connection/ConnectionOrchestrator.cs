@@ -41,6 +41,7 @@ public sealed partial class ConnectionOrchestrator
     private readonly IPortForwardRepository? _portForwards;
     private readonly IProxySecretStore? _proxySecrets;
     private readonly Func<Task<bool>>? _ensureUnlocked;
+    private readonly IProtocolSessionFactory? _protocolSessions;
 
     public ConnectionOrchestrator(
         ISshSessionFactory sshFactory,
@@ -54,7 +55,8 @@ public sealed partial class ConnectionOrchestrator
         IPortForwardRepository? portForwards = null,
         Func<TimeSpan, CancellationToken, Task>? delay = null,
         IProxySecretStore? proxySecrets = null,
-        Func<Task<bool>>? ensureUnlocked = null)
+        Func<Task<bool>>? ensureUnlocked = null,
+        IProtocolSessionFactory? protocolSessions = null)
     {
         _sshFactory = sshFactory;
         _collector = collector;
@@ -67,6 +69,7 @@ public sealed partial class ConnectionOrchestrator
         _portForwards = portForwards;
         _proxySecrets = proxySecrets;
         _ensureUnlocked = ensureUnlocked;
+        _protocolSessions = protocolSessions;
         _delay = delay ?? ((span, token) => Task.Delay(span, token));
     }
 
@@ -91,6 +94,16 @@ public sealed partial class ConnectionOrchestrator
     {
         if (attempt.Cancellation.IsCancellationRequested || request.ReuseTarget is { IsDisposed: true })
             return ConnectOutcome.Stopped;
+        TransportEngine engine = request.Config.TransportEngineOverride ?? _settings.Current.TransportEngine;
+        if (!Enum.IsDefined(engine) || request.Config.Protocol != SessionProtocols.Ssh)
+            return await ConnectProtocolAsync(request, host, attempt, engine);
+
+        return await PrepareAndConnectSshAsync(request, host, attempt);
+    }
+
+    // SSH 专有认证、信任、多跳与文件服务仍完整保留在这条路径内。
+    private async Task<ConnectOutcome> PrepareAndConnectSshAsync(ConnectionRequest request, IConnectionHost host, ConnectionAttempt attempt)
+    {
         // 出口不可用时不收集认证、不建标签、不拨号
         PreparedExit exit = await PrepareExitAsync(request.Config, !attempt.Automatic);
         if (exit.Cancelled)
@@ -132,6 +145,9 @@ public sealed partial class ConnectionOrchestrator
         //    复位放在认证收集之后：用户取消认证时旧标签保持原状
         if (attempt.Cancellation.IsCancellationRequested) return ConnectOutcome.Stopped;
         IConnectionTarget target;
+        target = request.ReuseTarget ?? host.OpenTab(auth.Config);
+        using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(attempt.Cancellation, target.BeginConnectionAttempt());
+        attempt = new ConnectionAttempt(lifetime.Token, attempt.Automatic) { RequiredInteraction = attempt.RequiredInteraction };
         if (request.ReuseTarget is { } reuse)
         {
             if (reuse.IsDisposed)
@@ -149,10 +165,6 @@ public sealed partial class ConnectionOrchestrator
             }
             if (reuse.IsDisposed || attempt.Cancellation.IsCancellationRequested) return ConnectOutcome.Stopped;
             target = reuse;
-        }
-        else
-        {
-            target = host.OpenTab(auth.Config);
         }
 
         return await ConnectWithRetryAsync(

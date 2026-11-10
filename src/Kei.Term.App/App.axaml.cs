@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -35,6 +36,7 @@ public partial class App : Application
     private QuitConfirmationService? _quitConfirmation;
     private InternalVaultManager? _vault;
     private SyncScheduler? _syncScheduler;
+    private Kei.Term.Transport.Go.GoSidecarProcessManager? _goSidecar;
 
     public override void Initialize()
     {
@@ -129,8 +131,11 @@ public partial class App : Application
             // 此时 MainWindow 若为 null，之后再赋值不会触发 Show → 进程存活但窗口永不出现。
             // 全部仓储共用一个连接工厂（统一 PRAGMA）；Schema/文件恢复已在最早设置读取前完成。
             var syncDevice = new Kei.Term.Infrastructure.Sync.PersistentDeviceId(Path.Combine(appDataDir, "sync-device-id.txt"));
+            // 未启用同步时也需要稳定的安装实例身份，串口配置不能等首次同步才建立归属。
+            syncDevice.EnsureCreated();
             var syncChanges = new SyncChangeSignal();
             var db = new SqliteConnectionFactory(connStr, syncDevice, syncChanges);
+            var deviceConfigurations = new Kei.Term.Core.Services.DeviceConfigurationService(new SqliteDeviceConfigurationStore(db), syncDevice);
             ProfileManagerService? syncProfiles = null;
             JsonSettingsService? syncSettings = null;
             var treeRepo = new SqliteTreeRepository(db, _loggerFactory.CreateLogger<SqliteTreeRepository>(),
@@ -164,7 +169,23 @@ public partial class App : Application
                 logger: _loggerFactory.CreateLogger<HostKeyTrustService>());
             var profileManager = new ProfileManagerService(settingsService, appDataDir, tracker: localChanges);
             syncProfiles = profileManager;
-            var sshFactory = new SshSessionFactory(_loggerFactory.CreateLogger<SshSessionFactory>());
+            var sidecarGate = new object();
+            Kei.Term.Transport.Go.GoSidecarProcessManager GetGoSidecar()
+            {
+                lock (sidecarGate) return _goSidecar ??= new Kei.Term.Transport.Go.GoSidecarProcessManager(
+                    diagnostics: entry => logger.LogInformation(
+                        "Go Sidecar {Kind} connection={ConnectionId} pid={ProcessId} binary={BinaryPath} exit={ExitCode} stream={StreamId} reason={Reason} expected={Expected}",
+                        entry.Kind, entry.ConnectionId, entry.ProcessId, entry.BinaryPath, entry.ExitCode,
+                        entry.StreamId, entry.Reason, entry.Expected));
+            }
+            var sshFactory = new Kei.Term.Transport.Go.CompositeSshSessionFactory(
+                new SshSessionFactory(_loggerFactory.CreateLogger<SshSessionFactory>()),
+                () => new Kei.Term.Transport.Go.GoSshSessionFactory(GetGoSidecar(),
+                    hostKeyVerifier: hostKeyTrust),
+                () => settingsService.Current.TransportEngine);
+            var protocolSessions = new Services.Connection.BuiltInProtocolSessionFactory(
+                deviceConfigurations, syncDevice, () => interactionHost?.Interaction ?? NullInteractionService.Instance,
+                go: new Kei.Term.Transport.Go.GoProtocolFactory(ct => GetGoSidecar().GetClientAsync(ct)));
 
             // 先在窗口创建前按默认 KeiClassic 挂载画刷与兼容样式，避免首帧无 Kei.* 资源；
             // 读取设置后（下方）再按实际档位幂等重挂。
@@ -186,7 +207,10 @@ public partial class App : Application
                 proxyRepo: proxyRepo,
                 portForwards: portForwards,
                 proxySecrets: vault,
-                sessionMetadata: sessionMetadata);
+                sessionMetadata: sessionMetadata,
+                protocolSessions: protocolSessions,
+                deviceConfigurationService: deviceConfigurations,
+                syncDeviceId: syncDevice);
             mainVm.VaultSession.ConfigureQuickUnlock(quickUnlock);
             var identityMgrVm = new IdentityManagerViewModel(
                 identityRepo,
@@ -322,6 +346,11 @@ public partial class App : Application
             _syncScheduler?.Dispose();
             _quitConfirmation?.Dispose();
             _systemContextMenus?.Dispose();
+            if (_goSidecar != null)
+            {
+                // Exit 为同步事件，在后台完成 IPC 关闭，避免阻塞 UI 同步上下文中的 await。
+                Task.Run(async () => await _goSidecar.DisposeAsync()).GetAwaiter().GetResult();
+            }
             _loggerFactory?.Dispose();
         };
 

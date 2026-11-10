@@ -7,6 +7,9 @@ public interface ITerminalSession : IAsyncDisposable
     Guid SessionId { get; }
     bool IsConnected { get; }
 
+    // 每次查询当前能力，允许 Telnet 等实现随协商结果变化。
+    TerminalSessionCapabilities Capabilities => TerminalSessionCapabilities.None;
+
     // 远端/子进程输出（可能来自后台线程，订阅方负责切回 UI 线程）
     event Action<byte[]>? OutputReceived;
 
@@ -15,7 +18,13 @@ public interface ITerminalSession : IAsyncDisposable
 
     Task ConnectAsync(CancellationToken ct = default);
     Task SendInputAsync(ReadOnlyMemory<byte> data, CancellationToken ct = default);
-    Task ResizeTerminalAsync(int columns, int rows, int widthPx, int heightPx, CancellationToken ct = default);
+    Task ResizeTerminalAsync(int columns, int rows, int widthPx, int heightPx, CancellationToken ct = default)
+        => Task.FromException(new NotSupportedException("当前终端不支持动态尺寸"));
+}
+
+public sealed record TerminalSessionCapabilities(bool CanResize = false, bool HasFileSystem = false)
+{
+    public static TerminalSessionCapabilities None { get; } = new();
 }
 
 // 会话协议标识（tree_nodes.protocol 列取值）

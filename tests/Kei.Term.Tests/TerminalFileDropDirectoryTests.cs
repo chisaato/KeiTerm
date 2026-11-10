@@ -139,6 +139,7 @@ public class TerminalFileDropDirectoryTests
 
     private sealed class Session : ITerminalSession
     {
+        public TerminalSessionCapabilities Capabilities => new(CanResize: true, HasFileSystem: true);
         public Guid SessionId { get; } = Guid.NewGuid();
         public bool IsConnected => true;
         public event Action<byte[]>? OutputReceived { add { } remove { } }

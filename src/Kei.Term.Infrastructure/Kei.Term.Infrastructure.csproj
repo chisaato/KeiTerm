@@ -10,6 +10,7 @@
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.12" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
     <PackageReference Include="NSec.Cryptography" Version="26.4.0" />
+    <PackageReference Include="System.IO.Ports" Version="10.0.12" />
     <PackageReference Include="WebDav.Client" Version="2.9.0" />
   </ItemGroup>
 

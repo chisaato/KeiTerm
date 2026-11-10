@@ -13,6 +13,8 @@ public interface IConnectionTarget
     // 标签已被用户关闭：编排器应停止并释放新建的会话
     bool IsDisposed { get; }
 
+    CancellationToken BeginConnectionAttempt() => CancellationToken.None;
+
     // 挂载/替换会话（UI 线程调用）
     void AttachSession(ITerminalSession session);
 

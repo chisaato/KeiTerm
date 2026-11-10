@@ -1,6 +1,8 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Kei.Term.App.Helpers;
+using Kei.Term.Core.Abstractions;
 using Kei.Term.Core.Models;
 
 namespace Kei.Term.App.ViewModels;
@@ -11,6 +13,33 @@ public sealed record CwdFollowOption(CwdFollowMode Mode, string DisplayName)
 }
 
 public sealed record TerminalMultiplexerOption(TerminalMultiplexerMode Mode, string DisplayName)
+{
+    public override string ToString() => DisplayName;
+}
+
+public sealed record ConnectionProtocolOption(string Protocol, string DisplayName)
+{
+    public override string ToString() => DisplayName;
+}
+
+public sealed record SerialFlowControlOption(SerialFlowControl Mode, string DisplayName)
+{
+    public override string ToString() => DisplayName;
+}
+
+public enum SerialScope
+{
+    Generic = 0,
+    OperatingSystem = 1,
+    Device = 2
+}
+
+public sealed record SerialScopeOption(SerialScope Scope, string DisplayName)
+{
+    public override string ToString() => DisplayName;
+}
+
+public sealed record SerialPinOption(bool? Value, string DisplayName)
 {
     public override string ToString() => DisplayName;
 }
@@ -53,6 +82,22 @@ public static class SessionBehaviorOptions
     public static string Describe(bool followRemoteTitle)
         => Strings.Get(followRemoteTitle ? "Behavior.TabTitle.Remote" : "Behavior.TabTitle.SessionName");
 
+    public static string Describe(TransportEngine engine)
+        => engine switch
+        {
+            TransportEngine.BuiltIn => Strings.Get("Settings.Transport.Engine.BuiltIn"),
+            TransportEngine.GoCore => Strings.Get("Settings.Transport.Engine.GoCore"),
+            _ => engine.ToString()
+        };
+
+    // 「继承（当前全局：xxx）」+ 各显式值
+    public static IReadOnlyList<InheritableOption<TransportEngine>> InheritableTransportEngine(TransportEngine globalDefault)
+        => [
+            new(null, Strings.Format("Behavior.Inherit", Describe(globalDefault))),
+            new(TransportEngine.BuiltIn, Describe(TransportEngine.BuiltIn)),
+            new(TransportEngine.GoCore, Describe(TransportEngine.GoCore))
+        ];
+
     // 「继承（当前全局：xxx）」+ 各显式值
     public static IReadOnlyList<InheritableOption<CwdFollowMode>> InheritableCwdFollow(CwdFollowMode globalDefault)
         => [
@@ -85,4 +130,45 @@ public static class SessionBehaviorOptions
             new(180, "180s"),
             new(300, "300s")
         ];
+
+    // 会话支持的连接协议
+    public static IReadOnlyList<ConnectionProtocolOption> ConnectionProtocols { get; } =
+    [
+        new(SessionProtocols.Ssh, Strings.Get("SessionEdit.Protocol.Ssh")),
+        new(SessionProtocols.Telnet, Strings.Get("SessionEdit.Protocol.Telnet")),
+        new(SessionProtocols.Serial, Strings.Get("SessionEdit.Protocol.Serial"))
+    ];
+
+    // 串口参数常用选项
+    public static IReadOnlyList<int> SerialBaudRates { get; } =
+        [300, 1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600];
+
+    public static IReadOnlyList<int> SerialDataBits { get; } = [5, 6, 7, 8];
+
+    public static IReadOnlyList<Kei.Term.Core.Models.SerialParity> SerialParities { get; } =
+        [Kei.Term.Core.Models.SerialParity.None, Kei.Term.Core.Models.SerialParity.Odd, Kei.Term.Core.Models.SerialParity.Even, Kei.Term.Core.Models.SerialParity.Mark, Kei.Term.Core.Models.SerialParity.Space];
+
+    public static IReadOnlyList<Kei.Term.Core.Models.SerialStopBits> SerialStopBitsOptions { get; } =
+        [Kei.Term.Core.Models.SerialStopBits.One, Kei.Term.Core.Models.SerialStopBits.Two, Kei.Term.Core.Models.SerialStopBits.OnePointFive];
+
+    public static IReadOnlyList<SerialFlowControlOption> SerialFlowControls { get; } =
+    [
+        new(Kei.Term.Core.Models.SerialFlowControl.None, Strings.Get("SessionEdit.Serial.FlowControl.None")),
+        new(Kei.Term.Core.Models.SerialFlowControl.RtsCts, Strings.Get("SessionEdit.Serial.FlowControl.RtsCts")),
+        new(Kei.Term.Core.Models.SerialFlowControl.XonXoff, Strings.Get("SessionEdit.Serial.FlowControl.XonXoff"))
+    ];
+
+    public static IReadOnlyList<SerialScopeOption> SerialScopes { get; } =
+    [
+        new(SerialScope.Generic, Strings.Get("SessionEdit.Serial.Scope.Generic")),
+        new(SerialScope.OperatingSystem, string.Format(Strings.Get("SessionEdit.Serial.Scope.Os"), OperatingSystem.IsWindows() ? "windows" : OperatingSystem.IsMacOS() ? "macos" : "linux")),
+        new(SerialScope.Device, Strings.Get("SessionEdit.Serial.Scope.Device"))
+    ];
+
+    public static IReadOnlyList<SerialPinOption> SerialPinOptions { get; } =
+    [
+        new(null, Strings.Get("SessionEdit.Serial.Pin.DriverDefault")),
+        new(true, Strings.Get("SessionEdit.Serial.Pin.Enabled")),
+        new(false, Strings.Get("SessionEdit.Serial.Pin.Disabled"))
+    ];
 }

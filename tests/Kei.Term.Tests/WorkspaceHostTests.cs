@@ -353,6 +353,7 @@ public class WorkspaceHostTests
 
     private sealed class RecordingSession : ITerminalSession
     {
+        public TerminalSessionCapabilities Capabilities => new(CanResize: true, HasFileSystem: true);
         private readonly StringBuilder _sent = new();
 
         public List<Resize> Resizes { get; } = [];
