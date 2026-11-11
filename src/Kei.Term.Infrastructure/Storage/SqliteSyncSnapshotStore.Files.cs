@@ -58,7 +58,8 @@ public sealed partial class SqliteSyncSnapshotStore
                 if (stamp.EntityId.StartsWith("profiles.", StringComparison.Ordinal) ? profilesPath == null : settingsPath == null) continue;
                 if (stamp.DeletedAt == null)
                 {
-                    if (!values.TryGetValue(stamp.EntityId, out var value)) throw new JsonException("设置记账缺少内容：" + stamp.EntityId);
+                    // 版本升级改名/废弃（如 SshTransportEngine）或跨版本未知设置缺失内容时放宽跳过，避免阻断同步或误发墓碑。
+                    if (!values.TryGetValue(stamp.EntityId, out var value)) continue;
                     using var doc = JsonDocument.Parse(value);
                     data = doc.RootElement.Clone();
                 }
@@ -68,15 +69,15 @@ public sealed partial class SqliteSyncSnapshotStore
                 if (profilesPath == null) continue;
                 if (stamp.DeletedAt == null)
                 {
-                    if (!profileValues.TryGetValue(stamp.EntityId, out var value)) throw new JsonException("Profile 记账缺少内容：" + stamp.EntityId);
+                    if (!profileValues.TryGetValue(stamp.EntityId, out var value)) continue;
                     data = JsonSerializer.SerializeToElement(value);
                 }
             }
             else if (stamp.EntityType == "metadata")
             {
-                if (stamp.DeletedAt == null && !metadata.TryGetValue(stamp.EntityId, out data)) throw new JsonException("连接元数据记账缺少内容：" + stamp.EntityId);
+                if (stamp.DeletedAt == null && !metadata.TryGetValue(stamp.EntityId, out data)) continue;
             }
-            else throw new InvalidOperationException("不支持的本地记账类型：" + stamp.EntityType);
+            else continue;
             entities.Add(new(stamp.EntityType, stamp.EntityId, SqliteValue.ParseUtc(stamp.UpdatedAt), stamp.DeviceId,
                 stamp.DeletedAt == null ? null : SqliteValue.ParseUtc(stamp.DeletedAt), data));
         }
@@ -168,7 +169,10 @@ public sealed partial class SqliteSyncSnapshotStore
                 if (profileFile)
                 {
                     string[] parts = key.Split('.');
-                    if (parts.Length < 2 || !ProfilePreferences.TryGetValue(parts[1], out var diskKey)) throw new JsonException("无效 Profile 设置路径");
+                    if (parts.Length < 2 || string.IsNullOrWhiteSpace(parts[1])) throw new JsonException("无效 Profile 设置路径");
+                    string diskKey = ProfilePreferences.TryGetValue(parts[1], out var mapped)
+                        ? mapped
+                        : JsonNamingPolicy.CamelCase.ConvertName(parts[1]);
                     key = diskKey + (parts.Length > 2 ? "." + string.Join('.', parts.Skip(2)) : "");
                 }
                 Patch(document, key, entity.Data, entity.DeletedAtUtc != null);
@@ -183,7 +187,11 @@ public sealed partial class SqliteSyncSnapshotStore
         if (parts.Any(string.IsNullOrWhiteSpace)) throw new JsonException("无效设置路径");
         for (int i = 0; i < parts.Length - 1; i++)
         {
-            if (document[parts[i]] is not JsonObject child) document[parts[i]] = child = new JsonObject();
+            if (document[parts[i]] is not JsonObject child)
+            {
+                if (deleted) return;
+                document[parts[i]] = child = new JsonObject();
+            }
             document = child;
         }
         if (deleted) document.Remove(parts[^1]);

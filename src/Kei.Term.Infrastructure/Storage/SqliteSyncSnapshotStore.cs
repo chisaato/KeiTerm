@@ -147,12 +147,19 @@ public sealed partial class SqliteSyncSnapshotStore(SqliteConnectionFactory fact
         try
         {
             string[] columns = table.Columns.Split(',');
-            if (data.Fields.Count != columns.Length || columns.Any(c => !data.Fields.ContainsKey(c))) throw new JsonException("无效同步内容列");
+            if (table.Type == KnownHostType
+                ? !data.Fields.ContainsKey("host") || !data.Fields.ContainsKey("port") || !data.Fields.ContainsKey("public_key")
+                : !data.Fields.ContainsKey("id"))
+                throw new JsonException("无效同步内容列");
             string id = table.Type == KnownHostType ? KnownHostId(data.Fields) : data.Fields["id"].GetString()!;
             if (id != entity.EntityId) throw new JsonException("同步实体标识不匹配");
             if (table.Type != KnownHostType && !Guid.TryParse(id, out _)) throw new JsonException("无效同步实体标识");
             if (table.Type == SqliteDeviceConfigurationStore.EntityType)
             {
+                if (!data.Fields.ContainsKey("owner_id") || !data.Fields.ContainsKey("category") ||
+                    !data.Fields.ContainsKey("os") || !data.Fields.ContainsKey("target_device_id") ||
+                    !data.Fields.ContainsKey("fields_json"))
+                    throw new JsonException("无效同步内容列");
                 var owner = Guid.Parse(data.Fields["owner_id"].GetString()!);
                 var target = new Kei.Term.Core.Models.DeviceConfigurationTarget(
                     data.Fields["os"].ValueKind == JsonValueKind.Null ? null : data.Fields["os"].GetString(),
@@ -165,10 +172,12 @@ public sealed partial class SqliteSyncSnapshotStore(SqliteConnectionFactory fact
                 if (id != SqliteDeviceConfigurationStore.RecordId(owner, data.Fields["category"].GetString()!, target))
                     throw new JsonException("设备配置自然键不匹配");
             }
+            // 版本差异下允许远端包含未知列或缺少可默认列，只写入当前表白名单中实际存在的列。
+            string[] availableColumns = columns.Where(c => data.Fields.ContainsKey(c)).ToArray();
             var args = new DynamicParameters();
-            foreach (string column in columns) args.Add(column, Scalar(data.Fields[column]));
+            foreach (string column in availableColumns) args.Add(column, Scalar(data.Fields[column]));
             args.Add("updated_at", Date(entity.UpdatedAtUtc)); args.Add("device_id", entity.DeviceId); args.Add("deleted_at", Date(entity.DeletedAtUtc));
-            string insert = table.Columns;
+            string insert = string.Join(',', availableColumns);
             string conflict = "id";
             if (table.Type == KnownHostType)
             {
@@ -178,7 +187,7 @@ public sealed partial class SqliteSyncSnapshotStore(SqliteConnectionFactory fact
                 conflict = "host,port,public_key";
             }
             string all = insert + ",updated_at,device_id,deleted_at";
-            string updates = string.Join(',', (table.Columns + ",updated_at,device_id,deleted_at").Split(',').Where(c => c != "id").Select(c => $"{c}=excluded.{c}"));
+            string updates = string.Join(',', availableColumns.Concat(["updated_at", "device_id", "deleted_at"]).Where(c => c != "id").Select(c => $"{c}=excluded.{c}"));
             await conn.ExecuteAsync(new CommandDefinition($"INSERT INTO {table.Name} ({all},revision) VALUES ({string.Join(',', all.Split(',').Select(c => "@" + c))},1) ON CONFLICT({conflict}) DO UPDATE SET {updates},revision={table.Name}.revision+1;", args, tx, cancellationToken: ct));
             if (table.Type == EditorType)
             {

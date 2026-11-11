@@ -387,6 +387,79 @@ public sealed partial class FullSyncSnapshotTests : IDisposable
         }
     }
 
+    [Fact]
+    public async Task LegacyAndMissingSettingStamps_DoNotBlockSync_OrEmitFalseTombstones()
+    {
+        var a = await CreateAsync("a");
+        var b = await CreateAsync("b");
+        // 模拟从旧版升级后的本机：local_entity_stamps 仍保留已重命名/移除的 SshTransportEngine 记账，但 settings.json 已无该键。
+        await new SqliteLocalChangeTracker(a.Db).TrackAsync("setting", "SshTransportEngine");
+        await new SqliteLocalChangeTracker(a.Db).TrackAsync("setting", "RemovedFutureSetting");
+        await new SqliteLocalChangeTracker(a.Db).TrackAsync("profile", "ghost-profile");
+        await new SqliteLocalChangeTracker(a.Db).TrackAsync("metadata", $"{Guid.NewGuid()}/ghost-key");
+        a.Settings.Current.FontSize = 24;
+        a.Settings.Current.TransportEngine = TransportEngine.GoCore;
+        await a.Settings.SaveSettingsAsync(a.Settings.Current);
+        await SyncAsync(a);
+        await SyncAsync(b);
+        Assert.Equal(24, b.Settings.Current.FontSize);
+        Assert.Equal(TransportEngine.GoCore, b.Settings.Current.TransportEngine);
+        var exported = await a.Store.ExportAsync();
+        Assert.DoesNotContain(exported, e => e.EntityType == "setting" && e.EntityId == "SshTransportEngine");
+    }
+
+    [Fact]
+    public async Task VersionDifferences_UnknownSettingsAndProfilePreferencesAndExtraColumns_KeepSyncing()
+    {
+        var a = await CreateAsync("a");
+        var b = await CreateAsync("b");
+        await SyncAsync(a);
+        await SyncAsync(b);
+        // 模拟更高版本写入未知设置、未知 profiles 偏好以及带新增列的数据库实体。
+        var remotePackage = new AgeSyncPackage();
+        var remoteSnapshot = JsonSerializer.Deserialize<SyncSnapshot>(
+            remotePackage.Decrypt((await Location.ReadAsync())!.Content, Passphrase.AsSpan()))!;
+        DateTime futureTime = DateTime.UtcNow.AddMinutes(5);
+        Guid identityId = Guid.NewGuid();
+        var futureIdentityFields = new Dictionary<string, JsonElement>
+        {
+            ["id"] = JsonSerializer.SerializeToElement(identityId.ToString()),
+            ["name"] = JsonSerializer.SerializeToElement("future-id"),
+            ["description"] = JsonSerializer.SerializeToElement((string?)null),
+            ["username"] = JsonSerializer.SerializeToElement("bob"),
+            ["methods_json"] = JsonSerializer.SerializeToElement("[]"),
+            ["created_at"] = JsonSerializer.SerializeToElement(SqliteValue.FormatUtc(futureTime)),
+            ["future_column"] = JsonSerializer.SerializeToElement("v3-value")
+        };
+        var futureEntities = new List<SyncEntity>(remoteSnapshot.Entities)
+        {
+            new("setting", "FutureFeatureFlag", futureTime, "future-dev", null, JsonSerializer.SerializeToElement(true)),
+            new("setting", "profiles.FuturePreference", futureTime, "future-dev", null, JsonSerializer.SerializeToElement("compact")),
+            new(SqliteSyncSnapshotStore.IdentityType, identityId.ToString(), futureTime, "future-dev", null,
+                JsonSerializer.SerializeToElement(new SqliteSyncSnapshotStore.RecordData(futureIdentityFields)))
+        };
+        var updatedRemote = remoteSnapshot with { WrittenAtUtc = futureTime, Entities = futureEntities };
+        await Location.WriteAsync(remotePackage.Encrypt(JsonSerializer.SerializeToUtf8Bytes(updatedRemote), Passphrase.AsSpan()),
+            (await Location.ReadAsync())!.VersionTag);
+
+        await SyncAsync(a);
+        Assert.Equal("bob", (await new SqliteIdentityRepository(a.Db).GetByIdAsync(identityId))!.Username);
+        var settingsJson = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(a.Directory, "settings.json")))!;
+        Assert.True(settingsJson["FutureFeatureFlag"]!.GetValue<bool>());
+        var profilesJson = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(a.Directory, "profiles.json")))!;
+        Assert.Equal("compact", profilesJson["futurePreference"]!.GetValue<string>());
+
+        // 旧版保存设置后，未知键从 settings.json 消失但记账仍在；再次修改本机设置并同步不得报错，也不得抹掉远端新设置。
+        a.Settings.Current.FontSize = 27;
+        await a.Settings.SaveSettingsAsync(a.Settings.Current);
+        await SyncAsync(a);
+
+        var finalRemote = JsonSerializer.Deserialize<SyncSnapshot>(
+            remotePackage.Decrypt((await Location.ReadAsync())!.Content, Passphrase.AsSpan()))!;
+        Assert.Contains(finalRemote.Entities, e => e.EntityType == "setting" && e.EntityId == "FutureFeatureFlag" && e.DeletedAtUtc == null);
+        Assert.Contains(finalRemote.Entities, e => e.EntityType == "setting" && e.EntityId == "FontSize" && e.Data.GetInt32() == 27);
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_root)) Directory.Delete(_root, true);
