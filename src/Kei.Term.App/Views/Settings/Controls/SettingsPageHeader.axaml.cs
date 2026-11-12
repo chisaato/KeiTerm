@@ -33,6 +33,9 @@ public partial class SettingsPageHeader : UserControl
     public static readonly StyledProperty<ICommand?> BackCommandProperty =
         AvaloniaProperty.Register<SettingsPageHeader, ICommand?>(nameof(BackCommand));
 
+    public static readonly StyledProperty<Control?> ActionsProperty =
+        AvaloniaProperty.Register<SettingsPageHeader, Control?>(nameof(Actions));
+
     public string? Group
     {
         get => GetValue(GroupProperty);
@@ -69,6 +72,12 @@ public partial class SettingsPageHeader : UserControl
     {
         get => GetValue(BackCommandProperty);
         set => SetValue(BackCommandProperty, value);
+    }
+
+    public Control? Actions
+    {
+        get => GetValue(ActionsProperty);
+        set => SetValue(ActionsProperty, value);
     }
 
     static SettingsPageHeader()

@@ -74,6 +74,12 @@
   <data name="Common.Apply" xml:space="preserve">
     <value>应用</value>
   </data>
+  <data name="Common.Add" xml:space="preserve">
+    <value>添加</value>
+  </data>
+  <data name="Common.Edit" xml:space="preserve">
+    <value>编辑</value>
+  </data>
   <data name="Common.Delete" xml:space="preserve">
     <value>删除</value>
   </data>
