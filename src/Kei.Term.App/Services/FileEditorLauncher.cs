@@ -260,28 +260,22 @@ public class FileEditorLauncher : IAsyncDisposable
     public static ProcessStartInfo CreateEditorStartInfo(string filePath, string customEditor, string? argumentsTemplate = null)
     {
         string template = string.IsNullOrWhiteSpace(argumentsTemplate) ? "\"{path}\"" : argumentsTemplate;
-        if (OperatingSystem.IsMacOS() && customEditor.EndsWith(".app", StringComparison.OrdinalIgnoreCase))
+        if (OperatingSystem.IsMacOS() && TryResolveMacApplication(customEditor, out string application))
         {
-            // VS Code 的 CLI 能等待当前文件关闭，避免启动应用后立即停止回写监视。
-            string bundledBin = Path.Combine(customEditor, "Contents", "Resources", "app", "bin");
-            string bundledCode = Path.Combine(bundledBin, "code");
-            if (!File.Exists(bundledCode)) bundledCode = Path.Combine(bundledBin, "code-insiders");
-            if (File.Exists(bundledCode)) customEditor = bundledCode;
-            else
+            // code --wait 在 macOS 会为每个文件保留一个 GUI 等待实例，产生额外 Dock 图标。
+            // 交由 Launch Services 复用应用；-W 等待整个应用退出，期间持续监视文件回写。
+            ProcessStartInfo app = new("/usr/bin/open") { UseShellExecute = false };
+            app.ArgumentList.Add("-W");
+            app.ArgumentList.Add("-a");
+            app.ArgumentList.Add(application);
+            app.ArgumentList.Add(filePath);
+            if (template != "\"{path}\"")
             {
-                ProcessStartInfo app = new("/usr/bin/open") { UseShellExecute = false };
-                app.ArgumentList.Add("-W");
-                app.ArgumentList.Add("-a");
-                app.ArgumentList.Add(customEditor);
-                app.ArgumentList.Add(filePath);
-                if (template != "\"{path}\"")
-                {
-                    // 自定义参数保持原模板语义；open 的文件参数负责文档关联。
-                    app.ArgumentList.Clear();
-                    app.Arguments = $"-W -a \"{customEditor.Replace("\"", "\\\"")}\" \"{filePath.Replace("\"", "\\\"")}\" --args " + template.Replace("{path}", filePath);
-                }
-                return app;
+                // 自定义参数在应用启动时传递；文档参数由 open 交给已有应用。
+                app.ArgumentList.Clear();
+                app.Arguments = $"-W -a \"{application.Replace("\"", "\\\"")}\" \"{filePath.Replace("\"", "\\\"")}\" --args " + template.Replace("{path}", filePath);
             }
+            return app;
         }
 
         string args = template;
@@ -299,6 +293,40 @@ public class FileEditorLauncher : IAsyncDisposable
             Arguments = args.Replace("{path}", filePath),
             UseShellExecute = false
         };
+    }
+
+    private static bool TryResolveMacApplication(string command, out string application)
+    {
+        application = command.TrimEnd(Path.DirectorySeparatorChar);
+        if (application.EndsWith(".app", StringComparison.OrdinalIgnoreCase)) return true;
+
+        // 同时兼容用户已保存的内置 CLI 路径、原生可执行文件及 PATH 中的 code 符号链接。
+        string executable = command;
+        if (Path.GetDirectoryName(command) is "" or null)
+        {
+            if (command is not ("code" or "code-insiders")) return false;
+            executable = (Environment.GetEnvironmentVariable("PATH") ?? "")
+                .Split(Path.PathSeparator)
+                .Select(directory => Path.Combine(directory, command))
+                .FirstOrDefault(File.Exists) ?? command;
+        }
+        if (!File.Exists(executable)) return false;
+        executable = File.ResolveLinkTarget(executable, returnFinalTarget: true)?.FullName ?? Path.GetFullPath(executable);
+
+        string name = Path.GetFileName(executable);
+        DirectoryInfo? directory = Directory.GetParent(executable);
+        DirectoryInfo? bundle = null;
+        if (name is "code" or "code-insiders"
+            && directory?.Name == "bin" && directory.Parent?.Name == "app"
+            && directory.Parent.Parent?.Name == "Resources" && directory.Parent.Parent.Parent?.Name == "Contents")
+            bundle = directory.Parent.Parent.Parent.Parent;
+        else if (name is "Code" or "Electron" or "Code - Insiders"
+            && directory?.Name == "MacOS" && directory.Parent?.Name == "Contents")
+            bundle = directory.Parent.Parent;
+
+        if (bundle?.Name.EndsWith(".app", StringComparison.OrdinalIgnoreCase) != true) return false;
+        application = bundle.FullName;
+        return true;
     }
 
     private static bool TryCreateWindowsCodeCli(string command, out ProcessStartInfo info)

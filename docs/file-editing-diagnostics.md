@@ -1,6 +1,8 @@
 # 外部编辑器与文件回写诊断
 
-配置 VS Code 的 `code` 命令或应用路径后，KeiTerm 自动添加 `--wait`，等待本次打开的文件关闭。macOS 的 VS Code `.app` 使用内置 CLI，Windows 的 `Code.exe` / `bin/code.cmd` 使用内置 CLI host；不会把单实例应用的启动进程退出当作文件关闭。VS Code 的参数语义见[官方 CLI 文档](https://code.visualstudio.com/docs/configure/command-line#_core-cli-options)，Windows host 的启动方式与[官方 code.cmd](https://github.com/microsoft/vscode/blob/main/resources/win32/bin/code.cmd)一致。
+macOS 的 VS Code 使用 `open -W -a <应用> <文件>`，由系统复用已有应用，避免 `code --wait` 为每个文件保留一个等待实例、在 Dock 增加图标。选择 `.app`、内置 `bin/code` / `code-insiders`、原生可执行文件或指向内置 CLI 的符号链接，都会解析为同一个应用；PATH 中能解析到应用的 `code` 命令也适用。文件保存后仍会回写；关闭单个文件标签后继续监视，直到手动停止监视或退出整个 VS Code。自定义应用参数仅在应用启动时生效。
+
+其他平台的 VS Code、独立 `code` 包装命令及其他支持等待的编辑器自动添加 `--wait`，等待本次打开的文件关闭。Windows 的 `Code.exe` / `bin/code.cmd` 使用内置 CLI host，不会把单实例应用的启动进程退出当作文件关闭。VS Code 的参数语义见[官方 CLI 文档](https://code.visualstudio.com/docs/configure/command-line#_core-cli-options)，Windows host 的启动方式与[官方 code.cmd](https://github.com/microsoft/vscode/blob/main/resources/win32/bin/code.cmd)一致。
 
 等待进程成功退出后先检查最后一次保存，再停止该文件的监视。进程退出码非零或最终检查失败时继续监视。系统默认打开在 macOS 使用 `open -W`，等待关联应用退出；其他没有可靠关闭信号的启动方式保留监视，需点击文件行的停止按钮。编辑器没有持续持有文件句柄、文件长时间没有变化，都不表示编辑完成。
 
@@ -22,4 +24,4 @@
 | `Queued file writeback` / `File writeback started` / `File writeback committed` | 保存事件是否排队、上传是否开始和完成提交 |
 | `Editor closed` / `UnregisterTrackedFileAsync` | 自动关闭或手动停止监视 |
 
-只有启动日志、没有保存检测：查看实际监视模式、轮询日志和原生 watcher 错误。检测到了保存、没有成功提交：查看回写错误，保留日志中指向的本地缓存。VS Code 关闭后仍监视：查看实际执行路径、`WaitForClose` 和等待退出码；通过系统默认方式启动时，macOS 等待的是整个应用退出。
+只有启动日志、没有保存检测：查看实际监视模式、轮询日志和原生 watcher 错误。检测到了保存、没有成功提交：查看回写错误，保留日志中指向的本地缓存。VS Code 关闭后仍监视：查看实际执行路径、`WaitForClose` 和等待退出码；通过 macOS 应用复用或系统默认方式启动时，等待的是整个应用退出。

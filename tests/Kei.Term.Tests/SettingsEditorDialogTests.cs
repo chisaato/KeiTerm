@@ -162,7 +162,7 @@ public sealed class SettingsEditorDialogTests : IDisposable
     }
 
     [PlatformFact(TestPlatform.MacOS)]
-    public void MacApplicationSelection_UsesBundledCodeAndWaitsForDocument()
+    public void MacApplicationSelection_ReusesBundleAndWaitsForApplication()
     {
         string application = Path.Combine(Path.GetTempPath(), $"Editor {Guid.NewGuid():N}.app");
         string cli = Path.Combine(application, "Contents", "Resources", "app", "bin", "code");
@@ -172,8 +172,8 @@ public sealed class SettingsEditorDialogTests : IDisposable
             File.WriteAllText(cli, "unused");
             string file = "/tmp/edit with spaces.py";
             var command = FileEditorLauncher.CreateEditorStartInfo(file, application);
-            Assert.Equal(cli, command.FileName);
-            Assert.Equal($"--wait \"{file}\"", command.Arguments);
+            Assert.Equal("/usr/bin/open", command.FileName);
+            Assert.Equal(new[] { "-W", "-a", application, file }, command.ArgumentList);
             Assert.False(command.UseShellExecute);
             File.Delete(cli);
             var generic = FileEditorLauncher.CreateEditorStartInfo(file, application);
