@@ -17,8 +17,51 @@
                                       Title="{loc:KeiString Settings.Categories.TerminalAppearance}"
                                       Description="{loc:KeiString Settings.Categories.TerminalAppearanceDesc}"
                                       SubPageTitle="{Binding Appearance.SubPageTitle}"
-                                      BackCommand="{Binding Appearance.NavigateBackCommand}"
-                                      Margin="0,0,0,16"/>
+                                      BackCommand="{Binding Appearance.NavigateBackCommand}">
+            <scontrols:SettingsPageHeader.Actions>
+                <!-- 单项导入与整体备份分开；菜单直接说明会修改配色还是字体。 -->
+                <DropDownButton x:Name="TerminalAppearanceImportButton" HorizontalAlignment="Right"
+                                DataContext="{Binding $parent[Window].((vm:SettingsViewModel)DataContext)}"
+                                x:DataType="vm:SettingsViewModel"
+                                Content="{loc:KeiString Settings.Appearance.ImportMenu}"
+                                AutomationProperties.Name="{loc:KeiString Settings.Appearance.ImportMenu}"
+                                Height="28" Padding="10,0">
+                    <DropDownButton.Flyout>
+                        <MenuFlyout>
+                            <MenuItem Header="{loc:KeiString Settings.Appearance.ImportColorKonsole}"
+                                      AutomationProperties.Name="{loc:KeiString Settings.Appearance.ImportColorKonsole}"
+                                      Command="{Binding ImportKonsoleSchemeCommand}">
+                                <MenuItem.Icon>
+                                    <Viewbox Width="16" Height="16"><Grid Width="24" Height="24">
+                                        <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Terminal}"/>
+                                    </Grid></Viewbox>
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem x:Name="ImportTerminalThemeJsonMenuItem"
+                                      Header="{loc:KeiString Settings.Appearance.ImportColorJson}"
+                                      AutomationProperties.Name="{loc:KeiString Settings.Appearance.ImportColorJson}"
+                                      Command="{Binding ImportTerminalThemeJsonCommand}">
+                                <MenuItem.Icon>
+                                    <Viewbox Width="16" Height="16"><Grid Width="24" Height="24">
+                                        <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.File}"/>
+                                    </Grid></Viewbox>
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <Separator/>
+                            <MenuItem Header="{loc:KeiString Settings.Appearance.ImportFontKonsole}"
+                                      AutomationProperties.Name="{loc:KeiString Settings.Appearance.ImportFontKonsole}"
+                                      Command="{Binding ImportKonsoleFontCommand}">
+                                <MenuItem.Icon>
+                                    <Viewbox Width="16" Height="16"><Grid Width="24" Height="24">
+                                        <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Compose}"/>
+                                    </Grid></Viewbox>
+                                </MenuItem.Icon>
+                            </MenuItem>
+                        </MenuFlyout>
+                    </DropDownButton.Flyout>
+                </DropDownButton>
+            </scontrols:SettingsPageHeader.Actions>
+        </scontrols:SettingsPageHeader>
 
         <Panel Grid.Row="1">
             <!-- 主内容区：未在子页时显示 -->
@@ -31,47 +74,6 @@
                             <ColumnDefinition Width="0.001*"/>
                         </Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="0" Spacing="16">
-                    <!-- 单项导入与整体备份分开；菜单直接说明会修改配色还是字体。 -->
-                    <DropDownButton x:Name="TerminalAppearanceImportButton" HorizontalAlignment="Right"
-                                    DataContext="{Binding $parent[Window].((vm:SettingsViewModel)DataContext)}"
-                                    x:DataType="vm:SettingsViewModel"
-                                    Content="{loc:KeiString Settings.Appearance.ImportMenu}"
-                                    AutomationProperties.Name="{loc:KeiString Settings.Appearance.ImportMenu}"
-                                    Height="28" Padding="10,0">
-                        <DropDownButton.Flyout>
-                            <MenuFlyout>
-                                <MenuItem Header="{loc:KeiString Settings.Appearance.ImportColorKonsole}"
-                                          AutomationProperties.Name="{loc:KeiString Settings.Appearance.ImportColorKonsole}"
-                                          Command="{Binding ImportKonsoleSchemeCommand}">
-                                    <MenuItem.Icon>
-                                        <Viewbox Width="16" Height="16"><Grid Width="24" Height="24">
-                                            <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Terminal}"/>
-                                        </Grid></Viewbox>
-                                    </MenuItem.Icon>
-                                </MenuItem>
-                                <MenuItem x:Name="ImportTerminalThemeJsonMenuItem"
-                                          Header="{loc:KeiString Settings.Appearance.ImportColorJson}"
-                                          AutomationProperties.Name="{loc:KeiString Settings.Appearance.ImportColorJson}"
-                                          Command="{Binding ImportTerminalThemeJsonCommand}">
-                                    <MenuItem.Icon>
-                                        <Viewbox Width="16" Height="16"><Grid Width="24" Height="24">
-                                            <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.File}"/>
-                                        </Grid></Viewbox>
-                                    </MenuItem.Icon>
-                                </MenuItem>
-                                <Separator/>
-                                <MenuItem Header="{loc:KeiString Settings.Appearance.ImportFontKonsole}"
-                                          AutomationProperties.Name="{loc:KeiString Settings.Appearance.ImportFontKonsole}"
-                                          Command="{Binding ImportKonsoleFontCommand}">
-                                    <MenuItem.Icon>
-                                        <Viewbox Width="16" Height="16"><Grid Width="24" Height="24">
-                                            <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Compose}"/>
-                                        </Grid></Viewbox>
-                                    </MenuItem.Icon>
-                                </MenuItem>
-                            </MenuFlyout>
-                        </DropDownButton.Flyout>
-                    </DropDownButton>
                     <!-- 1. 终端配色方案档案卡片 -->
                     <Border Classes="settingsCard" DataContext="{Binding Appearance}">
                         <StackPanel Spacing="10">
