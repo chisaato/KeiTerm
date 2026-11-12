@@ -16,16 +16,14 @@ public class AuthMaterializerTests
         Func<Guid, string?>? session = null,
         Func<Guid, SecretPayload?>? vault = null,
         Func<FilePrivateKeyMethod, CancellationToken, Task<PassphrasePromptResult?>>? prompt = null,
-        Func<Guid, SecretPayload, Task>? save = null,
-        Func<InteractiveMethod, string, CancellationToken, Task<SecretPayload?>>? interactive = null)
+        Func<Guid, SecretPayload, Task>? save = null)
         => new()
         {
             ReadPrivateKeyFileAsync = read ?? ((_, _) => Task.FromResult<FileKeyReadResult?>(null)),
             GetSessionPassphrase = session ?? (_ => null),
             GetVaultSecret = vault ?? (_ => null),
             PromptPassphraseAsync = prompt ?? ((_, _) => Task.FromResult<PassphrasePromptResult?>(null)),
-            SaveVaultSecretAsync = save,
-            PromptInteractiveAsync = interactive
+            SaveVaultSecretAsync = save
         };
 
     private static Func<FilePrivateKeyMethod, CancellationToken, Task<PassphrasePromptResult?>> ThrowingPrompt()
@@ -237,43 +235,11 @@ public class AuthMaterializerTests
     }
 
     [Fact]
-    public async Task Interactive_ReturnsPromptedPassword()
+    public async Task Interactive_DoesNotReadSecretsOrPromptBeforeConnecting()
     {
-        var method = new InteractiveMethod();
-
-        var result = await AuthMaterializer.MaterializeAsync(
-            method,
-            "alice",
-            Context(interactive: (_, username, _) =>
-            {
-                Assert.Equal("alice", username);
-                return Task.FromResult<SecretPayload?>(new SecretPayload { Password = "typed" });
-            }));
-
-        Assert.Equal(AuthMaterialKind.Password, result!.Kind);
-        Assert.Equal("typed", result.Secret!.Password);
-    }
-
-    [Fact]
-    public async Task Interactive_Cancelled_ReturnsNull()
-    {
-        var method = new InteractiveMethod();
-
-        var result = await AuthMaterializer.MaterializeAsync(
-            method,
-            "alice",
-            Context(interactive: (_, _, _) => Task.FromResult<SecretPayload?>(null)));
-
-        Assert.Null(result);
-    }
-
-    [Fact]
-    public async Task Interactive_WithoutDelegate_Skips()
-    {
-        var method = new InteractiveMethod();
-
-        var result = await AuthMaterializer.MaterializeAsync(method, "alice", Context());
-
-        Assert.Null(result);
+        var result = await AuthMaterializer.MaterializeAsync(new InteractiveMethod(), "alice",
+            Context(vault: _ => throw new InvalidOperationException("No vault access"), prompt: ThrowingPrompt()));
+        Assert.Equal(AuthMaterialKind.Interactive, result!.Kind);
+        Assert.Null(result.Secret);
     }
 }

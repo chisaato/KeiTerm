@@ -371,7 +371,7 @@ public sealed partial class ConnectionOrchestrator
         }
     }
 
-    // 按用户新选的方法重建材料：同类材料被替换；交互式 = 零材料重连（靠 KI 桥应答）
+    // 按用户新选的方法重建材料：同类材料被替换；交互式清除旧材料并由 KI 桥应答。
     internal static void ReplaceMaterials(List<MaterializedAuthMethod> current, AuthPromptMethod method, MaterializedAuthMethod? newMaterial)
     {
         switch (method)

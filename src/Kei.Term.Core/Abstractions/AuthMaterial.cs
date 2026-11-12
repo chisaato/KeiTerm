@@ -7,7 +7,8 @@ public enum AuthMaterialKind
 {
     Password,
     PrivateKey,
-    Agent
+    Agent,
+    Interactive
 }
 
 // 经过物化（取材料/问口令）后可直接注册到 SSH 会话的认证方法；

@@ -20,6 +20,7 @@ internal static class SshAuthMethodBuilder
     {
         List<AuthenticationMethod> result = [];
         string? fallbackPassword = null;
+        bool hasInteractive = false;
 
         // 按物化顺序注册，顺序即认证尝试优先级
         foreach (MaterializedAuthMethod material in methods ?? [])
@@ -43,6 +44,14 @@ internal static class SshAuthMethodBuilder
 
                     break;
 
+                case AuthMaterialKind.Interactive:
+                    if (!hasInteractive && interactivePrompt != null)
+                    {
+                        result.Add(BuildInteractive(username, interactivePrompt, null));
+                        hasInteractive = true;
+                    }
+                    break;
+
                 case AuthMaterialKind.Agent:
                     // SshNet.Agent 无法对 SK/FIDO 身份取公钥算指纹，Fingerprint 字段预留、暂不过滤
                     AuthenticationMethod? agent = TryBuildAgentMethod(username, agentSocketPath, logger);
@@ -57,24 +66,29 @@ internal static class SshAuthMethodBuilder
 
         // 密码材料允许 KI 应答；零材料加回调表示用户明确选择纯交互认证。
         // 密钥/Agent 材料不能仅因应用提供了通用回调，就额外启用未配置的认证方式。
-        if (fallbackPassword != null || (interactivePrompt != null && (methods == null || methods.Count == 0)))
+        if (!hasInteractive && (fallbackPassword != null || (interactivePrompt != null && (methods == null || methods.Count == 0))))
         {
-            var keyboardInteractive = new KeyboardInteractiveAuthenticationMethod(username);
-            keyboardInteractive.AuthenticationPrompt += (_, e) =>
-            {
-                foreach (var prompt in e.Prompts)
-                {
-                    // 连接运行于非 UI 线程；事件处理器同步阻塞等待 UI 经 Dispatcher 回传输入。
-                    // 无交互回调时用预收集密码应答全部提示，避免无 UI 环境等待输入造成死锁
-                    prompt.Response = interactivePrompt != null
-                        ? interactivePrompt(prompt.Request).GetAwaiter().GetResult() ?? string.Empty
-                        : fallbackPassword ?? string.Empty;
-                }
-            };
-            result.Add(keyboardInteractive);
+            result.Add(BuildInteractive(username, interactivePrompt, fallbackPassword));
         }
 
         return result.ToArray();
+    }
+
+    private static KeyboardInteractiveAuthenticationMethod BuildInteractive(
+        string username, Func<string, Task<string?>>? interactivePrompt, string? fallbackPassword)
+    {
+        var method = new KeyboardInteractiveAuthenticationMethod(username);
+        method.AuthenticationPrompt += (_, e) =>
+        {
+            foreach (var prompt in e.Prompts)
+            {
+                // SSH 后台线程等待 UI 回传；创建认证列表时不触发任何弹窗。
+                prompt.Response = interactivePrompt != null
+                    ? interactivePrompt(prompt.Request).GetAwaiter().GetResult() ?? string.Empty
+                    : fallbackPassword ?? string.Empty;
+            }
+        };
+        return method;
     }
 
     private static AuthenticationMethod? TryBuildAgentMethod(string username, string? agentSocketPath, ILogger logger)

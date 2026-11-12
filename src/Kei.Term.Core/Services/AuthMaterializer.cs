@@ -29,9 +29,6 @@ public sealed class AuthMaterializerContext
     // Persistent 口令确认记住后写回 identity_secrets
     public Func<Guid, SecretPayload, Task>? SaveVaultSecretAsync { get; init; }
 
-    // Interactive 方法弹窗；返回 null 表示取消
-    public Func<InteractiveMethod, string, CancellationToken, Task<SecretPayload?>>? PromptInteractiveAsync { get; init; }
-
     // 可选诊断日志（App 注入）；Core 只依赖日志抽象
     public ILogger? Logger { get; init; }
 }
@@ -82,24 +79,9 @@ public static class AuthMaterializer
                 logger?.LogInformation("认证方法物化成功 方法=Agent");
                 return new MaterializedAuthMethod(AuthMaterialKind.Agent, null, agent.AgentFingerprint);
 
-            case InteractiveMethod interactive:
-            {
-                if (context.PromptInteractiveAsync == null)
-                {
-                    logger?.LogInformation("认证方法物化跳过 方法=Interactive 原因=无交互回调");
-                    return null;
-                }
-
-                var secret = await context.PromptInteractiveAsync(interactive, username, ct);
-                if (secret == null)
-                {
-                    logger?.LogInformation("认证方法物化跳过 方法=Interactive 原因=用户取消交互认证");
-                    return null;
-                }
-
-                logger?.LogInformation("认证方法物化成功 方法=Interactive");
-                return new MaterializedAuthMethod(AuthMaterialKind.Password, secret);
-            }
+            case InteractiveMethod:
+                // 只注册认证方式；等服务器轮到该方法并发出质询时再收集输入。
+                return new MaterializedAuthMethod(AuthMaterialKind.Interactive, null);
 
             default:
                 logger?.LogInformation("认证方法物化跳过 方法={Method} 原因=不支持的方法类型", method.GetType().Name);

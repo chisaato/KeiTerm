@@ -253,16 +253,6 @@ public sealed class AuthMaterialCollector
                 secrets ??= new Dictionary<string, SecretPayload>();
                 secrets[methodId.ToString()] = payload;
             },
-            PromptInteractiveAsync = async (method, username, ct) =>
-            {
-                if (!allowInteraction) return null;
-                onInteraction?.Invoke();
-                // Interactive 方法：以交互式为默认项弹完整认证窗，取消则跳过该方法
-                AuthPromptResult? prompt = await PromptAuthAsync(username, identity, AuthPromptMethod.Interactive);
-                return prompt == null
-                    ? null
-                    : new SecretPayload { Password = prompt.Password ?? string.Empty };
-            },
         };
 
         foreach (AuthStep step in steps)
@@ -270,7 +260,7 @@ public sealed class AuthMaterialCollector
             switch (step)
             {
                 case MethodStep methodStep:
-                    if (identity != null)
+                    if (identity != null && methodStep.Method is not (InteractiveMethod or AgentMethod))
                     {
                         secrets ??= await _vault.LoadIdentitySecretsAsync(identity.Id, allowInteraction);
                     }
@@ -324,7 +314,7 @@ public sealed class AuthMaterialCollector
             .ToList();
     }
 
-    // 认证窗结果 → 认证材料；Interactive 返回零材料（交由 KI 桥应答）
+    // 认证窗结果 → 认证材料；Interactive 保留为独立的 KI 认证步骤
     private async Task<(MaterializedAuthMethod? Material, string? Username)> ResolvePromptResultAsync(AuthPromptResult result, Identity? identity)
     {
         switch (result.Method)
@@ -373,8 +363,8 @@ public sealed class AuthMaterialCollector
 
             case AuthPromptMethod.Interactive:
             default:
-                // 交互式：零材料，连接时由 KI 桥逐条问答
-                return (null, result.Username);
+                // 连接时由 KI 桥逐条问答。
+                return (new MaterializedAuthMethod(AuthMaterialKind.Interactive, null), result.Username);
         }
     }
 

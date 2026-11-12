@@ -14,9 +14,6 @@ namespace Kei.Term.App.Views;
 //  - 提示模式：KI 真交互回调的轻量变体，仅服务器提示文本 + 单行输入
 public partial class AuthPromptWindow : Window
 {
-    // 进程内记住上次选择的方法
-    private static AuthPromptMethod _lastMethod = AuthPromptMethod.Password;
-
     private static readonly AuthPromptMethod[] MethodOrder =
     {
         AuthPromptMethod.Password,
@@ -61,7 +58,7 @@ public partial class AuthPromptWindow : Window
         UsernameBox.Text = prefillUsername;
 
         MethodCombo.ItemsSource = MethodLabels;
-        var initial = defaultMethod ?? _lastMethod;
+        var initial = defaultMethod ?? AuthPromptMethod.Password;
         MethodCombo.SelectedIndex = Math.Max(0, Array.IndexOf(MethodOrder, initial));
 
         // 密钥来源：先「文件…」，再逐个保管库密钥
@@ -104,7 +101,6 @@ public partial class AuthPromptWindow : Window
         }
 
         _method = MethodOrder[MethodCombo.SelectedIndex];
-        _lastMethod = _method;
 
         PasswordPanel.IsVisible = _method == AuthPromptMethod.Password;
         PublicKeyPanel.IsVisible = _method == AuthPromptMethod.PublicKeyFile;

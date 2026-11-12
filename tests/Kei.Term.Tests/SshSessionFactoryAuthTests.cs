@@ -31,6 +31,26 @@ public class SshSessionFactoryAuthTests
     private static IReadOnlyList<AuthenticationMethod> GetAuthMethods(SshNetSession session)
         => session.AuthenticationMethods;
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ExplicitInteractive_PreservesPriorityWithoutPromptingDuringPreparation(bool interactiveFirst)
+    {
+        var key = new MaterializedAuthMethod(AuthMaterialKind.PrivateKey,
+            new Kei.Term.Core.Vault.SecretPayload { PrivateKeyContent = PrivateKeyFormatTests.PlainOpenSsh });
+        var interactive = new MaterializedAuthMethod(AuthMaterialKind.Interactive, null);
+        var password = new MaterializedAuthMethod(AuthMaterialKind.Password,
+            new Kei.Term.Core.Vault.SecretPayload { Password = "pw" });
+        var materials = interactiveFirst ? new[] { interactive, key, password } : new[] { key, password, interactive };
+        await using var session = (SshNetSession)await new SshSessionFactory().CreateSessionAsync(Config(), materials,
+            new SshConnectOptions { InteractivePrompt = _ => throw new InvalidOperationException("Premature prompt") });
+        var actual = GetAuthMethods(session);
+        Assert.Equal(3, actual.Count);
+        Assert.IsType<KeyboardInteractiveAuthenticationMethod>(actual[interactiveFirst ? 0 : 2]);
+        Assert.IsType<PrivateKeyAuthenticationMethod>(actual[interactiveFirst ? 1 : 0]);
+        Assert.IsType<PasswordAuthenticationMethod>(actual[interactiveFirst ? 2 : 1]);
+    }
+
     [Fact]
     public async Task CreateSession_ZeroMaterialsWithInteractivePrompt_RegistersKeyboardInteractive()
     {

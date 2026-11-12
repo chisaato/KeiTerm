@@ -52,7 +52,7 @@ public sealed class GoSshSessionFactory : ISshSessionFactory
 
         async Task<object> Endpoint(ResolvedSessionConfig target, IReadOnlyList<MaterializedAuthMethod> auth)
         {
-            if (auth.Count == 0 || auth.Any(a => a.Kind == AuthMaterialKind.Agent))
+            if (auth.Count == 0 || auth.Any(a => a.Kind is AuthMaterialKind.Agent or AuthMaterialKind.Interactive))
                 throw new NotSupportedException("当前 Go IPC 仅支持显式密码和普通私钥认证");
             if (auth.GroupBy(a => a.Kind).Any(group => group.Count() > 1))
                 throw new NotSupportedException("当前 Go IPC 不支持同类认证材料的有序多次尝试");
