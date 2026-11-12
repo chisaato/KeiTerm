@@ -85,10 +85,10 @@ public partial class FileTransferTaskItemViewModel : ViewModelBase
                 return FileSizeFormatter.Format(TotalBytes > 0 ? TotalBytes : TransferredBytes, SizeDisplayMode);
             }
 
-            if (TotalBytes <= 0) return FileSizeFormatter.Format(TransferredBytes, SizeDisplayMode);
+            if (TotalBytes <= 0) return FileSizeFormatter.FormatProgress(TransferredBytes, SizeDisplayMode);
             string total = FileSizeFormatter.Format(TotalBytes, SizeDisplayMode);
             if (!ShowsProgress) return total;
-            return $"{FileSizeFormatter.Format(TransferredBytes, SizeDisplayMode)} / {total}";
+            return $"{FileSizeFormatter.FormatProgress(TransferredBytes, SizeDisplayMode)} / {total}";
         }
     }
 

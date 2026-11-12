@@ -39,7 +39,7 @@ public class FileTransferTaskItemViewModelTests
         // 传输中并上报进度
         vm.State = FileTransferState.Transferring;
         vm.NoteProgress(1024 * 1024, 2 * 1024 * 1024); // 1 MiB / 2 MiB
-        Assert.Equal("1 MiB / 2 MiB", vm.FormattedSizeText);
+        Assert.Equal("1.00 MiB / 2 MiB", vm.FormattedSizeText);
         Assert.Equal("50%", vm.FormattedProgressText);
 
         // 切换为 SI 模式

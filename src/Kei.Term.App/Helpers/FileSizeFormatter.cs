@@ -10,6 +10,13 @@ public static class FileSizeFormatter
     private static readonly string[] SiUnits = ["B", "kB", "MB", "GB", "TB", "PB", "EB"];
 
     public static string Format(long bytes, FileSizeDisplayMode mode, CultureInfo? culture = null)
+        => FormatCore(bytes, mode, culture, fixedDecimals: false);
+
+    // 动态进度固定小数位，避免末尾零反复消失导致右对齐的文本来回跳动。
+    public static string FormatProgress(long bytes, FileSizeDisplayMode mode, CultureInfo? culture = null)
+        => FormatCore(bytes, mode, culture, fixedDecimals: true);
+
+    private static string FormatCore(long bytes, FileSizeDisplayMode mode, CultureInfo? culture, bool fixedDecimals)
     {
         culture ??= CultureInfo.CurrentCulture;
         if (bytes < 0)
@@ -39,6 +46,6 @@ public static class FileSizeFormatter
             unit++;
         }
 
-        return value.ToString("0.##", culture) + " " + units[unit];
+        return value.ToString(fixedDecimals && unit > 0 ? "0.00" : "0.##", culture) + " " + units[unit];
     }
 }
