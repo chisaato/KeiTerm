@@ -31,6 +31,16 @@
 
                 <Border Classes="settingRowDivider"/>
 
+                <!-- 远端鼠标上报开关 -->
+                <controls:SettingRow Title="{loc:KeiString Settings.Terminal.MouseReporting}"
+                                     Description="{loc:KeiString Settings.Terminal.MouseReportingTip}">
+                    <ToggleSwitch IsChecked="{Binding Terminal.MouseReportingEnabled}"
+                                  HorizontalAlignment="Right"
+                                  OnContent="{x:Null}" OffContent="{x:Null}"/>
+                </controls:SettingRow>
+
+                <Border Classes="settingRowDivider"/>
+
                 <!-- 默认终端仿真类型（低频高级项） -->
                 <Expander Header="{loc:KeiString Settings.Terminal.EmulationSection}"
                           IsExpanded="False"

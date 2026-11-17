@@ -37,6 +37,7 @@ public class AppSettings : System.Text.Json.Serialization.IJsonOnDeserialized, S
     public int TerminalFontWeight { get; set; } = 400;
     public int ScrollbackLines { get; set; } = 5000;
     public bool CursorBlink { get; set; } = true;
+    public bool TerminalMouseReportingEnabled { get; set; } = true;
 
     // 界面全局字体（UI Font），用于整个 App 的菜单、树、弹窗与常规文字渲染
     public string UiFontFamily { get; set; } = "Noto Sans CJK SC";

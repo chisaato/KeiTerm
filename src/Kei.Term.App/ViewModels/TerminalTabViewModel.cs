@@ -191,7 +191,8 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         ILogger? logger = null,
         Func<TerminalControl>? terminalFactory = null,
         ITerminalThemeSink? themeSink = null,
-        int scrollbackLines = 5000)
+        int scrollbackLines = 5000,
+        bool mouseReportingEnabled = true)
     {
         ArgumentNullException.ThrowIfNull(font);
         ArgumentNullException.ThrowIfNull(profile);
@@ -205,12 +206,27 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         TerminalBackground = ParseBrush(profile.Background);
         _fontSnapshot = font;
         _scrollbackLines = Math.Max(0, scrollbackLines);
+        _mouseReportingEnabled = mouseReportingEnabled;
 
         _terminalFactory = terminalFactory ?? CreateHookedTerminal;
         // 生产默认绑定真实控件（惰性）；测试可注入无控件实现以验证纯状态
         _themeSink = themeSink ?? new TerminalControlThemeSink(() => Terminal);
 
         RegisterSidebarSizingMessages();
+        WeakReferenceMessenger.Default.Register<TerminalTabViewModel, TerminalMouseReportingChangedMessage>(this, static (recipient, message) =>
+        {
+            void Apply()
+            {
+                recipient._mouseReportingEnabled = message.Enabled;
+                if (recipient._terminal is KeiTerminalControl keiTerminal)
+                {
+                    keiTerminal.IsMouseReportingEnabled = message.Enabled;
+                }
+            }
+
+            if (Dispatcher.UIThread.CheckAccess()) Apply();
+            else Dispatcher.UIThread.Post(Apply);
+        });
         WeakReferenceMessenger.Default.Register<TerminalTabViewModel, FileManagerDockChangedMessage>(this, static (recipient, message) =>
         {
             void Apply()
@@ -580,6 +596,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
             _terminal.ShellIntegrationEventReceived -= OnTerminalShellIntegrationEvent;
         }
 
+        WeakReferenceMessenger.Default.Unregister<TerminalMouseReportingChangedMessage>(this);
         WeakReferenceMessenger.Default.Unregister<FileManagerDockChangedMessage>(this);
         WeakReferenceMessenger.Default.Unregister<FileManagerSidebarRatioChangedMessage>(this);
         if (_boundSessionNode != null)

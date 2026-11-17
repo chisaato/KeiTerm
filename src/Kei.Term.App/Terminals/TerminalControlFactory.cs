@@ -51,10 +51,10 @@ public static class TerminalControlFactory
     // 工厂本身无会话状态，可被多个控件共享。
     private static TerminalControl? _prototype;
 
-    public static TerminalControl Create(VtCallbackHooks hooks)
+    public static TerminalControl Create(VtCallbackHooks hooks, bool mouseReportingEnabled = true)
     {
         TerminalControl prototype = _prototype ??= new TerminalControl();
-        return new TerminalControl(
+        return new KeiTerminalControl(
             new TerminalSessionService(),
             new AppShortcutAwareInputAdapter(new DefaultTerminalInputAdapter()),
             new DefaultTerminalSelectionService(),
@@ -63,6 +63,9 @@ public static class TerminalControlFactory
             prototype.PtyFactory,
             prototype.SshCredentialProvider,
             prototype.SshHostKeyValidator,
-            transportFactory: null);
+            transportFactory: null)
+        {
+            IsMouseReportingEnabled = mouseReportingEnabled
+        };
     }
 }

@@ -221,6 +221,12 @@
   <data name="Settings.Terminal.MultiplexerTip" xml:space="preserve">
     <value>Directory tracking mode under tmux/screen sessions.</value>
   </data>
+  <data name="Settings.Terminal.MouseReporting" xml:space="preserve">
+    <value>Enable Terminal Mouse Reporting</value>
+  </data>
+  <data name="Settings.Terminal.MouseReportingTip" xml:space="preserve">
+    <value>When enabled, mouse events are forwarded to apps like tmux, byobu, or vim (hold Shift for local selection). When disabled, left-drag selects locally and Shift temporarily forwards to the remote app.</value>
+  </data>
   <data name="Terminal.Drop.SettingsSection" xml:space="preserve">
     <value>Terminal Drag &amp; Drop</value>
   </data>

@@ -861,6 +861,12 @@
   <data name="Settings.Terminal.ScrollbackLinesTip" xml:space="preserve">
     <value>可向上回滚查看的最大行数，范围 500–50000</value>
   </data>
+  <data name="Settings.Terminal.MouseReporting" xml:space="preserve">
+    <value>启用终端鼠标上报</value>
+  </data>
+  <data name="Settings.Terminal.MouseReportingTip" xml:space="preserve">
+    <value>开启时将鼠标事件发送给 tmux、byobu、vim 等远端应用，按住 Shift 可临时进行本地选区；关闭时默认直接本地选区，按住 Shift 可临时发送给远端</value>
+  </data>
   <data name="Settings.Terminal.EmulationSection" xml:space="preserve">
     <value>终端仿真</value>
   </data>

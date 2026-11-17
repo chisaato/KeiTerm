@@ -351,6 +351,7 @@ public partial class SettingsViewModel : ViewModelBase
         _lastAppliedSettings = CloneSettings(current);
 
         _terminal.ScrollbackLines = current.ScrollbackLines;
+        _terminal.MouseReportingEnabled = current.TerminalMouseReportingEnabled;
         _terminal.DefaultTerminalType = string.IsNullOrWhiteSpace(current.DefaultTerminalType)
             ? "xterm-256color"
             : current.DefaultTerminalType;
@@ -449,6 +450,7 @@ public partial class SettingsViewModel : ViewModelBase
 
         // 终端
         settings.ScrollbackLines = Math.Clamp(_terminal.ScrollbackLines, 500, 50000);
+        settings.TerminalMouseReportingEnabled = _terminal.MouseReportingEnabled;
         settings.DefaultTerminalType = string.IsNullOrWhiteSpace(_terminal.DefaultTerminalType)
             ? "xterm-256color"
             : _terminal.DefaultTerminalType.Trim();
@@ -512,6 +514,7 @@ public partial class SettingsViewModel : ViewModelBase
             BroadcastTerminalFontDraft();
             NotifyFileDisplaySettings();
             WeakReferenceMessenger.Default.Send(new TabTitleTemplateChangedMessage(settings.TabTitleTemplate));
+            WeakReferenceMessenger.Default.Send(new TerminalMouseReportingChangedMessage(settings.TerminalMouseReportingEnabled));
             return true;
         }
         finally

@@ -1,0 +1,39 @@
+name: CI 检查与测试
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: 构建与单元测试
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: 安装 Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: src/Kei.Term.Transport.Go/engine/go.mod
+
+      - name: Go Sidecar 静态检查与测试
+        run: |
+          cd src/Kei.Term.Transport.Go/engine
+          go vet ./...
+          go test ./...
+
+      - name: 还原 .NET 依赖
+        run: dotnet restore Kei.Term.slnx
+
+      - name: 构建解决方案
+        run: dotnet build Kei.Term.slnx --no-restore
+
+      - name: 运行单元测试
+        run: dotnet test tests/Kei.Term.Tests/Kei.Term.Tests.csproj --no-build

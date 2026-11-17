@@ -1,0 +1,90 @@
+name: 多平台打包与发布
+
+on:
+  # 支持手动触发多平台完整打包构建
+  workflow_dispatch: {}
+  # 仅在推送 v* 标签时触发正式发布
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: 打包 (${{ matrix.platform }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            recipes: pack-linux-x64 pack-linux-arm64
+          - os: windows-latest
+            platform: windows
+            recipes: pack-windows-x64 pack-windows-arm64
+          - os: macos-latest
+            platform: macos
+            recipes: pack-macos-arm64 pack-macos-x64
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 just
+        uses: extractions/setup-just@v2
+
+      - name: 安装 .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: 安装 Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: src/Kei.Term.Transport.Go/engine/go.mod
+
+      # justfile 的 pack-target 依赖 zip 命令打包产物
+      - name: 确保 zip 可用 (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: command -v zip >/dev/null 2>&1 || (sudo apt-get update && sudo apt-get install -y zip)
+
+      - name: 确保 zip 可用 (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: command -v zip >/dev/null 2>&1 || choco install zip -y
+
+      - name: 执行跨平台打包
+        shell: bash
+        run: |
+          for recipe in ${{ matrix.recipes }}; do
+            just "$recipe"
+          done
+
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: keiterm-${{ matrix.platform }}
+          path: dist/KeiTerm-*.zip
+          if-no-files-found: error
+
+  release:
+    name: 发布 GitHub Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: 下载全部平台产物
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: 创建 GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/KeiTerm-*.zip
+          generate_release_notes: true

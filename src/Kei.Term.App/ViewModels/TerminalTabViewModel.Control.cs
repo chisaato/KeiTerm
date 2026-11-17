@@ -40,6 +40,7 @@ public partial class TerminalTabViewModel
     private TerminalControl? _terminal;
     private TerminalFontSnapshot _fontSnapshot;
     private readonly int _scrollbackLines;
+    private bool _mouseReportingEnabled;
 
     // Ctrl+滚轮缩放的余量累积器：触控板的小数 delta 需凑满一格才步进
     private readonly WheelNotchAccumulator _zoomAccumulator = new();
@@ -123,7 +124,7 @@ public partial class TerminalTabViewModel
                 });
             }
         };
-        TerminalControl terminal = TerminalControlFactory.Create(hooks);
+        TerminalControl terminal = TerminalControlFactory.Create(hooks, _mouseReportingEnabled);
         TerminalFontRendering.Apply(terminal);
         TerminalKeywordHighlight.Apply(terminal);
         return terminal;

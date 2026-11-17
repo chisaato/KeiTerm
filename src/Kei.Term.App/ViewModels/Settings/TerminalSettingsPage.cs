@@ -20,6 +20,10 @@ public partial class TerminalSettingsPage : ViewModelBase
     [ObservableProperty]
     private string _defaultTerminalType = "xterm-256color";
 
+    // 是否启用远端鼠标上报（关闭时默认本地选区，Shift 临时翻转）
+    [ObservableProperty]
+    private bool _mouseReportingEnabled = true;
+
     // 标签标题跟随远端（OSC 0/2）标题的全局默认；会话可覆盖
     [ObservableProperty]
     private bool _tabTitleFollowsRemote = true;
