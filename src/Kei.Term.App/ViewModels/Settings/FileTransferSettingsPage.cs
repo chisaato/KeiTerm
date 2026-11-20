@@ -127,6 +127,12 @@ public partial class FileTransferSettingsPage : ViewModelBase
         set => FileManagerPage.IsFileManagerOnLeft = value;
     }
 
+    public bool ShowHiddenFiles
+    {
+        get => FileManagerPage.ShowHiddenFiles;
+        set => FileManagerPage.ShowHiddenFiles = value;
+    }
+
     public int PollingIntervalSeconds
     {
         get => FileManagerPage.PollingIntervalSeconds;

@@ -54,6 +54,12 @@
                           IsChecked="{Binding IsFileManagerOnLeft}"
                           Content="{loc:KeiString Settings.FileTransfer.DockLeft}"/>
 
+                <!-- 默认显示隐藏文件和目录 -->
+                <CheckBox x:Name="FileManagerShowHiddenFilesCheckBox"
+                          IsChecked="{Binding ShowHiddenFiles}"
+                          Content="{loc:KeiString Settings.FileTransfer.ShowHiddenFiles}"
+                          ToolTip.Tip="{loc:KeiString Settings.FileTransfer.ShowHiddenFilesTip}"/>
+
                 <Grid ColumnDefinitions="*,Auto" MinHeight="32">
                     <StackPanel VerticalAlignment="Center" Spacing="2" Margin="0,2,16,2">
                         <TextBlock Text="{loc:KeiString Settings.FileTransfer.SidebarWidth}" TextWrapping="Wrap"

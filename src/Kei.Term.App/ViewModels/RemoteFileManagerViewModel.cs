@@ -57,6 +57,15 @@ public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposabl
     [ObservableProperty]
     private bool _showHiddenFiles;
 
+    partial void OnShowHiddenFilesChanged(bool value)
+    {
+        _ = RefreshDirectoryAsync();
+        _ = RefreshDirectoryTreeAsync();
+    }
+
+    [RelayCommand]
+    public void ToggleShowHiddenFiles() => ShowHiddenFiles = !ShowHiddenFiles;
+
     [ObservableProperty]
     private string? _transferStatusMessage;
 
@@ -152,6 +161,7 @@ public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposabl
         _fileSystem = fileSystem;
         _fileTracker = fileTracker;
         _settingsService = settingsService;
+        _showHiddenFiles = owningFileView?._showHiddenFiles ?? settingsService?.Current.FileTransfer.ShowHiddenFiles ?? false;
         TransferLayout = TransferTableLayout.For(settingsService);
         TransferView = new TransferTableView(TransferLayout);
         InitializeSizeDisplay();

@@ -19,6 +19,7 @@ public partial class SettingsViewModel
         _fileTransfer.WriteDebounceMilliseconds = Math.Clamp(transfer.WriteDebounceMilliseconds, 200, 60000);
         _fileTransfer.CustomEditorPath = transfer.CustomEditorPath;
         _fileTransfer.IsFileManagerOnLeft = transfer.IsFileManagerOnLeft;
+        _fileTransfer.ShowHiddenFiles = transfer.ShowHiddenFiles;
         _fileTransfer.FileManagerPage.FileManagerSidebarWidthPercent = FileManagerSidebarSizing.ClampDefaultRatio(transfer.FileManagerSidebarRatio) * 100;
         _fileTransfer.Concurrency = transfer.Concurrency;
         _fileTransfer.DefaultDownloadDirectory = transfer.DefaultDownloadDirectory;
@@ -50,6 +51,7 @@ public partial class SettingsViewModel
         transfer.WriteDebounceMilliseconds = Math.Clamp(_fileTransfer.WriteDebounceMilliseconds, 200, 60000);
         transfer.CustomEditorPath = _fileTransfer.CustomEditorPath.Trim();
         transfer.IsFileManagerOnLeft = _fileTransfer.IsFileManagerOnLeft;
+        transfer.ShowHiddenFiles = _fileTransfer.ShowHiddenFiles;
         transfer.FileManagerSidebarRatio = FileManagerSidebarSizing.ClampDefaultRatio(_fileTransfer.FileManagerPage.FileManagerSidebarWidthPercent / 100);
         transfer.Concurrency = _fileTransfer.Concurrency;
         transfer.DefaultDownloadDirectory = _fileTransfer.DefaultDownloadDirectory.Trim();

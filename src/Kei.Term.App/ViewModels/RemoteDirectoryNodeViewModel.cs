@@ -114,6 +114,40 @@ public partial class RemoteDirectoryNodeViewModel : ViewModelBase
         return _childrenLoadTask;
     }
 
+    /// <summary>
+    /// 强制重新加载子目录列表。若 recursiveExpanded 为 true，保留并递归重新加载已展开的子分支。
+    /// 用于切换显示隐藏文件或手动刷新目录树时同步最新目录结构。
+    /// </summary>
+    public async Task ReloadAsync(bool recursiveExpanded = true, CancellationToken ct = default)
+    {
+        if (_fileSystem == null) return;
+
+        var expandedChildren = Children
+            .Where(c => c.IsExpanded && !c.IsDummy && !string.IsNullOrEmpty(c.Name))
+            .Select(c => c.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        if (_childrenLoadTask is { IsCompleted: false })
+        {
+            try { await _childrenLoadTask; } catch { }
+        }
+
+        _childrenLoadTask = LoadChildrenCoreAsync(ct);
+        await _childrenLoadTask;
+
+        if (recursiveExpanded && Children.Count > 0 && expandedChildren.Count > 0)
+        {
+            foreach (var child in Children)
+            {
+                if (expandedChildren.Contains(child.Name))
+                {
+                    child.IsExpanded = true;
+                    await child.ReloadAsync(recursiveExpanded: true, ct);
+                }
+            }
+        }
+    }
+
     private async Task LoadChildrenCoreAsync(CancellationToken ct)
     {
         try

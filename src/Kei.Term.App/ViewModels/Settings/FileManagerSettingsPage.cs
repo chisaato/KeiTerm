@@ -37,6 +37,9 @@ public partial class FileManagerSettingsPage : ViewModelBase
     private bool _isFileManagerOnLeft;
 
     [ObservableProperty]
+    private bool _showHiddenFiles;
+
+    [ObservableProperty]
     private double _fileManagerSidebarWidthPercent = FileManagerSidebarSizing.DefaultRatio * 100;
 
     [ObservableProperty]

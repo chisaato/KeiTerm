@@ -86,4 +86,38 @@ public partial class RemoteFileManagerViewModel
             cancellation.Dispose();
         }
     }
+
+    [RelayCommand]
+    public async Task RefreshDirectoryTreeAsync(CancellationToken ct = default)
+    {
+        if (DirectoryTreeRoots.Count == 0 || _disposed) return;
+        try
+        {
+            var root = DirectoryTreeRoots[0];
+            await root.ReloadAsync(recursiveExpanded: true, ct);
+            ct.ThrowIfCancellationRequested();
+            if (_disposed) return;
+
+            root.IsExpanded = true;
+            RemoteDirectoryNodeViewModel? target = await root.EnsurePathLoadedAsync(CurrentPath, ct);
+            ct.ThrowIfCancellationRequested();
+            if (_disposed || target == null) return;
+
+            _isInternalDirectoryNavigating = true;
+            try
+            {
+                target.IsExpanded = true;
+                SelectedDirectoryNode = target;
+            }
+            finally
+            {
+                _isInternalDirectoryNavigating = false;
+            }
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "刷新目录树失败");
+        }
+    }
 }

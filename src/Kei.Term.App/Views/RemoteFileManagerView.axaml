@@ -169,6 +169,8 @@
                 <ContextMenu>
                     <MenuItem Header="{loc:KeiString FileManager.Dock.MoveToLeft}" Command="{Binding MoveToLeftCommand}" IsEnabled="{Binding !IsOnLeft}" IsVisible="{Binding !IsFileTab}"/>
                     <MenuItem Header="{loc:KeiString FileManager.Dock.MoveToRight}" Command="{Binding MoveToRightCommand}" IsEnabled="{Binding IsOnLeft}" IsVisible="{Binding !IsFileTab}"/>
+                    <Separator/>
+                    <MenuItem Header="{loc:KeiString FileManager.ShowHiddenFiles}" ToggleType="CheckBox" IsChecked="{Binding ShowHiddenFiles, Mode=TwoWay}"/>
                     <Separator IsVisible="{Binding !IsFileTab}"/>
                     <MenuItem Header="{loc:KeiString FileManager.PromoteToFileTab}" Command="{Binding PromoteToTabCommand}" IsVisible="{Binding !IsFileTab}"/>
                     <MenuItem Header="{loc:KeiString FileManager.Hide}" Command="{Binding CloseCommand}" IsVisible="{Binding !IsFileTab}"/>
@@ -298,8 +300,16 @@
                       ItemsSource="{Binding DirectoryTreeRoots}"
                       SelectedItem="{Binding SelectedDirectoryNode, Mode=TwoWay}"
                       DoubleTapped="OnDirectoryTreeDoubleTapped"
+                      PointerPressed="OnDirectoryTreePointerPressed"
                       IsVisible="{Binding IsDirectoryTreeVisible}"
                       Background="Transparent">
+                <TreeView.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="{loc:KeiString FileManager.ShowHiddenFiles}" ToggleType="CheckBox" IsChecked="{Binding ShowHiddenFiles, Mode=TwoWay}"/>
+                        <Separator/>
+                        <MenuItem Header="{loc:KeiString FileManager.Refresh}" InputGesture="F5" Command="{Binding RefreshDirectoryCommand}"/>
+                    </ContextMenu>
+                </TreeView.ContextMenu>
                 <TreeView.DataTemplates>
                     <TreeDataTemplate DataType="vm:RemoteDirectoryNodeViewModel" ItemsSource="{Binding Children}">
                         <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,1" VerticalAlignment="Center">
@@ -360,6 +370,8 @@
                         <MenuItem Header="{loc:KeiString FileManager.CreateFile}" Command="{Binding CreateFileCommand}"/>
                         <MenuItem Header="{loc:KeiString FileManager.CreateDirectory}" Command="{Binding CreateDirectoryCommand}"/>
                         <MenuItem Header="{loc:KeiString FileManager.UploadFiles}" Command="{Binding UploadFilesCommand}"/>
+                        <Separator/>
+                        <MenuItem Header="{loc:KeiString FileManager.ShowHiddenFiles}" ToggleType="CheckBox" IsChecked="{Binding ShowHiddenFiles, Mode=TwoWay}"/>
                         <MenuItem Header="{loc:KeiString FileManager.Refresh}" InputGesture="F5" Command="{Binding RefreshDirectoryCommand}"/>
                     </ContextMenu>
                 </ListBox.ContextMenu>

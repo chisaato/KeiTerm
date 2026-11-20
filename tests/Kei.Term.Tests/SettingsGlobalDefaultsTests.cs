@@ -206,6 +206,42 @@ public class SettingsGlobalDefaultsTests
         finally { Directory.Delete(directory, recursive: true); }
     }
 
+    [Fact]
+    public Task FileManagerShowHiddenFiles_SavesAndReloadsAcrossSessions()
+        => HeadlessAvalonia.RunAsync(async () =>
+    {
+        UiDesignSystemService.Apply();
+        string directory = Path.Combine(Path.GetTempPath(), "keiterm_hidden_defaults_" + Path.GetRandomFileName());
+        Directory.CreateDirectory(directory);
+        SettingsWindow? window = null;
+        try
+        {
+            string path = Path.Combine(directory, "settings.json");
+            JsonSettingsService service = new(path);
+            await service.SaveSettingsAsync(new AppSettings
+            {
+                FileTransfer = new FileTransferSettings { ShowHiddenFiles = false }
+            });
+            SettingsViewModel model = new(service, directory);
+            window = new SettingsWindow(model);
+            window.Show();
+
+            model.SelectedCategory = model.Categories.Single(c => c.Page is FileManagerSettingsPage);
+            window.UpdateLayout();
+            CheckBox showHiddenCheckBox = Find<CheckBox>(window, "FileManagerShowHiddenFilesCheckBox");
+            Assert.False(showHiddenCheckBox.IsChecked);
+
+            showHiddenCheckBox.IsChecked = true;
+            Assert.True(await model.ApplyChangesAsync());
+            Assert.True(service.Current.FileTransfer.ShowHiddenFiles);
+
+            JsonSettingsService reloaded = new(path);
+            AppSettings loadedSettings = await reloaded.LoadSettingsAsync();
+            Assert.True(loadedSettings.FileTransfer.ShowHiddenFiles);
+        }
+        finally { window?.Close(); Directory.Delete(directory, recursive: true); }
+    });
+
     private static T Find<T>(SettingsWindow window, string name) where T : Control
         => window.GetVisualDescendants().OfType<T>().Single(control => control.Name == name);
 }

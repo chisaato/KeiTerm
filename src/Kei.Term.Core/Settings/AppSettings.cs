@@ -224,6 +224,9 @@ public class FileTransferSettings
     // 文件管理侧栏停靠位置（false: 停靠在右侧，true: 停靠在左侧）
     public bool IsFileManagerOnLeft { get; set; } = false;
 
+    // 是否默认显示隐藏文件/目录（以 . 开头）
+    public bool ShowHiddenFiles { get; set; } = false;
+
     // 连接视图中侧栏的默认宽度比例；手动拖动只影响当前视图，不回写此设置。
     public double FileManagerSidebarRatio { get; set; } = FileManagerSidebarSizing.DefaultRatio;
 

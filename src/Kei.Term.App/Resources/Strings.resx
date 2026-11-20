@@ -2443,6 +2443,12 @@ Latin: AaBb CcDd GgYy gypq
   <data name="Settings.FileTransfer.DockLeft" xml:space="preserve">
     <value>默认停靠在左侧</value>
   </data>
+  <data name="Settings.FileTransfer.ShowHiddenFiles" xml:space="preserve">
+    <value>默认显示隐藏文件与目录 (以 . 开头)</value>
+  </data>
+  <data name="Settings.FileTransfer.ShowHiddenFilesTip" xml:space="preserve">
+    <value>在文件列表与目录树中显示以点开头的隐藏项</value>
+  </data>
   <data name="Settings.FileTransfer.SidebarWidth" xml:space="preserve">
     <value>文件管理侧栏默认宽度比例</value>
   </data>
@@ -2844,6 +2850,7 @@ Latin: AaBb CcDd GgYy gypq
   <data name="FileManager.Dock.MoveToLeft" xml:space="preserve"><value>移到左侧</value></data>
   <data name="FileManager.Dock.MoveToRight" xml:space="preserve"><value>移到右侧</value></data>
   <data name="FileManager.Dock.Toggle" xml:space="preserve"><value>切换停靠侧</value></data>
+  <data name="FileManager.ShowHiddenFiles" xml:space="preserve"><value>显示隐藏文件和目录</value></data>
   <data name="FileManager.Hide" xml:space="preserve"><value>隐藏文件管理</value></data>
   <data name="Terminal.FileManager.Show" xml:space="preserve"><value>显示文件管理</value></data>
   <data name="Terminal.FileManager.Hide" xml:space="preserve"><value>隐藏文件管理</value></data>

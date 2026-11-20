@@ -19,6 +19,8 @@ public partial class RemoteFileManagerView : UserControl
     private readonly Func<Task<string?>> _pickExecutable;
     private RemoteFileManagerViewModel? _dialogOwner;
     private bool _isSuppressingSelectionSync;
+    private readonly TypeAheadNavigator _fileListTypeAhead = new();
+    private readonly TypeAheadNavigator _treeTypeAhead = new();
 
     public RemoteFileManagerView()
     {
@@ -29,6 +31,10 @@ public partial class RemoteFileManagerView : UserControl
         InitializeDirectoryTreeLayout();
         AddHandler(DragDrop.DropEvent, OnDrop);
         AddHandler(DragDrop.DragOverEvent, OnDragOver);
+        FileListBox.AddHandler(InputElement.TextInputEvent, OnFileListTextInput, RoutingStrategies.Tunnel);
+        FileListBox.AddHandler(InputElement.KeyDownEvent, OnFileListKeyDown, RoutingStrategies.Tunnel);
+        DirectoryTreeView.AddHandler(InputElement.TextInputEvent, OnDirectoryTreeTextInput, RoutingStrategies.Tunnel);
+        DirectoryTreeView.AddHandler(InputElement.KeyDownEvent, OnDirectoryTreeKeyDown, RoutingStrategies.Tunnel);
         DataContextChanged += OnDataContextChanged;
     }
 
@@ -366,6 +372,160 @@ public partial class RemoteFileManagerView : UserControl
         else
         {
             e.DragEffects = DragDropEffects.None;
+        }
+    }
+
+    private void OnDirectoryTreePointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        var point = e.GetCurrentPoint(this);
+        if (point.Properties.IsRightButtonPressed)
+        {
+            if (DataContext is RemoteFileManagerViewModel vm)
+            {
+                TreeViewItem? treeViewItem = (e.Source as Visual) as TreeViewItem
+                    ?? (e.Source as Visual)?.FindAncestorOfType<TreeViewItem>();
+                if (treeViewItem?.DataContext is RemoteDirectoryNodeViewModel node)
+                {
+                    vm.SelectedDirectoryNode = node;
+                }
+            }
+        }
+    }
+
+    private bool IsTextInputFocused()
+    {
+        var focused = TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement();
+        return focused is TextBox;
+    }
+
+    private void OnFileListTextInput(object? sender, TextInputEventArgs e)
+    {
+        if (e.Handled || string.IsNullOrEmpty(e.Text) || IsTextInputFocused()) return;
+        if (DataContext is not RemoteFileManagerViewModel vm) return;
+
+        var items = vm.Items;
+        if (items.Count == 0) return;
+
+        int currentIndex = vm.SelectedItem != null ? items.IndexOf(vm.SelectedItem) : -1;
+        int matchedIndex = _fileListTypeAhead.ProcessInput(e.Text, items, currentIndex, item => item.Name);
+        if (matchedIndex >= 0 && matchedIndex < items.Count)
+        {
+            SelectAndScrollToFileItem(vm, items[matchedIndex]);
+            e.Handled = true;
+        }
+    }
+
+    private void OnFileListKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (IsTextInputFocused()) return;
+        if (e.KeyModifiers.HasFlag(KeyModifiers.Control) || e.KeyModifiers.HasFlag(KeyModifiers.Alt) || e.KeyModifiers.HasFlag(KeyModifiers.Meta)) return;
+
+        if (e.Key == Key.Escape)
+        {
+            _fileListTypeAhead.Reset();
+            return;
+        }
+
+        if (e.Key == Key.Back)
+        {
+            if (DataContext is not RemoteFileManagerViewModel vm) return;
+            var items = vm.Items;
+            if (items.Count == 0) return;
+
+            int currentIndex = vm.SelectedItem != null ? items.IndexOf(vm.SelectedItem) : -1;
+            int matchedIndex = _fileListTypeAhead.HandleBackspace(items, currentIndex, item => item.Name);
+            if (matchedIndex >= 0 && matchedIndex < items.Count)
+            {
+                SelectAndScrollToFileItem(vm, items[matchedIndex]);
+                e.Handled = true;
+            }
+        }
+    }
+
+    private void SelectAndScrollToFileItem(RemoteFileManagerViewModel vm, RemoteFileItem item)
+    {
+        _isSuppressingSelectionSync = true;
+        try
+        {
+            FileListBox.SelectedItems?.Clear();
+            FileListBox.SelectedItem = item;
+            vm.SelectedItems.Clear();
+            vm.SelectedItems.Add(item);
+            vm.SelectedItem = item;
+        }
+        finally
+        {
+            _isSuppressingSelectionSync = false;
+        }
+        FileListBox.ScrollIntoView(item);
+    }
+
+    private void OnDirectoryTreeTextInput(object? sender, TextInputEventArgs e)
+    {
+        if (e.Handled || string.IsNullOrEmpty(e.Text) || IsTextInputFocused()) return;
+        if (DataContext is not RemoteFileManagerViewModel vm) return;
+
+        var visibleNodes = CollectVisibleTreeNodes(vm.DirectoryTreeRoots);
+        if (visibleNodes.Count == 0) return;
+
+        int currentIndex = vm.SelectedDirectoryNode != null ? visibleNodes.IndexOf(vm.SelectedDirectoryNode) : -1;
+        int matchedIndex = _treeTypeAhead.ProcessInput(e.Text, visibleNodes, currentIndex, node => node.Name);
+        if (matchedIndex >= 0 && matchedIndex < visibleNodes.Count)
+        {
+            var target = visibleNodes[matchedIndex];
+            vm.SelectedDirectoryNode = target;
+            e.Handled = true;
+        }
+    }
+
+    private void OnDirectoryTreeKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (IsTextInputFocused()) return;
+        if (e.KeyModifiers.HasFlag(KeyModifiers.Control) || e.KeyModifiers.HasFlag(KeyModifiers.Alt) || e.KeyModifiers.HasFlag(KeyModifiers.Meta)) return;
+
+        if (e.Key == Key.Escape)
+        {
+            _treeTypeAhead.Reset();
+            return;
+        }
+
+        if (e.Key == Key.Back)
+        {
+            if (DataContext is not RemoteFileManagerViewModel vm) return;
+            var visibleNodes = CollectVisibleTreeNodes(vm.DirectoryTreeRoots);
+            if (visibleNodes.Count == 0) return;
+
+            int currentIndex = vm.SelectedDirectoryNode != null ? visibleNodes.IndexOf(vm.SelectedDirectoryNode) : -1;
+            int matchedIndex = _treeTypeAhead.HandleBackspace(visibleNodes, currentIndex, node => node.Name);
+            if (matchedIndex >= 0 && matchedIndex < visibleNodes.Count)
+            {
+                var target = visibleNodes[matchedIndex];
+                vm.SelectedDirectoryNode = target;
+                e.Handled = true;
+            }
+        }
+    }
+
+    private static System.Collections.Generic.List<RemoteDirectoryNodeViewModel> CollectVisibleTreeNodes(System.Collections.Generic.IEnumerable<RemoteDirectoryNodeViewModel> roots)
+    {
+        var list = new System.Collections.Generic.List<RemoteDirectoryNodeViewModel>();
+        foreach (var root in roots)
+        {
+            CollectVisibleRecursive(root, list);
+        }
+        return list;
+    }
+
+    private static void CollectVisibleRecursive(RemoteDirectoryNodeViewModel node, System.Collections.Generic.List<RemoteDirectoryNodeViewModel> list)
+    {
+        if (node.IsDummy) return;
+        list.Add(node);
+        if (node.IsExpanded && node.Children.Count > 0)
+        {
+            foreach (var child in node.Children)
+            {
+                CollectVisibleRecursive(child, list);
+            }
         }
     }
 

@@ -353,6 +353,12 @@
   <data name="Settings.FileTransfer.DockLeft" xml:space="preserve">
     <value>Dock on left side by default</value>
   </data>
+  <data name="Settings.FileTransfer.ShowHiddenFiles" xml:space="preserve">
+    <value>Show hidden files and folders by default (starting with .)</value>
+  </data>
+  <data name="Settings.FileTransfer.ShowHiddenFilesTip" xml:space="preserve">
+    <value>Display dotfiles and hidden folders starting with a dot in file list and directory tree</value>
+  </data>
   <data name="Settings.FileTransfer.SidebarWidth" xml:space="preserve">
     <value>Default file manager sidebar width</value>
   </data>
@@ -665,6 +671,7 @@
   <data name="FileManager.Dock.MoveToLeft" xml:space="preserve"><value>Move to Left</value></data>
   <data name="FileManager.Dock.MoveToRight" xml:space="preserve"><value>Move to Right</value></data>
   <data name="FileManager.Dock.Toggle" xml:space="preserve"><value>Switch Dock Side</value></data>
+  <data name="FileManager.ShowHiddenFiles" xml:space="preserve"><value>Show Hidden Files and Folders</value></data>
   <data name="FileManager.Hide" xml:space="preserve"><value>Hide File Manager</value></data>
   <data name="Terminal.FileManager.Show" xml:space="preserve"><value>Show File Manager</value></data>
   <data name="Terminal.FileManager.Hide" xml:space="preserve"><value>Hide File Manager</value></data>
