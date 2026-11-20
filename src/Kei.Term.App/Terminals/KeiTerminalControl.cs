@@ -1,5 +1,6 @@
 namespace Kei.Term.App.Terminals;
 
+using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -40,12 +41,23 @@ public sealed class KeiTerminalControl : TerminalControl
     // 是否启用远端鼠标上报：true 时按默认行为（Shift 临时本地选区）；false 时默认本地选区（Shift 临时上报给远端）
     public bool IsMouseReportingEnabled { get; set; } = true;
 
+    internal Func<bool>? IsRemoteMouseReportingActive { get; init; }
+
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
         if (IsMouseReportingEnabled)
         {
             _localSelectionDragActive = false;
             MouseShiftCapturePolicy = TerminalMouseShiftCapturePolicy.Disabled;
+            // 远端开启鼠标上报时，Shift 用于绕过远端捕获并开始新选区，避免被基类当作 Shift+点击扩展旧选区
+            if (e.KeyModifiers.HasFlag(KeyModifiers.Shift)
+                && HasSelection
+                && e.GetCurrentPoint(this).Properties.IsLeftButtonPressed
+                && IsRemoteMouseReportingActive?.Invoke() == true)
+            {
+                ClearSelection();
+            }
+
             base.OnPointerPressed(e);
             return;
         }

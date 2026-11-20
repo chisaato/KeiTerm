@@ -18,6 +18,9 @@ public sealed class VtCallbackHooks
 
     // OSC 0 / OSC 2 标题
     public Action<string>? Title { get; set; }
+
+    // 当前 VT 处理器是否开启了远端鼠标上报
+    public Func<bool>? IsRemoteMouseReportingEnabled { get; set; }
 }
 
 // RoyalTerminal 只在控件自带传输层（StartSessionAsync）时给 VT 处理器挂应答 / 响铃 / 标题回调；
@@ -41,6 +44,7 @@ internal sealed class HookingVtProcessorFactory : IVtProcessorFactory
         processor.ResponseCallback = data => _hooks.Response?.Invoke(data);
         processor.BellCallback = () => _hooks.Bell?.Invoke();
         processor.TitleCallback = title => _hooks.Title?.Invoke(title);
+        _hooks.IsRemoteMouseReportingEnabled = () => (processor as ITerminalMouseReportingStateSource)?.MouseReportingEnabled == true;
         return processor;
     }
 }
@@ -65,7 +69,8 @@ public static class TerminalControlFactory
             prototype.SshHostKeyValidator,
             transportFactory: null)
         {
-            IsMouseReportingEnabled = mouseReportingEnabled
+            IsMouseReportingEnabled = mouseReportingEnabled,
+            IsRemoteMouseReportingActive = () => hooks.IsRemoteMouseReportingEnabled?.Invoke() == true
         };
     }
 }

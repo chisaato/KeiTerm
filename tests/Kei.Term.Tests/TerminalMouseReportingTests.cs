@@ -54,22 +54,28 @@ public class TerminalMouseReportingTests
             Assert.False(terminal.HasSelection);
             Assert.Contains(endpoint.SentSequences, s => s.StartsWith("\x1b[<", StringComparison.Ordinal));
 
-            // 2. 开关开启 + Shift -> 临时本地选区，不上报
+            // 2. 开关开启 + Shift -> 临时本地选区，不上报；再次 Shift+拖拽应开始新选区而非扩展旧选区
             endpoint.SentSequences.Clear();
             Drag(window, p1, p2, RawInputModifiers.Shift);
             Assert.True(terminal.HasSelection);
             Assert.DoesNotContain(endpoint.SentSequences, s => s.StartsWith("\x1b[<", StringComparison.Ordinal));
+            Assert.Equal(0, terminal.Renderer.SelectionStart?.Row);
+
+            Point p3 = new(cw * 2, ch * 1.5);
+            Point p4 = new(cw * 6, ch * 1.5);
+            Drag(window, p3, p4, RawInputModifiers.Shift);
+            Assert.True(terminal.HasSelection);
+            Assert.Equal(1, terminal.Renderer.SelectionStart?.Row);
+            Assert.Equal(1, terminal.Renderer.SelectionEnd?.Row);
 
             // 3. 关闭开关 + 无 Shift -> 直接本地选区（清除旧选区后重新选中），不上报
             terminal.IsMouseReportingEnabled = false;
             endpoint.SentSequences.Clear();
-            Point p3 = new(cw * 2, ch * 1.5);
-            Point p4 = new(cw * 6, ch * 1.5);
-            Drag(window, p3, p4, RawInputModifiers.None);
+            Drag(window, p1, p2, RawInputModifiers.None);
             Assert.True(terminal.HasSelection);
             Assert.DoesNotContain(endpoint.SentSequences, s => s.StartsWith("\x1b[<", StringComparison.Ordinal));
-            Assert.Equal(1, terminal.Renderer.SelectionStart?.Row);
-            Assert.Equal(1, terminal.Renderer.SelectionEnd?.Row);
+            Assert.Equal(0, terminal.Renderer.SelectionStart?.Row);
+            Assert.Equal(0, terminal.Renderer.SelectionEnd?.Row);
 
             // 4. 关闭开关 + Shift -> 临时翻转，上报鼠标事件给远端
             terminal.ClearSelection();
