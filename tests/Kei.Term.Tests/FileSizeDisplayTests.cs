@@ -18,26 +18,32 @@ namespace Kei.Term.Tests;
 
 public class FileSizeDisplayTests
 {
-    [Theory]
-    [InlineData(0, FileSizeDisplayMode.Iec, "0 B")]
-    [InlineData(1023, FileSizeDisplayMode.Iec, "1023 B")]
-    [InlineData(1024, FileSizeDisplayMode.Iec, "1 KiB")]
-    [InlineData(1536, FileSizeDisplayMode.Iec, "1.5 KiB")]
-    [InlineData(1048576, FileSizeDisplayMode.Iec, "1 MiB")]
-    [InlineData(1048575, FileSizeDisplayMode.Iec, "1 MiB")]
-    [InlineData(999, FileSizeDisplayMode.Si, "999 B")]
-    [InlineData(1000, FileSizeDisplayMode.Si, "1 kB")]
-    [InlineData(1024, FileSizeDisplayMode.Si, "1.02 kB")]
-    [InlineData(1500000, FileSizeDisplayMode.Si, "1.5 MB")]
-    [InlineData(999999, FileSizeDisplayMode.Si, "1 MB")]
-    [InlineData(1073741824, FileSizeDisplayMode.Iec, "1 GiB")]
-    [InlineData(1000000000, FileSizeDisplayMode.Si, "1 GB")]
-    [InlineData(long.MaxValue, FileSizeDisplayMode.Iec, "8 EiB")]
-    [InlineData(long.MaxValue, FileSizeDisplayMode.Si, "9.22 EB")]
-    [InlineData(long.MaxValue, FileSizeDisplayMode.Bytes, "9223372036854775807 B")]
-    [InlineData(-1, FileSizeDisplayMode.Iec, "—")]
-    public void Format_UsesCorrectRadixAndUnits_WithoutOverflow(long bytes, FileSizeDisplayMode mode, string expected)
-        => Assert.Equal(expected, FileSizeFormatter.Format(bytes, mode, CultureInfo.InvariantCulture));
+    [Fact]
+    public void Format_UsesCorrectRadixAndUnits_WithoutOverflow()
+    {
+        (long Bytes, FileSizeDisplayMode Mode, string Expected)[] cases =
+        [
+            (0, FileSizeDisplayMode.Iec, "0 B"),
+            (1023, FileSizeDisplayMode.Iec, "1023 B"),
+            (1024, FileSizeDisplayMode.Iec, "1 KiB"),
+            (1536, FileSizeDisplayMode.Iec, "1.5 KiB"),
+            (1048576, FileSizeDisplayMode.Iec, "1 MiB"),
+            (1048575, FileSizeDisplayMode.Iec, "1 MiB"),
+            (999, FileSizeDisplayMode.Si, "999 B"),
+            (1000, FileSizeDisplayMode.Si, "1 kB"),
+            (1024, FileSizeDisplayMode.Si, "1.02 kB"),
+            (1500000, FileSizeDisplayMode.Si, "1.5 MB"),
+            (999999, FileSizeDisplayMode.Si, "1 MB"),
+            (1073741824, FileSizeDisplayMode.Iec, "1 GiB"),
+            (1000000000, FileSizeDisplayMode.Si, "1 GB"),
+            (long.MaxValue, FileSizeDisplayMode.Iec, "8 EiB"),
+            (long.MaxValue, FileSizeDisplayMode.Si, "9.22 EB"),
+            (long.MaxValue, FileSizeDisplayMode.Bytes, "9223372036854775807 B"),
+            (-1, FileSizeDisplayMode.Iec, "—"),
+        ];
+        foreach ((long bytes, FileSizeDisplayMode mode, string expected) in cases)
+            Assert.Equal(expected, FileSizeFormatter.Format(bytes, mode, CultureInfo.InvariantCulture));
+    }
 
     [Fact]
     public void Format_UsesDisplayCulture_AndKeepsRawBytesExact()
@@ -47,11 +53,11 @@ public class FileSizeDisplayTests
         Assert.Equal("1536 B", FileSizeFormatter.Format(1536, FileSizeDisplayMode.Bytes, culture));
     }
 
-    [Theory]
+    [Fact]
     // 种子值是 Bytes；改成 Iec 再读回，即可代表枚举序列化往返。
-    [InlineData(FileSizeDisplayMode.Iec)]
-    public async Task SettingsPage_AppliesAndReloadsUnit_KeepingOtherTransferSettings(FileSizeDisplayMode mode)
+    public async Task SettingsPage_AppliesAndReloadsUnit_KeepingOtherTransferSettings()
     {
+        const FileSizeDisplayMode mode = FileSizeDisplayMode.Iec;
         string directory = Path.Combine(Path.GetTempPath(), "keiterm_file_units_" + Path.GetRandomFileName());
         Directory.CreateDirectory(directory);
         try

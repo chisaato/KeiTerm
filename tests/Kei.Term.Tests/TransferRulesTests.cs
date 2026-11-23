@@ -8,16 +8,20 @@ public class TransferRulesTests
 {
     private static readonly DateTimeOffset SourceTime = new(2026, 10, 17, 12, 0, 0, TimeSpan.Zero);
 
-    [Theory]
-    [InlineData(TransferConflictPolicy.Overwrite, ConflictResolution.Overwrite)]
-    [InlineData(TransferConflictPolicy.Skip, ConflictResolution.Skip)]
-    [InlineData(TransferConflictPolicy.AutoRename, ConflictResolution.Rename)]
-    [InlineData(TransferConflictPolicy.Ask, ConflictResolution.NeedsPrompt)]
-    public void Resolve_DirectPolicies_IgnoreStamps(TransferConflictPolicy policy, ConflictResolution expected)
+    [Fact]
+    public void Resolve_DirectPolicies_IgnoreStamps()
     {
         TransferFileFacts source = new(1, SourceTime);
         TransferFileFacts newerTarget = new(99, SourceTime.AddHours(3));
-        Assert.Equal(expected, ConflictRules.Resolve(policy, source, newerTarget));
+        (TransferConflictPolicy Policy, ConflictResolution Expected)[] cases =
+        [
+            (TransferConflictPolicy.Overwrite, ConflictResolution.Overwrite),
+            (TransferConflictPolicy.Skip, ConflictResolution.Skip),
+            (TransferConflictPolicy.AutoRename, ConflictResolution.Rename),
+            (TransferConflictPolicy.Ask, ConflictResolution.NeedsPrompt),
+        ];
+        foreach ((TransferConflictPolicy policy, ConflictResolution expected) in cases)
+            Assert.Equal(expected, ConflictRules.Resolve(policy, source, newerTarget));
     }
 
     [Fact]
@@ -99,40 +103,35 @@ public class TransferRulesTests
         Assert.Equal(".bashrc (2)", AutoRename.NextAvailable(".bashrc", taken.Contains));
     }
 
-    [Theory]
-    [InlineData("")]
-    [InlineData("dir/file.txt")]
-    [InlineData("dir\\file.txt")]
-    [InlineData(".")]
-    [InlineData("..")]
-    public void NextAvailable_RejectsPathOrEmpty(string fileName)
+    [Fact]
+    public void NextAvailable_RejectsPathOrEmpty()
     {
-        Assert.Throws<ArgumentException>(() => AutoRename.NextAvailable(fileName, _ => false));
+        foreach (string fileName in new[] { "", "dir/file.txt", "dir\\file.txt", ".", ".." })
+            Assert.Throws<ArgumentException>(() => AutoRename.NextAvailable(fileName, _ => false));
     }
 
-    [Theory]
-    [InlineData(null, 100, false, true, true, 0, false)]
-    [InlineData(40L, 100, false, true, true, 40, false)]
-    [InlineData(40L, 100, false, false, true, 0, true)]
-    [InlineData(40L, 100, true, true, true, 0, true)]
-    [InlineData(40L, 100, false, true, false, 0, true)]
-    [InlineData(0L, 100, false, true, true, 0, true)]
-    [InlineData(100L, 100, false, true, true, 0, true)]
-    [InlineData(101L, 100, false, true, true, 0, true)]
-    [InlineData(null, 0, true, true, true, 0, false)]
-    public void Decide_ResumeOnlyWhenPartialIsStrictlyInsideUnchangedSource(
-        long? partial,
-        long sourceSize,
-        bool sourceModified,
-        bool resumeEnabled,
-        bool protocolSupportsResume,
-        long expectedOffset,
-        bool expectedDelete)
+    [Fact]
+    public void Decide_ResumeOnlyWhenPartialIsStrictlyInsideUnchangedSource()
     {
-        ResumeDecision decision = ResumeRules.Decide(
-            partial, sourceSize, sourceModified, resumeEnabled, protocolSupportsResume);
-        Assert.Equal(expectedOffset, decision.StartOffset);
-        Assert.Equal(expectedDelete, decision.DeleteExistingPartial);
+        (long? Partial, long SourceSize, bool SourceModified, bool ResumeEnabled, bool ProtocolSupportsResume, long ExpectedOffset, bool ExpectedDelete)[] cases =
+        [
+            (null, 100, false, true, true, 0, false),
+            (40L, 100, false, true, true, 40, false),
+            (40L, 100, false, false, true, 0, true),
+            (40L, 100, true, true, true, 0, true),
+            (40L, 100, false, true, false, 0, true),
+            (0L, 100, false, true, true, 0, true),
+            (100L, 100, false, true, true, 0, true),
+            (101L, 100, false, true, true, 0, true),
+            (null, 0, true, true, true, 0, false),
+        ];
+        foreach (var (partial, sourceSize, sourceModified, resumeEnabled, protocolSupportsResume, expectedOffset, expectedDelete) in cases)
+        {
+            ResumeDecision decision = ResumeRules.Decide(
+                partial, sourceSize, sourceModified, resumeEnabled, protocolSupportsResume);
+            Assert.Equal(expectedOffset, decision.StartOffset);
+            Assert.Equal(expectedDelete, decision.DeleteExistingPartial);
+        }
     }
 
     [Fact]
@@ -253,24 +252,29 @@ public class TransferRulesTests
         Assert.Throws<ArgumentOutOfRangeException>(() => RetryBackoff.Delay(0, exponential));
     }
 
-    [Theory]
-    [InlineData(TransferFailureKind.Transient, 1, 3, true, true)]
-    [InlineData(TransferFailureKind.Transient, 3, 3, true, true)]
-    [InlineData(TransferFailureKind.Transient, 4, 3, true, false)]
-    [InlineData(TransferFailureKind.Transient, 1, 3, false, false)]
-    [InlineData(TransferFailureKind.Transient, 1, 0, true, false)]
-    [InlineData(TransferFailureKind.Permanent, 1, 3, true, false)]
-    [InlineData(TransferFailureKind.Unknown, 1, 3, true, false)]
-    [InlineData(TransferFailureKind.Transient, 0, 3, true, false)]
-    public void ShouldRetry_OnlyTransientWithinRetryCount(
-        TransferFailureKind kind, int attemptsSoFar, int retryCount, bool enabled, bool expected)
+    [Fact]
+    public void ShouldRetry_OnlyTransientWithinRetryCount()
     {
-        FileTransferSettings settings = new()
+        (TransferFailureKind Kind, int AttemptsSoFar, int RetryCount, bool Enabled, bool Expected)[] cases =
+        [
+            (TransferFailureKind.Transient, 1, 3, true, true),
+            (TransferFailureKind.Transient, 3, 3, true, true),
+            (TransferFailureKind.Transient, 4, 3, true, false),
+            (TransferFailureKind.Transient, 1, 3, false, false),
+            (TransferFailureKind.Transient, 1, 0, true, false),
+            (TransferFailureKind.Permanent, 1, 3, true, false),
+            (TransferFailureKind.Unknown, 1, 3, true, false),
+            (TransferFailureKind.Transient, 0, 3, true, false),
+        ];
+        foreach (var (kind, attemptsSoFar, retryCount, enabled, expected) in cases)
         {
-            AutoRetryEnabled = enabled,
-            RetryCount = retryCount,
-        };
-        Assert.Equal(expected, RetryBackoff.ShouldRetry(kind, attemptsSoFar, settings));
+            FileTransferSettings settings = new()
+            {
+                AutoRetryEnabled = enabled,
+                RetryCount = retryCount,
+            };
+            Assert.Equal(expected, RetryBackoff.ShouldRetry(kind, attemptsSoFar, settings));
+        }
     }
 
     [Fact]

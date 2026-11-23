@@ -118,7 +118,7 @@ public class RemoteFileEditingTests
     }
 
     [Fact]
-    public Task SameNameFiles_InDifferentDirectoriesTrackAndStopIndependently() => HeadlessAvalonia.RunAsync(async () =>
+    public async Task SameNameFiles_InDifferentDirectoriesTrackAndStopIndependently()
     {
         string directory = NewDirectory();
         try
@@ -137,7 +137,7 @@ public class RemoteFileEditingTests
             Assert.Equal("/b/config.txt", Assert.Single(manager.ActiveTrackedFiles));
         }
         finally { Directory.Delete(directory, true); }
-    });
+    }
 
     private static ExternalEditor Editor(string executable, string arguments = "\"{path}\"") => new()
     {
@@ -147,7 +147,7 @@ public class RemoteFileEditingTests
     };
 
     [Fact]
-    public Task ManualStop_WithMissingCacheStillRemovesMonitoring() => HeadlessAvalonia.RunAsync(async () =>
+    public async Task ManualStop_WithMissingCacheStillRemovesMonitoring()
     {
         string directory = NewDirectory();
         try
@@ -166,7 +166,7 @@ public class RemoteFileEditingTests
             Assert.Empty(manager.ActiveTrackedFiles);
         }
         finally { Directory.Delete(directory, true); }
-    });
+    }
 
     [SupportedOSPlatform("macos")]
     private static async Task<string> CreateWaitEditorAsync(string directory, string afterClose)
@@ -272,7 +272,7 @@ public class RemoteFileEditingTests
     });
 
     [Fact]
-    public Task Dispose_StopsOwnedPollingTracker() => HeadlessAvalonia.RunAsync(async () =>
+    public async Task Dispose_StopsOwnedPollingTracker()
     {
         string directory = NewDirectory();
         try
@@ -286,7 +286,7 @@ public class RemoteFileEditingTests
             Assert.True(File.Exists(path));
         }
         finally { Directory.Delete(directory, recursive: true); }
-    });
+    }
 
     private static RemoteFileManagerViewModel ManagerWithEndpoint(IRemoteFileSystem remote)
         => new(

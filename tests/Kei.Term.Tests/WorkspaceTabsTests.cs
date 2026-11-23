@@ -65,7 +65,7 @@ public partial class WorkspaceTabsTests
     });
 
     [Fact]
-    public Task CloseToRight_FollowsDockOrder_AndPreservesOtherGroups() => HeadlessAvalonia.RunAsync(async () =>
+    public async Task CloseToRight_FollowsDockOrder_AndPreservesOtherGroups()
     {
         MainViewModel model = CreateModel();
         try
@@ -90,7 +90,7 @@ public partial class WorkspaceTabsTests
             foreach (TerminalTabViewModel terminal in model.Tabs.ToArray()) await model.CloseTabCommand.ExecuteAsync(terminal);
             await model.DisposeAsync();
         }
-    });
+    }
 
     [Fact]
     public Task MainWindow_MixedDockGroups_KeepStartPageVisibleAndReplaceItsOwnSlot() => HeadlessAvalonia.RunAsync(async () =>
@@ -215,9 +215,8 @@ public partial class WorkspaceTabsTests
     });
 
     [Fact]
-    public Task NewTab_ConnectionCancelKeepsPage_AndConnectionStartReplacesItsSlot() => HeadlessAvalonia.RunAsync(async () =>
+    public async Task NewTab_ConnectionCancelKeepsPage_AndConnectionStartReplacesItsSlot()
     {
-        UiDesignSystemService.Apply();
         MainViewModel model = CreateModel();
         ScriptedInteraction interaction = new();
         model.Interaction = interaction;
@@ -248,7 +247,7 @@ public partial class WorkspaceTabsTests
             foreach (TerminalTabViewModel terminal in model.Tabs.ToArray()) await model.CloseTabCommand.ExecuteAsync(terminal);
             await model.DisposeAsync();
         }
-    });
+    }
 
     [Fact]
     public Task MenuGestures_CustomPaletteShortcutUpdates() => HeadlessAvalonia.RunAsync(() =>

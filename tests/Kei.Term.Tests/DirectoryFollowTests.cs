@@ -164,7 +164,7 @@ public class DirectoryFollowTests
     });
 
     [Fact]
-    public Task LateListing_CannotOverwriteNewerNavigation() => HeadlessAvalonia.RunAsync(async () =>
+    public async Task LateListing_CannotOverwriteNewerNavigation()
     {
         FileSystem fileSystem = new();
         TerminalTabViewModel tab = await CreateTabAsync(CwdFollowMode.Off, fileSystem: fileSystem);
@@ -183,7 +183,7 @@ public class DirectoryFollowTests
             Assert.False(manager.IsLoading);
         }
         finally { fileSystem.ResumeSlowListing.TrySetResult(); await tab.DisposeAsync(); }
-    });
+    }
 
     private static async Task<TerminalTabViewModel> CreateTabAsync(CwdFollowMode follow,
         TerminalMultiplexerMode multiplexer = TerminalMultiplexerMode.Auto, FileSystem? fileSystem = null)

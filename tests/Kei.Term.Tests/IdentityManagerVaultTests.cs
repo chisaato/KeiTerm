@@ -66,7 +66,7 @@ public class IdentityManagerVaultTests
     });
 
     [Fact]
-    public Task CancelledUnlock_LeavesTheVaultLocked_AndAllowsRetry() => HeadlessAvalonia.RunAsync(async () =>
+    public async Task CancelledUnlock_LeavesTheVaultLocked_AndAllowsRetry()
     {
         using Fixture fixture = await Fixture.CreateAsync();
         await fixture.Manager.UnlockVaultCommand.ExecuteAsync(null);
@@ -78,7 +78,7 @@ public class IdentityManagerVaultTests
         await fixture.Manager.UnlockVaultCommand.ExecuteAsync(null);
         Assert.Equal("stored secret", (await fixture.Vault.GetSecretsAsync(fixture.IdentityId))["password"].Password);
         Assert.True(fixture.Manager.CanLockVault);
-    });
+    }
 
     [Fact]
     public Task SessionUnlockAndIdleLock_UpdateAnAlreadyOpenManager() => HeadlessAvalonia.RunAsync(async () =>

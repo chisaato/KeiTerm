@@ -159,7 +159,7 @@ public class SessionManagerSidebarTests
     });
 
     [Fact]
-    public Task OpeningTerminal_DismissesOnlyFloatingTree_AndPreservesSelection() => HeadlessAvalonia.RunAsync(async () =>
+    public async Task OpeningTerminal_DismissesOnlyFloatingTree_AndPreservesSelection()
     {
         MainViewModel model = CreateModel(new FixedSettingsService(new AppSettings { SessionManagerPinned = false }));
         SessionNode session = new() { Name = "LAN", Host = "lan.example" };
@@ -176,12 +176,12 @@ public class SessionManagerSidebarTests
             Assert.True(model.IsSessionManagerVisible);
         }
         finally { await model.DisposeAsync(); }
-    });
+    }
 
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public Task PinChoice_Persists_WhileTemporaryOpeningDoesNotChangeStartupVisibility(bool lastVisible) => HeadlessAvalonia.RunAsync(async () =>
+    public async Task PinChoice_Persists_WhileTemporaryOpeningDoesNotChangeStartupVisibility(bool lastVisible)
     {
         string directory = Path.Combine(Path.GetTempPath(), "keiterm_sidebar_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
@@ -216,7 +216,7 @@ public class SessionManagerSidebarTests
             Assert.True(reader.Current.LastSessionManagerVisible);
         }
         finally { await model.DisposeAsync(); Directory.Delete(directory, recursive: true); }
-    });
+    }
 
     [Fact]
     public Task LeftEdgeHover_RevealsWithoutTakingFocus_AndKeepsChildDialogUsable() => HeadlessAvalonia.RunAsync(async () =>

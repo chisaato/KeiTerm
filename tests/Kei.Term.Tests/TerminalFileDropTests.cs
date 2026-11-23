@@ -68,8 +68,7 @@ public class TerminalFileDropTests
     [Theory]
     [InlineData(TerminalFileDropAction.PastePath)]
     [InlineData(TerminalFileDropAction.PasteFileName)]
-    public Task Paste_UsesChosenTextWithoutSubmitting_AndConnectionMemoryEndsOnReconnect(TerminalFileDropAction action)
-        => HeadlessAvalonia.RunAsync(async () =>
+    public async Task Paste_UsesChosenTextWithoutSubmitting_AndConnectionMemoryEndsOnReconnect(TerminalFileDropAction action)
     {
         string directory = CreateDirectory();
         TerminalTabViewModel tab = new("drop", "monospace", 14);
@@ -103,10 +102,10 @@ public class TerminalFileDropTests
             Assert.Empty(replacement.Input);
         }
         finally { await tab.DisposeAsync(); Directory.Delete(directory, true); }
-    });
+    }
 
     [Fact]
-    public Task GlobalChoice_PersistsAcrossConnections_AndSettingsCanRestoreAsking() => HeadlessAvalonia.RunAsync(async () =>
+    public async Task GlobalChoice_PersistsAcrossConnections_AndSettingsCanRestoreAsking()
     {
         string directory = CreateDirectory();
         TerminalTabViewModel first = new("first", "monospace", 14);
@@ -146,7 +145,7 @@ public class TerminalFileDropTests
             Assert.Null(reader.Current.FileTransfer.TerminalDropAction);
         }
         finally { await first.DisposeAsync(); await second.DisposeAsync(); Directory.Delete(directory, true); }
-    });
+    }
 
     [Fact]
     public Task DisconnectDuringPrompt_CancelsDrop_AndCannotPasteIntoReplacement() => HeadlessAvalonia.RunAsync(async () =>
@@ -224,7 +223,7 @@ public class TerminalFileDropTests
     });
 
     [Fact]
-    public Task DisconnectDuringUpload_WaitsForCleanupBeforeDisposingSession() => HeadlessAvalonia.RunAsync(async () =>
+    public async Task DisconnectDuringUpload_WaitsForCleanupBeforeDisposingSession()
     {
         string directory = CreateDirectory();
         TerminalTabViewModel tab = new("upload", "monospace", 14);
@@ -253,7 +252,7 @@ public class TerminalFileDropTests
             Assert.False(tab.IsHandlingTerminalDrop);
         }
         finally { uploader.FinishCleanup.TrySetResult(); await tab.DisposeAsync(); Directory.Delete(directory, true); }
-    });
+    }
 
     [Fact]
     public Task Dialog_ConfirmsSelectedActionAndScope_AndEscapeCancels() => HeadlessAvalonia.RunAsync(async () =>

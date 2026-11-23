@@ -54,7 +54,7 @@ public class TerminalGenerationTests
     [InlineData("DTR")]
     [InlineData("RTS")]
     [InlineData("Break")]
-    public Task OptionalControlFailureIsReportedWithoutFaultingCommandOrDisconnecting(string operation) => HeadlessAvalonia.RunAsync(async () =>
+    public async Task OptionalControlFailureIsReportedWithoutFaultingCommandOrDisconnecting(string operation)
     {
         var tab = new TerminalTabViewModel("serial", "monospace", 14);
         var session = new ControlSession { FailControls = true };
@@ -75,10 +75,10 @@ public class TerminalGenerationTests
             if (operation == "Break") Assert.False(session.BreakAsserted);
         }
         finally { await tab.DisposeAsync(); }
-    });
+    }
 
     [Fact]
-    public Task PinStateIsUnknownUntilSuccessfulControlAndResetsOnDetach() => HeadlessAvalonia.RunAsync(async () =>
+    public async Task PinStateIsUnknownUntilSuccessfulControlAndResetsOnDetach()
     {
         var tab = new TerminalTabViewModel("serial", "monospace", 14);
         var session = new ControlSession();
@@ -99,10 +99,10 @@ public class TerminalGenerationTests
             Assert.False(tab.IsHardwareFlowControl);
         }
         finally { await tab.DisposeAsync(); }
-    });
+    }
 
     [Fact]
-    public Task ActualResolvedFlowControlDisablesManualRtsRegardlessOfBaseConfig() => HeadlessAvalonia.RunAsync(async () =>
+    public async Task ActualResolvedFlowControlDisablesManualRtsRegardlessOfBaseConfig()
     {
         var tab = new TerminalTabViewModel("serial", "monospace", 14);
         tab.BindConfig(new ResolvedSessionConfig(Guid.NewGuid(), "serial", "", 0, "", null, "xterm", null, null,
@@ -120,10 +120,10 @@ public class TerminalGenerationTests
             Assert.False(tab.IsHardwareFlowControl);
         }
         finally { await tab.DisposeAsync(); }
-    });
+    }
 
     [Fact]
-    public Task PendingOldPinControlCannotPublishStateToReplacement() => HeadlessAvalonia.RunAsync(async () =>
+    public async Task PendingOldPinControlCannotPublishStateToReplacement()
     {
         var tab = new TerminalTabViewModel("serial", "monospace", 14);
         var old = new ControlSession { PendingDtr = new(TaskCreationOptions.RunContinuationsAsynchronously) };
@@ -138,10 +138,10 @@ public class TerminalGenerationTests
             Assert.Null(tab.StatusMessage);
         }
         finally { await tab.DisposeAsync(); await old.DisposeAsync(); }
-    });
+    }
 
     [Fact]
-    public Task BreakReleaseTargetsOriginalSessionAfterReplacement() => HeadlessAvalonia.RunAsync(async () =>
+    public async Task BreakReleaseTargetsOriginalSessionAfterReplacement()
     {
         var tab = new TerminalTabViewModel("serial", "monospace", 14);
         var old = new ControlSession();
@@ -157,7 +157,7 @@ public class TerminalGenerationTests
             Assert.Null(current.BreakAsserted);
         }
         finally { await tab.DisposeAsync(); await old.DisposeAsync(); }
-    });
+    }
 
     [Theory]
     [InlineData(false)]

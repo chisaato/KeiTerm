@@ -265,7 +265,7 @@ public class MultiProtocolUiTests
     }
 
     [Fact]
-    public Task TerminalTab_CapabilitiesGating_HidesFileManagerAndBlocksUpload() => HeadlessAvalonia.RunAsync(async () =>
+    public async Task TerminalTab_CapabilitiesGating_HidesFileManagerAndBlocksUpload()
     {
         var tab = new TerminalTabViewModel("TestTab", "monospace", 14);
 
@@ -320,7 +320,7 @@ public class MultiProtocolUiTests
 
         tab.ToggleFileManager();
         Assert.True(tab.IsFileManagerVisible);
-    });
+    }
 
     [Fact]
     public async Task SessionEditViewModel_RealDeviceConfigService_SaveAndReloadBehavior()

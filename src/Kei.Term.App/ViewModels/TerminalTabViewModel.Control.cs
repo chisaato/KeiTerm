@@ -48,6 +48,8 @@ public partial class TerminalTabViewModel
     // 请求缩放字号（正数放大、负数缩小）；由主 VM 统一写回全局设置，标签自身不碰设置
     public event Action<int>? FontZoomRequested;
 
+    private TerminalControl? TerminalIfOnUiThread => _terminal != null || Dispatcher.UIThread.CheckAccess() ? Terminal : null;
+
     public TerminalControl Terminal
     {
         get
@@ -69,6 +71,11 @@ public partial class TerminalTabViewModel
                 terminal.TerminalResized += OnTerminalGridResized;
                 terminal.ShellIntegrationEventReceived += OnTerminalShellIntegrationEvent;
                 _terminal = terminal;
+                if (_session != null && _endpoint == null)
+                {
+                    _endpoint = new TerminalSessionEndpoint(_session, terminal);
+                    terminal.AttachEndpoint(_endpoint);
+                }
             }
 
             return _terminal;
