@@ -253,7 +253,7 @@
                             ToolTip.Tip="{Binding TerminalDirectorySyncHint}" AutomationProperties.Name="{loc:KeiString FileManager.CwdFollow.Sync}">
                         <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
                             <Grid Width="24" Height="24">
-                                <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.FolderOpen}" Width="24" Height="24" Stretch="None"/>
+                                <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.FolderSync}" Width="24" Height="24" Stretch="None"/>
                             </Grid>
                         </Viewbox>
                     </Button>
@@ -311,7 +311,13 @@
                 BorderThickness="0,0,0,1"
                 Padding="8,5">
             <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="6">
-                <TextBlock Text="⚠" Foreground="{DynamicResource Kei.Status.Error}" FontWeight="Bold" FontSize="12" VerticalAlignment="Center"/>
+                <Viewbox Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center">
+                    <Grid Width="24" Height="24">
+                        <Path Classes="kei-icon" Width="24" Height="24" Stretch="None"
+                              Data="{StaticResource Kei.Icon.Warning}"
+                              Stroke="{DynamicResource Kei.Status.Error}"/>
+                    </Grid>
+                </Viewbox>
                 <TextBlock x:Name="OperationErrorText" Grid.Column="1"
                            Text="{Binding OperationErrorMessage, FallbackValue=''}"
                            ToolTip.Tip="{Binding OperationErrorMessage, FallbackValue=''}"
@@ -525,7 +531,7 @@
                             <StackPanel x:Name="TransferActivityHeader" Classes="activityTabHeader" Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
                                 <Viewbox Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center">
                                     <Grid Width="24" Height="24">
-                                        <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.QuickConnect}" Stroke="{Binding $parent[TabItem].Foreground}" Width="24" Height="24" Stretch="None"/>
+                                        <Path Classes="kei-icon" Data="{StaticResource Kei.Icon.Transfer}" Stroke="{Binding $parent[TabItem].Foreground}" Width="24" Height="24" Stretch="None"/>
                                     </Grid>
                                 </Viewbox>
                                 <TextBlock Text="{loc:KeiString FileActivity.Transfers}" FontSize="12" Foreground="{Binding $parent[TabItem].Foreground}" VerticalAlignment="Center"/>

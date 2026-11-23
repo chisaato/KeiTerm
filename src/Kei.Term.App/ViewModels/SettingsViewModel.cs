@@ -174,7 +174,7 @@ public partial class SettingsViewModel : ViewModelBase
         if (SyncPage != null)
         {
             categoryList.Add(new SettingsCategoryItem(Strings.Get("Settings.Categories.Sync"), Strings.Get("Settings.Categories.SyncDesc"), SyncPage,
-                SettingsIcons.General, Strings.Get("Settings.Groups.App")));
+                SettingsIcons.Sync, Strings.Get("Settings.Groups.App")));
         }
 
         categoryList.AddRange(
@@ -191,7 +191,7 @@ public partial class SettingsViewModel : ViewModelBase
                 Strings.Get("Settings.Categories.TerminalAppearance"),
                 Strings.Get("Settings.Categories.TerminalAppearanceDesc"),
                 new TerminalAppearanceSettingsPage(_appearance),
-                SettingsIcons.Appearance,
+                SettingsIcons.TerminalAppearance,
                 Strings.Get("Settings.Groups.Terminal")),
             new SettingsCategoryItem(
                 Strings.Get("Settings.Categories.TabBar"),
@@ -222,7 +222,7 @@ public partial class SettingsViewModel : ViewModelBase
                 Strings.Get("Settings.Categories.Proxy"),
                 Strings.Get("Settings.Categories.ProxyDesc"),
                 ProxyPage,
-                SettingsIcons.Ssh,
+                SettingsIcons.Proxy,
                 Strings.Get("Settings.Groups.Connection")));
         }
 
@@ -232,7 +232,7 @@ public partial class SettingsViewModel : ViewModelBase
                 Strings.Get("Settings.Categories.Security"),
                 Strings.Get("Settings.Categories.SecurityDesc"),
                 _security,
-                SettingsIcons.Ssh,
+                SettingsIcons.Security,
                 Strings.Get("Settings.Groups.Connection")),
 
             // 文件
@@ -247,7 +247,7 @@ public partial class SettingsViewModel : ViewModelBase
                 Strings.Get("Settings.Categories.FileManager"),
                 Strings.Get("Settings.Categories.FileManagerDesc"),
                 _fileTransfer.FileManagerPage,
-                SettingsIcons.FileTransfer,
+                SettingsIcons.FileManager,
                 Strings.Get("Settings.Groups.Files")),
         ]);
 

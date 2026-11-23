@@ -71,7 +71,13 @@
                             CornerRadius="{DynamicResource Kei.Radius.Control}"
                             Padding="10,8">
                         <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
-                            <TextBlock Text="⚠" Foreground="{DynamicResource Kei.Status.Warning}" FontWeight="Bold" VerticalAlignment="Center"/>
+                            <Viewbox Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center">
+                                <Grid Width="24" Height="24">
+                                    <Path Classes="kei-icon" Width="24" Height="24" Stretch="None"
+                                          Data="{StaticResource Kei.Icon.Warning}"
+                                          Stroke="{DynamicResource Kei.Status.Warning}"/>
+                                </Grid>
+                            </Viewbox>
                             <TextBlock Grid.Column="1"
                                        Text="{loc:KeiString Settings.Transport.BinaryMissingWarning}"
                                        Foreground="{DynamicResource Kei.Text.Primary}"

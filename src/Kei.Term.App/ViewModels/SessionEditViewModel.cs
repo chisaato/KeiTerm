@@ -344,11 +344,11 @@ public partial class SessionEditViewModel : ViewModelBase
     {
         _allCategories =
         [
-            new SettingsCategoryItem(Strings.Get("SessionEdit.Category.Connection"), null, "Connection", SettingsIcons.Ssh, Strings.Get("SessionEdit.Category.Connection")),
+            new SettingsCategoryItem(Strings.Get("SessionEdit.Category.Connection"), null, "Connection", SettingsIcons.Transport, Strings.Get("SessionEdit.Category.Connection")),
             new SettingsCategoryItem(Strings.Get("SessionEdit.Category.Terminal"), null, "Terminal", SettingsIcons.Terminal, Strings.Get("SessionEdit.Category.Terminal")),
             new SettingsCategoryItem(Strings.Get("SessionEdit.Category.FileTransfer"), null, "FileTransfer", SettingsIcons.FileTransfer, Strings.Get("SessionEdit.Category.FileTransfer")),
             new SettingsCategoryItem(Strings.Get("SessionEdit.Category.Behavior"), null, "Behavior", SettingsIcons.General, Strings.Get("SessionEdit.Category.Behavior")),
-            new SettingsCategoryItem(Strings.Get("SessionEdit.Category.Ports"), null, "Ports", SettingsIcons.Ssh, Strings.Get("SessionEdit.Category.Ports"))
+            new SettingsCategoryItem(Strings.Get("SessionEdit.Category.Ports"), null, "Ports", SettingsIcons.Ports, Strings.Get("SessionEdit.Category.Ports"))
         ];
         Categories = new ObservableCollection<SettingsCategoryItem>(_allCategories);
         SelectedCategory = Categories[0];

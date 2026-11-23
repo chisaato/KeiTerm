@@ -412,7 +412,7 @@
                                 AutomationProperties.Name="{loc:KeiString Terminal.FileManager.Toggle}">
                             <Viewbox Width="{DynamicResource Kei.Rail.IconSize}" Height="{DynamicResource Kei.Rail.IconSize}" Stretch="Uniform">
                                 <Grid Width="24" Height="24">
-                                    <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.FileManager}"/>
+                                    <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Folder}"/>
                                 </Grid>
                             </Viewbox>
                         </Button>

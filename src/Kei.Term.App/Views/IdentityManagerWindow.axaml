@@ -88,7 +88,7 @@
                         <StackPanel Orientation="Horizontal" Spacing="6">
                             <Viewbox Width="16" Height="16" Stretch="Uniform" VerticalAlignment="Center">
                                 <Grid Width="24" Height="24">
-                                    <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Lock}"/>
+                                    <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Unlock}"/>
                                 </Grid>
                             </Viewbox>
                             <TextBlock Text="{loc:KeiString IdentityManager.UnlockVault}" VerticalAlignment="Center"/>

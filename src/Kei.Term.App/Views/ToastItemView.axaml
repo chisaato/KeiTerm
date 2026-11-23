@@ -54,9 +54,10 @@
                      VerticalAlignment="Top"
                      Stretch="Uniform">
                 <Grid Width="24" Height="24">
-                    <Path Data="{Binding Level, Converter={x:Static conv:NotificationLevelConverters.LevelToGeometry}}"
-                          Fill="{Binding Level, Converter={x:Static conv:NotificationLevelConverters.LevelToBrush}}"
-                          Stretch="Uniform"/>
+                    <Path Classes="kei-icon"
+                          Width="24" Height="24" Stretch="None"
+                          Data="{Binding Level, Converter={x:Static conv:NotificationLevelConverters.LevelToGeometry}}"
+                          Stroke="{Binding Level, Converter={x:Static conv:NotificationLevelConverters.LevelToBrush}}"/>
                 </Grid>
             </Viewbox>
 
@@ -119,13 +120,15 @@
                     </Button>
 
                     <!-- 复制成功反馈提示 -->
-                    <TextBlock Grid.Column="2"
-                               Text="✓"
-                               Foreground="{DynamicResource Kei.Status.Connected}"
-                               FontSize="12"
-                               Margin="6,0,0,0"
-                               VerticalAlignment="Center"
-                               IsVisible="{Binding IsCopyFeedbackVisible}"/>
+                    <Viewbox Grid.Column="2" Width="12" Height="12" Margin="6,0,0,0"
+                             Stretch="Uniform" VerticalAlignment="Center" HorizontalAlignment="Left"
+                             IsVisible="{Binding IsCopyFeedbackVisible}">
+                        <Grid Width="24" Height="24">
+                            <Path Classes="kei-icon" Width="24" Height="24" Stretch="None"
+                                  Data="{StaticResource Kei.Icon.Check}"
+                                  Stroke="{DynamicResource Kei.Status.Connected}"/>
+                        </Grid>
+                    </Viewbox>
                 </Grid>
             </StackPanel>
 
