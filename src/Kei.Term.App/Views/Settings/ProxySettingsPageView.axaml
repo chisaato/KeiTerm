@@ -20,7 +20,7 @@
         <!-- 1. 代理档案管理卡片（整页式主从列表，不下钻） -->
         <Border Classes="settingsCard">
             <StackPanel Spacing="10">
-                <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.Categories.Proxy}"/>
+                <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.Proxy.ListSection}"/>
 
                 <Border Background="Transparent"
                         BorderBrush="{DynamicResource Kei.Border.Subtle}"
@@ -38,22 +38,29 @@
                             <TextBlock Grid.Column="3" Text="{loc:KeiString Proxy.Port}" FontSize="12"
                                        Foreground="{DynamicResource Kei.Text.Muted}"/>
                         </Grid>
-                        <ListBox x:Name="ProxyList" Classes="popupList" ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow}"
-                                 MinHeight="100" MaxHeight="220" Background="Transparent">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate x:DataType="settings:ProxyRow">
-                                    <Grid ColumnDefinitions="130,80,*,60" ColumnSpacing="10">
-                                        <TextBlock Classes="popupPrimary" Text="{Binding Name}" FontSize="12" FontWeight="SemiBold"
-                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}"/>
-                                        <TextBlock Classes="popupSecondary" Grid.Column="1" Text="{Binding TypeLabel}" FontSize="12"
-                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Classes="popupSecondary" Grid.Column="2" Text="{Binding Host}" FontSize="12"
-                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Host}"/>
-                                        <TextBlock Classes="popupSecondary" Grid.Column="3" Text="{Binding Port}" FontSize="12" VerticalAlignment="Center"/>
-                                    </Grid>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
+                        <Grid>
+                            <ListBox x:Name="ProxyList" Classes="popupList" ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow}"
+                                     MinHeight="120" MaxHeight="360" Background="Transparent">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="settings:ProxyRow">
+                                        <Grid ColumnDefinitions="130,80,*,60" ColumnSpacing="10">
+                                            <TextBlock Classes="popupPrimary" Text="{Binding Name}" FontSize="12" FontWeight="SemiBold"
+                                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}"/>
+                                            <TextBlock Classes="popupSecondary" Grid.Column="1" Text="{Binding TypeLabel}" FontSize="12"
+                                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Classes="popupSecondary" Grid.Column="2" Text="{Binding Host}" FontSize="12"
+                                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Host}"/>
+                                            <TextBlock Classes="popupSecondary" Grid.Column="3" Text="{Binding Port}" FontSize="12" VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <StackPanel Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                        IsVisible="{Binding Rows.Count, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=0}">
+                                <TextBlock Text="{loc:KeiString Settings.Proxy.Empty}" FontSize="12" Foreground="{DynamicResource Kei.Text.Secondary}" HorizontalAlignment="Center"/>
+                                <Button Content="{loc:KeiString Proxy.Add}" Classes="accent" Command="{Binding AddCommand}" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Grid>
                     </DockPanel>
                 </Border>
 

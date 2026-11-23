@@ -21,8 +21,6 @@
     </Style>
     <Style Selector=":is(controls|SessionTreeView) TreeViewItem.drop-target-valid, .sessionTree TreeViewItem.drop-target-valid">
         <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource Kei.Accent}"/>
-        <Setter Property="BorderThickness" Value="2,0,0,0"/>
     </Style>
     <Style Selector=":is(controls|SessionTreeView) TreeViewItem.drop-target-invalid /template/ Border#PART_ContentPill, .sessionTree TreeViewItem.drop-target-invalid /template/ Border#PART_ContentPill">
         <Setter Property="Background" Value="{DynamicResource Kei.Bg.ErrorSubtle}"/>

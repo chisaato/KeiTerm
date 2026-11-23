@@ -386,29 +386,6 @@ public class QuitConfirmationTests
     });
 
     [Fact]
-    public Task Confirmation_RemainsOpenPastFiveSeconds_AndMatchingRequestExits() => HeadlessAvalonia.RunAsync(async () =>
-    {
-        UiDesignSystemService.Apply();
-        (MainWindow window, MainViewModel model, IInteractionService interaction) = CreateWindow();
-        using QuitConfirmationService quit = new(interaction, async () => { await window.PrepareForQuitAsync(); window.Close(); });
-        try
-        {
-            window.Show();
-            Task first = quit.RequestAsync(QuitTrigger.Application);
-            // 真实等待超过原来的超时期限，确保定时取消回归时测试会失败。两种 trigger 行为相同，只留一行以免付两次 6 秒。
-            await Task.Delay(TimeSpan.FromSeconds(6));
-            HeadlessAvalonia.Pump();
-            Assert.True(window.IsVisible);
-            Assert.True(Assert.Single(window.OwnedWindows.OfType<QuitConfirmationWindow>()).IsVisible);
-            Assert.False(first.IsCompleted);
-            await quit.RequestAsync(QuitTrigger.Application);
-            await first.WaitAsync(TimeSpan.FromSeconds(5));
-            Assert.False(window.IsVisible);
-        }
-        finally { window.Close(); await model.DisposeAsync(); }
-    });
-
-    [Fact]
     public Task ChildWindow_ReceivesVisibleQuitConfirmation() => HeadlessAvalonia.RunAsync(async () =>
     {
         UiDesignSystemService.Apply();

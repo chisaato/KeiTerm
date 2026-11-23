@@ -133,7 +133,7 @@ public sealed class DeviceConfigurationTests : IDisposable
         var vault = VaultTestDb.CreateVault(a.Db);
         await vault.SetMasterPasswordAsync("local-master");
         await vault.SavePassphraseAsync("sync-password".AsMemory());
-        var package = new AgeSyncPackage();
+        var package = new AgeSyncPackage(10);
         var location = new LocalFolderSyncLocation(Path.Combine(_root, "shared"));
         var legacy = new SyncSnapshot(1, "legacy", DateTime.UtcNow, await a.Sync.ExportAsync());
         await location.WriteAsync(package.Encrypt(JsonSerializer.SerializeToUtf8Bytes(legacy), "sync-password".AsSpan()));

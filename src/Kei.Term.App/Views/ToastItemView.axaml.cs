@@ -22,7 +22,10 @@ public partial class ToastItemView : UserControl
     {
         base.OnLoaded(e);
         UpdateCountdownBar();
-        _barTimer.Start();
+        if (DataContext is ToastItemViewModel { HasAutoDismiss: true, IsPaused: false })
+        {
+            _barTimer.Start();
+        }
     }
 
     protected override void OnUnloaded(RoutedEventArgs e)
@@ -47,6 +50,7 @@ public partial class ToastItemView : UserControl
         if (DataContext is ToastItemViewModel vm)
         {
             vm.PauseDismiss();
+            _barTimer.Stop();
         }
     }
 
@@ -55,6 +59,10 @@ public partial class ToastItemView : UserControl
         if (DataContext is ToastItemViewModel vm)
         {
             vm.ResumeDismiss();
+            if (vm.HasAutoDismiss && !vm.IsPaused)
+            {
+                _barTimer.Start();
+            }
         }
     }
 }

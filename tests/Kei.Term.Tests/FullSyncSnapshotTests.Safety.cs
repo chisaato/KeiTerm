@@ -20,7 +20,7 @@ public sealed partial class FullSyncSnapshotTests
     private async Task<Device> SafetyDeviceAsync(string name)
     {
         var d = await CreateAsync(name);
-        return d with { Coordinator = new(d.Store, new AgeSyncPackage(), d.Vault,
+        return d with { Coordinator = new(d.Store, new AgeSyncPackage(10), d.Vault,
             new PersistentDeviceId(Path.Combine(d.Directory, "sync-device-id.txt")), d.Vault) };
     }
 
@@ -246,7 +246,7 @@ public sealed partial class FullSyncSnapshotTests
         Assert.Equal("pending-new", new string((await a.Vault.GetPendingPassphraseAsync())!));
         Assert.Empty(await a.Coordinator.ListBackupsAsync());
         await Assert.ThrowsAsync<InvalidOperationException>(() => a.Vault.RemoveMasterPasswordAsync());
-        var restarted = new SyncCoordinator(a.Store, new AgeSyncPackage(), a.Vault, new PersistentDeviceId(Path.Combine(a.Directory, "sync-device-id.txt")), a.Vault);
+        var restarted = new SyncCoordinator(a.Store, new AgeSyncPackage(10), a.Vault, new PersistentDeviceId(Path.Combine(a.Directory, "sync-device-id.txt")), a.Vault);
         Assert.False((await restarted.SyncAsync(Location)).Success);
         await a.Tree.SaveNodeAsync(new FolderNode { Name = "edited-while-pending" });
         result = await restarted.ResumePassphraseChangeAsync(Location);

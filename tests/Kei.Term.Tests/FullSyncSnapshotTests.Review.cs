@@ -61,7 +61,7 @@ public sealed partial class FullSyncSnapshotTests
             });
             await reload;
         };
-        var coordinator = new SyncCoordinator(store, new AgeSyncPackage(), local.Vault, new PersistentDeviceId(Path.Combine(local.Directory, "sync-device-id.txt")), local.Vault);
+        var coordinator = new SyncCoordinator(store, new AgeSyncPackage(10), local.Vault, new PersistentDeviceId(Path.Combine(local.Directory, "sync-device-id.txt")), local.Vault);
         var clock = new ReviewClock();
         int rounds = 0, signals = 0;
         changes.Changed += () => Interlocked.Increment(ref signals);

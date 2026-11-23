@@ -119,7 +119,13 @@ public partial class SettingsViewModel
     {
         TerminalProfile? profile = _appearance.SelectedTerminalProfile;
         if (IsBusy || profile == null || profile.IsBuiltIn) return;
-        if (!await _interaction.ConfirmDeleteAsync(profile.Name) || IsBusy) return;
+        int refCount = SessionTreeSnapshot?.Invoke()
+            .OfType<SessionNode>()
+            .Count(s => string.Equals(s.TerminalProfileId, profile.Id, StringComparison.Ordinal)) ?? 0;
+        string target = refCount > 0
+            ? Strings.Format("Settings.TerminalProfile.DeleteReferencedTarget", profile.Name, refCount)
+            : profile.Name;
+        if (!await _interaction.ConfirmDeleteAsync(target) || IsBusy) return;
 
         // 删除只修改父设置事务草稿；重新选择有效默认值，沿用现有预览广播。
         _profileManager.RemoveCustomTerminalProfile(profile.Id);

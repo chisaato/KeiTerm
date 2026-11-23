@@ -7,6 +7,15 @@
              x:Class="Kei.Term.App.Views.Settings.SyncSettingsPageView"
              x:DataType="settings:SyncSettingsPage">
 
+    <UserControl.Styles>
+        <Style Selector="TextBlock.syncStatus">
+            <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}"/>
+        </Style>
+        <Style Selector="TextBlock.syncStatus.error">
+            <Setter Property="Foreground" Value="{DynamicResource Kei.Status.Error}"/>
+        </Style>
+    </UserControl.Styles>
+
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" MaxWidth="{StaticResource Kei.Settings.ContentMaxWidth}"/>
@@ -57,14 +66,12 @@
                     <StackPanel Spacing="10" IsVisible="{Binding IsLocalFolder}">
                         <Border Classes="settingRowDivider"/>
                         <controls:SettingRow Title="同步目录路径" Description="配合 Syncthing、Dropbox、iCloud Drive 等网盘使用">
-                            <Grid ColumnDefinitions="*,8" ColumnSpacing="8">
-                                <TextBox Text="{Binding DirectoryPath}" PlaceholderText="选择或输入本地同步目录路径"
-                                         MinWidth="280" HorizontalAlignment="Right"/>
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" HorizontalAlignment="Right">
+                                <TextBox Grid.Column="0" Text="{Binding DirectoryPath}" PlaceholderText="{loc:KeiString Settings.Sync.LocalDirPlaceholder}"
+                                         MinWidth="240"/>
+                                <Button Grid.Column="1" Content="{loc:KeiString Common.Browse}" Command="{Binding ChooseDirectoryCommand}"/>
                             </Grid>
                         </controls:SettingRow>
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                            <Button Content="浏览选择目录..." Command="{Binding ChooseDirectoryCommand}"/>
-                        </StackPanel>
                     </StackPanel>
 
                     <!-- WebDAV 字段 -->
@@ -78,11 +85,11 @@
                             <TextBox Text="{Binding WebDavUser}" PlaceholderText="WebDAV 账户"
                                      MinWidth="240" HorizontalAlignment="Right"/>
                         </controls:SettingRow>
-                        <controls:SettingRow Title="密码" Description="留空则继续使用保险库中已保存的密码">
-                            <TextBox Text="{Binding WebDavPassword}" PasswordChar="●" PlaceholderText="密码"
+                        <controls:SettingRow Title="{loc:KeiString Settings.Sync.PasswordLabel}" Description="{loc:KeiString Settings.Sync.PasswordKeepHint}">
+                            <TextBox Text="{Binding WebDavPassword}" PasswordChar="●" PlaceholderText="{loc:KeiString Settings.Sync.PasswordLabel}"
                                      MinWidth="240" HorizontalAlignment="Right"/>
                         </controls:SettingRow>
-                        <controls:SettingRow Title="条件写保护" Description="使用 If-Match / If-None-Match 避免并发覆盖冲突">
+                        <controls:SettingRow Title="{loc:KeiString Settings.Sync.ConflictCheckLabel}" Description="{loc:KeiString Settings.Sync.WebDavConflictCheckDesc}">
                             <CheckBox IsChecked="{Binding WebDavConditionalWrites}" HorizontalAlignment="Right"/>
                         </controls:SettingRow>
                     </StackPanel>
@@ -120,14 +127,14 @@
                             <TextBox Text="{Binding S3AccessKeyId}" PlaceholderText="保存在本机配置"
                                      MinWidth="260" HorizontalAlignment="Right"/>
                         </controls:SettingRow>
-                        <controls:SettingRow Title="Secret Access Key" Description="留空则继续使用保险库中已保存的密钥">
+                        <controls:SettingRow Title="Secret Access Key" Description="{loc:KeiString Settings.Sync.S3SecretKeepHint}">
                             <TextBox Text="{Binding S3SecretKey}" PasswordChar="●" PlaceholderText="Secret Key"
                                      MinWidth="260" HorizontalAlignment="Right"/>
                         </controls:SettingRow>
                         <controls:SettingRow Title="路径风格 (Path-Style)" Description="自建 MinIO 或国内对象存储通常需要开启">
                             <CheckBox IsChecked="{Binding S3PathStyle}" HorizontalAlignment="Right"/>
                         </controls:SettingRow>
-                        <controls:SettingRow Title="条件写保护" Description="阿里云 OSS 与腾讯云 COS 默认关闭，关闭后上传会读回检查">
+                        <controls:SettingRow Title="{loc:KeiString Settings.Sync.ConflictCheckLabel}" Description="{loc:KeiString Settings.Sync.S3ConflictCheckDesc}">
                             <CheckBox IsChecked="{Binding S3ConditionalWrites}" HorizontalAlignment="Right"/>
                         </controls:SettingRow>
                     </StackPanel>
@@ -146,7 +153,7 @@
                 <StackPanel Spacing="12">
                     <TextBlock Classes="settingsSectionTitle" Text="端到端加密与口令"/>
 
-                    <TextBlock Text="启用或加入同步前，保险库必须已设置主密码。同步口令保存在本机保险库中，用于端到端 age 加密。"
+                    <TextBlock Text="{loc:KeiString Settings.Sync.RequireMasterPasswordHint}"
                                FontSize="12" Foreground="{DynamicResource Kei.Text.Secondary}" TextWrapping="Wrap"/>
 
                     <controls:SettingRow Title="首次设定/加入口令" Description="与其他设备使用完全相同的口令；已加入时请使用更换口令流程">
@@ -166,12 +173,12 @@
                 <StackPanel Spacing="12">
                     <TextBlock Classes="settingsSectionTitle" Text="同步状态"/>
 
-                    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" RowDefinitions="Auto">
                         <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding Status}" TextWrapping="Wrap" FontSize="13"
-                                       Foreground="{DynamicResource Kei.Text.Primary}"/>
-                            <TextBlock Text="自动同步规则：启动时、本地变更 30 秒后、运行中每 5 分钟"
-                                       FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}"/>
+                            <TextBlock Classes="syncStatus" Classes.error="{Binding IsStatusError}"
+                                       Text="{Binding Status}" TextWrapping="Wrap" FontSize="13"/>
+                            <TextBlock Text="{loc:KeiString Settings.Sync.AutoSyncScheduleHint}"
+                                       FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}" TextWrapping="Wrap"/>
                         </StackPanel>
 
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
@@ -182,44 +189,50 @@
                 </StackPanel>
             </Border>
 
-            <!-- 5. 数据恢复与安全快照卡片 -->
+            <!-- 5. 快照与历史恢复卡片 -->
             <Border Classes="settingsCard">
                 <StackPanel Spacing="12">
-                    <Grid ColumnDefinitions="*,Auto">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                         <StackPanel Grid.Column="0" Spacing="2">
-                            <TextBlock Classes="settingsSectionTitle" Text="数据恢复安全网"/>
+                            <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.Sync.RecoverySection}"/>
                             <TextBlock Text="每次合并与上传前均会自动保留快照，发生误操作或冲突时可在此单向恢复。"
-                                       FontSize="12" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                       FontSize="12" Foreground="{DynamicResource Kei.Text.Secondary}" TextWrapping="Wrap"/>
                         </StackPanel>
-                        <Button Grid.Column="1" Content="刷新恢复列表" Command="{Binding RefreshRecoveryCommand}"
-                                VerticalAlignment="Center" Height="26" Padding="8,2"/>
+                        <Button Grid.Column="1" Classes="compactTextBtn" Content="{loc:KeiString Settings.Sync.RefreshRecovery}" Command="{Binding RefreshRecoveryCommand}"
+                                VerticalAlignment="Center"/>
                     </Grid>
 
-                    <!-- 本地合并前快照（最多 10 份，由 Vault Key 加密保存在本机） -->
+                    <!-- 本地合并前快照 -->
                     <Border Classes="settingRowDivider"/>
                     <Grid ColumnDefinitions="*,Auto" Margin="0,2,0,0">
                         <TextBlock Text="本机合并前快照（保留最近 10 份，随主密码加密保存在本地）"
-                                   FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource Kei.Text.Primary}"/>
+                                   FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource Kei.Text.Primary}" TextWrapping="Wrap"/>
                         <Button Grid.Column="1" Content="清空全部快照" Command="{Binding DeleteLocalBackupsCommand}"
-                                Classes="danger" Height="24" Padding="6,1" FontSize="12"/>
+                                Classes="danger compactTextBtn"/>
                     </Grid>
 
                     <Border BorderBrush="{DynamicResource Kei.Border.Subtle}" BorderThickness="1"
-                            CornerRadius="{DynamicResource Kei.Radius.Card}" Background="{DynamicResource Kei.Bg.Input}">
-                        <ListBox ItemsSource="{Binding LocalBackups}" SelectedItem="{Binding SelectedLocalBackup}"
-                                 MinHeight="72" MaxHeight="140" Background="Transparent">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate x:DataType="sync:SyncLocalBackup">
-                                    <Grid ColumnDefinitions="*,Auto" Margin="4,2">
-                                        <TextBlock Text="{Binding CreatedAtUtc, StringFormat='快照时间：{0:yyyy-MM-dd HH:mm:ss} (UTC)'}"
-                                                   FontSize="12" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Primary}"/>
-                                        <TextBlock Grid.Column="1" Text="{Binding Id}" FontSize="12"
-                                                   FontFamily="{DynamicResource Kei.Font.Mono}" Foreground="{DynamicResource Kei.Text.Muted}"
-                                                   VerticalAlignment="Center"/>
-                                    </Grid>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
+                            CornerRadius="{DynamicResource Kei.Radius.Card}" Background="{DynamicResource Kei.Bg.Input}"
+                            ClipToBounds="True" Padding="2">
+                        <Grid>
+                            <ListBox Classes="popupList" ItemsSource="{Binding LocalBackups}" SelectedItem="{Binding SelectedLocalBackup}"
+                                     MinHeight="72" MaxHeight="140" Background="Transparent">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="sync:SyncLocalBackup">
+                                        <Grid ColumnDefinitions="*,Auto" Margin="4,2">
+                                            <TextBlock Text="{Binding CreatedAtUtc, StringFormat={loc:KeiString Settings.Sync.SnapshotTimeFormat}}"
+                                                       FontSize="12" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Primary}"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding Id}" FontSize="12"
+                                                       FontFamily="{DynamicResource Kei.Font.Mono}" Foreground="{DynamicResource Kei.Text.Muted}"
+                                                       VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <TextBlock Text="{loc:KeiString Settings.Sync.LocalSnapshotEmpty}" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       IsVisible="{Binding LocalBackups.Count, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=0}"/>
+                        </Grid>
                     </Border>
 
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
@@ -227,27 +240,33 @@
                                 IsEnabled="{Binding SelectedLocalBackup, Converter={x:Static ObjectConverters.IsNotNull}}"/>
                     </StackPanel>
 
-                    <!-- 远端历史同步包（最多 5 份） -->
+                    <!-- 远端历史版本 -->
                     <Border Classes="settingRowDivider"/>
-                    <TextBlock Text="远端历史同步包（保留最近 5 份，保存在同步位置 history/ 目录下）"
+                    <TextBlock Text="{loc:KeiString Settings.Sync.RemoteHistoryTitle}"
                                FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource Kei.Text.Primary}"/>
 
                     <Border BorderBrush="{DynamicResource Kei.Border.Subtle}" BorderThickness="1"
-                            CornerRadius="{DynamicResource Kei.Radius.Card}" Background="{DynamicResource Kei.Bg.Input}">
-                        <ListBox ItemsSource="{Binding RemoteHistory}" SelectedItem="{Binding SelectedRemoteHistory}"
-                                 MinHeight="72" MaxHeight="140" Background="Transparent">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate x:DataType="sync:SyncHistoryEntry">
-                                    <Grid ColumnDefinitions="*,Auto" Margin="4,2">
-                                        <TextBlock Text="{Binding WrittenAtUtc, StringFormat='写入时间：{0:yyyy-MM-dd HH:mm:ss} (UTC)'}"
-                                                   FontSize="12" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Primary}"/>
-                                        <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="12"
-                                                   FontFamily="{DynamicResource Kei.Font.Mono}" Foreground="{DynamicResource Kei.Text.Muted}"
-                                                   VerticalAlignment="Center"/>
-                                    </Grid>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
+                            CornerRadius="{DynamicResource Kei.Radius.Card}" Background="{DynamicResource Kei.Bg.Input}"
+                            ClipToBounds="True" Padding="2">
+                        <Grid>
+                            <ListBox Classes="popupList" ItemsSource="{Binding RemoteHistory}" SelectedItem="{Binding SelectedRemoteHistory}"
+                                     MinHeight="72" MaxHeight="140" Background="Transparent">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="sync:SyncHistoryEntry">
+                                        <Grid ColumnDefinitions="*,Auto" Margin="4,2">
+                                            <TextBlock Text="{Binding WrittenAtUtc, StringFormat={loc:KeiString Settings.Sync.WrittenTimeFormat}}"
+                                                       FontSize="12" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Primary}"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="12"
+                                                       FontFamily="{DynamicResource Kei.Font.Mono}" Foreground="{DynamicResource Kei.Text.Muted}"
+                                                       VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <TextBlock Text="{loc:KeiString Settings.Sync.RemoteHistoryEmpty}" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       IsVisible="{Binding RemoteHistory.Count, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=0}"/>
+                        </Grid>
                     </Border>
 
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">

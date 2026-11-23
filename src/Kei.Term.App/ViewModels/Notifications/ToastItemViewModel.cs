@@ -18,6 +18,7 @@ public partial class ToastItemViewModel : ObservableObject
     private TimeSpan _remainingTime;
     private DateTimeOffset _lastResumeTime;
     private bool _isPaused;
+    public bool IsPaused => _isPaused;
     private readonly object _timerLock = new();
 
     public Guid Id { get; } = Guid.NewGuid();
@@ -184,7 +185,7 @@ public partial class ToastItemViewModel : ObservableObject
             _ = Task.Run(async () =>
             {
                 await Task.Delay(1500);
-                IsCopyFeedbackVisible = false;
+                Avalonia.Threading.Dispatcher.UIThread.Post(() => IsCopyFeedbackVisible = false);
             });
         }
     }

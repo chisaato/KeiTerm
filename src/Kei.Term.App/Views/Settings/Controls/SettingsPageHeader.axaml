@@ -4,7 +4,12 @@
              xmlns:loc="using:Kei.Term.App.Helpers"
              x:Class="Kei.Term.App.Views.Settings.Controls.SettingsPageHeader"
              x:DataType="controls:SettingsPageHeader">
-    <StackPanel Spacing="6" Margin="0,0,0,16">
+    <Border Background="{DynamicResource Kei.Bg.Window}"
+            BorderBrush="{DynamicResource Kei.Border.Subtle}"
+            BorderThickness="0,0,0,1"
+            Padding="0,0,0,12"
+            Margin="0,0,0,16">
+        <StackPanel Spacing="6">
         <!-- 面包屑导航 -->
         <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
             <!-- 分组名 -->
@@ -88,5 +93,6 @@
                    Foreground="{DynamicResource Kei.Text.Secondary}"
                    TextWrapping="Wrap"
                    IsVisible="{Binding ShouldShowDescription, RelativeSource={RelativeSource AncestorType=controls:SettingsPageHeader}}"/>
-    </StackPanel>
+        </StackPanel>
+    </Border>
 </UserControl>

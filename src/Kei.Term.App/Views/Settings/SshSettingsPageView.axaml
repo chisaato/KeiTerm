@@ -37,14 +37,6 @@
                              MinWidth="200"
                              HorizontalAlignment="Right"/>
                 </controls:SettingRow>
-
-                <Border Classes="settingRowDivider"/>
-
-                <controls:SettingRow Title="{loc:KeiString Settings.Ssh.ConnectTimeout}"
-                                     Description="{loc:KeiString Settings.Ssh.ConnectTimeoutTip}">
-                    <NumericUpDown HorizontalAlignment="Right" MinWidth="180"
-                                   Value="{Binding ConnectTimeoutSeconds}" Minimum="3" Maximum="300" FormatString="0"/>
-                </controls:SettingRow>
             </StackPanel>
         </Border>
 
@@ -67,18 +59,10 @@
             </StackPanel>
         </Border>
 
-        <!-- 3. 保活与重连卡片 -->
+        <!-- 3. 断线重连卡片 -->
         <Border Classes="settingsCard">
             <StackPanel Spacing="10">
                 <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.Ssh.RecoverySection}"/>
-
-                <controls:SettingRow Title="{loc:KeiString Settings.Ssh.KeepAliveInterval}"
-                                     Description="{loc:KeiString Settings.Ssh.KeepAliveIntervalTip}">
-                    <NumericUpDown HorizontalAlignment="Right" MinWidth="180"
-                                   Value="{Binding KeepAliveIntervalSeconds}" Minimum="0" Maximum="300" FormatString="0"/>
-                </controls:SettingRow>
-
-                <Border Classes="settingRowDivider"/>
 
                 <controls:SettingRow Title="{loc:KeiString Settings.General.AutoReconnect}"
                                      Description="{loc:KeiString Settings.General.AutoReconnectTip}">
@@ -100,17 +84,6 @@
                                   OnContent="" OffContent=""
                                   HorizontalAlignment="Right"/>
                 </controls:SettingRow>
-
-                <Border Classes="settingRowDivider"/>
-
-                <controls:SettingRow Title="{loc:KeiString Settings.Ssh.EnableAgentForwarding}"
-                                     Description="{loc:KeiString Settings.Ssh.EnableAgentForwardingTip}">
-                    <ToggleSwitch IsChecked="{Binding EnableAgentForwarding}"
-                                  OnContent="" OffContent=""
-                                  HorizontalAlignment="Right"/>
-                </controls:SettingRow>
-
-                <Border Classes="settingRowDivider"/>
 
                 <Expander Header="{loc:KeiString Settings.Common.ShowAdvancedOptions}"
                           IsExpanded="False"

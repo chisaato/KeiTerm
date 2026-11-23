@@ -38,7 +38,7 @@ public sealed class SyncJoinChoiceWindow : Window
 
         var description = new TextBlock
         {
-            Text = $"检测到远端同步包。本机当前存活实体：{preview.LocalLiveCount} 个。请选择首次接入的合并策略：",
+            Text = Strings.Format("Settings.Sync.Join.SummaryFormat", preview.LocalLiveCount),
             FontSize = 12,
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 0, 0, 12)

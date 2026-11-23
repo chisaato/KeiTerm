@@ -3,6 +3,7 @@
              xmlns:vm="using:Kei.Term.App.ViewModels"
              xmlns:settings="using:Kei.Term.App.ViewModels.Settings"
              xmlns:controls="using:Kei.Term.App.Views.Settings.Controls"
+             xmlns:conv="using:Kei.Term.App.Converters"
              xmlns:loc="using:Kei.Term.App.Helpers"
              x:Class="Kei.Term.App.Views.Settings.FileManagerSettingsPageView"
              x:DataType="settings:FileManagerSettingsPage">
@@ -108,6 +109,7 @@
                               Grid.Column="1"
                               MinWidth="220"
                               HorizontalAlignment="Right"
+                              IsEnabled="{Binding Terminal.IsDirectoryFollowEnabled}"
                               ItemsSource="{Binding Terminal.MultiplexerModes}"
                               SelectedItem="{Binding Terminal.SelectedMultiplexer}"/>
                 </Grid>
@@ -176,13 +178,23 @@
 
                 <controls:SettingRow Title="{loc:KeiString Settings.FileTransfer.CacheDirectory}"
                                      Description="{loc:KeiString Settings.FileTransfer.CacheDirectoryTip}">
-                    <Grid ColumnDefinitions="260,Auto" ColumnSpacing="8" HorizontalAlignment="Right">
-                        <TextBox Text="{Binding CacheDirectory}"
-                                 PlaceholderText="{loc:KeiString Settings.FileTransfer.CacheDirectoryPlaceholder}"/>
-                        <Button Content="{loc:KeiString Settings.FileTransfer.ClearCache}"
-                                Command="{Binding ClearCacheDirectoryCommand}"
-                                MinWidth="70"/>
-                    </Grid>
+                    <StackPanel Spacing="4" HorizontalAlignment="Right">
+                        <Grid ColumnDefinitions="200,Auto" ColumnSpacing="8">
+                            <TextBox Grid.Column="0"
+                                     Text="{Binding CacheDirectory}"
+                                     PlaceholderText="{loc:KeiString Settings.FileTransfer.CacheDirectoryPlaceholder}"/>
+                            <Button Grid.Column="1"
+                                    Content="{loc:KeiString Settings.FileTransfer.ClearCache}"
+                                    Command="{Binding ClearCacheDirectoryCommand}"
+                                    MinWidth="70"/>
+                        </Grid>
+                        <TextBlock Text="{Binding CacheStatusMessage}"
+                                   IsVisible="{Binding HasCacheStatus}"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource Kei.Text.Secondary}"
+                                   HorizontalAlignment="Right"
+                                   TextWrapping="Wrap"/>
+                    </StackPanel>
                 </controls:SettingRow>
 
                 <Border Classes="settingRowDivider"/>
@@ -192,7 +204,13 @@
                     <ComboBox MinWidth="220"
                               HorizontalAlignment="Right"
                               ItemsSource="{Binding WatcherModes}"
-                              SelectedItem="{Binding SelectedWatcherMode}"/>
+                              SelectedItem="{Binding SelectedWatcherMode}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="x:String">
+                                <TextBlock Text="{Binding Converter={x:Static conv:LocalizedEnumDisplayConverter.Instance}}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
                 </controls:SettingRow>
 
                 <Expander x:Name="AdvancedWatcherExpander"
@@ -385,12 +403,26 @@
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
-                        <TextBlock Text="{loc:KeiString Settings.FileTransfer.NoAssociationsConfigured}"
-                                   FontSize="12"
-                                   IsVisible="{Binding !HasAssociations}"
-                                   Foreground="{DynamicResource Kei.Text.Secondary}"
-                                   HorizontalAlignment="Center"
-                                   VerticalAlignment="Center"/>
+                        <StackPanel Spacing="6"
+                                    IsVisible="{Binding !HasAssociations}"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center">
+                            <TextBlock Text="{loc:KeiString Settings.FileTransfer.AddEditorFirstHint}"
+                                       FontSize="12"
+                                       IsVisible="{Binding !HasEditors}"
+                                       Foreground="{DynamicResource Kei.Text.Secondary}"
+                                       HorizontalAlignment="Center"/>
+                            <Button Content="{loc:KeiString Settings.FileTransfer.AddExternalEditor}"
+                                    Classes="accent"
+                                    IsVisible="{Binding !HasEditors}"
+                                    Command="{Binding AddEditorCommand}"
+                                    HorizontalAlignment="Center"/>
+                            <TextBlock Text="{loc:KeiString Settings.FileTransfer.NoAssociationsConfigured}"
+                                       FontSize="12"
+                                       IsVisible="{Binding HasEditors}"
+                                       Foreground="{DynamicResource Kei.Text.Secondary}"
+                                       HorizontalAlignment="Center"/>
+                        </StackPanel>
                     </Grid>
                 </Border>
 

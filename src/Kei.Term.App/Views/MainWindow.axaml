@@ -406,7 +406,9 @@
                         <!-- SFTP 文件管理侧栏开关 -->
                         <Button x:Name="ModernFileManagerRailButton" Classes="iconBtn"
                                 Width="{DynamicResource Kei.Rail.ButtonSize}" Height="{DynamicResource Kei.Rail.ButtonSize}"
-                                ToolTip.Tip="{loc:KeiString Terminal.FileManager.Toggle}" Command="{Binding ToggleFileManagerCommand}"
+                                IsEnabled="{Binding CanToggleFileManager}"
+                                ToolTip.Tip="{Binding SelectedTab.FileManagerToggleToolTip, FallbackValue={loc:KeiString Terminal.FileManager.Toggle}}"
+                                Command="{Binding ToggleFileManagerCommand}"
                                 AutomationProperties.Name="{loc:KeiString Terminal.FileManager.Toggle}">
                             <Viewbox Width="{DynamicResource Kei.Rail.IconSize}" Height="{DynamicResource Kei.Rail.IconSize}" Stretch="Uniform">
                                 <Grid Width="24" Height="24">
@@ -577,7 +579,7 @@
                                      Background="{DynamicResource Kei.Bg.PanelAlt}"
                                      Foreground="{DynamicResource Kei.Text.Primary}"
                                      BorderBrush="{DynamicResource Kei.Border}"
-                                     CornerRadius="4"
+                                     CornerRadius="{DynamicResource Kei.Radius.Control}"
                                      Padding="6,4"
                                      FontSize="12"/>
                         </Grid>
@@ -598,27 +600,36 @@
                                         <Separator/>
                                         <MenuItem Header="{loc:KeiString Tree.Menu.Rename}" Command="{Binding RenameSelectedNodeCommand}"/>
                                         <MenuItem Header="{loc:KeiString Tree.Menu.EditSelected}" Command="{Binding EditSelectedNodeCommand}"/>
-                                        <MenuItem Header="{loc:KeiString Tree.Menu.DeleteSelected}" Command="{Binding DeleteSelectedNodeCommand}"/>
-                                        <Separator/>
                                         <MenuItem Header="{loc:KeiString Tree.Menu.BatchEdit}" Command="{Binding OpenBatchEditCommand}"/>
+                                        <Separator/>
+                                        <MenuItem Header="{loc:KeiString Tree.Menu.DeleteSelected}" Command="{Binding DeleteSelectedNodeCommand}"/>
                                     </ContextMenu>
                                 </controls:SessionTreeView.ContextMenu>
                             </controls:SessionTreeView>
 
                             <!-- 空树引导态 -->
-                            <StackPanel IsVisible="{Binding !HasNodes}"
+                            <StackPanel IsVisible="{Binding IsTreeEmpty}"
                                         VerticalAlignment="Center"
                                         HorizontalAlignment="Center"
                                         Spacing="10"
                                         Margin="16">
                                 <TextBlock Text="{loc:KeiString Tree.EmptyGuide}" Foreground="{DynamicResource Kei.Text.Muted}" HorizontalAlignment="Center" FontSize="13"/>
                                 <Button Content="{loc:KeiString Tree.AddFirstSession}"
+                                        Classes="accent"
                                         Command="{Binding CreateSessionCommand}"
+                                        HorizontalAlignment="Center"/>
+                            </StackPanel>
+
+                            <!-- 搜索无匹配引导态 -->
+                            <StackPanel IsVisible="{Binding IsFilterEmpty}"
+                                        VerticalAlignment="Center"
                                         HorizontalAlignment="Center"
-                                        Background="{DynamicResource Kei.Accent}"
-                                        Foreground="{DynamicResource Kei.Accent.Foreground}"
-                                        Padding="10,6"
-                                        CornerRadius="4"/>
+                                        Spacing="10"
+                                        Margin="16">
+                                <TextBlock Text="{loc:KeiString Tree.FilterEmpty}" Foreground="{DynamicResource Kei.Text.Muted}" HorizontalAlignment="Center" FontSize="13"/>
+                                <Button Content="{loc:KeiString Common.ClearFilter}"
+                                        Command="{Binding ClearFilterCommand}"
+                                        HorizontalAlignment="Center"/>
                             </StackPanel>
                         </Grid>
                     </Grid>
@@ -779,7 +790,7 @@
                                  Background="{DynamicResource Kei.Bg.Panel}"
                                  Foreground="{DynamicResource Kei.Text.Primary}"
                                  BorderBrush="{DynamicResource Kei.Border}"
-                                 CornerRadius="3"
+                                 CornerRadius="{DynamicResource Kei.Radius.Control}"
                                  Padding="6,4">
                             <TextBox.KeyBindings>
                                 <KeyBinding Gesture="Enter" Command="{Binding SendComposeCommand}"/>
@@ -801,7 +812,7 @@
                                  Background="{DynamicResource Kei.Bg.Panel}"
                                  Foreground="{DynamicResource Kei.Text.Primary}"
                                  BorderBrush="{DynamicResource Kei.Border}"
-                                 CornerRadius="3"
+                                 CornerRadius="{DynamicResource Kei.Radius.Control}"
                                  Padding="8,6">
                             <TextBox.KeyBindings>
                                 <KeyBinding Gesture="Ctrl+Enter" Command="{Binding SendComposeCommand}"/>
@@ -810,14 +821,11 @@
 
                         <!-- 发送按钮：多行贴顶，单行居中 -->
                         <Button Grid.Column="2"
+                                Classes="accent"
                                 Content="{loc:KeiString Main.Compose.Send}"
                                 Command="{Binding SendComposeCommand}"
                                 Classes.multiline="{Binding IsMultiLineCompose}"
-                                Background="{DynamicResource Kei.Accent}"
-                                Foreground="{DynamicResource Kei.Accent.Foreground}"
-                                Margin="8,0,0,0"
-                                Padding="12,5"
-                                CornerRadius="3">
+                                Margin="8,0,0,0">
                             <Button.Styles>
                                 <Style Selector="Button">
                                     <Setter Property="VerticalAlignment" Value="Center"/>

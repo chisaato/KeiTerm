@@ -22,7 +22,7 @@
             <RadioButton x:Name="MasterRadio" Content="{loc:KeiString VaultSetup.MasterRadio}" IsChecked="True"
                          IsCheckedChanged="OnModeChanged" Margin="0,6,0,0"/>
             <TextBlock x:Name="MasterDesc" Text="{loc:KeiString VaultSetup.MasterDesc}"
-                       FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}" Margin="24,0,0,0"/>
+                       FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}" TextWrapping="Wrap" Margin="24,0,0,0"/>
 
             <StackPanel x:Name="PasswordPanel" Spacing="8" Margin="24,4,0,0">
                 <TextBox x:Name="PasswordBox" PasswordChar="•" PlaceholderText="{loc:KeiString VaultSetup.MasterPasswordPlaceholder}"/>

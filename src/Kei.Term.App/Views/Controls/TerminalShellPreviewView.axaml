@@ -12,7 +12,7 @@
                 BorderThickness="1"
                 CornerRadius="{DynamicResource Kei.Radius.Card}"
                 ClipToBounds="True"
-                MinHeight="200"/>
+                MinHeight="{DynamicResource Kei.Settings.PreviewMinHeight}"/>
 
         <!-- 预览加载/渲染异常提示覆盖层（用户可见，避免冒充正常） -->
         <Border x:Name="ErrorOverlay"

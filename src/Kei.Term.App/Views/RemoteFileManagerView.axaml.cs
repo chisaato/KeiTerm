@@ -325,7 +325,7 @@ public partial class RemoteFileManagerView : UserControl
         }
         catch (Exception ex)
         {
-            vm.TransferStatusMessage = string.Format(Strings.Get("FileManager.CopyRemotePathFailed"), ex.Message);
+            vm.ReportOperationError(RemoteFileManagerViewModel.DescribeFileException(Strings.Get("FileManager.Error.CopyPathFailed"), ex));
         }
     }
 

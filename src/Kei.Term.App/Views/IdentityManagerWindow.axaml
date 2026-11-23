@@ -9,7 +9,7 @@
         x:Class="Kei.Term.App.Views.IdentityManagerWindow"
         x:DataType="vm:IdentityManagerViewModel"
         Title="{loc:KeiString IdentityManager.Title}"
-        Width="700" Height="380"
+        Width="700" Height="380" MinWidth="580" MinHeight="340"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource Kei.Bg.Window}"
         FontFamily="{DynamicResource Kei.Font.UI}">
@@ -110,27 +110,35 @@
         </Border>
 
         <!-- 身份列表 -->
-        <Border Grid.Row="2" Background="{DynamicResource Kei.Bg.Panel}" BorderBrush="{DynamicResource Kei.Border}" BorderThickness="1" CornerRadius="4">
-            <ListBox x:Name="IdentityList" Classes="popupList" ItemsSource="{Binding Identities}" SelectedItem="{Binding SelectedIdentity}" Background="Transparent">
-                <ListBox.ItemTemplate>
-                    <DataTemplate x:DataType="vault:Identity">
-                        <Grid ColumnDefinitions="*, 160, 140" ColumnSpacing="12" Margin="0,2">
-                            <StackPanel Grid.Column="0" Spacing="2">
-                                <TextBlock Classes="popupPrimary" Text="{Binding Name}" FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                                <TextBlock Classes="popupMuted" Text="{Binding Description}" FontSize="12" TextTrimming="CharacterEllipsis"
-                                           IsVisible="{Binding Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-                            </StackPanel>
-                            <Grid Grid.Column="1" ColumnDefinitions="Auto,*" ColumnSpacing="4" VerticalAlignment="Center"
-                                  IsVisible="{Binding Username, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                <TextBlock Classes="popupSecondary" Text="{loc:KeiString IdentityManager.UserLabel}"/>
-                                <TextBlock Classes="popupSecondary" Grid.Column="1" Text="{Binding Username}" TextTrimming="CharacterEllipsis"/>
+        <Border Grid.Row="2" Background="{DynamicResource Kei.Bg.Panel}" BorderBrush="{DynamicResource Kei.Border}" BorderThickness="1"
+                CornerRadius="{DynamicResource Kei.Radius.Card}" ClipToBounds="True" Padding="2">
+            <Grid>
+                <ListBox x:Name="IdentityList" Classes="popupList" ItemsSource="{Binding Identities}" SelectedItem="{Binding SelectedIdentity}" Background="Transparent">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="vault:Identity">
+                            <Grid ColumnDefinitions="*, 160, 140" ColumnSpacing="12" Margin="0,2">
+                                <StackPanel Grid.Column="0" Spacing="2">
+                                    <TextBlock Classes="popupPrimary" Text="{Binding Name}" ToolTip.Tip="{Binding Name}" FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Classes="popupMuted" Text="{Binding Description}" ToolTip.Tip="{Binding Description}" FontSize="12" TextTrimming="CharacterEllipsis"
+                                               IsVisible="{Binding Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                </StackPanel>
+                                <Grid Grid.Column="1" ColumnDefinitions="Auto,*" ColumnSpacing="4" VerticalAlignment="Center"
+                                      IsVisible="{Binding Username, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                    <TextBlock Classes="popupSecondary" Text="{loc:KeiString IdentityManager.UserLabel}"/>
+                                    <TextBlock Classes="popupSecondary" Grid.Column="1" Text="{Binding Username}" ToolTip.Tip="{Binding Username}" TextTrimming="CharacterEllipsis"/>
+                                </Grid>
+                                <TextBlock Classes="popupSecondary" Grid.Column="2" FontSize="12" VerticalAlignment="Center"
+                                           Text="{Binding Methods.Count, StringFormat={loc:KeiString IdentityManager.MethodCountFormat}}"/>
                             </Grid>
-                            <TextBlock Classes="popupSecondary" Grid.Column="2" FontSize="12" VerticalAlignment="Center"
-                                       Text="{Binding Methods.Count, StringFormat={loc:KeiString IdentityManager.MethodCountFormat}}"/>
-                        </Grid>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
-            </ListBox>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+                <StackPanel Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center"
+                            IsVisible="{Binding Identities.Count, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=0}">
+                    <TextBlock Text="{loc:KeiString IdentityManager.Empty}" FontSize="12" Foreground="{DynamicResource Kei.Text.Secondary}" HorizontalAlignment="Center"/>
+                    <Button Content="{loc:KeiString IdentityManager.NewIdentity}" Classes="accent" Command="{Binding AddIdentityCommand}" HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Grid>
         </Border>
 
         <!-- 底部说明 -->

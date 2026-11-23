@@ -5,6 +5,7 @@ using System.Net.Sockets;
 using System.Reflection;
 using System.Text.Json;
 using System.Threading.Channels;
+using Kei.Term.App.Helpers;
 using Kei.Term.App.Services;
 using Kei.Term.App.Services.Connection;
 using Kei.Term.Core.Abstractions;
@@ -33,7 +34,7 @@ public sealed class BuiltInProtocolSessionFactoryTests
         vm.SelectedTransportEngine = null;
         await vm.RefreshSerialPortsCommand.ExecuteAsync(null);
         Assert.Equal(1, starts);
-        Assert.Contains("global Go discovery reached", vm.SerialPortDiscoveryError);
+        Assert.Equal(Strings.Get("SessionEdit.Serial.DiscoveryError"), vm.SerialPortDiscoveryError);
     }
     [Fact]
     public async Task CatalogUsesRealBclNamesAndExplicitGoRefreshOnly()
@@ -52,7 +53,7 @@ public sealed class BuiltInProtocolSessionFactoryTests
         Assert.Equal(0, starts);
         await vm.RefreshSerialPortsCommand.ExecuteAsync(null);
         Assert.Equal(1, starts);
-        Assert.Contains("discovery unavailable", vm.SerialPortDiscoveryError);
+        Assert.Equal(Strings.Get("SessionEdit.Serial.DiscoveryError"), vm.SerialPortDiscoveryError);
         Assert.Equal("/dev/manual", vm.CurrentScopePortName);
         vm.SelectedTransportEngine = vm.TransportEngineOptions.First(o => o.Value == TransportEngine.BuiltIn);
         await vm.RefreshSerialPortsCommand.ExecuteAsync(null);

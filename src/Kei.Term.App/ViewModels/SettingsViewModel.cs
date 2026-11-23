@@ -93,6 +93,9 @@ public partial class SettingsViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isBusy;
 
+    [ObservableProperty]
+    private bool _hasUnsavedChanges;
+
     // 程序性重载期间抑制草稿预览广播，避免初始化赋值触发无意义刷新
     private bool _isReloading;
 
@@ -144,7 +147,7 @@ public partial class SettingsViewModel : ViewModelBase
             SessionTreeSnapshot = sessionTree;
         }
 
-        Categories = new[]
+        var categoryList = new List<SettingsCategoryItem>
         {
             // 应用
             SettingsCategoryItem.CreateHeader(Strings.Get("Settings.Groups.App")),
@@ -166,7 +169,16 @@ public partial class SettingsViewModel : ViewModelBase
                 new TreeSettingsProxyPage(_appearance, _general),
                 SettingsIcons.Tree,
                 Strings.Get("Settings.Groups.App")),
+        };
 
+        if (SyncPage != null)
+        {
+            categoryList.Add(new SettingsCategoryItem(Strings.Get("Settings.Categories.Sync"), Strings.Get("Settings.Categories.SyncDesc"), SyncPage,
+                SettingsIcons.General, Strings.Get("Settings.Groups.App")));
+        }
+
+        categoryList.AddRange(
+        [
             // 终端
             SettingsCategoryItem.CreateHeader(Strings.Get("Settings.Groups.Terminal")),
             new SettingsCategoryItem(
@@ -202,26 +214,20 @@ public partial class SettingsViewModel : ViewModelBase
                 _ssh,
                 SettingsIcons.Ssh,
                 Strings.Get("Settings.Groups.Connection")),
-        };
-
-        if (SyncPage != null)
-        {
-            Categories = Categories.Append(new SettingsCategoryItem("同步", "本地目录端到端加密同步", SyncPage,
-                SettingsIcons.General, Strings.Get("Settings.Groups.App"))).ToArray();
-        }
+        ]);
 
         if (ProxyPage != null)
         {
-            Categories = Categories.Append(new SettingsCategoryItem(
+            categoryList.Add(new SettingsCategoryItem(
                 Strings.Get("Settings.Categories.Proxy"),
                 Strings.Get("Settings.Categories.ProxyDesc"),
                 ProxyPage,
                 SettingsIcons.Ssh,
-                Strings.Get("Settings.Groups.Connection"))).ToArray();
+                Strings.Get("Settings.Groups.Connection")));
         }
 
-        Categories = Categories.Concat(new[]
-        {
+        categoryList.AddRange(
+        [
             new SettingsCategoryItem(
                 Strings.Get("Settings.Categories.Security"),
                 Strings.Get("Settings.Categories.SecurityDesc"),
@@ -243,7 +249,11 @@ public partial class SettingsViewModel : ViewModelBase
                 _fileTransfer.FileManagerPage,
                 SettingsIcons.FileTransfer,
                 Strings.Get("Settings.Groups.Files")),
-        }).ToArray();
+        ]);
+
+        Categories = categoryList.ToArray();
+
+        HookDirtyTracking();
 
         SelectedCategory = Categories.First(c => !c.IsHeader);
 
@@ -300,18 +310,8 @@ public partial class SettingsViewModel : ViewModelBase
         _general.SessionManagerPinned = current.SessionManagerPinned;
         LoadFileTransferSettings(current);
         _ = _fileTransfer.ReloadAsync();
-        _general.SelectedSessionManagerMode = current.SessionManagerVisibilityMode switch
-        {
-            PanelVisibilityMode.AlwaysVisible => "常开 (Always Visible)",
-            PanelVisibilityMode.AlwaysHidden => "常关 (Always Hidden)",
-            _ => "保持上次状态 (Remember Last)"
-        };
-        _general.SelectedComposeBarMode = current.ComposeBarVisibilityMode switch
-        {
-            PanelVisibilityMode.AlwaysVisible => "常开 (Always Visible)",
-            PanelVisibilityMode.AlwaysHidden => "常关 (Always Hidden)",
-            _ => "保持上次状态 (Remember Last)"
-        };
+        _general.SelectedSessionManagerMode = FormatVisibilityMode(current.SessionManagerVisibilityMode);
+        _general.SelectedComposeBarMode = FormatVisibilityMode(current.ComposeBarVisibilityMode);
 
         _appearance.SetTheme(current.UiTheme);
         _appearance.SetLayoutMode(current.LayoutMode);
@@ -378,6 +378,49 @@ public partial class SettingsViewModel : ViewModelBase
 
         // 异步加载身份列表填充下拉，加载完成后按 SelectedIdentityId 恢复选中
         _ = _ssh.LoadIdentitiesAsync();
+        ClearDirtyState();
+    }
+
+    private void HookDirtyTracking()
+    {
+        void Watch(System.ComponentModel.INotifyPropertyChanged source, Func<SettingsCategoryItem, bool> match, params string[] ignored)
+        {
+            source.PropertyChanged += (_, e) =>
+            {
+                if (_isReloading || IsBusy) return;
+                if (e.PropertyName != null && ignored.Contains(e.PropertyName)) return;
+                HasUnsavedChanges = true;
+                foreach (var cat in Categories.Where(match))
+                {
+                    cat.HasUnsavedChanges = true;
+                }
+            };
+        }
+
+        Watch(_general, c => c.Page is GeneralSettingsPage);
+        Watch(_appearance, c => c.Page is AppearanceSettingsPage or TerminalAppearanceSettingsPage,
+            nameof(AppearanceSettingsPage.SubPageTitle), nameof(AppearanceSettingsPage.IsInSubPage), nameof(AppearanceSettingsPage.ManagesOwnScroll));
+        Watch(_terminal, c => c.Page is TerminalSettingsCombinedPage or TabBarSettingsProxyPage);
+        Watch(_transport, c => c.Page is TransportSettingsPage,
+            nameof(TransportSettingsPage.CurrentEngineDescription));
+        Watch(_ssh, c => c.Page is SshSettingsPage, nameof(SshSettingsPage.Identities));
+        Watch(_security, c => c.Page is SecuritySettingsPage);
+        Watch(_fileTransfer.TransferPage, c => c.Page is TransferSettingsPage,
+            nameof(TransferSettingsPage.SubPageTitle), nameof(TransferSettingsPage.IsInSubPage));
+        Watch(_fileTransfer.FileManagerPage, c => c.Page is FileManagerSettingsPage,
+            nameof(FileManagerSettingsPage.Editors), nameof(FileManagerSettingsPage.Associations),
+            nameof(FileManagerSettingsPage.SelectedEditor), nameof(FileManagerSettingsPage.SelectedAssociation),
+            nameof(FileManagerSettingsPage.HasEditors), nameof(FileManagerSettingsPage.HasAssociations),
+            nameof(FileManagerSettingsPage.CacheStatusMessage));
+    }
+
+    private void ClearDirtyState()
+    {
+        HasUnsavedChanges = false;
+        foreach (var cat in Categories)
+        {
+            cat.HasUnsavedChanges = false;
+        }
     }
 
     // 保存当前设置的核心逻辑；返回是否成功（失败时不推进权威）
@@ -388,7 +431,13 @@ public partial class SettingsViewModel : ViewModelBase
         {
             return false;
         }
-        if (_terminal.HasTitleTemplateError) return false;
+        if (_terminal.HasTitleTemplateError)
+        {
+            var tabBarCategory = Categories.FirstOrDefault(c => c.Page is TabBarSettingsProxyPage);
+            if (tabBarCategory != null) SelectedCategory = tabBarCategory;
+            await NotifyAsync(Strings.Get("Settings.TabBar.SaveBlockedTitle"), Strings.Get("Settings.TabBar.SaveBlockedMessage"), NotificationLevel.Error);
+            return false;
+        }
 
         // 以当前设置的完整副本为底稿，只覆盖本窗口编辑的字段：新增设置项无需在此登记也不会被保存重置
         //（曾因整对象重建漏列导致侧栏停靠位置、轮询参数等保存后丢失）
@@ -404,18 +453,8 @@ public partial class SettingsViewModel : ViewModelBase
         settings.TabNavigationModifier = _general.SelectedTabNavigationModifier.Value;
         settings.TreeSortMode = _general.SelectedTreeSort?.Mode ?? "AsciiFirst";
         settings.SessionManagerPinned = _general.SessionManagerPinned;
-        settings.SessionManagerVisibilityMode = _general.SelectedSessionManagerMode switch
-        {
-            "常开 (Always Visible)" => PanelVisibilityMode.AlwaysVisible,
-            "常关 (Always Hidden)" => PanelVisibilityMode.AlwaysHidden,
-            _ => PanelVisibilityMode.RememberLastState
-        };
-        settings.ComposeBarVisibilityMode = _general.SelectedComposeBarMode switch
-        {
-            "常开 (Always Visible)" => PanelVisibilityMode.AlwaysVisible,
-            "常关 (Always Hidden)" => PanelVisibilityMode.AlwaysHidden,
-            _ => PanelVisibilityMode.RememberLastState
-        };
+        settings.SessionManagerVisibilityMode = ParseVisibilityMode(_general.SelectedSessionManagerMode);
+        settings.ComposeBarVisibilityMode = ParseVisibilityMode(_general.SelectedComposeBarMode);
         ApplyFileTransferSettings(settings);
 
         // 外观：主题值归一化，仅接受 Dark/System
@@ -461,6 +500,8 @@ public partial class SettingsViewModel : ViewModelBase
 
         // 传输引擎
         settings.TransportEngine = _transport.SelectedEngine;
+        settings.ConnectTimeoutSeconds = Math.Clamp(_transport.ConnectTimeoutSeconds, 3, 300);
+        settings.KeepAliveIntervalSeconds = Math.Clamp(_transport.KeepAliveIntervalSeconds, 0, 300);
 
         // SSH
         settings.DefaultPort = _ssh.DefaultPort is >= 1 and <= 65535 ? _ssh.DefaultPort : 22;
@@ -468,8 +509,6 @@ public partial class SettingsViewModel : ViewModelBase
         settings.DefaultIdentityId = _ssh.SelectedIdentityId;
         settings.PreferSystemAgent = _ssh.PreferSystemAgent;
         settings.LockTimeoutMinutes = Math.Clamp(_security.LockTimeoutMinutes, 0, 120);
-        settings.ConnectTimeoutSeconds = Math.Clamp(_ssh.ConnectTimeoutSeconds, 3, 300);
-        settings.KeepAliveIntervalSeconds = Math.Clamp(_ssh.KeepAliveIntervalSeconds, 0, 300);
         settings.EnableAgentForwarding = _ssh.EnableAgentForwarding;
         settings.CustomAgentSocketPath = string.IsNullOrWhiteSpace(_ssh.CustomAgentSocketPath)
             ? null
@@ -503,8 +542,9 @@ public partial class SettingsViewModel : ViewModelBase
                 // 任一写入失败：回滚到已提交权威（内存 + 尽力补偿），不推进基准、不假装成功
                 var compensationError = await RestoreCommittedStateAsync(persistSettings: true);
                 var message = compensationError == null
-                    ? ex.Message
-                    : $"{ex.Message}（恢复已提交状态失败：{compensationError}）";
+                    ? Strings.Get("Settings.SaveFailedMessage")
+                    : Strings.Get("Settings.SaveFailedRollbackPartialMessage");
+                System.Diagnostics.Debug.WriteLine($"设置保存失败: {ex}; compensation={compensationError}");
                 await NotifyAsync("设置保存失败", message, NotificationLevel.Error);
                 return false;
             }
@@ -515,6 +555,7 @@ public partial class SettingsViewModel : ViewModelBase
             NotifyFileDisplaySettings();
             WeakReferenceMessenger.Default.Send(new TabTitleTemplateChangedMessage(settings.TabTitleTemplate));
             WeakReferenceMessenger.Default.Send(new TerminalMouseReportingChangedMessage(settings.TerminalMouseReportingEnabled));
+            ClearDirtyState();
             return true;
         }
         finally
@@ -630,7 +671,8 @@ public partial class SettingsViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            await NotifyAsync("取消回滚失败", ex.Message, NotificationLevel.Error);
+            await NotifyAsync(Strings.Get("Settings.RollbackFailedTitle"), Strings.Get("Settings.RollbackFailedMessage"), NotificationLevel.Error);
+            System.Diagnostics.Debug.WriteLine($"取消回滚失败: {ex}");
         }
         finally
         {
@@ -639,6 +681,26 @@ public partial class SettingsViewModel : ViewModelBase
 
         IsConfirmed = false;
         RequestClose?.Invoke();
+    }
+
+    private static string FormatVisibilityMode(PanelVisibilityMode mode) => mode switch
+    {
+        PanelVisibilityMode.AlwaysVisible => Strings.Get("Settings.General.Visibility.AlwaysVisible"),
+        PanelVisibilityMode.AlwaysHidden => Strings.Get("Settings.General.Visibility.AlwaysHidden"),
+        _ => Strings.Get("Settings.General.Visibility.RememberLast")
+    };
+
+    private static PanelVisibilityMode ParseVisibilityMode(string? value)
+    {
+        if (string.Equals(value, Strings.Get("Settings.General.Visibility.AlwaysVisible"), StringComparison.Ordinal))
+        {
+            return PanelVisibilityMode.AlwaysVisible;
+        }
+        if (string.Equals(value, Strings.Get("Settings.General.Visibility.AlwaysHidden"), StringComparison.Ordinal))
+        {
+            return PanelVisibilityMode.AlwaysHidden;
+        }
+        return PanelVisibilityMode.RememberLastState;
     }
 
 }

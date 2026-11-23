@@ -33,8 +33,10 @@
                                     <StackPanel Orientation="Horizontal" Spacing="8">
                                         <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center" FontFamily="{DynamicResource Kei.Font.UI}"/>
                                         <Border IsVisible="{Binding Tag, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                                                Background="{DynamicResource Kei.Accent.Subtle}"
-                                                CornerRadius="4"
+                                                Background="{DynamicResource Kei.Bg.PanelAlt}"
+                                                BorderBrush="{DynamicResource Kei.Accent}"
+                                                BorderThickness="1"
+                                                CornerRadius="{DynamicResource Kei.Radius.Control}"
                                                 Padding="4,1"
                                                 VerticalAlignment="Center">
                                             <TextBlock Text="{Binding Tag}" FontSize="12" Foreground="{DynamicResource Kei.Accent}" FontWeight="Bold"/>
@@ -48,10 +50,10 @@
                     <Border Classes="settingRowDivider"/>
 
                     <!-- 当前选中引擎特性说明条 -->
-                    <Border Background="{DynamicResource Kei.Bg.Subtle}"
+                    <Border Background="{DynamicResource Kei.Bg.PanelAlt}"
                             BorderBrush="{DynamicResource Kei.Border.Subtle}"
                             BorderThickness="1"
-                            CornerRadius="6"
+                            CornerRadius="{DynamicResource Kei.Radius.Card}"
                             Padding="12,10">
                         <StackPanel Spacing="4">
                             <TextBlock Text="{Binding CurrentEngineDescription}"
@@ -59,6 +61,23 @@
                                        FontSize="12"
                                        TextWrapping="Wrap"/>
                         </StackPanel>
+                    </Border>
+
+                    <!-- 高性能引擎缺失组件告警 -->
+                    <Border IsVisible="{Binding ShowGoCoreMissingWarning}"
+                            Background="{DynamicResource Kei.Bg.WarningSubtle}"
+                            BorderBrush="{DynamicResource Kei.Status.Warning}"
+                            BorderThickness="1"
+                            CornerRadius="{DynamicResource Kei.Radius.Control}"
+                            Padding="10,8">
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                            <TextBlock Text="⚠" Foreground="{DynamicResource Kei.Status.Warning}" FontWeight="Bold" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1"
+                                       Text="{loc:KeiString Settings.Transport.BinaryMissingWarning}"
+                                       Foreground="{DynamicResource Kei.Text.Primary}"
+                                       FontSize="12"
+                                       TextWrapping="Wrap"/>
+                        </Grid>
                     </Border>
                 </StackPanel>
             </Border>
@@ -71,17 +90,17 @@
                     <!-- 特性对照列表 -->
                     <Border BorderBrush="{DynamicResource Kei.Border.Subtle}"
                             BorderThickness="1"
-                            CornerRadius="6"
+                            CornerRadius="{DynamicResource Kei.Radius.Card}"
                             ClipToBounds="True">
                         <StackPanel>
                             <!-- 表头 -->
                             <Grid ColumnDefinitions="140, 100, 110, *"
-                                  Background="{DynamicResource Kei.Bg.Subtle}"
+                                  Background="{DynamicResource Kei.Bg.PanelAlt}"
                                   Height="32">
                                 <TextBlock Grid.Column="0" Text="功能特性" VerticalAlignment="Center" Margin="10,0" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource Kei.Text.Secondary}"/>
-                                <TextBlock Grid.Column="1" Text="原生托管" VerticalAlignment="Center" Margin="6,0" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource Kei.Text.Secondary}"/>
-                                <TextBlock Grid.Column="2" Text="Go 核心引擎" VerticalAlignment="Center" Margin="6,0" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource Kei.Text.Secondary}"/>
-                                <TextBlock Grid.Column="3" Text="技术说明" VerticalAlignment="Center" Margin="6,0" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                <TextBlock Grid.Column="1" Text="{loc:KeiString Settings.Transport.Col.DotNetEngine}" VerticalAlignment="Center" Margin="6,0" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                <TextBlock Grid.Column="2" Text="{loc:KeiString Settings.Transport.Col.GoEngine}" VerticalAlignment="Center" Margin="6,0" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                                <TextBlock Grid.Column="3" Text="{loc:KeiString Settings.Transport.Col.Notes}" VerticalAlignment="Center" Margin="6,0" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource Kei.Text.Secondary}"/>
                             </Grid>
 
                             <!-- 行列表 -->
@@ -91,9 +110,12 @@
                                         <Border BorderBrush="{DynamicResource Kei.Border.Subtle}" BorderThickness="0,1,0,0">
                                             <Grid ColumnDefinitions="140, 100, 110, *" MinHeight="34" Margin="0,2">
                                                 <TextBlock Grid.Column="0" Text="{Binding FeatureName}" VerticalAlignment="Center" Margin="10,0" FontSize="12" Foreground="{DynamicResource Kei.Text.Primary}"/>
-                                                <TextBlock Grid.Column="1" Text="{Binding BuiltInSupport}" VerticalAlignment="Center" Margin="6,0" FontSize="12" Foreground="{DynamicResource Kei.Text.Secondary}"/>
-                                                <TextBlock Grid.Column="2" Text="{Binding GoCoreSupport}" VerticalAlignment="Center" Margin="6,0" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource Kei.Accent}"/>
-                                                <TextBlock Grid.Column="3" Text="{Binding Note}" VerticalAlignment="Center" Margin="6,0" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding BuiltInSupport}" VerticalAlignment="Center" Margin="6,0" FontSize="12" Foreground="{DynamicResource Kei.Status.Connected}"/>
+                                                <Panel Grid.Column="2" VerticalAlignment="Center" Margin="6,0">
+                                                    <TextBlock Text="{Binding GoCoreSupport}" IsVisible="{Binding IsGoCoreSupported}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource Kei.Status.Connected}"/>
+                                                    <TextBlock Text="{Binding GoCoreSupport}" IsVisible="{Binding !IsGoCoreSupported}" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}"/>
+                                                </Panel>
+                                                <TextBlock Grid.Column="3" Text="{Binding Note}" ToolTip.Tip="{Binding Note}" VerticalAlignment="Center" Margin="6,0" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}" TextTrimming="CharacterEllipsis"/>
                                             </Grid>
                                         </Border>
                                     </DataTemplate>

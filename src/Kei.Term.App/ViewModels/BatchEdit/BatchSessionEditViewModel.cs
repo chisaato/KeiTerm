@@ -177,18 +177,26 @@ public partial class BatchSessionEditViewModel : ViewModelBase
             return;
         }
 
-        IReadOnlyList<SessionNode> changed = SessionBatchEditor.Apply(selected, changes);
+        var pairs = selected.Select(node =>
+        {
+            var clone = (SessionNode)TreeNodeCloner.DeepClone(node);
+            clone.Id = node.Id;
+            clone.CreatedAt = node.CreatedAt;
+            return (Original: node, Clone: clone);
+        }).ToList();
+
+        IReadOnlyList<SessionNode> changed = SessionBatchEditor.Apply(pairs.Select(p => p.Clone).ToList(), changes);
         ApplyAttempted = true;
         try
         {
             if (changed.Count > 0)
             {
                 await _save(changed.Cast<TreeNodeBase>().ToList());
+                SessionBatchEditor.Apply(selected, changes);
             }
         }
         catch (Exception ex)
         {
-            // 保存为单事务：失败即全部未落盘；宿主关闭窗口后重载会话树以丢弃内存中的修改
             StatusText = Strings.Format("BatchEdit.SaveFailed", ex.Message);
             return;
         }

@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 public static class Safe
 {
     // 无返回值动作
-    public static async Task RunAsync(ILogger logger, string operation, Func<Task> action)
+    public static async Task RunAsync(ILogger logger, string operation, Func<Task> action, Func<string, Exception, Task>? onError = null)
     {
         try
         {
@@ -17,6 +17,11 @@ public static class Safe
         catch (Exception ex)
         {
             logger.LogError(ex, "{Operation} 失败", operation);
+            if (onError != null)
+            {
+                try { await onError(operation, ex); }
+                catch (Exception notifyEx) { logger.LogDebug(notifyEx, "错误通知发送失败"); }
+            }
         }
     }
 

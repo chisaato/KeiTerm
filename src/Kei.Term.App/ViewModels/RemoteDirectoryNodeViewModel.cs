@@ -16,6 +16,7 @@ public partial class RemoteDirectoryNodeViewModel : ViewModelBase
 {
     private readonly IRemoteFileSystem _fileSystem;
     private readonly Func<bool> _showHiddenFilesFunc;
+    private readonly Action<string, Exception>? _onLoadFailed;
     private bool _hasLoadedChildren;
 
     private static Microsoft.Extensions.Logging.ILogger _logger = Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
@@ -36,6 +37,12 @@ public partial class RemoteDirectoryNodeViewModel : ViewModelBase
 
     [ObservableProperty]
     private bool _isLoading;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasLoadError))]
+    private string? _loadError;
+
+    public bool HasLoadError => !string.IsNullOrWhiteSpace(LoadError);
 
     // 节点图标的加载提示：延迟亮起并保持最短时间，快速展开的目录不会闪动。
     [ObservableProperty]
@@ -65,13 +72,15 @@ public partial class RemoteDirectoryNodeViewModel : ViewModelBase
         IRemoteFileSystem fileSystem,
         Func<bool> showHiddenFilesFunc,
         bool hasDummyChild = true,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider = null,
+        Action<string, Exception>? onLoadFailed = null)
     {
         Name = name;
         FullPath = fullPath;
         _fileSystem = fileSystem;
         _showHiddenFilesFunc = showHiddenFilesFunc;
         _timeProvider = timeProvider;
+        _onLoadFailed = onLoadFailed;
 
         if (hasDummyChild)
         {
@@ -152,6 +161,7 @@ public partial class RemoteDirectoryNodeViewModel : ViewModelBase
     {
         try
         {
+            LoadError = null;
             IsLoading = true;
             _logger.LogDebug("TreeVM LoadChildrenAsync begin: {Path}", FullPath);
             var remoteItems = await _fileSystem.ListDirectoryAsync(FullPath, ct);
@@ -164,7 +174,7 @@ public partial class RemoteDirectoryNodeViewModel : ViewModelBase
                 {
                     // 构造规范的绝对子路径
                     string childPath = FullPath == "/" ? "/" + x.Name : FullPath.TrimEnd('/') + "/" + x.Name;
-                    return new RemoteDirectoryNodeViewModel(x.Name, childPath, _fileSystem, _showHiddenFilesFunc, hasDummyChild: true, _timeProvider);
+                    return new RemoteDirectoryNodeViewModel(x.Name, childPath, _fileSystem, _showHiddenFilesFunc, hasDummyChild: true, _timeProvider, _onLoadFailed);
                 })
                 .ToList();
 
@@ -178,11 +188,18 @@ public partial class RemoteDirectoryNodeViewModel : ViewModelBase
             _logger.LogDebug("TreeVM LoadChildrenAsync done: {Path} -> {Count} dirs", FullPath, Children.Count);
             OnPropertyChanged(nameof(Children));
         }
-        catch
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
-            Children.Clear();
-            _hasLoadedChildren = true;
-            HasChildren = false;
+            _hasLoadedChildren = false;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "加载子目录失败: {Path}", FullPath);
+            _hasLoadedChildren = false;
+            HasChildren = true;
+            IsExpanded = false;
+            LoadError = ex.Message;
+            _onLoadFailed?.Invoke(FullPath, ex);
         }
         finally
         {

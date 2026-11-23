@@ -112,15 +112,34 @@ public partial class SessionEditViewModel
         }
 
         HasProbeResult = true;
-        ProbePlatformText = Strings.Format("SessionEdit.ProbePlatform", result.Platform.ToString());
+        string platformLabel = result.Platform switch
+        {
+            RemotePlatform.Linux => "Linux",
+            RemotePlatform.Darwin => "macOS",
+            RemotePlatform.Windows => "Windows",
+            _ => result.Platform.ToString()
+        };
+        ProbePlatformText = Strings.Format("SessionEdit.ProbePlatform", platformLabel);
 
         string hashes = result.Hashes.Count > 0
-            ? string.Join(", ", result.Hashes.Select(h => h.ToString()))
+            ? string.Join(", ", result.Hashes.Select(h => h switch
+            {
+                TransferHashAlgorithm.Sha256 => "SHA-256",
+                TransferHashAlgorithm.Sha1 => "SHA-1",
+                TransferHashAlgorithm.Md5 => "MD5",
+                _ => h.ToString()
+            }))
             : Strings.Get("Common.None");
         ProbeHashesText = Strings.Format("SessionEdit.ProbeHashes", hashes);
 
         string archives = result.Archives.Count > 0
-            ? string.Join(", ", result.Archives.Select(a => a.ToString()))
+            ? string.Join(", ", result.Archives.Select(a => a switch
+            {
+                TransferArchiveFormat.Zstd => "tar.zst",
+                TransferArchiveFormat.Gzip => "tar.gz",
+                TransferArchiveFormat.Tar => "tar",
+                _ => a.ToString()
+            }))
             : Strings.Get("Common.None");
         ProbeArchivesText = Strings.Format("SessionEdit.ProbeArchives", archives);
 

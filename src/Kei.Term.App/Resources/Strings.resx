@@ -398,7 +398,7 @@
     <value>会话树排序、显示密度与尺寸微调</value>
   </data>
   <data name="Settings.Categories.Terminal" xml:space="preserve">
-    <value>终端</value>
+    <value>行为与仿真</value>
   </data>
   <data name="Settings.Categories.TerminalDesc" xml:space="preserve">
     <value>仿真与回滚缓冲</value>
@@ -407,7 +407,7 @@
     <value>回滚缓冲区与默认终端仿真类型</value>
   </data>
   <data name="Settings.Categories.TerminalAppearance" xml:space="preserve">
-    <value>终端外观</value>
+    <value>配色与字体</value>
   </data>
   <data name="Settings.Categories.TerminalAppearanceDesc" xml:space="preserve">
     <value>配色与字体</value>
@@ -564,10 +564,10 @@
     <value>布局模式将在下次启动时生效</value>
   </data>
   <data name="Settings.Appearance.LayoutModeClassic" xml:space="preserve">
-    <value>经典 (Classic)</value>
+    <value>经典</value>
   </data>
   <data name="Settings.Appearance.LayoutModeModern" xml:space="preserve">
-    <value>现代 (Modern)</value>
+    <value>现代</value>
   </data>
   <data name="Settings.Appearance.ThemeSection" xml:space="preserve">
     <value>界面主题</value>
@@ -606,16 +606,16 @@
     <value>预设档位快速设置会话树紧凑度，选择「自定义微调」可自主调节行高与字号</value>
   </data>
   <data name="Settings.Appearance.TreeDensityUltraCompact" xml:space="preserve">
-    <value>极度紧凑 (Ultra Compact，类似 SecureCRT)</value>
+    <value>极度紧凑</value>
   </data>
   <data name="Settings.Appearance.TreeDensityCompact" xml:space="preserve">
-    <value>紧凑桌面 (Compact，默认)</value>
+    <value>紧凑（默认）</value>
   </data>
   <data name="Settings.Appearance.TreeDensityNormal" xml:space="preserve">
-    <value>舒适标准 (Comfortable)</value>
+    <value>舒适</value>
   </data>
   <data name="Settings.Appearance.TreeDensityCustom" xml:space="preserve">
-    <value>自定义微调 (Custom)</value>
+    <value>自定义</value>
   </data>
   <data name="Settings.Appearance.TreeItemHeight" xml:space="preserve">
     <value>节点行高 (px)</value>
@@ -648,7 +648,7 @@
     <value>Material</value>
   </data>
   <data name="Settings.Appearance.UiFontSection" xml:space="preserve">
-    <value>界面字体 (UI Font)</value>
+    <value>界面字体</value>
   </data>
   <data name="Settings.Appearance.UiFontFamily" xml:space="preserve">
     <value>界面字体族</value>
@@ -678,7 +678,7 @@
     <value>下移</value>
   </data>
   <data name="Settings.Appearance.FontSection" xml:space="preserve">
-    <value>终端字体 (Terminal Font)</value>
+    <value>终端字体</value>
   </data>
   <data name="Settings.Appearance.FontFamily" xml:space="preserve">
     <value>主等宽字体</value>
@@ -687,7 +687,7 @@
     <value>如 JetBrainsMono Nerd Font Mono</value>
   </data>
   <data name="Settings.Appearance.FontFamilyTip" xml:space="preserve">
-    <value>终端的核心等宽字体。各软件叫法不同，如 JBMono NF Medium 即 JBMono Nerd Font 的 Medium 字重。</value>
+    <value>终端使用的等宽字体。</value>
   </data>
   <data name="Settings.Appearance.FallbackFontFamily" xml:space="preserve">
     <value>回退/中文补充</value>
@@ -714,7 +714,7 @@
     <value>字重</value>
   </data>
   <data name="Settings.Appearance.FontWeightTip" xml:space="preserve">
-    <value>终端字体粗细；Konsole 与 SecureCRT 常用 Medium</value>
+    <value>调整终端字体的粗细。</value>
   </data>
   <data name="Settings.Appearance.FontPreviewSection" xml:space="preserve">
     <value>字体实时预览</value>
@@ -735,7 +735,7 @@
     <value>底部</value>
   </data>
   <data name="Settings.Appearance.ProfileBackupSection" xml:space="preserve">
-    <value>外观与主题配置备份 (Profile Bundle)</value>
+    <value>外观配置备份</value>
   </data>
   <data name="Settings.Appearance.ExportBundle" xml:space="preserve">
     <value>导出配置...</value>
@@ -1123,7 +1123,7 @@
     <value>主机地址 (*):</value>
   </data>
   <data name="SessionEdit.Host.Placeholder" xml:space="preserve">
-    <value>IP 或 域名 (如 192.168.1.100)</value>
+    <value>IP 或域名（如 example.com 或 192.0.2.10）</value>
   </data>
   <data name="SessionEdit.Port" xml:space="preserve">
     <value>SSH 端口:</value>
@@ -1192,7 +1192,7 @@
     <value>端口</value>
   </data>
   <data name="PortForward.Hint" xml:space="preserve">
-    <value>连接建立后启动。已打开的标签要重连后才应用。Dynamic 是本机监听，不是出站防火墙。</value>
+    <value>连接建立后生效；已打开的标签需重连。动态转发会在本机开启 SOCKS5 代理端口。</value>
   </data>
   <data name="PortForward.Title.New" xml:space="preserve">
     <value>新建转发</value>
@@ -1233,7 +1233,7 @@
     <value>主机 (*):</value>
   </data>
   <data name="QuickConnect.Host.Placeholder" xml:space="preserve">
-    <value>IP 或 域名 (如 192.168.1.100)</value>
+    <value>IP 或域名（如 example.com 或 192.0.2.10）</value>
   </data>
   <data name="QuickConnect.Port" xml:space="preserve">
     <value>端口:</value>
@@ -1360,7 +1360,7 @@
     <value>「应用」不关窗立即保存；取消不会回滚已应用的改动。</value>
   </data>
   <data name="IdentityEdit.Method.VaultPassword" xml:space="preserve">
-    <value>Vault 密码</value>
+    <value>保管库密码</value>
   </data>
   <data name="IdentityEdit.Method.VaultPasswordHint" xml:space="preserve">
     <value>密码保存于保管库，连接时自动取用；设置主密码后加密存储。</value>
@@ -1393,10 +1393,10 @@
     <value>原密码将在「应用」或「确定」时清除</value>
   </data>
   <data name="IdentityEdit.Error.PasswordRequired" xml:space="preserve">
-    <value>请为 Vault 密码方法输入 SSH 登录密码。</value>
+    <value>请为保管库密码方法输入 SSH 登录密码。</value>
   </data>
   <data name="IdentityEdit.Method.VaultKey" xml:space="preserve">
-    <value>Vault 私钥</value>
+    <value>保管库私钥</value>
   </data>
   <data name="IdentityEdit.Method.VaultKeyHint" xml:space="preserve">
     <value>私钥加密保存于保管库。</value>
@@ -1432,7 +1432,7 @@
     <value>身份至少需要一个认证方法。</value>
   </data>
   <data name="IdentityEdit.Error.SaveNotWired" xml:space="preserve">
-    <value>保存未接线，无法应用。</value>
+    <value>当前无法保存身份，请关闭窗口后重试。</value>
   </data>
   <data name="IdentityEdit.Error.VaultLocked" xml:space="preserve">
     <value>保管库未解锁，凭据材料未保存。</value>
@@ -1465,7 +1465,7 @@
     <value>读取失败</value>
   </data>
   <data name="IdentityEdit.VaultKey.PassphrasePromptUnavailable" xml:space="preserve">
-    <value>需要口令（无法弹出输入框）</value>
+    <value>私钥已加密，当前无法输入口令，请重新打开窗口后导入。</value>
   </data>
   <data name="IdentityEdit.FingerprintFormat" xml:space="preserve">
     <value>指纹 {0}</value>
@@ -1731,7 +1731,7 @@
     <value>终端当前在 {0}，已暂停目录同步</value>
   </data>
   <data name="SessionEdit.DirectoryFollowHint" xml:space="preserve">
-    <value>这两项可单独为会话设置。选择“继承全局”时使用设置 → 文件传输中的默认值，选择具体选项则覆盖默认值。</value>
+    <value>这两项可按会话单独设置；选择「继承全局」时使用「设置 → 文件管理与编辑器」中的默认值。</value>
   </data>
   <data name="Settings.Terminal.SessionOverrideHint" xml:space="preserve">
     <value>以上为全局默认，可在会话属性或「批量修改会话」中逐会话覆盖。</value>
@@ -1869,7 +1869,7 @@
     <value>筛选</value>
   </data>
   <data name="Proxy.NotWired" xml:space="preserve">
-    <value>尚未接入拨号</value>
+    <value>暂不支持此代理类型，请改用 SOCKS5 或已有会话</value>
   </data>
   <data name="Proxy.Title.New" xml:space="preserve">
     <value>新建代理</value>
@@ -1923,10 +1923,10 @@
     <value>代理</value>
   </data>
   <data name="Settings.Categories.ProxyDesc" xml:space="preserve">
-    <value>代理档案管理</value>
+    <value>SOCKS5 与跳板代理配置</value>
   </data>
   <data name="Settings.Categories.ProxyPageDescription" xml:space="preserve">
-    <value>管理会话可选择的代理档案。当前支持 SOCKS5 连接；HTTP 代理暂不支持连接。</value>
+    <value>管理会话可选择的 SOCKS5 与跳板代理档案。</value>
   </data>
   <data name="Menu.Edit.SelectAll" xml:space="preserve">
     <value>全选</value>
@@ -1998,10 +1998,10 @@
     <value>打开远程文件管理器时，默认停靠在左侧还是右侧工作区。</value>
   </data>
   <data name="Terminal.Drop.ProtocolTip" xml:space="preserve">
-    <value>拖拽文件到终端区域触发上传时默认采用的传输协议（SCP 或 SFTP）。</value>
+    <value>将文件拖入终端并上传时使用的默认协议。</value>
   </data>
   <data name="Terminal.Drop.DefaultActionTip" xml:space="preserve">
-    <value>将文件拖到终端区域时的默认操作（上传文件或仅粘贴文件路径）。</value>
+    <value>将文件拖入终端时的默认处理方式。</value>
   </data>
   <data name="Settings.FileTransfer.CacheDirectoryPlaceholder" xml:space="preserve">
     <value>留空使用系统标准临时缓存目录</value>
@@ -2052,7 +2052,7 @@ Latin: AaBb CcDd GgYy gypq
     <value>连接已保存会话</value>
   </data>
   <data name="Menu.Tools.CommandPalette" xml:space="preserve">
-    <value>快捷面板</value>
+    <value>命令面板</value>
   </data>
   <data name="Tree.Menu.DuplicateSession" xml:space="preserve">
     <value>复制一份会话</value>
@@ -2085,7 +2085,7 @@ Latin: AaBb CcDd GgYy gypq
     <value>连接到远程主机，或新建会话以保存连接配置。</value>
   </data>
   <data name="NewTab.QuickConnectDescription" xml:space="preserve">
-    <value>新建连接，或选择已保存的会话</value>
+    <value>输入主机地址临时连接，无需先建会话</value>
   </data>
   <data name="QuickConnect.NewConnection" xml:space="preserve">
     <value>新建连接</value>
@@ -2276,7 +2276,7 @@ Latin: AaBb CcDd GgYy gypq
     <value>SSH Agent</value>
   </data>
   <data name="Settings.Ssh.VaultSection" xml:space="preserve">
-    <value>保险库锁定</value>
+    <value>保管库锁定</value>
   </data>
     <data name="Settings.FileTransfer.TransfersSection" xml:space="preserve">
     <value>传输与排队</value>
@@ -2414,7 +2414,7 @@ Latin: AaBb CcDd GgYy gypq
     <value>取消或移除任务</value>
   </data>
   <data name="FileActivity.Status.Pending" xml:space="preserve">
-    <value>等待中...</value>
+    <value>排队中</value>
   </data>
   <data name="FileActivity.Status.Transferring" xml:space="preserve">
     <value>传输中...</value>
@@ -2617,16 +2617,16 @@ Latin: AaBb CcDd GgYy gypq
     <value>正在检查本机验证状态…</value>
   </data>
   <data name="VaultQuickUnlock.Enabled" xml:space="preserve">
-    <value>已启用 {0}，可用于解锁保险库。</value>
+    <value>已启用 {0}，可用于解锁保管库。</value>
   </data>
   <data name="VaultQuickUnlock.Disabled" xml:space="preserve">
-    <value>尚未启用 {0}，保险库仍使用主密码解锁。</value>
+    <value>尚未启用 {0}，保管库仍使用主密码解锁。</value>
   </data>
   <data name="VaultQuickUnlock.Unsupported" xml:space="preserve">
     <value>此平台不支持本机快速解锁，请使用主密码。</value>
   </data>
   <data name="VaultQuickUnlock.NeedsMasterPassword" xml:space="preserve">
-    <value>请先为保险库设置主密码，再启用本机快速解锁。</value>
+    <value>请先为保管库设置主密码，再启用本机快速解锁。</value>
   </data>
   <data name="VaultQuickUnlock.StatusUnavailable" xml:space="preserve">
     <value>{0} 当前不可用。请检查系统验证设置，或使用主密码解锁。</value>
@@ -2644,10 +2644,10 @@ Latin: AaBb CcDd GgYy gypq
     <value>无法停用本机快速解锁，请重试。</value>
   </data>
   <data name="VaultQuickUnlock.EnablePrompt" xml:space="preserve">
-    <value>请输入主密码，以授权在这台设备上使用系统验证解锁保险库。</value>
+    <value>请输入主密码，以授权在这台设备上使用系统验证解锁保管库。</value>
   </data>
   <data name="VaultQuickUnlock.AuthenticateReason" xml:space="preserve">
-    <value>验证身份以解锁 KeiTerm 保险库</value>
+    <value>验证身份以解锁 KeiTerm 保管库</value>
   </data>
   <data name="VaultQuickUnlock.Failed" xml:space="preserve">
     <value>本机验证失败，请使用主密码解锁。</value>
@@ -2760,7 +2760,7 @@ Latin: AaBb CcDd GgYy gypq
   <data name="Settings.FileTransfer.DatabaseOperationFailed" xml:space="preserve">
     <value>操作失败，请检查本地配置数据库后重试。</value>
   </data>
-  <data name="Settings.Appearance.ImportMenu" xml:space="preserve"><value>导入</value></data>
+  <data name="Settings.Appearance.ImportMenu" xml:space="preserve"><value>导入配色 / 字体</value></data>
   <data name="Settings.Appearance.ImportColorKonsole" xml:space="preserve"><value>配色：从 Konsole 配色文件…</value></data>
   <data name="Settings.Appearance.ImportColorJson" xml:space="preserve"><value>配色：从 JSON…</value></data>
   <data name="Settings.Appearance.ImportFontKonsole" xml:space="preserve"><value>字体：从 Konsole 配置…</value></data>
@@ -2862,10 +2862,10 @@ Latin: AaBb CcDd GgYy gypq
     <value>传输引擎</value>
   </data>
   <data name="Settings.Categories.TransportDesc" xml:space="preserve">
-    <value>底层通信引擎与通道</value>
+    <value>连接引擎与通道超时</value>
   </data>
   <data name="Settings.Categories.TransportPageDescription" xml:space="preserve">
-    <value>配置 SSH、SFTP 及通用流传输的底层引擎与通道参数</value>
+    <value>配置会话连接引擎与通道超时参数</value>
   </data>
   <data name="Settings.Transport.EngineSection" xml:space="preserve">
     <value>传输引擎</value>
@@ -2874,19 +2874,22 @@ Latin: AaBb CcDd GgYy gypq
     <value>首选传输引擎</value>
   </data>
   <data name="Settings.Transport.EngineTip" xml:space="preserve">
-    <value>选择会话建立与数据流传输的底层核心实现</value>
+    <value>选择建立会话与文件传输时使用的连接引擎</value>
   </data>
   <data name="Settings.Transport.Engine.BuiltIn" xml:space="preserve">
-    <value>原生托管 (.NET)</value>
+    <value>默认引擎 (.NET)</value>
   </data>
   <data name="Settings.Transport.Engine.BuiltInDesc" xml:space="preserve">
-    <value>进程内 .NET 引擎，使用 SSH.NET 提供 SSH/SFTP，并支持 Telnet 与串口。</value>
+    <value>内置 .NET 引擎，稳定支持 SSH、SFTP、Telnet 与串口，硬件安全密钥通过系统 ssh-agent 使用。</value>
   </data>
   <data name="Settings.Transport.Engine.GoCore" xml:space="preserve">
-    <value>Go 核心引擎 (实验性)</value>
+    <value>Go 核心引擎</value>
   </data>
   <data name="Settings.Transport.Engine.GoCoreDesc" xml:space="preserve">
-    <value>独立进程 Go 引擎，提供 SSH/SFTP、Telnet 与串口。FIDO2 密钥直连尚未实现。</value>
+    <value>独立进程 Go 引擎，支持 SFTP 并发分块传输、SSH/SFTP、Telnet 与串口；暂不支持硬件安全密钥。</value>
+  </data>
+  <data name="Settings.Transport.Engine.ExperimentalTag" xml:space="preserve">
+    <value>实验性</value>
   </data>
   <data name="Settings.Transport.FeaturesSection" xml:space="preserve">
     <value>引擎特性概览</value>
@@ -2904,25 +2907,40 @@ Latin: AaBb CcDd GgYy gypq
     <value>SFTP 并发分块传输</value>
   </data>
   <data name="Settings.Transport.Feature.ExtendedProtocols" xml:space="preserve">
-    <value>扩展协议 (Telnet / Serial)</value>
+    <value>扩展协议 (Telnet / 串口)</value>
   </data>
   <data name="Settings.Transport.Status.Stable" xml:space="preserve">
     <value>稳定支持</value>
   </data>
   <data name="Settings.Transport.Status.AgentBridge" xml:space="preserve">
-    <value>通过 Agent 桥接</value>
+    <value>通过 Agent 使用</value>
   </data>
   <data name="Settings.Transport.Status.Direct" xml:space="preserve">
     <value>原生直连</value>
   </data>
   <data name="Settings.Transport.Status.Planned" xml:space="preserve">
-    <value>架构规划中</value>
+    <value>暂不支持</value>
+  </data>
+  <data name="Settings.Transport.Status.Unsupported" xml:space="preserve">
+    <value>暂不支持</value>
   </data>
   <data name="Settings.Transport.Status.Supported" xml:space="preserve">
     <value>支持</value>
   </data>
   <data name="Settings.Transport.Status.Standard" xml:space="preserve">
     <value>标准单通道</value>
+  </data>
+  <data name="Settings.Transport.Note.SshSftp" xml:space="preserve">
+    <value>终端会话与 SFTP 文件传输</value>
+  </data>
+  <data name="Settings.Transport.Note.ConcurrentChunk" xml:space="preserve">
+    <value>高延迟链路下大文件传输更快</value>
+  </data>
+  <data name="Settings.Transport.Note.Fido2" xml:space="preserve">
+    <value>ed25519-sk / ecdsa-sk</value>
+  </data>
+  <data name="Settings.Transport.Note.ExtendedProtocols" xml:space="preserve">
+    <value>Telnet / 串口</value>
   </data>
   <data name="SessionEdit.TransportEngine" xml:space="preserve">
     <value>传输引擎:</value>
@@ -2982,7 +3000,7 @@ Latin: AaBb CcDd GgYy gypq
     <value>自动流控:</value>
   </data>
   <data name="SessionEdit.Serial.FlowControl.None" xml:space="preserve">
-    <value>无 (None)</value>
+    <value>无</value>
   </data>
   <data name="SessionEdit.Serial.FlowControl.RtsCts" xml:space="preserve">
     <value>RTS/CTS (硬件流控)</value>
@@ -3077,4 +3095,133 @@ Latin: AaBb CcDd GgYy gypq
   <data name="SessionEdit.Serial.LowerRtsConflict" xml:space="preserve">
     <value>下层配置了手动 RTS 引脚状态，与当前层级生效的 RTS/CTS 自动硬件流控冲突。请清除下层的手动 RTS 设置以避免冲突。</value>
   </data>
+  <data name="Common.None" xml:space="preserve">
+    <value>无</value>
+  </data>
+  <data name="Common.ViewArrow" xml:space="preserve">
+    <value>查看 ›</value>
+  </data>
+  <data name="Common.ClearFilter" xml:space="preserve"><value>清除筛选</value></data>
+  <data name="Common.OperationFailedTitle" xml:space="preserve"><value>{0}失败</value></data>
+  <data name="Common.OperationFailedFallback" xml:space="preserve"><value>请检查操作权限或配置后重试。</value></data>
+  <data name="Enum.SftpChannelMode.Auto" xml:space="preserve"><value>自动</value></data>
+  <data name="Enum.SftpChannelMode.Subsystem" xml:space="preserve"><value>SFTP 子系统</value></data>
+  <data name="Enum.SftpChannelMode.Dedicated" xml:space="preserve"><value>独立通道</value></data>
+  <data name="Enum.PortForwardMode.Local" xml:space="preserve"><value>本地转发</value></data>
+  <data name="Enum.PortForwardMode.Remote" xml:space="preserve"><value>远程转发</value></data>
+  <data name="Enum.PortForwardMode.Dynamic" xml:space="preserve"><value>动态转发 (SOCKS5)</value></data>
+  <data name="Enum.SerialParity.Odd" xml:space="preserve"><value>奇校验</value></data>
+  <data name="Enum.SerialParity.Even" xml:space="preserve"><value>偶校验</value></data>
+  <data name="Enum.SerialParity.Mark" xml:space="preserve"><value>标记</value></data>
+  <data name="Enum.SerialParity.Space" xml:space="preserve"><value>空格</value></data>
+  <data name="Enum.WatchMode.Auto" xml:space="preserve"><value>自动检测</value></data>
+  <data name="Enum.WatchMode.OSNative" xml:space="preserve"><value>系统原生事件</value></data>
+  <data name="Enum.WatchMode.Polling" xml:space="preserve"><value>定时轮询</value></data>
+  <data name="Enum.Platform.Any" xml:space="preserve"><value>所有平台</value></data>
+  <data name="Settings.UnsavedChanges" xml:space="preserve"><value>有未保存的更改</value></data>
+  <data name="Settings.General.DataStorageSection" xml:space="preserve"><value>数据存储</value></data>
+  <data name="Settings.General.Visibility.AlwaysVisible" xml:space="preserve"><value>始终显示</value></data>
+  <data name="Settings.General.Visibility.AlwaysHidden" xml:space="preserve"><value>始终隐藏</value></data>
+  <data name="Settings.General.Visibility.RememberLast" xml:space="preserve"><value>记住上次状态</value></data>
+  <data name="Settings.Proxy.ListSection" xml:space="preserve"><value>代理列表</value></data>
+  <data name="Settings.Proxy.Empty" xml:space="preserve"><value>尚未配置代理档案</value></data>
+  <data name="Settings.Proxy.DeleteReferencedConfirm" xml:space="preserve"><value>代理「{0}」当前被 {1} 个会话引用，删除后这些会话将无法通过该代理连接。确认删除吗？</value></data>
+  <data name="Settings.Proxy.DeleteConfirm" xml:space="preserve"><value>确定要删除代理「{0}」吗？</value></data>
+  <data name="Proxy.Type.HttpUnsupported" xml:space="preserve"><value>HTTP (暂不支持)</value></data>
+  <data name="Proxy.UnsupportedLabelFormat" xml:space="preserve"><value>{0} (暂不支持)</value></data>
+  <data name="Settings.TabBar.TitleCardSection" xml:space="preserve"><value>标签标题</value></data>
+  <data name="Settings.TabBar.TemplateLabel" xml:space="preserve"><value>命名模板</value></data>
+  <data name="Settings.TabBar.SaveBlockedTitle" xml:space="preserve"><value>无法保存设置</value></data>
+  <data name="Settings.TabBar.SaveBlockedMessage" xml:space="preserve"><value>标签标题模板格式有误，请修正后再保存。</value></data>
+  <data name="Settings.TerminalAppearance.SchemeSection" xml:space="preserve"><value>配色方案</value></data>
+  <data name="Settings.TerminalAppearance.CurrentScheme" xml:space="preserve"><value>当前方案</value></data>
+  <data name="Settings.TerminalProfile.DeleteReferencedTarget" xml:space="preserve"><value>{0}（当前被 {1} 个会话引用，删除后这些会话将回退默认配色）</value></data>
+  <data name="Settings.Appearance.PreviewHostSample" xml:space="preserve"><value>主机：192.0.2.10 / 端口：22</value></data>
+  <data name="Settings.Preview.RenderFailed" xml:space="preserve"><value>无法显示终端预览，请重新打开设置重试。</value></data>
+  <data name="Settings.Transport.BinaryMissingWarning" xml:space="preserve"><value>当前环境未检测到 Go 引擎组件，新建连接时将无法正常启动，建议保留 .NET 默认引擎。</value></data>
+  <data name="Settings.Transport.Col.DotNetEngine" xml:space="preserve"><value>.NET 引擎</value></data>
+  <data name="Settings.Transport.Col.GoEngine" xml:space="preserve"><value>Go 引擎</value></data>
+  <data name="Settings.Transport.Col.Notes" xml:space="preserve"><value>说明</value></data>
+  <data name="Settings.FileTransfer.AddEditorFirstHint" xml:space="preserve"><value>请先添加外部编辑器，再配置文件类型关联</value></data>
+  <data name="Settings.FileTransfer.AddExternalEditor" xml:space="preserve"><value>添加外部编辑器</value></data>
+  <data name="Settings.FileTransfer.CacheEmpty" xml:space="preserve"><value>缓存目录为空，无需清理。</value></data>
+  <data name="Settings.FileTransfer.CacheCleared" xml:space="preserve"><value>已清理 {0} 个缓存项。</value></data>
+  <data name="Settings.FileTransfer.CacheClearPermissionDenied" xml:space="preserve"><value>清理缓存失败：目录权限不足。</value></data>
+  <data name="Settings.FileTransfer.CacheClearFailed" xml:space="preserve"><value>清理缓存失败，请确认缓存文件未被外部编辑器占用后重试。</value></data>
+  <data name="Settings.FileTransfer.DeleteEditorReferencedConfirm" xml:space="preserve"><value>外部编辑器「{0}」当前被 {1} 条文件关联规则引用，删除后这些规则将失效。确认删除吗？</value></data>
+  <data name="Settings.FileTransfer.DeleteEditorConfirm" xml:space="preserve"><value>确定要删除外部编辑器「{0}」吗？</value></data>
+  <data name="Settings.Security.UnlockVault" xml:space="preserve"><value>解锁保管库</value></data>
+  <data name="Settings.Security.HasMasterPasswordLocked" xml:space="preserve"><value>已设置主密码（当前已锁定，解锁后可修改或移除）</value></data>
+  <data name="Settings.SaveFailedMessage" xml:space="preserve"><value>保存设置失败，请检查配置目录权限后重试。</value></data>
+  <data name="Settings.SaveFailedRollbackPartialMessage" xml:space="preserve"><value>保存设置失败，且未能自动还原部分已修改的配置，建议关闭后重新打开设置。</value></data>
+  <data name="Settings.RollbackFailedTitle" xml:space="preserve"><value>未能还原未保存的更改</value></data>
+  <data name="Settings.RollbackFailedMessage" xml:space="preserve"><value>建议关闭后重新打开设置窗口。</value></data>
+  <data name="Settings.Categories.Sync" xml:space="preserve"><value>同步</value></data>
+  <data name="Settings.Categories.SyncDesc" xml:space="preserve"><value>多设备端到端加密同步</value></data>
+  <data name="Settings.Sync.LocalDirPlaceholder" xml:space="preserve"><value>选择或输入本地同步目录路径</value></data>
+  <data name="Settings.Sync.PasswordLabel" xml:space="preserve"><value>密码</value></data>
+  <data name="Settings.Sync.PasswordKeepHint" xml:space="preserve"><value>留空则继续使用保管库中已保存的密码</value></data>
+  <data name="Settings.Sync.ConflictCheckLabel" xml:space="preserve"><value>并发冲突校验</value></data>
+  <data name="Settings.Sync.WebDavConflictCheckDesc" xml:space="preserve"><value>写入前校验远端版本，避免多设备并发覆盖</value></data>
+  <data name="Settings.Sync.S3SecretKeepHint" xml:space="preserve"><value>留空则继续使用保管库中已保存的密钥</value></data>
+  <data name="Settings.Sync.S3ConflictCheckDesc" xml:space="preserve"><value>写入前校验远端版本；阿里云 OSS 与腾讯云 COS 兼容性受限，默认关闭</value></data>
+  <data name="Settings.Sync.RequireMasterPasswordHint" xml:space="preserve"><value>启用或加入同步前需先设置主密码。同步口令保存在本机保管库中，用于端到端加密。</value></data>
+  <data name="Settings.Sync.AutoSyncScheduleHint" xml:space="preserve"><value>自动同步时机：启动时、本地变更 30 秒后、运行中每 5 分钟</value></data>
+  <data name="Settings.Sync.RecoverySection" xml:space="preserve"><value>快照与历史恢复</value></data>
+  <data name="Settings.Sync.RefreshRecovery" xml:space="preserve"><value>刷新恢复列表</value></data>
+  <data name="Settings.Sync.SnapshotTimeFormat" xml:space="preserve"><value>快照时间：{0:yyyy-MM-dd HH:mm:ss} (UTC)</value></data>
+  <data name="Settings.Sync.LocalSnapshotEmpty" xml:space="preserve"><value>暂无本机快照</value></data>
+  <data name="Settings.Sync.RemoteHistoryTitle" xml:space="preserve"><value>远端历史版本（保留最近 5 份）</value></data>
+  <data name="Settings.Sync.WrittenTimeFormat" xml:space="preserve"><value>写入时间：{0:yyyy-MM-dd HH:mm:ss} (UTC)</value></data>
+  <data name="Settings.Sync.RemoteHistoryEmpty" xml:space="preserve"><value>暂无远端历史版本（点击“刷新恢复列表”获取）</value></data>
+  <data name="Settings.Sync.Status.SnapshotDeleted" xml:space="preserve"><value>本机同步快照已删除</value></data>
+  <data name="Settings.Sync.Status.StateReadFailed" xml:space="preserve"><value>同步状态文件无法读取。</value></data>
+  <data name="Settings.Sync.Status.ConfigCorrupted" xml:space="preserve"><value>同步位置配置损坏或无法读取，请重新配置。</value></data>
+  <data name="Settings.Sync.Status.ConnectionSuccess" xml:space="preserve"><value>同步位置连接成功</value></data>
+  <data name="Settings.Sync.Status.AlreadyJoinedUseChangePassphrase" xml:space="preserve"><value>已加入同步，请使用更换同步口令；其他设备口令更新请在立即同步时输入</value></data>
+  <data name="Settings.Sync.Status.PassphraseSaved" xml:space="preserve"><value>同步口令已保存到保管库</value></data>
+  <data name="Settings.Sync.Deletion.PendingLabel" xml:space="preserve"><value>待删除项：</value></data>
+  <data name="Settings.Sync.Deletion.LocalLiveLabel" xml:space="preserve"><value>本机现有项：</value></data>
+  <data name="Settings.Sync.Join.SummaryFormat" xml:space="preserve"><value>检测到远端同步包。本机现有 {0} 项配置。请选择首次接入的合并策略：</value></data>
+  <data name="IdentityManager.Empty" xml:space="preserve"><value>尚未添加任何身份凭据</value></data>
+  <data name="KnownHosts.Empty" xml:space="preserve"><value>暂无已知主机密钥记录</value></data>
+  <data name="KnownHosts.FilterEmpty" xml:space="preserve"><value>没有匹配的主机密钥</value></data>
+  <data name="KnownHosts.Error.LoadFailed" xml:space="preserve"><value>加载已知主机失败：{0}</value></data>
+  <data name="KnownHosts.Error.DeleteFailed" xml:space="preserve"><value>删除主机记录失败：{0}</value></data>
+  <data name="KnownHosts.Error.UpdateStatusFailed" xml:space="preserve"><value>更新主机状态失败：{0}</value></data>
+  <data name="KnownHosts.Error.ImportFailed" xml:space="preserve"><value>导入主机密钥失败：{0}</value></data>
+  <data name="KnownHosts.Error.ExportFailed" xml:space="preserve"><value>导出主机密钥失败：{0}</value></data>
+  <data name="Tree.FilterEmpty" xml:space="preserve"><value>没有匹配的会话</value></data>
+  <data name="PortForward.Validation.ListenPortRange" xml:space="preserve"><value>监听端口必须在 1 到 65535 之间。</value></data>
+  <data name="PortForward.Validation.DestinationHostRequired" xml:space="preserve"><value>请输入目标主机地址。</value></data>
+  <data name="PortForward.Validation.DestinationPortRange" xml:space="preserve"><value>目标端口必须在 1 到 65535 之间。</value></data>
+  <data name="PortForward.Validation.InvalidConfig" xml:space="preserve"><value>请检查端口转发配置。</value></data>
+  <data name="SessionEdit.Validation.HostRequired" xml:space="preserve"><value>请输入主机地址。</value></data>
+  <data name="SessionEdit.Validation.SerialPortRequired" xml:space="preserve"><value>请输入或选择串口路径。</value></data>
+  <data name="SessionEdit.Serial.DiscoveryError" xml:space="preserve"><value>未能获取可用串口列表，请手动输入端口路径。</value></data>
+  <data name="Connection.ProxyPassword.VaultLocked" xml:space="preserve"><value>保管库已锁定</value></data>
+  <data name="Connection.ProxyPassword.ReadFailed" xml:space="preserve"><value>读取代理口令失败，请检查保管库状态</value></data>
+  <data name="Connection.Error.Generic" xml:space="preserve"><value>连接失败，请检查网络或主机配置</value></data>
+  <data name="Terminal.Serial.ControlFailedFormat" xml:space="preserve"><value>{0} 操作失败：{1}</value></data>
+  <data name="FileActivity.ClearFinishedTip" xml:space="preserve"><value>清除已完成、失败或取消的任务</value></data>
+  <data name="FileActivity.ClearFinishedName" xml:space="preserve"><value>清除已结束的任务</value></data>
+  <data name="FileManager.StopWatchingTip" xml:space="preserve"><value>停止监视此文件</value></data>
+  <data name="FileManager.Error.CopyPathFailed" xml:space="preserve"><value>复制路径失败</value></data>
+  <data name="FileManager.Error.OpenItemFailed" xml:space="preserve"><value>打开 {0} 失败</value></data>
+  <data name="FileManager.Error.StopWatchingFailed" xml:space="preserve"><value>停止监视失败</value></data>
+  <data name="FileManager.Error.WritebackFailed" xml:space="preserve"><value>回写 {0} 失败</value></data>
+  <data name="FileManager.Error.OpenDirectoryFailed" xml:space="preserve"><value>打开目录 {0} 失败</value></data>
+  <data name="FileManager.Error.RefreshFailed" xml:space="preserve"><value>刷新失败</value></data>
+  <data name="FileManager.Error.RefreshTreeFailed" xml:space="preserve"><value>刷新目录树失败</value></data>
+  <data name="FileManager.Error.OperationFailedPrefix" xml:space="preserve"><value>文件操作失败</value></data>
+  <data name="FileManager.Error.TransferChannelUnavailable" xml:space="preserve"><value>传输通道不可用</value></data>
+  <data name="FileManager.Error.ConnectFailed" xml:space="preserve"><value>连接文件管理失败</value></data>
+  <data name="FileManager.Error.ExpandDirectoryFailed" xml:space="preserve"><value>展开目录 {0} 失败</value></data>
+  <data name="FileManager.Error.Reason.PermissionDenied" xml:space="preserve"><value>权限不足</value></data>
+  <data name="FileManager.Error.Reason.NotFound" xml:space="preserve"><value>目标文件或目录不存在</value></data>
+  <data name="FileManager.Error.Reason.DirectoryNotFound" xml:space="preserve"><value>目标目录不存在</value></data>
+  <data name="FileManager.Error.Reason.IoError" xml:space="preserve"><value>网络或文件读写异常</value></data>
+  <data name="FileManager.Error.Reason.Timeout" xml:space="preserve"><value>操作超时</value></data>
+  <data name="FileManager.Error.Reason.Generic" xml:space="preserve"><value>请检查连接或权限后重试</value></data>
+  <data name="FileManager.Error.Format" xml:space="preserve"><value>{0}：{1}</value></data>
 </root>

@@ -229,7 +229,7 @@ public class ProxyFirewallTests : IDisposable
         var bastion = new SessionNode { Name = "bastion-unique", Host = "10.0.0.1", Username = "root" };
         var other = new SessionNode { Name = "other-unique", Host = "10.0.0.2" };
         var later = new ProxyProfile { Name = "later", SortOrder = 2, Config = new Socks5ProxyConfig("127.0.0.1", 1080) };
-        var first = new ProxyProfile { Name = "first", SortOrder = 1, Config = new HttpProxyConfig("127.0.0.1", 8118) };
+        var first = new ProxyProfile { Name = "first", SortOrder = 1, Config = new Socks5ProxyConfig("127.0.0.1", 1081) };
 
         var vm = new SessionEditViewModel(null, null, [], jumpCandidates: [bastion, other], proxies: [later, first]);
 

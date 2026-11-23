@@ -3,17 +3,35 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Kei.Term.App.Helpers;
 using Kei.Term.Core.Sync;
 
 namespace Kei.Term.App.ViewModels.Settings;
 
 public partial class SyncSettingsPage
 {
-    [ObservableProperty] private IReadOnlyList<SyncLocalBackup> _localBackups = Array.Empty<SyncLocalBackup>();
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(DeleteLocalBackupsCommand))]
+    private IReadOnlyList<SyncLocalBackup> _localBackups = Array.Empty<SyncLocalBackup>();
     [ObservableProperty] private IReadOnlyList<SyncHistoryEntry> _remoteHistory = Array.Empty<SyncHistoryEntry>();
     [ObservableProperty] private SyncLocalBackup? _selectedLocalBackup;
     [ObservableProperty] private SyncHistoryEntry? _selectedRemoteHistory;
     [ObservableProperty] private bool _hasPendingPassphraseChange;
+
+    private async Task CheckPendingPassphraseChangeAsync()
+    {
+        if (_secrets is not ISyncSafetyStore safety) return;
+        try
+        {
+            char[]? pending = await safety.GetPendingPassphraseAsync();
+            HasPendingPassphraseChange = pending != null;
+            if (pending != null) Array.Clear(pending);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"检查待处理同步口令状态失败: {ex}");
+        }
+    }
 
     private async Task<SyncResult> CompleteManualAsync(ISyncLocation location, SyncResult result)
     {
@@ -46,7 +64,7 @@ public partial class SyncSettingsPage
         return result;
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanUseCoordinator))]
     private async Task RefreshRecoveryAsync()
     {
         if (_coordinator == null || IsBusy) return;
@@ -55,20 +73,15 @@ public partial class SyncSettingsPage
         try
         {
             LocalBackups = await _coordinator.ListBackupsAsync();
-            if (_secrets is ISyncSafetyStore safety)
-            {
-                char[]? pending = await safety.GetPendingPassphraseAsync();
-                HasPendingPassphraseChange = pending != null;
-                if (pending != null) Array.Clear(pending);
-            }
+            await CheckPendingPassphraseChangeAsync();
             location = await OpenLocationAsync();
             RemoteHistory = await location.ListHistoryAsync();
         }
-        catch (Exception ex) when (IsSyncFailure(ex)) { Status = ex.Message; }
+        catch (Exception ex) when (IsSyncFailure(ex)) { SetStatus(ex.Message, isError: true); }
         finally { Release(location); IsBusy = false; }
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanDeleteLocalBackups))]
     private async Task DeleteLocalBackupsAsync()
     {
         if (IsBusy || _secrets is not ISyncSafetyStore safety) return;
@@ -79,9 +92,9 @@ public partial class SyncSettingsPage
             await safety.DeleteSyncBackupsAsync();
             LocalBackups = Array.Empty<SyncLocalBackup>();
             SelectedLocalBackup = null;
-            Status = "本机同步快照已删除";
+            SetStatus(Strings.Get("Settings.Sync.Status.SnapshotDeleted"));
         }
-        catch (Exception ex) when (IsSyncFailure(ex)) { Status = ex.Message; }
+        catch (Exception ex) when (IsSyncFailure(ex)) { SetStatus(ex.Message, isError: true); }
         finally { IsBusy = false; }
     }
 
@@ -91,7 +104,12 @@ public partial class SyncSettingsPage
         if (_coordinator == null || SelectedLocalBackup == null || IsBusy) return;
         if (!await Interaction.ConfirmDeleteAsync("用所选本机快照恢复全部同步数据（不影响本机专属项）")) return;
         IsBusy = true;
-        try { Status = (await Task.Run(() => _coordinator.RestoreLocalAsync(SelectedLocalBackup.Id))).Message; }
+        try
+        {
+            var result = await Task.Run(() => _coordinator.RestoreLocalAsync(SelectedLocalBackup.Id));
+            SetStatus(result.Message, isError: !result.Success);
+        }
+        catch (Exception ex) when (IsSyncFailure(ex)) { SetStatus(ex.Message, isError: true); }
         finally { IsBusy = false; }
     }
 
@@ -105,13 +123,14 @@ public partial class SyncSettingsPage
         try
         {
             location = await OpenLocationAsync();
-            Status = (await Task.Run(() => _coordinator.RestoreHistoryAsync(location, SelectedRemoteHistory.Name))).Message;
+            var result = await Task.Run(() => _coordinator.RestoreHistoryAsync(location, SelectedRemoteHistory.Name));
+            SetStatus(result.Message, isError: !result.Success);
         }
-        catch (Exception ex) when (IsSyncFailure(ex)) { Status = ex.Message; }
+        catch (Exception ex) when (IsSyncFailure(ex)) { SetStatus(ex.Message, isError: true); }
         finally { Release(location); IsBusy = false; }
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanUseCoordinator))]
     private async Task ChangePassphraseAsync()
     {
         if (_coordinator == null || IsBusy) return;
@@ -128,13 +147,13 @@ public partial class SyncSettingsPage
                 result = await CompleteManualAsync(location, result);
                 if (result.Success) result = await Task.Run(() => _coordinator.ChangePassphraseAsync(location, password.AsMemory()));
             }
-            Status = result.Message;
+            SetStatus(result.Message, isError: !result.Success);
         }
-        catch (Exception ex) when (IsSyncFailure(ex)) { Status = ex.Message; }
+        catch (Exception ex) when (IsSyncFailure(ex)) { SetStatus(ex.Message, isError: true); }
         finally { Release(location); IsBusy = false; }
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanUseCoordinator))]
     private async Task ResumePassphraseChangeAsync()
     {
         if (_coordinator == null || IsBusy) return;
@@ -144,14 +163,14 @@ public partial class SyncSettingsPage
         {
             location = await OpenLocationAsync();
             var result = await Task.Run(() => _coordinator.ResumePassphraseChangeAsync(location));
-            Status = result.Message;
+            SetStatus(result.Message, isError: !result.Success);
             if (result.Success) HasPendingPassphraseChange = false;
         }
-        catch (Exception ex) when (IsSyncFailure(ex)) { Status = ex.Message; }
+        catch (Exception ex) when (IsSyncFailure(ex)) { SetStatus(ex.Message, isError: true); }
         finally { Release(location); IsBusy = false; }
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanUseCoordinator))]
     private async Task DisableAsync()
     {
         if (_coordinator == null || IsBusy) return;
@@ -162,9 +181,10 @@ public partial class SyncSettingsPage
         try
         {
             location = await OpenLocationAsync();
-            Status = (await Task.Run(() => _coordinator.DisableAsync(location, delete.Value))).Message;
+            var result = await Task.Run(() => _coordinator.DisableAsync(location, delete.Value));
+            SetStatus(result.Message, isError: !result.Success);
         }
-        catch (Exception ex) when (IsSyncFailure(ex)) { Status = ex.Message; }
+        catch (Exception ex) when (IsSyncFailure(ex)) { SetStatus(ex.Message, isError: true); }
         finally { Release(location); IsBusy = false; }
     }
 }

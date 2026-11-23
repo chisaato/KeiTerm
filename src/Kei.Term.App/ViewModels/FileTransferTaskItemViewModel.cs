@@ -50,7 +50,7 @@ public partial class FileTransferTaskItemViewModel : ViewModelBase
     private double _progress;
 
     [ObservableProperty]
-    private string _statusText = "等待中...";
+    private string _statusText = Helpers.Strings.Get("FileActivity.Status.Pending");
 
     [ObservableProperty]
     private double _speedMBs;

@@ -28,6 +28,7 @@ public partial class ProxyEditViewModel : ViewModelBase
             _sortOrder = nextSortOrder;
             _createdAt = DateTime.UtcNow;
             Title = Strings.Get("Proxy.Title.New");
+            Types = [ProxyConfigKind.Socks5, ProxyConfigKind.Session];
             return;
         }
 
@@ -54,14 +55,18 @@ public partial class ProxyEditViewModel : ViewModelBase
                 _sessionId = session.SessionId;
                 break;
         }
+        Types = SelectedType == ProxyConfigKind.Http
+            ? [ProxyConfigKind.Socks5, ProxyConfigKind.Http, ProxyConfigKind.Session]
+            : [ProxyConfigKind.Socks5, ProxyConfigKind.Session];
     }
 
     public string Title { get; }
 
     public bool HasSavedPassword { get; }
 
-    public IReadOnlyList<ProxyConfigKind> Types { get; } =
-        [ProxyConfigKind.Socks5, ProxyConfigKind.Http, ProxyConfigKind.Session];
+    public IReadOnlyList<ProxyConfigKind> Types { get; }
+
+    public bool CanSave => SelectedType != ProxyConfigKind.Http;
 
     [ObservableProperty]
     private string _name = string.Empty;
@@ -112,11 +117,13 @@ public partial class ProxyEditViewModel : ViewModelBase
     partial void OnSelectedTypeChanged(ProxyConfigKind value)
     {
         OnPropertyChanged(nameof(TypeNotice));
+        OnPropertyChanged(nameof(CanSave));
         OnPropertyChanged(nameof(IsEndpoint));
         OnPropertyChanged(nameof(IsSession));
         OnPropertyChanged(nameof(IsSocks5));
         OnPropertyChanged(nameof(ShowClearPassword));
         OnPropertyChanged(nameof(PasswordPlaceholder));
+        SaveCommand.NotifyCanExecuteChanged();
     }
 
     // 口令框留空不调用存储，避免把已存口令清掉。勾选清除才删除。
@@ -188,7 +195,13 @@ public partial class ProxyEditViewModel : ViewModelBase
 
     public ProxyProfile? Build()
     {
-        string name = string.IsNullOrWhiteSpace(Name) ? Host.Trim() : Name.Trim();
+        if (SelectedType == ProxyConfigKind.Http)
+        {
+            return null;
+        }
+        string name = string.IsNullOrWhiteSpace(Name)
+            ? (SelectedType == ProxyConfigKind.Session ? SessionDisplay.Trim() : Host.Trim())
+            : Name.Trim();
         if (string.IsNullOrWhiteSpace(name))
         {
             return null;

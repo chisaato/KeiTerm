@@ -23,7 +23,14 @@
                             <Setter Property="Padding" Value="10,4"/>
                             <Setter Property="MinHeight" Value="32"/>
                             <Setter Property="Height" Value="32"/>
+                            <Setter Property="CornerRadius" Value="{DynamicResource Kei.Radius.Control}"/>
                             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                        </Style>
+                        <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+                            <Setter Property="Background" Value="{DynamicResource Kei.Bg.Hover}"/>
+                        </Style>
+                        <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+                            <Setter Property="Background" Value="{DynamicResource Kei.Accent}"/>
                         </Style>
                         <Style Selector="TextBlock.paletteTitle">
                             <Setter Property="Foreground" Value="{DynamicResource Kei.Text.Primary}"/>
@@ -39,8 +46,10 @@
                         <DataTemplate x:DataType="vm:CommandPaletteItem">
                             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
                                 <TextBlock Classes="paletteTitle" Grid.Column="0" Text="{Binding Title}" FontSize="13"
+                                           ToolTip.Tip="{Binding Title}"
                                            MaxWidth="230" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
                                 <TextBlock Classes="paletteDescription" Grid.Column="1" Text="{Binding Description}" FontSize="12"
+                                           ToolTip.Tip="{Binding Description}"
                                            TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
                                 <TextBlock Classes="paletteShortcut" Grid.Column="2" Text="{Binding ShortcutLabel}" FontSize="12"
                                            VerticalAlignment="Center"/>

@@ -148,12 +148,12 @@
         <!-- 4. 数据存储卡片 -->
         <Border Classes="settingsCard">
             <StackPanel Spacing="10">
-                <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.General.DataDirectory}"/>
+                <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.General.DataStorageSection}"/>
 
                 <controls:SettingRow Title="{loc:KeiString Settings.General.DataDirectory}"
                                      Description="{loc:KeiString Settings.General.DataDirectoryTip}">
                     <Grid ColumnDefinitions="260,Auto" ColumnSpacing="8" HorizontalAlignment="Right">
-                        <TextBox Text="{Binding DataDirectory}" IsReadOnly="True" VerticalAlignment="Center"/>
+                        <TextBox Text="{Binding DataDirectory}" ToolTip.Tip="{Binding DataDirectory}" IsReadOnly="True" VerticalAlignment="Center"/>
                         <Button Grid.Column="1"
                                 Content="{loc:KeiString Settings.General.OpenDirectory}"
                                 Command="{Binding OpenDataDirectoryCommand}"

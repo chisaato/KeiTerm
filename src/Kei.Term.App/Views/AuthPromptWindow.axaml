@@ -23,7 +23,7 @@
                 <TextBlock Text="{loc:KeiString AuthPrompt.PromptHeader}" FontWeight="Bold" Foreground="{DynamicResource Kei.Text.Primary}" FontSize="14"/>
                 <TextBlock x:Name="PromptTextBlock" Foreground="{DynamicResource Kei.Text.Secondary}" TextWrapping="Wrap"/>
                 <TextBox x:Name="PromptInputBox" PasswordChar="•"/>
-                <TextBlock Text="{loc:KeiString AuthPrompt.PromptDesc}" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}"/>
+                <TextBlock Text="{loc:KeiString AuthPrompt.PromptDesc}" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}" TextWrapping="Wrap"/>
             </StackPanel>
 
             <!-- 完整模式：方法选择 + 各自字段 -->
@@ -75,7 +75,7 @@
                            Text="{loc:KeiString AuthPrompt.InteractiveHint}"
                            FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}" TextWrapping="Wrap"/>
 
-                <TextBlock Text="{loc:KeiString AuthPrompt.EphemeralHint}" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}"/>
+                <TextBlock Text="{loc:KeiString AuthPrompt.EphemeralHint}" FontSize="12" Foreground="{DynamicResource Kei.Text.Muted}" TextWrapping="Wrap"/>
             </StackPanel>
 
             <TextBlock x:Name="ErrorText" Foreground="{DynamicResource Kei.Status.Error}" FontSize="12"

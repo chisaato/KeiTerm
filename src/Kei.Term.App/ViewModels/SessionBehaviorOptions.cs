@@ -86,7 +86,7 @@ public static class SessionBehaviorOptions
         => engine switch
         {
             TransportEngine.BuiltIn => Strings.Get("Settings.Transport.Engine.BuiltIn"),
-            TransportEngine.GoCore => Strings.Get("Settings.Transport.Engine.GoCore"),
+            TransportEngine.GoCore => $"{Strings.Get("Settings.Transport.Engine.GoCore")}（{Strings.Get("Settings.Transport.Engine.ExperimentalTag")}）",
             _ => engine.ToString()
         };
 
@@ -161,7 +161,7 @@ public static class SessionBehaviorOptions
     public static IReadOnlyList<SerialScopeOption> SerialScopes { get; } =
     [
         new(SerialScope.Generic, Strings.Get("SessionEdit.Serial.Scope.Generic")),
-        new(SerialScope.OperatingSystem, string.Format(Strings.Get("SessionEdit.Serial.Scope.Os"), OperatingSystem.IsWindows() ? "windows" : OperatingSystem.IsMacOS() ? "macos" : "linux")),
+        new(SerialScope.OperatingSystem, string.Format(Strings.Get("SessionEdit.Serial.Scope.Os"), OperatingSystem.IsWindows() ? "Windows" : OperatingSystem.IsMacOS() ? "macOS" : "Linux")),
         new(SerialScope.Device, Strings.Get("SessionEdit.Serial.Scope.Device"))
     ];
 

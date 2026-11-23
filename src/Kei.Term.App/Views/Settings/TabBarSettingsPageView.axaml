@@ -46,12 +46,12 @@
                 <!-- 2. 标签标题行为卡片（含下钻变量参考） -->
                 <Border Classes="settingsCard" x:Name="TabTitleBehaviorSection">
                     <StackPanel Spacing="10">
-                        <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.TabBar.TitleSection}"/>
+                        <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.TabBar.TitleCardSection}"/>
 
                         <!-- 模板输入行 -->
                         <Grid ColumnDefinitions="*,Auto" MinHeight="32">
                             <StackPanel VerticalAlignment="Center" Spacing="2" Margin="0,2,16,2">
-                                <TextBlock TextWrapping="Wrap" Text="{loc:KeiString Settings.TabBar.TitleSection}"
+                                <TextBlock TextWrapping="Wrap" Text="{loc:KeiString Settings.TabBar.TemplateLabel}"
                                            FontSize="13"
                                            Foreground="{DynamicResource Kei.Text.Primary}"/>
                                 <TextBlock TextWrapping="Wrap" Text="{loc:KeiString Settings.TabBar.TemplateHint}"
@@ -85,6 +85,7 @@
                             <TextBlock x:Name="TabTitlePreview"
                                        Grid.Column="1"
                                        Text="{Binding Terminal.TitlePreview}"
+                                       ToolTip.Tip="{Binding Terminal.TitlePreview}"
                                        TextTrimming="CharacterEllipsis"
                                        Foreground="{DynamicResource Kei.Text.Primary}"
                                        FontWeight="SemiBold"
@@ -97,7 +98,7 @@
                         <!-- 变量参考下钻行 -->
                         <controls:DrillDownRow Title="{loc:KeiString Settings.TabBar.VariableReference}"
                                                Description="{loc:KeiString Settings.TabBar.VariableSources}"
-                                               ActionLabel="{loc:KeiString Common.EditArrow}"
+                                               ActionLabel="{loc:KeiString Common.ViewArrow}"
                                                Command="{Binding DrillDownVariablesCommand}"/>
 
                         <Border Classes="settingRowDivider"/>

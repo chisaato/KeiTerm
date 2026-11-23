@@ -173,7 +173,10 @@ public partial class TerminalTabViewModel
         {
             await Terminal.CopySelectionAsync();
         }
-        catch { }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "复制终端选区失败 标题={Title}", Title);
+        }
     }
 
     [RelayCommand]
@@ -183,7 +186,10 @@ public partial class TerminalTabViewModel
         {
             await Terminal.PasteAsync();
         }
-        catch { }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "粘贴到终端失败 标题={Title}", Title);
+        }
     }
 
     [RelayCommand]
@@ -193,7 +199,10 @@ public partial class TerminalTabViewModel
         {
             Terminal.SelectAll();
         }
-        catch { }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "全选终端文本失败 标题={Title}", Title);
+        }
     }
 
     // 本地清屏：只保留光标所在行并清空回滚缓冲区；不向远端发送任何字节，

@@ -48,15 +48,6 @@
                     Click="OnCopyPromptClick"/>
         </Grid>
 
-        <StackPanel Grid.Row="3" Spacing="4" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0,0,180,0">
-            <TextBlock x:Name="ClipboardFeedbackText" Text="{Binding ClipboardFeedback}"
-                       IsVisible="{Binding ClipboardSucceeded}" TextWrapping="Wrap" FontSize="12"
-                       Foreground="{DynamicResource Kei.Session.Foreground}"/>
-            <TextBlock x:Name="ClipboardFailureText" Text="{Binding ClipboardFeedback}"
-                       IsVisible="{Binding ClipboardFailed}" TextWrapping="Wrap" FontSize="12"
-                       Foreground="{DynamicResource Kei.Status.Error}"/>
-        </StackPanel>
-
         <Grid Grid.Row="1" RowDefinitions="Auto,*" RowSpacing="8">
             <Grid x:Name="JsonToolbar" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="6">
                 <TextBlock Text="{loc:KeiString TerminalThemeJsonImport.JsonLabel}"
@@ -108,10 +99,20 @@
             </StackPanel>
         </Border>
 
-        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-            <Button x:Name="CancelButton" Content="{loc:KeiString Common.Cancel}" MinWidth="76" Click="OnCancelClick"/>
-            <Button x:Name="ImportButton" Content="{loc:KeiString Common.Confirm}" Classes="accent" MinWidth="76"
-                    IsEnabled="{Binding CanImport}" Click="OnImportClick"/>
-        </StackPanel>
+        <Grid Grid.Row="3" ColumnDefinitions="*,Auto" ColumnSpacing="12">
+            <StackPanel Grid.Column="0" Spacing="4" HorizontalAlignment="Left" VerticalAlignment="Center">
+                <TextBlock x:Name="ClipboardFeedbackText" Text="{Binding ClipboardFeedback}"
+                           IsVisible="{Binding ClipboardSucceeded}" TextWrapping="Wrap" FontSize="12"
+                           Foreground="{DynamicResource Kei.Session.Foreground}"/>
+                <TextBlock x:Name="ClipboardFailureText" Text="{Binding ClipboardFeedback}"
+                           IsVisible="{Binding ClipboardFailed}" TextWrapping="Wrap" FontSize="12"
+                           Foreground="{DynamicResource Kei.Status.Error}"/>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                <Button x:Name="CancelButton" Content="{loc:KeiString Common.Cancel}" MinWidth="76" Click="OnCancelClick"/>
+                <Button x:Name="ImportButton" Content="{loc:KeiString Common.Confirm}" Classes="accent" MinWidth="76"
+                        IsEnabled="{Binding CanImport}" Click="OnImportClick"/>
+            </StackPanel>
+        </Grid>
     </Grid>
 </Window>

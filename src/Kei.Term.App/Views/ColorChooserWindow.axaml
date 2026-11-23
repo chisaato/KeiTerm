@@ -7,9 +7,11 @@
         x:Class="Kei.Term.App.Views.ColorChooserWindow"
         x:DataType="vm:ColorChooserViewModel"
         Title="{loc:KeiString ColorChooser.Title}"
-        Width="580"
-        Height="430"
-        CanResize="false"
+        Width="620"
+        Height="460"
+        MinWidth="580"
+        MinHeight="440"
+        CanResize="True"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource Kei.Bg.Window}"
         Foreground="{DynamicResource Kei.Text.Primary}"
@@ -38,7 +40,8 @@
 
     <Grid RowDefinitions="*, Auto" Margin="14">
         <!-- 主工作区：左侧色块面板 + 中右侧色盘与数值 -->
-        <Grid Grid.Row="0" ColumnDefinitions="Auto, 14, *">
+        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
+        <Grid ColumnDefinitions="Auto, 14, *">
             
             <!-- 左侧：基本色与自定义色 (KColorChooser 左半区) -->
             <Border Grid.Column="0"
@@ -47,7 +50,7 @@
                     BorderThickness="1"
                     CornerRadius="{DynamicResource Kei.Radius.Card}"
                     Padding="10"
-                    Width="220">
+                    Width="236">
                 <StackPanel Spacing="8">
                     <!-- 基本颜色 6x8 -->
                     <TextBlock Text="{loc:KeiString ColorChooser.BasicColors}"
@@ -185,6 +188,7 @@
                 </Grid>
             </Border>
         </Grid>
+        </ScrollViewer>
 
         <!-- 底部确定与取消操作栏 -->
         <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,12,0,0">

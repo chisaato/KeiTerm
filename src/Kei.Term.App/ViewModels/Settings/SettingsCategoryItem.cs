@@ -1,8 +1,12 @@
+using CommunityToolkit.Mvvm.ComponentModel;
+
 namespace Kei.Term.App.ViewModels.Settings;
 
 // 左侧分类条目：支持分组标题与常规单行条目
-public sealed class SettingsCategoryItem
+public sealed partial class SettingsCategoryItem : ObservableObject
 {
+    [ObservableProperty]
+    private bool _hasUnsavedChanges;
     public SettingsCategoryItem(string title, string? description, object page, string icon, string group = "")
     {
         Title = title;

@@ -35,13 +35,17 @@ public partial class SessionEditViewModel
         SerialPortDiscoveryError = string.Empty;
         try
         {
-            if (_serialPortCatalog is null) throw new NotSupportedException("串口发现服务不可用，仍可手动输入端口路径。");
+            if (_serialPortCatalog is null)
+            {
+                SerialPortDiscoveryError = Strings.Get("SessionEdit.Serial.DiscoveryError");
+                return;
+            }
             var names = await _serialPortCatalog.GetPortNamesAsync(SelectedTransportEngine?.Value ?? _globalSettings.TransportEngine, ct);
             ct.ThrowIfCancellationRequested();
             SerialPortNames = new ObservableCollection<string>(names.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal));
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
-        catch (Exception ex) { SerialPortDiscoveryError = ex.Message; }
+        catch (Exception) { SerialPortDiscoveryError = Strings.Get("SessionEdit.Serial.DiscoveryError"); }
     }
 
     // 各作用域显式设置的字段字典（深拷贝自存储，修改时仅改用户显式设置的键）
@@ -224,7 +228,9 @@ public partial class SessionEditViewModel
     public static string CurrentOperatingSystemName =>
         OperatingSystem.IsWindows() ? "windows" : OperatingSystem.IsMacOS() ? "macos" : "linux";
 
-    public string OsBindingLabel => string.Format(Strings.Get("SessionEdit.Serial.Binding.Os"), CurrentOperatingSystemName);
+    public string OsBindingLabel => string.Format(
+        Strings.Get("SessionEdit.Serial.Binding.Os"),
+        OperatingSystem.IsWindows() ? "Windows" : OperatingSystem.IsMacOS() ? "macOS" : "Linux");
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanRegenerateDeviceId))]
@@ -507,12 +513,14 @@ public partial class SessionEditViewModel
 
     partial void OnSerialOsPortChanged(string value)
     {
+        ValidationError = null;
         UpdateExplicitField(_osExplicitFields, "portName", value);
         NotifyScopePropertiesChanged();
     }
 
     partial void OnSerialDevicePortChanged(string value)
     {
+        ValidationError = null;
         UpdateExplicitField(_deviceExplicitFields, "portName", value);
         NotifyScopePropertiesChanged();
     }

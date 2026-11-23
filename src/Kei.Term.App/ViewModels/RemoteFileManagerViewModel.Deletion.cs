@@ -38,11 +38,29 @@ public partial class RemoteFileManagerViewModel
     [NotifyPropertyChangedFor(nameof(HasDeleteStatus))]
     private string? _deleteStatusMessage;
 
+    [ObservableProperty]
+    private bool _isDeleteError;
+
+    [ObservableProperty]
+    private bool _isDeleteSuccess;
+
+    private CancellationTokenSource? _deleteStatusDismissCts;
+
     public bool HasDeleteStatus => !string.IsNullOrWhiteSpace(DeleteStatusMessage);
 
     [RelayCommand]
+    private void DismissDeleteStatus()
+    {
+        _deleteStatusDismissCts?.Cancel();
+        DeleteStatusMessage = null;
+        IsDeleteError = false;
+        IsDeleteSuccess = false;
+    }
+
+    [RelayCommand(CanExecute = nameof(CanOperateOnLoadedItems))]
     public Task DeleteItemAsync(RemoteFileItem? singleItem)
     {
+        if (!CanOperateOnLoadedItems()) return Task.CompletedTask;
         List<RemoteFileItem> targets = CollectDeleteTargets(singleItem);
         if (targets.Count == 0) return Task.CompletedTask;
 
@@ -118,7 +136,7 @@ public partial class RemoteFileManagerViewModel
             await service.DeleteAsync(targets, new DeleteProgressSink(this, generation), cts.Token);
             RemoteFileDeletionProgress? snapshot = SealDeleteProgress();
             int completed = snapshot?.CompletedCount ?? targets.Count;
-            PublishDeleteTerminal(generation, Strings.Format("FileManager.Delete.Completed", completed), 100);
+            PublishDeleteTerminal(generation, Strings.Format("FileManager.Delete.Completed", completed), 100, isError: false, isSuccess: true);
             if (!_disposed) await RefreshAfterDeleteAsync();
         }
         catch (OperationCanceledException) when (cts is { IsCancellationRequested: true })
@@ -126,7 +144,7 @@ public partial class RemoteFileManagerViewModel
             RemoteFileDeletionProgress? snapshot = SealDeleteProgress();
             int completed = snapshot?.CompletedCount ?? 0;
             int total = snapshot is { TotalCount: > 0 } ? snapshot.TotalCount : targets.Count;
-            PublishDeleteTerminal(generation, Strings.Format("FileManager.Delete.Cancelled", completed, total), Percent(snapshot));
+            PublishDeleteTerminal(generation, Strings.Format("FileManager.Delete.Cancelled", completed, total), Percent(snapshot), isError: false, isSuccess: false);
             if (!_disposed) await RefreshAfterDeleteAsync();
         }
         catch (Exception ex)
@@ -152,7 +170,7 @@ public partial class RemoteFileManagerViewModel
         string path = string.IsNullOrEmpty(snapshot?.CurrentPath) ? targets[0].FullPath : snapshot.CurrentPath;
         int completed = snapshot?.CompletedCount ?? 0;
         int total = snapshot is { TotalCount: > 0 } ? snapshot.TotalCount : targets.Count;
-        PublishDeleteTerminal(generation, Strings.Format("FileManager.Delete.Failed", path, completed, total, ex.Message), Percent(snapshot));
+        PublishDeleteTerminal(generation, Strings.Format("FileManager.Delete.Failed", path, completed, total, ex.Message), Percent(snapshot), isError: true, isSuccess: false);
     }
 
     // 用户取消或删除失败时，删除令牌已经取消。列目录必须换一支未取消的令牌，否则列表会在写入前被丢掉。
@@ -163,14 +181,17 @@ public partial class RemoteFileManagerViewModel
         PostToUiThread(() =>
         {
             if (generation != Volatile.Read(ref _deleteGeneration)) return;
+            _deleteStatusDismissCts?.Cancel();
             IsDeleting = true;
             IsDeleteScanning = false;
+            IsDeleteError = false;
+            IsDeleteSuccess = false;
             DeleteProgress = 0;
             DeleteStatusMessage = Strings.Get("FileManager.Delete.Working");
         });
     }
 
-    private void PublishDeleteTerminal(int generation, string message, double progress)
+    private void PublishDeleteTerminal(int generation, string message, double progress, bool isError = false, bool isSuccess = false)
     {
         int epoch = Volatile.Read(ref _deleteEpoch);
         // 终态排到队尾。已经排队的进度先被丢掉，后写入的取消或失败结果不会被盖掉。
@@ -179,9 +200,34 @@ public partial class RemoteFileManagerViewModel
             if (generation != Volatile.Read(ref _deleteGeneration) || epoch != Volatile.Read(ref _deleteEpoch)) return;
             IsDeleting = false;
             IsDeleteScanning = false;
+            IsDeleteError = isError;
+            IsDeleteSuccess = isSuccess;
             DeleteProgress = Math.Clamp(progress, 0, 100);
             DeleteStatusMessage = message;
+            if (isSuccess)
+            {
+                _deleteStatusDismissCts?.Cancel();
+                _deleteStatusDismissCts?.Dispose();
+                var dismissCts = new CancellationTokenSource();
+                _deleteStatusDismissCts = dismissCts;
+                _ = AutoDismissDeleteStatusAsync(generation, epoch, dismissCts.Token);
+            }
         });
+    }
+
+    private async Task AutoDismissDeleteStatusAsync(int generation, int epoch, CancellationToken ct)
+    {
+        try
+        {
+            await Task.Delay(4000, ct);
+            if (ct.IsCancellationRequested || _disposed) return;
+            if (generation == Volatile.Read(ref _deleteGeneration) && epoch == Volatile.Read(ref _deleteEpoch) && !IsDeleting && IsDeleteSuccess)
+            {
+                DeleteStatusMessage = null;
+                IsDeleteSuccess = false;
+            }
+        }
+        catch (OperationCanceledException) { }
     }
 
     private void ReportDeleteProgress(int generation, RemoteFileDeletionProgress value)

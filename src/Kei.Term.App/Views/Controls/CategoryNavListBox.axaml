@@ -3,6 +3,7 @@
              xmlns:controls="using:Kei.Term.App.Views.Controls"
              xmlns:settings="using:Kei.Term.App.ViewModels.Settings"
              xmlns:converters="using:Kei.Term.App.Converters"
+             xmlns:loc="using:Kei.Term.App.Helpers"
              x:Class="Kei.Term.App.Views.Controls.CategoryNavListBox"
              x:DataType="controls:CategoryNavListBox">
 
@@ -70,8 +71,8 @@
                                Foreground="{DynamicResource Kei.Text.Muted}"
                                IsVisible="{Binding IsHeader}"/>
 
-                    <!-- 单行条目呈现（图标 + 标题，去掉副标题） -->
-                    <Grid ColumnDefinitions="16,*" ColumnSpacing="10"
+                    <!-- 单行条目呈现（图标 + 标题 + 脏状态圆点） -->
+                    <Grid ColumnDefinitions="16,*,Auto" ColumnSpacing="10"
                           IsVisible="{Binding !IsHeader}">
                         <Viewbox Grid.Column="0" Width="16" Height="16" Stretch="Uniform" VerticalAlignment="Center">
                             <Grid Width="24" Height="24">
@@ -85,6 +86,12 @@
                                    FontSize="13"
                                    VerticalAlignment="Center"
                                    Foreground="{Binding $parent[ListBoxItem].Foreground}"/>
+                        <Ellipse Grid.Column="2"
+                                 Width="6" Height="6"
+                                 Fill="{DynamicResource Kei.Accent}"
+                                 IsVisible="{Binding HasUnsavedChanges}"
+                                 ToolTip.Tip="{loc:KeiString Settings.UnsavedChanges}"
+                                 VerticalAlignment="Center"/>
                     </Grid>
                 </Panel>
             </DataTemplate>

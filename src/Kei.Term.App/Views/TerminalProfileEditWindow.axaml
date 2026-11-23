@@ -44,7 +44,7 @@
                     BorderThickness="1"
                     CornerRadius="{DynamicResource Kei.Radius.Card}"
                     Padding="14">
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="2,2,4,2">
                     <StackPanel Spacing="14">
                         <!-- 主题名称 -->
                         <StackPanel Spacing="6">
