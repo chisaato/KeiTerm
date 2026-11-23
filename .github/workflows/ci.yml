@@ -35,5 +35,8 @@ jobs:
       - name: 构建解决方案
         run: dotnet build Kei.Term.slnx --no-restore
 
+      - name: 安装 socat（串口 PTY 测试依赖）
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends socat
+
       - name: 运行单元测试
         run: dotnet test tests/Kei.Term.Tests/Kei.Term.Tests.csproj --no-build
