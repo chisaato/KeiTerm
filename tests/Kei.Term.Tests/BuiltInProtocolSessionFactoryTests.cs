@@ -213,13 +213,13 @@ public sealed class BuiltInProtocolSessionFactoryTests
         }
         // SerialPort 持有 TIOCEXCL；释放后由真实 OS 读取保留在 PTY 上的波特率。
         var start = new ProcessStartInfo("stty") { RedirectStandardOutput = true, RedirectStandardError = true };
-        start.ArgumentList.Add("-F"); start.ArgumentList.Add(pty.First); start.ArgumentList.Add("speed");
+        start.ArgumentList.Add("-F"); start.ArgumentList.Add(pty.First); start.ArgumentList.Add("-a");
         using var stty = Process.Start(start)!;
-        string speed = (await stty.StandardOutput.ReadToEndAsync()).Trim();
+        string sttyOutput = await stty.StandardOutput.ReadToEndAsync();
         string error = await stty.StandardError.ReadToEndAsync();
         await stty.WaitForExitAsync();
         Assert.True(stty.ExitCode == 0, error);
-        Assert.Equal("57600", speed);
+        Assert.Contains("speed 57600 baud", sttyOutput);
         // 默认拒绝交互依然能创建并真实打开：已保存绑定不会再次确认。
         await using var next = await fixture.Factory(NullInteractionService.Instance).CreateSessionAsync(config, TransportEngine.BuiltIn);
         await next.ConnectAsync();
