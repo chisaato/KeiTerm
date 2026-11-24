@@ -48,24 +48,52 @@ public partial class KnownHostsManagerViewModel : ViewModelBase
     // 导出目标由窗口层弹保存框提供；返回 null 表示取消
     public Func<Task<string?>>? PickExportPathAsync { get; set; }
 
+    public Func<string, Task<bool>>? ConfirmDeleteAsync { get; set; }
+
+    [ObservableProperty]
+    private bool _isEmpty;
+
+    [ObservableProperty]
+    private bool _isFilterEmpty;
+
+    private bool CanExport() => _all.Count > 0;
+
     public async Task LoadAsync()
     {
-        IReadOnlyList<KnownHostEntry> entries = await _repository.GetAllAsync();
-        _all = entries.Select(e => new KnownHostRowViewModel(e)).ToList();
-        ApplyFilter();
+        try
+        {
+            IReadOnlyList<KnownHostEntry> entries = await _repository.GetAllAsync();
+            _all = entries.Select(e => new KnownHostRowViewModel(e)).ToList();
+            ApplyFilter();
+            ExportCommand.NotifyCanExecuteChanged();
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = Strings.Format("KnownHosts.Error.LoadFailed", ex.Message);
+        }
     }
 
     partial void OnFilterTextChanged(string value) => ApplyFilter();
 
     private void ApplyFilter()
     {
+        Guid? selectedId = SelectedEntry?.Entry.Id;
         string filter = FilterText.Trim();
         IEnumerable<KnownHostRowViewModel> visible = filter.Length == 0
             ? _all
             : _all.Where(row => row.Matches(filter));
         Entries = new ObservableCollection<KnownHostRowViewModel>(visible);
+        if (selectedId != null)
+        {
+            SelectedEntry = Entries.FirstOrDefault(r => r.Entry.Id == selectedId.Value);
+        }
+        IsEmpty = _all.Count == 0;
+        IsFilterEmpty = !IsEmpty && Entries.Count == 0;
         Summary = string.Format(Strings.Get("KnownHosts.Summary"), _all.Count, Entries.Count);
     }
+
+    [RelayCommand]
+    private void ClearFilter() => FilterText = string.Empty;
 
     private bool HasSelection() => SelectedEntry != null;
 
@@ -77,8 +105,20 @@ public partial class KnownHostsManagerViewModel : ViewModelBase
             return;
         }
 
-        await _repository.DeleteAsync(SelectedEntry.Entry.Id);
-        await LoadAsync();
+        if (ConfirmDeleteAsync != null && !await ConfirmDeleteAsync(SelectedEntry.HostDisplay))
+        {
+            return;
+        }
+
+        try
+        {
+            await _repository.DeleteAsync(SelectedEntry.Entry.Id);
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = Strings.Format("KnownHosts.Error.DeleteFailed", ex.Message);
+        }
     }
 
     // 吊销 ⇄ 恢复信任：按 (host, port, key) 幂等写回
@@ -90,44 +130,67 @@ public partial class KnownHostsManagerViewModel : ViewModelBase
             return;
         }
 
-        KnownHostEntry entry = SelectedEntry.Entry;
-        entry.Status = entry.Status == KnownHostStatus.Revoked ? KnownHostStatus.Trusted : KnownHostStatus.Revoked;
-        await _repository.SaveAsync(entry);
-        await LoadAsync();
+        Guid targetId = SelectedEntry.Entry.Id;
+        try
+        {
+            KnownHostEntry entry = SelectedEntry.Entry;
+            entry.Status = entry.Status == KnownHostStatus.Revoked ? KnownHostStatus.Trusted : KnownHostStatus.Revoked;
+            await _repository.SaveAsync(entry);
+            await LoadAsync();
+            SelectedEntry = Entries.FirstOrDefault(r => r.Entry.Id == targetId);
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = Strings.Format("KnownHosts.Error.UpdateStatusFailed", ex.Message);
+        }
     }
 
     [RelayCommand]
     private async Task ImportAsync()
     {
-        string path = ImportPathProvider();
-        if (!File.Exists(path))
+        try
         {
-            StatusMessage = string.Format(Strings.Get("KnownHosts.ImportMissing"), path);
-            return;
-        }
+            string path = ImportPathProvider();
+            if (!File.Exists(path))
+            {
+                StatusMessage = string.Format(Strings.Get("KnownHosts.ImportMissing"), path);
+                return;
+            }
 
-        KnownHostsParseResult parsed = OpenSshKnownHostsParser.Parse(await File.ReadAllTextAsync(path));
-        foreach (KnownHostEntry entry in parsed.Entries)
+            KnownHostsParseResult parsed = OpenSshKnownHostsParser.Parse(await File.ReadAllTextAsync(path));
+            foreach (KnownHostEntry entry in parsed.Entries)
+            {
+                await _repository.SaveAsync(entry);
+            }
+
+            StatusMessage = string.Format(Strings.Get("KnownHosts.ImportResult"), parsed.Entries.Count, parsed.SkippedLines);
+            await LoadAsync();
+        }
+        catch (Exception ex)
         {
-            await _repository.SaveAsync(entry);
+            StatusMessage = Strings.Format("KnownHosts.Error.ImportFailed", ex.Message);
         }
-
-        StatusMessage = string.Format(Strings.Get("KnownHosts.ImportResult"), parsed.Entries.Count, parsed.SkippedLines);
-        await LoadAsync();
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanExport))]
     private async Task ExportAsync()
     {
-        string? path = PickExportPathAsync == null ? null : await PickExportPathAsync();
-        if (string.IsNullOrWhiteSpace(path))
+        try
         {
-            return;
-        }
+            string? path = PickExportPathAsync == null ? null : await PickExportPathAsync();
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return;
+            }
 
-        IReadOnlyList<KnownHostEntry> entries = await _repository.GetAllAsync();
-        await File.WriteAllTextAsync(path, OpenSshKnownHostsWriter.Write(entries));
-        StatusMessage = string.Format(Strings.Get("KnownHosts.ExportResult"), entries.Count, path);
+            IReadOnlyList<KnownHostEntry> entries = await _repository.GetAllAsync();
+            await File.WriteAllTextAsync(path, OpenSshKnownHostsWriter.Write(entries));
+            StatusMessage = string.Format(Strings.Get("KnownHosts.ExportResult"), entries.Count, path);
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = Strings.Format("KnownHosts.Error.ExportFailed", ex.Message);
+        }
     }
 }
 
@@ -165,5 +228,8 @@ public sealed class KnownHostRowViewModel
     public bool Matches(string filter)
         => HostDisplay.Contains(filter, StringComparison.OrdinalIgnoreCase)
            || Fingerprint.Contains(filter, StringComparison.OrdinalIgnoreCase)
+           || KeyType.Contains(filter, StringComparison.OrdinalIgnoreCase)
+           || StatusText.Contains(filter, StringComparison.OrdinalIgnoreCase)
+           || SourceText.Contains(filter, StringComparison.OrdinalIgnoreCase)
            || (Comment?.Contains(filter, StringComparison.OrdinalIgnoreCase) ?? false);
 }

@@ -119,7 +119,7 @@
                 </Grid>
 
                 <!-- 认证项列表 -->
-                <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Disabled">
+                <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Disabled" Padding="2,2,4,2">
                     <ItemsControl ItemsSource="{Binding Methods}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:IdentityMethodRowViewModel">

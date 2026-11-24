@@ -6,7 +6,7 @@
              xmlns:loc="using:Kei.Term.App.Helpers"
              xmlns:dock="using:Dock.Avalonia.Themes.Fluent"
              Name="KeiTerm"
-             RequestedThemeVariant="Default">
+             RequestedThemeVariant="Dark">
              <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
 
     <!-- macOS 应用菜单（Apple 菜单右侧第一项）。

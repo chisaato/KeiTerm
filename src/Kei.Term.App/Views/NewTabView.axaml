@@ -9,9 +9,7 @@
             HorizontalAlignment="Center" VerticalAlignment="Center">
         <StackPanel Spacing="8">
             <TextBlock Text="{loc:KeiString NewTab.Header}" FontSize="14" FontWeight="SemiBold"
-                       Foreground="{DynamicResource Kei.Text.Primary}"/>
-            <TextBlock Text="{loc:KeiString NewTab.Description}" FontSize="12" TextWrapping="Wrap"
-                       Foreground="{DynamicResource Kei.Text.Secondary}" Margin="0,0,0,8"/>
+                       Foreground="{DynamicResource Kei.Text.Primary}" Margin="0,0,0,4"/>
             <Button x:Name="QuickConnectButton" Classes="accent" Command="{Binding QuickConnectCommand}"
                     HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">

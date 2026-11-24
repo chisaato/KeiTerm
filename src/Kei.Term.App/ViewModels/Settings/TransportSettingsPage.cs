@@ -14,16 +14,21 @@ public sealed record TransportEngineOption(TransportEngine Engine, string Displa
 }
 
 // 引擎特性清单项模型
-public sealed record TransportFeatureItem(string FeatureName, string BuiltInSupport, string GoCoreSupport, string Note);
+public sealed record TransportFeatureItem(string FeatureName, string BuiltInSupport, string GoCoreSupport, bool IsGoCoreSupported, string Note);
 
 // 「传输引擎」独立设置页 VM：负责通用底层传输核心管理与通道参数配置
 public partial class TransportSettingsPage : ViewModelBase
 {
     public IReadOnlyList<TransportEngineOption> EngineOptions { get; }
 
+    public bool IsGoCoreBinaryAvailable { get; }
+
+    public bool ShowGoCoreMissingWarning => IsGoCoreSelected && !IsGoCoreBinaryAvailable;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SelectedEngine))]
     [NotifyPropertyChangedFor(nameof(IsGoCoreSelected))]
+    [NotifyPropertyChangedFor(nameof(ShowGoCoreMissingWarning))]
     [NotifyPropertyChangedFor(nameof(CurrentEngineDescription))]
     private TransportEngineOption? _selectedEngineOption;
 
@@ -52,6 +57,7 @@ public partial class TransportSettingsPage : ViewModelBase
 
     public TransportSettingsPage()
     {
+        IsGoCoreBinaryAvailable = Kei.Term.Transport.Go.GoSidecarProcessManager.IsBinaryAvailable();
         EngineOptions =
         [
             new(
@@ -63,7 +69,7 @@ public partial class TransportSettingsPage : ViewModelBase
                 TransportEngine.GoCore,
                 Strings.Get("Settings.Transport.Engine.GoCore"),
                 Strings.Get("Settings.Transport.Engine.GoCoreDesc"),
-                "Beta")
+                Strings.Get("Settings.Transport.Engine.ExperimentalTag"))
         ];
 
         SelectedEngineOption = EngineOptions[0];
@@ -74,22 +80,26 @@ public partial class TransportSettingsPage : ViewModelBase
                 Strings.Get("Settings.Transport.Feature.SshSftp"),
                 Strings.Get("Settings.Transport.Status.Stable"),
                 Strings.Get("Settings.Transport.Status.Supported"),
-                "SSH.NET / Go SSH+SFTP"),
+                true,
+                Strings.Get("Settings.Transport.Note.SshSftp")),
             new(
                 Strings.Get("Settings.Transport.Feature.ConcurrentChunk"),
                 Strings.Get("Settings.Transport.Status.Standard"),
                 Strings.Get("Settings.Transport.Status.Supported"),
-                "Go SFTP"),
+                true,
+                Strings.Get("Settings.Transport.Note.ConcurrentChunk")),
             new(
                 Strings.Get("Settings.Transport.Feature.Fido2"),
                 Strings.Get("Settings.Transport.Status.AgentBridge"),
-                Strings.Get("Settings.Transport.Status.Planned"),
-                "ed25519-sk / ecdsa-sk"),
+                Strings.Get("Settings.Transport.Status.Unsupported"),
+                false,
+                Strings.Get("Settings.Transport.Note.Fido2")),
             new(
                 Strings.Get("Settings.Transport.Feature.ExtendedProtocols"),
                 Strings.Get("Settings.Transport.Status.Supported"),
                 Strings.Get("Settings.Transport.Status.Supported"),
-                "Telnet / Serial")
+                true,
+                Strings.Get("Settings.Transport.Note.ExtendedProtocols"))
         ];
     }
 }

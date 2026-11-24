@@ -12,6 +12,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Kei.Term.App.Helpers;
 using Kei.Term.App.Services;
 using Kei.Term.Core.Abstractions;
 using Kei.Term.Core.Models;
@@ -19,16 +20,40 @@ using Kei.Term.Core.Services;
 using Kei.Term.Core.Settings;
 using Kei.Term.Core.Storage;
 
+public sealed class TrackedWritebackFailure
+{
+    public string RemotePath { get; }
+    public string ErrorMessage { get; }
+    internal LocalFileChangedEventArgs EventArgs { get; }
+
+    internal TrackedWritebackFailure(string remotePath, string errorMessage, LocalFileChangedEventArgs eventArgs)
+    {
+        RemotePath = remotePath;
+        ErrorMessage = errorMessage;
+        EventArgs = eventArgs;
+    }
+}
+
 public partial class RemoteFileManagerViewModel
 {
+    public ObservableCollection<TrackedWritebackFailure> FailedWritebacks { get; } = [];
+
     [RelayCommand]
+    private void RetryWriteback(TrackedWritebackFailure? failure)
+    {
+        if (failure == null || _disposed) return;
+        FailedWritebacks.Remove(failure);
+        StartOperation(() => WriteTrackedFileAsync(failure.EventArgs));
+    }
+
+    [RelayCommand(CanExecute = nameof(CanOperateOnLoadedItems))]
     public async Task EnterOrOpenFileAsync(RemoteFileItem item)
     {
+        if (item == null || !CanOperateOnLoadedItems()) return;
         SelectedItem = item;
         if (item.IsDirectory)
         {
-            CurrentPath = item.FullPath;
-            await RefreshDirectoryAsync();
+            await NavigateToPathAsync(item.FullPath);
         }
         else
         {
@@ -42,7 +67,7 @@ public partial class RemoteFileManagerViewModel
             catch (Exception ex)
             {
                 _logger.LogError(ex, "打开远程文件失败: {Path}", item.FullPath);
-                TransferStatusMessage = $"打开失败: {ex.Message}";
+                ReportOperationError(DescribeFileException(Strings.Format("FileManager.Error.OpenItemFailed", item.Name), ex));
             }
         }
     }
@@ -62,7 +87,7 @@ public partial class RemoteFileManagerViewModel
         catch (Exception ex)
         {
             _logger.LogError(ex, "使用编辑器 {Editor} 打开远程文件失败: {Path}", editor.Name, item.FullPath);
-            TransferStatusMessage = $"打开失败: {ex.Message}";
+            ReportOperationError(DescribeFileException(Strings.Format("FileManager.Error.OpenItemFailed", item.Name), ex));
         }
     }
 
@@ -80,7 +105,7 @@ public partial class RemoteFileManagerViewModel
         catch (Exception ex)
         {
             _logger.LogError(ex, "系统默认程序打开远程文件失败: {Path}", item.FullPath);
-            TransferStatusMessage = $"打开失败: {ex.Message}";
+            ReportOperationError(DescribeFileException(Strings.Format("FileManager.Error.OpenItemFailed", item.Name), ex));
         }
     }
 
@@ -108,7 +133,7 @@ public partial class RemoteFileManagerViewModel
         catch (Exception ex)
         {
             _logger.LogError(ex, "指定程序打开远程文件失败: {Path}", item.FullPath);
-            TransferStatusMessage = $"打开失败: {ex.Message}";
+            ReportOperationError(DescribeFileException(Strings.Format("FileManager.Error.OpenItemFailed", item.Name), ex));
         }
     }
 
@@ -151,6 +176,7 @@ public partial class RemoteFileManagerViewModel
             await _fileTracker.UnregisterTrackedFileAsync(localPath, _lifetimeCts.Token);
             _trackedFileLocalMap.Remove(remotePath);
             ActiveTrackedFiles.Remove(remotePath);
+            RemoveFailedWriteback(remotePath);
             UpdateTrackedStatusMessage();
             // 保留缓存：编辑器可能仍开着，或最后一次回写仍在排队。
             _logger.LogInformation("监视已停止，保留本地缓存: {LocalPath}", localPath);
@@ -158,7 +184,7 @@ public partial class RemoteFileManagerViewModel
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "注销监视文件失败，保留监视与缓存: {RemotePath}", remotePath);
-            TransferStatusMessage = $"停止监视失败: {ex.Message}";
+            ReportOperationError(DescribeFileException(Strings.Get("FileManager.Error.StopWatchingFailed"), ex));
         }
     }
 
@@ -189,6 +215,7 @@ public partial class RemoteFileManagerViewModel
             }
             _logger.LogInformation("File writeback committed: Remote={RemotePath}", e.RemotePath);
 
+            RemoveFailedWriteback(e.RemotePath);
             TransferStatusMessage = $"回写成功: {fileName} ({DateTime.Now:HH:mm:ss})";
             await RefreshDirectoryAsync(ct);
         }
@@ -199,11 +226,31 @@ public partial class RemoteFileManagerViewModel
         catch (Exception ex)
         {
             _logger.LogError(ex, "自动回写远程文件失败: {Path}", e.RemotePath);
-            TransferStatusMessage = $"同步回写失败: {ex.Message}";
+            string errorMsg = DescribeFileException(Strings.Format("FileManager.Error.WritebackFailed", fileName), ex);
+            RecordFailedWriteback(e.RemotePath, errorMsg, e);
+            ReportOperationError(errorMsg);
         }
         finally
         {
             if (entered) _writeBackGate.Release();
+        }
+    }
+
+    private void RecordFailedWriteback(string remotePath, string errorMsg, LocalFileChangedEventArgs e)
+    {
+        RemoveFailedWriteback(remotePath);
+        FailedWritebacks.Add(new TrackedWritebackFailure(remotePath, errorMsg, e));
+        ShowFileActivities(1);
+    }
+
+    private void RemoveFailedWriteback(string remotePath)
+    {
+        for (int i = FailedWritebacks.Count - 1; i >= 0; i--)
+        {
+            if (string.Equals(FailedWritebacks[i].RemotePath, remotePath, StringComparison.Ordinal))
+            {
+                FailedWritebacks.RemoveAt(i);
+            }
         }
     }
 }

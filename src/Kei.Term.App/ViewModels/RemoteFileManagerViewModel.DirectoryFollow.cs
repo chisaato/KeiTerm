@@ -29,8 +29,7 @@ public partial class RemoteFileManagerViewModel
         if (_disposed || !TerminalDirectoryTracker.IsValidDirectory(directory)) return false;
         ct.ThrowIfCancellationRequested();
         if (CurrentPath == directory && _loadedDirectoryPath == directory) return true;
-        CurrentPath = directory;
-        await RefreshDirectoryAsync(ct);
+        await NavigateToPathAsync(directory, ct);
         return !ct.IsCancellationRequested && CurrentPath == directory && _loadedDirectoryPath == directory;
     }
 }

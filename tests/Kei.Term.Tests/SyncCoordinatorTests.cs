@@ -32,7 +32,7 @@ public sealed class SyncCoordinatorTests : IDisposable
         await vault.SetMasterPasswordAsync("vault-password");
         await vault.SavePassphraseAsync(Passphrase.AsMemory());
         var store = new SqliteSyncSnapshotStore(db);
-        return new DeviceFixture(db, tree, vault, device, store, new SyncCoordinator(store, new AgeSyncPackage(), vault, device, vault));
+        return new DeviceFixture(db, tree, vault, device, store, new SyncCoordinator(store, new AgeSyncPackage(10), vault, device, vault));
     }
 
     // 往返/并发用例模拟用户选择合并及确认精确预览；无交互门禁由 Safety 用例独立验证。
@@ -180,7 +180,7 @@ public sealed class SyncCoordinatorTests : IDisposable
         await a.Tree.SaveNodeAsync(nodeA);
         await b.Tree.SaveNodeAsync(nodeB);
         var bSnapshot = new SyncSnapshot(1, b.Device.EnsureCreated(), DateTime.UtcNow, await b.Store.ExportAsync());
-        byte[] otherBytes = new AgeSyncPackage().Encrypt(JsonSerializer.SerializeToUtf8Bytes(bSnapshot), Passphrase);
+        byte[] otherBytes = new AgeSyncPackage(10).Encrypt(JsonSerializer.SerializeToUtf8Bytes(bSnapshot), Passphrase);
         var racing = new RacingLocation(Location, otherBytes, conditional, always: false);
         Assert.True((await SyncConfirmedAsync(a.Coordinator, racing)).Success);
         Assert.True(racing.WriteCount >= 2);
@@ -201,7 +201,7 @@ public sealed class SyncCoordinatorTests : IDisposable
         Assert.True((await SyncConfirmedAsync(a.Coordinator, Location)).Success);
         node.Name = "A-edited";
         await a.Tree.SaveNodeAsync(node);
-        var racing = new RacingLocation(Location, new AgeSyncPackage().Encrypt(
+        var racing = new RacingLocation(Location, new AgeSyncPackage(10).Encrypt(
             JsonSerializer.SerializeToUtf8Bytes(new SyncSnapshot(1, b.Device.EnsureCreated(), DateTime.UtcNow, [])), Passphrase), false, always: true);
         var result = await a.Coordinator.SyncAsync(racing);
         Assert.False(result.Success);
@@ -215,7 +215,7 @@ public sealed class SyncCoordinatorTests : IDisposable
     {
         var a = await CreateDeviceAsync("a");
         await a.Tree.SaveNodeAsync(new FolderNode { Name = "local" });
-        await Location.WriteAsync(new AgeSyncPackage().Encrypt(JsonSerializer.SerializeToUtf8Bytes(
+        await Location.WriteAsync(new AgeSyncPackage(10).Encrypt(JsonSerializer.SerializeToUtf8Bytes(
             new SyncSnapshot(999, "future", DateTime.UtcNow, [])), Passphrase));
         var result = await a.Coordinator.SyncAsync(Location);
         Assert.False(result.Success);
@@ -246,7 +246,7 @@ public sealed class SyncCoordinatorTests : IDisposable
     {
         var a = await CreateDeviceAsync("a");
         await a.Tree.SaveNodeAsync(new FolderNode { Name = "local" });
-        byte[] valid = new AgeSyncPackage().Encrypt(JsonSerializer.SerializeToUtf8Bytes(
+        byte[] valid = new AgeSyncPackage(10).Encrypt(JsonSerializer.SerializeToUtf8Bytes(
             new SyncSnapshot(1, "remote", DateTime.UtcNow, [])), Passphrase);
         await Location.WriteAsync(valid[..^8]);
         string before = JsonSerializer.Serialize(await a.Store.ExportAsync());

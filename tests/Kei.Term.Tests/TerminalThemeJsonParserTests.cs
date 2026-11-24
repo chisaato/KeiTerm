@@ -56,30 +56,27 @@ public class TerminalThemeJsonParserTests
         Assert.Equal("#5004A1B2", profile.SelectionBackground);
     }
 
-    [Theory]
-    [InlineData("background")]
-    [InlineData("foreground")]
-    [InlineData("ansi")]
-    public void Parse_MissingRequiredColor_RejectsWithoutProvidingAnImportableProfile(string property)
+    [Fact]
+    public void Parse_MissingRequiredColor_RejectsWithoutProvidingAnImportableProfile()
     {
-        JsonObject document = Document();
-        document["colors"]!.AsObject().Remove(property);
-        TerminalThemeJsonParseResult result = TerminalThemeJsonParser.Parse(document.ToJsonString());
-        AssertIssue(result, "$.colors." + property, TerminalThemeJsonError.MissingProperty);
+        foreach (string property in new[] { "background", "foreground", "ansi" })
+        {
+            JsonObject document = Document();
+            document["colors"]!.AsObject().Remove(property);
+            TerminalThemeJsonParseResult result = TerminalThemeJsonParser.Parse(document.ToJsonString());
+            AssertIssue(result, "$.colors." + property, TerminalThemeJsonError.MissingProperty);
+        }
     }
 
-    [Theory]
-    [InlineData("#fff")]
-    [InlineData("#12345G")]
-    [InlineData("red")]
-    [InlineData(" #123456")]
-    [InlineData("")]
-    [InlineData(null)]
-    public void Parse_InvalidBaseColor_ReportsTheExactField(string? color)
+    [Fact]
+    public void Parse_InvalidBaseColor_ReportsTheExactField()
     {
-        JsonObject document = Document();
-        document["colors"]!["foreground"] = color;
-        AssertIssue(TerminalThemeJsonParser.Parse(document.ToJsonString()), "$.colors.foreground", TerminalThemeJsonError.InvalidColor);
+        foreach (string? color in new string?[] { "#fff", "#12345G", "red", " #123456", "", null })
+        {
+            JsonObject document = Document();
+            document["colors"]!["foreground"] = color;
+            AssertIssue(TerminalThemeJsonParser.Parse(document.ToJsonString()), "$.colors.foreground", TerminalThemeJsonError.InvalidColor);
+        }
     }
 
     [Fact]
@@ -90,15 +87,15 @@ public class TerminalThemeJsonParserTests
         AssertIssue(TerminalThemeJsonParser.Parse(document.ToJsonString()), "$.colors.cursor", TerminalThemeJsonError.InvalidColor);
     }
 
-    [Theory]
-    [InlineData(0)]
-    [InlineData(15)]
-    [InlineData(17)]
-    public void Parse_AnsiCountMustBeExactlySixteen(int count)
+    [Fact]
+    public void Parse_AnsiCountMustBeExactlySixteen()
     {
-        JsonObject document = Document();
-        document["colors"]!["ansi"] = JsonSerializer.SerializeToNode(Enumerable.Repeat("#123456", count));
-        AssertIssue(TerminalThemeJsonParser.Parse(document.ToJsonString()), "$.colors.ansi", TerminalThemeJsonError.InvalidAnsiColors);
+        foreach (int count in new[] { 0, 15, 17 })
+        {
+            JsonObject document = Document();
+            document["colors"]!["ansi"] = JsonSerializer.SerializeToNode(Enumerable.Repeat("#123456", count));
+            AssertIssue(TerminalThemeJsonParser.Parse(document.ToJsonString()), "$.colors.ansi", TerminalThemeJsonError.InvalidAnsiColors);
+        }
     }
 
     [Fact]
@@ -141,34 +138,33 @@ public class TerminalThemeJsonParserTests
         Assert.Equal(2, formatted.RootElement.GetProperty("colors").EnumerateObject().Count(property => property.Name == "background"));
     }
 
-    [Theory]
-    [InlineData("2")]
-    [InlineData("\"1\"")]
-    [InlineData("null")]
-    [InlineData("true")]
-    [InlineData("1.5")]
-    public void Parse_UnsupportedSchemaVersion_IsRejected(string version)
+    [Fact]
+    public void Parse_UnsupportedSchemaVersion_IsRejected()
     {
-        string json = ValidJson.Replace("\"schemaVersion\":1", "\"schemaVersion\":" + version);
-        AssertIssue(TerminalThemeJsonParser.Parse(json), "$.schemaVersion", TerminalThemeJsonError.UnsupportedSchemaVersion);
+        foreach (string version in new[] { "2", "\"1\"", "null", "true", "1.5" })
+        {
+            string json = ValidJson.Replace("\"schemaVersion\":1", "\"schemaVersion\":" + version);
+            AssertIssue(TerminalThemeJsonParser.Parse(json), "$.schemaVersion", TerminalThemeJsonError.UnsupportedSchemaVersion);
+        }
     }
 
-    [Theory]
-    [InlineData("schemaVersion")]
-    [InlineData("colors")]
-    public void Parse_MissingTopLevelProperty_IsRejected(string property)
+    [Fact]
+    public void Parse_MissingTopLevelProperty_IsRejected()
     {
-        JsonObject document = Document();
-        document.Remove(property);
-        AssertIssue(TerminalThemeJsonParser.Parse(document.ToJsonString()), "$." + property, TerminalThemeJsonError.MissingProperty);
+        foreach (string property in new[] { "schemaVersion", "colors" })
+        {
+            JsonObject document = Document();
+            document.Remove(property);
+            AssertIssue(TerminalThemeJsonParser.Parse(document.ToJsonString()), "$." + property, TerminalThemeJsonError.MissingProperty);
+        }
     }
 
-    [Theory]
-    [InlineData("[]")]
-    [InlineData("null")]
-    [InlineData("42")]
-    public void Parse_RootMustBeAnObject(string json)
-        => AssertIssue(TerminalThemeJsonParser.Parse(json), "$", TerminalThemeJsonError.ExpectedObject);
+    [Fact]
+    public void Parse_RootMustBeAnObject()
+    {
+        foreach (string json in new[] { "[]", "null", "42" })
+            AssertIssue(TerminalThemeJsonParser.Parse(json), "$", TerminalThemeJsonError.ExpectedObject);
+    }
 
     [Fact]
     public void Parse_NameOverrideSupportsRenamingAndMissingJsonNames()
@@ -181,17 +177,15 @@ public class TerminalThemeJsonParserTests
         AssertIssue(TerminalThemeJsonParser.Parse(document.ToJsonString()), "$.name", TerminalThemeJsonError.InvalidName);
     }
 
-    [Theory]
-    [InlineData("")]
-    [InlineData("   ")]
-    [InlineData("broken\nname")]
-    [InlineData("name\n")]
-    [InlineData("\tname")]
-    public void Parse_InvalidNames_AreRejected(string name)
+    [Fact]
+    public void Parse_InvalidNames_AreRejected()
     {
-        JsonObject document = Document();
-        document["name"] = name;
-        AssertIssue(TerminalThemeJsonParser.Parse(document.ToJsonString()), "$.name", TerminalThemeJsonError.InvalidName);
+        foreach (string name in new[] { "", "   ", "broken\nname", "name\n", "\tname" })
+        {
+            JsonObject document = Document();
+            document["name"] = name;
+            AssertIssue(TerminalThemeJsonParser.Parse(document.ToJsonString()), "$.name", TerminalThemeJsonError.InvalidName);
+        }
     }
 
     [Fact]
@@ -215,12 +209,12 @@ public class TerminalThemeJsonParserTests
         Assert.Null(result.Profile);
     }
 
-    [Theory]
-    [InlineData("{")]
-    [InlineData("{\"schemaVersion\":1,}")]
-    [InlineData("{/* comment */}")]
-    public void Parse_OnlyAcceptsStrictJson(string json)
-        => AssertIssue(TerminalThemeJsonParser.Parse(json), "$", TerminalThemeJsonError.InvalidJson);
+    [Fact]
+    public void Parse_OnlyAcceptsStrictJson()
+    {
+        foreach (string json in new[] { "{", "{\"schemaVersion\":1,}", "{/* comment */}" })
+            AssertIssue(TerminalThemeJsonParser.Parse(json), "$", TerminalThemeJsonError.InvalidJson);
+    }
 
     [Fact]
     public void Parse_EnforcesUtf8SizeLimit_ForAsciiAndMultibyteText()
@@ -238,11 +232,12 @@ public class TerminalThemeJsonParserTests
         AssertIssue(TerminalThemeJsonParser.Parse(nested), "$", TerminalThemeJsonError.InvalidJson);
     }
 
-    [Theory]
-    [InlineData("bad\nname")]
-    [InlineData("name\t")]
-    public void Parse_ControlCharactersInNameOverride_AreRejected(string name)
-        => AssertIssue(TerminalThemeJsonParser.Parse(ValidJson, name), "$.name", TerminalThemeJsonError.InvalidName);
+    [Fact]
+    public void Parse_ControlCharactersInNameOverride_AreRejected()
+    {
+        foreach (string name in new[] { "bad\nname", "name\t" })
+            AssertIssue(TerminalThemeJsonParser.Parse(ValidJson, name), "$.name", TerminalThemeJsonError.InvalidName);
+    }
 
     [Fact]
     public void CreateLlmPrompt_ContainsImportableExampleAndEscapesUserProvidedNames()

@@ -37,13 +37,13 @@ public partial class RemoteFileManagerViewModel
             if (input == null) return;
             if (!TryNormalizeName(input, out string name))
             {
-                TransferStatusMessage = Strings.Get("FileManager.InvalidName");
+                ReportOperationError(Strings.Get("FileManager.InvalidName"));
                 return;
             }
             string path = JoinRemotePath(parent, name);
             if (await _fileSystem.GetAttributesAsync(path) != null)
             {
-                TransferStatusMessage = Strings.Get("FileManager.TargetExists");
+                ReportOperationError(Strings.Get("FileManager.TargetExists"));
                 return;
             }
             if (directory) await _fileSystem.CreateDirectoryAsync(path);
@@ -57,10 +57,10 @@ public partial class RemoteFileManagerViewModel
         catch (Exception ex) { ReportOperationFailure(ex); }
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanOperateOnLoadedItems))]
     public async Task RenameItemAsync(RemoteFileItem? item)
     {
-        if (item == null || item.Name == ".." || SelectedItems.Count > 1) return;
+        if (item == null || item.Name == ".." || SelectedItems.Count > 1 || !CanOperateOnLoadedItems()) return;
         try
         {
             string? input = await (_interaction ?? NullInteractionService.Instance).PromptTextAsync(
@@ -68,7 +68,7 @@ public partial class RemoteFileManagerViewModel
             if (input == null) return;
             if (!TryNormalizeName(input, out string name))
             {
-                TransferStatusMessage = Strings.Get("FileManager.InvalidName");
+                ReportOperationError(Strings.Get("FileManager.InvalidName"));
                 return;
             }
             if (name == item.Name) return;
@@ -76,7 +76,7 @@ public partial class RemoteFileManagerViewModel
             string path = JoinRemotePath(item.FullPath[..Math.Max(separator, 0)], name);
             if (await _fileSystem.GetAttributesAsync(path) != null)
             {
-                TransferStatusMessage = Strings.Get("FileManager.TargetExists");
+                ReportOperationError(Strings.Get("FileManager.TargetExists"));
                 return;
             }
             await _fileSystem.RenameAsync(item.FullPath, path);
@@ -99,6 +99,6 @@ public partial class RemoteFileManagerViewModel
     private void ReportOperationFailure(Exception ex)
     {
         _logger.LogError(ex, "Remote file operation failed");
-        TransferStatusMessage = string.Format(Strings.Get("FileManager.OperationFailed"), ex.Message);
+        ReportOperationError(DescribeFileException(Strings.Get("FileManager.Error.OperationFailedPrefix"), ex));
     }
 }

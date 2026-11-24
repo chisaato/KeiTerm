@@ -559,7 +559,7 @@ public class RemoteFileManagerLayoutTests
             window.MouseUp(end, MouseButton.Left);
             HeadlessAvalonia.Pump();
             Assert.True(panel.Bounds.Height > initialHeight + 40, "手动上拖应能扩大活动栏");
-            Assert.True(layout.RowDefinitions[2].ActualHeight >= 96);
+            Assert.True(layout.RowDefinitions[3].ActualHeight >= 96);
             double manualHeight = panel.Bounds.Height;
             Click(window, view.FindControl<TabItem>("TransferActivityTab")!);
             Assert.Equal(manualHeight, panel.Bounds.Height, precision: 1);
@@ -568,9 +568,9 @@ public class RemoteFileManagerLayoutTests
             window.Height = 450;
             HeadlessAvalonia.Pump();
             Assert.True(panel.Bounds.Height < manualHeight);
-            Assert.True(layout.RowDefinitions[2].ActualHeight >= 96);
+            Assert.True(layout.RowDefinitions[3].ActualHeight >= 96);
             Click(window, view.FindControl<Button>("CollapseFileActivityButton")!);
-            Assert.Equal(0, layout.RowDefinitions[4].ActualHeight);
+            Assert.Equal(0, layout.RowDefinitions[5].ActualHeight);
             Assert.False(splitter.IsVisible);
             Click(window, view.FindControl<Button>("FileActivityToggleButton")!);
             window.Height = 900;

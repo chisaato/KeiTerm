@@ -213,8 +213,8 @@ public class SessionEditViewModelTests
         await vm.LoadProbeResultAsync();
         Assert.True(vm.HasProbeResult);
         Assert.Contains("Linux", vm.ProbePlatformText);
-        Assert.Contains("Sha256", vm.ProbeHashesText);
-        Assert.Contains("Gzip", vm.ProbeArchivesText);
+        Assert.Contains("SHA-256", vm.ProbeHashesText);
+        Assert.Contains("tar.gz", vm.ProbeArchivesText);
         Assert.True(vm.CanClearProbe);
 
         await vm.ClearProbeCommand.ExecuteAsync(null);

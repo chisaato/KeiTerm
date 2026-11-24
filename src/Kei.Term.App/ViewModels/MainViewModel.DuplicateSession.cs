@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.Input;
 using Kei.Term.App.Helpers;
 using Kei.Term.App.Logging;
 using Kei.Term.App.Models;
+using Kei.Term.Core.Abstractions;
 using Kei.Term.Core.Models;
 using Kei.Term.Core.Services;
 
@@ -27,8 +28,20 @@ public partial class MainViewModel
 
         SessionNode copy = (SessionNode)TreeNodeCloner.DeepClone(source);
         copy.Name = promptResult.Name;
-        copy.Host = promptResult.Hostname;
-        copy.Port = promptResult.Port;
+        if (string.Equals(source.Protocol, SessionProtocols.Serial, StringComparison.OrdinalIgnoreCase))
+        {
+            if (!string.IsNullOrWhiteSpace(promptResult.SerialPortName))
+            {
+                copy.Overrides.Serial = copy.Overrides.Serial == null
+                    ? new SerialOptions { PortName = promptResult.SerialPortName }
+                    : copy.Overrides.Serial with { PortName = promptResult.SerialPortName };
+            }
+        }
+        else
+        {
+            copy.Host = promptResult.Hostname;
+            copy.Port = promptResult.Port;
+        }
         copy.SortOrder = _allNodesCache.Where(node => node.ParentId == source.ParentId).Select(node => node.SortOrder).DefaultIfEmpty(0).Max() + 1;
 
         // 身份只复用原引用；独立的端口转发记录必须换 Id，避免编辑副本影响原会话。

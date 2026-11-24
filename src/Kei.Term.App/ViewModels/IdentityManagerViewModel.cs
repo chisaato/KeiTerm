@@ -176,6 +176,9 @@ public partial class IdentityManagerViewModel : ViewModelBase
         await _secretStore.DeleteSecretsAsync(id);
         await _repo.DeleteAsync(id);
         await LoadAsync();
+    }, async (op, ex) =>
+    {
+        await Interaction.NotifyAsync(Strings.Format("Common.OperationFailedTitle", op), ex.Message, NotificationLevel.Error);
     });
 
     [RelayCommand(CanExecute = nameof(CanLockVault))]

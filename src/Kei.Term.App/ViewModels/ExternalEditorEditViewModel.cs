@@ -27,7 +27,7 @@ public partial class ExternalEditorEditViewModel : ViewModelBase
     }
 
     public string Title { get; }
-    public IReadOnlyList<string> SupportedOsList { get; } = ["macos", "windows", "linux", "any", "android"];
+    public IReadOnlyList<string> SupportedOsList { get; } = ["macos", "windows", "linux", "any"];
     public bool CanBrowse => string.Equals(SelectedOs, PlatformHelper.CurrentOs, StringComparison.OrdinalIgnoreCase) || SelectedOs == "any";
     public ExternalEditor? Result { get; private set; }
     public bool IsConfirmed => Result != null;

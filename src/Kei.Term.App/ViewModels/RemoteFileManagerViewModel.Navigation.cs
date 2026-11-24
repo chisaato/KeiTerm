@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Input;
+using Kei.Term.App.Helpers;
 using Kei.Term.Core.Models;
 using Microsoft.Extensions.Logging;
 
@@ -12,6 +13,44 @@ public partial class RemoteFileManagerViewModel
 {
     private CancellationTokenSource? _directoryRefreshCancellation;
     private string? _loadedDirectoryPath;
+    private string? _pendingNavigationPath;
+
+    internal bool CanOperateOnLoadedItems()
+        => !IsLoading && _pendingNavigationPath == null && (_loadedDirectoryPath == null || _loadedDirectoryPath == CurrentPath);
+
+    private void NotifyItemActionCanExecuteChanged()
+    {
+        DeleteItemCommand.NotifyCanExecuteChanged();
+        RenameItemCommand.NotifyCanExecuteChanged();
+        DownloadCommand.NotifyCanExecuteChanged();
+        DownloadToCommand.NotifyCanExecuteChanged();
+        EnterOrOpenFileCommand.NotifyCanExecuteChanged();
+    }
+
+    [RelayCommand]
+    public Task NavigateToAddressAsync()
+    {
+        string target = string.IsNullOrWhiteSpace(AddressBarPath) ? "/" : AddressBarPath.Trim();
+        return NavigateToPathAsync(target);
+    }
+
+    public Task NavigateToPathAsync(string targetPath, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(targetPath)) return Task.CompletedTask;
+        string normalized = targetPath.Trim();
+        lock (_operationLock)
+        {
+            if (_disposed) return Task.CompletedTask;
+            _directoryRefreshCancellation?.Cancel();
+            CancellationTokenSource cancellation = CancellationTokenSource.CreateLinkedTokenSource(ct, _lifetimeCts.Token);
+            _directoryRefreshCancellation = cancellation;
+            _pendingNavigationPath = normalized;
+            Task operation = RefreshDirectoryCoreAsync(normalized, cancellation, commitPathOnSuccess: true);
+            _operations.Add(operation);
+            _ = ObserveOperationAsync(operation);
+            return operation;
+        }
+    }
 
     [RelayCommand]
     public Task RefreshDirectoryAsync(CancellationToken ct = default)
@@ -22,7 +61,8 @@ public partial class RemoteFileManagerViewModel
             _directoryRefreshCancellation?.Cancel();
             CancellationTokenSource cancellation = CancellationTokenSource.CreateLinkedTokenSource(ct, _lifetimeCts.Token);
             _directoryRefreshCancellation = cancellation;
-            Task operation = RefreshDirectoryCoreAsync(CurrentPath, cancellation);
+            _pendingNavigationPath = null;
+            Task operation = RefreshDirectoryCoreAsync(CurrentPath, cancellation, commitPathOnSuccess: false);
             // 关闭时也排空列目录请求，保证文件通道不会在请求执行中被释放。
             _operations.Add(operation);
             _ = ObserveOperationAsync(operation);
@@ -30,7 +70,7 @@ public partial class RemoteFileManagerViewModel
         }
     }
 
-    private async Task RefreshDirectoryCoreAsync(string path, CancellationTokenSource cancellation)
+    private async Task RefreshDirectoryCoreAsync(string path, CancellationTokenSource cancellation, bool commitPathOnSuccess)
     {
         CancellationToken ct = cancellation.Token;
         try
@@ -38,7 +78,15 @@ public partial class RemoteFileManagerViewModel
             IsLoading = true;
             var list = await _fileSystem.ListDirectoryAsync(path, ct);
             ct.ThrowIfCancellationRequested();
-            if (_disposed || CurrentPath != path) return;
+            if (_disposed) return;
+            if (!commitPathOnSuccess && CurrentPath != path) return;
+
+            if (commitPathOnSuccess)
+            {
+                _pendingNavigationPath = null;
+                CurrentPath = path;
+                AddressBarPath = path;
+            }
 
             Items.Clear();
             if (path != "/")
@@ -53,6 +101,7 @@ public partial class RemoteFileManagerViewModel
                 .ThenBy(item => item.Name, StringComparer.OrdinalIgnoreCase);
             foreach (RemoteFileItem item in sorted) Items.Add(item);
             _loadedDirectoryPath = path;
+            ClearOperationError();
 
             if (DirectoryTreeRoots.Count > 0)
             {
@@ -72,15 +121,23 @@ public partial class RemoteFileManagerViewModel
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
         catch (Exception ex)
         {
-            if (ct.IsCancellationRequested || _disposed || CurrentPath != path) return;
+            if (ct.IsCancellationRequested || _disposed) return;
+            if (!commitPathOnSuccess && CurrentPath != path) return;
             _logger.LogError(ex, "刷新目录失败: {Path}", path);
-            TransferStatusMessage = $"刷新失败: {ex.Message}";
+            ReportOperationError(
+                DescribeFileException(
+                    commitPathOnSuccess
+                        ? Strings.Format("FileManager.Error.OpenDirectoryFailed", path)
+                        : Strings.Get("FileManager.Error.RefreshFailed"),
+                    ex),
+                retryPath: path);
         }
         finally
         {
             if (ReferenceEquals(_directoryRefreshCancellation, cancellation))
             {
                 _directoryRefreshCancellation = null;
+                _pendingNavigationPath = null;
                 IsLoading = false;
             }
             cancellation.Dispose();
@@ -118,6 +175,7 @@ public partial class RemoteFileManagerViewModel
         catch (Exception ex)
         {
             _logger.LogError(ex, "刷新目录树失败");
+            ReportOperationError(DescribeFileException(Strings.Get("FileManager.Error.RefreshTreeFailed"), ex));
         }
     }
 }

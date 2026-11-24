@@ -100,7 +100,8 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
     [ObservableProperty]
     private bool? _isRtsEnabled;
 
-    public bool CanToggleRts => IsSerialSession && _sessionAttachment?.Session is ISerialControl { CanSetRts: true };
+    public bool CanSendSerialControl => IsSerialSession && State == ConnectionState.Connected;
+    public bool CanToggleRts => CanSendSerialControl && _sessionAttachment?.Session is ISerialControl { CanSetRts: true };
     public string RtsToolTip => IsHardwareFlowControl ? Strings.Get("SessionEdit.Serial.RtsConflict") : Strings.Get("Terminal.Serial.RtsTip");
 
     // 文件管理侧栏停靠在左侧（false 为右侧，true 为左侧）
@@ -266,15 +267,19 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         // 结旧：仅释放端点订阅，不断开状态机（重试场景由调用方先 Detach）
         UnsubscribeSessionEvents();
         _endpoint?.Dispose();
-        Terminal.DetachEndpoint();
+        _endpoint = null;
+        _terminal?.DetachEndpoint();
 
         _session = session;
         _userDisconnect = false;
         HasFileSystem = session.Capabilities.HasFileSystem;
         _connectionDropAction = null;
         ResetDirectoryFollow();
-        _endpoint = new TerminalSessionEndpoint(session, Terminal);
-        Terminal.AttachEndpoint(_endpoint);
+        if (TerminalIfOnUiThread is { } terminal)
+        {
+            _endpoint = new TerminalSessionEndpoint(session, terminal);
+            terminal.AttachEndpoint(_endpoint);
+        }
         var attachment = new SessionAttachment(session);
         attachment.DisconnectedHandler = error => OnSessionDisconnected(attachment, error);
         attachment.OutputHandler = data => OnSessionOutput(attachment, data);
@@ -302,6 +307,11 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         _reconnectAttempt = 0;
         _userDisconnect = false;
         ScheduleDirectoryFollow();
+        OnPropertyChanged(nameof(CanSendSerialControl));
+        OnPropertyChanged(nameof(CanToggleRts));
+        SendBreakCommand.NotifyCanExecuteChanged();
+        ToggleDtrCommand.NotifyCanExecuteChanged();
+        ToggleRtsCommand.NotifyCanExecuteChanged();
         _logger.LogInformation("终端标签已连接 标题={Title}", Title);
         TrySyncTerminalSize();
         if (IsSelected)
@@ -310,7 +320,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         }
     }
 
-    // 会话已连上，但端口转发有条目没起来。保持 Connected，只写状态。
+    // 会话已连上，但端口转发有条目没起来。保持 Connected，并在终端与状态写入可见警告。
     public void ReportWarning(string message)
     {
         if (State != ConnectionState.Error)
@@ -319,6 +329,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         }
 
         StatusMessage = message;
+        TerminalIfOnUiThread?.WriteOutput(Encoding.UTF8.GetBytes($"\r\n\x1b[33m⚠ {message}\x1b[0m\r\n"));
         _logger.LogWarning("终端标签提示 标题={Title} 原因={Reason}", Title, message);
     }
 
@@ -326,7 +337,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
     public void WriteLocalStatus(string message)
     {
         StatusMessage = message;
-        Terminal.WriteOutput(Encoding.UTF8.GetBytes($"\r\n\x1b[90m{message}\x1b[0m\r\n"));
+        TerminalIfOnUiThread?.WriteOutput(Encoding.UTF8.GetBytes($"\r\n\x1b[90m{message}\x1b[0m\r\n"));
     }
 
     // 连接失败：状态置错并在终端输出红字（UI 线程）
@@ -336,10 +347,10 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         StatusMessage = message;
         // 尚无远端内容时错误页从第一行开始；已有会话历史则继续追加，避免覆盖用户输出。
         string position = _hasRemoteOutput ? "\r\n" : "\x1b[2J\x1b[H";
-        Terminal.WriteOutput(Encoding.UTF8.GetBytes(
+        TerminalIfOnUiThread?.WriteOutput(Encoding.UTF8.GetBytes(
             $"{position}\x1b[31m{Strings.Get("Main.Tab.ConnectErrorPrefix")}{message}\x1b[0m\r\n"
             + $"\x1b[90m{Strings.Get("Main.Tab.PressEnterToReconnect")}\x1b[0m\r\n"));
-        if (IsSelected) Terminal.Focus();
+        if (IsSelected) TerminalIfOnUiThread?.Focus();
         _logger.LogWarning("终端标签连接失败 标题={Title} 原因={Reason}", Title, message);
     }
 
@@ -449,7 +460,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         Dispatcher.UIThread.Post(() => TrySyncTerminalSize(), DispatcherPriority.Render);
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanSendSerialControl))]
     public async Task SendBreakAsync()
     {
         if (_sessionAttachment is not { Session: ISerialControl serial } attachment) return;
@@ -467,7 +478,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         }
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanSendSerialControl))]
     public async Task ToggleDtrAsync()
     {
         if (_sessionAttachment is not { Session: ISerialControl serial } attachment) return;
@@ -480,7 +491,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         catch (Exception ex) { ReportSerialControlFailure(attachment, "DTR", ex); }
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanToggleRts))]
     public async Task ToggleRtsAsync()
     {
         if (_sessionAttachment is not { Session: ISerialControl { CanSetRts: true } serial } attachment) return;
@@ -497,7 +508,11 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
     {
         _logger.LogWarning(error, "串口可选控制失败 操作={Operation}", operation);
         if (IsCurrentAttachment(attachment) && Volatile.Read(ref attachment.Disconnected) == 0)
-            StatusMessage = $"{operation} 操作失败：{error.Message}";
+        {
+            string message = Strings.Format("Terminal.Serial.ControlFailedFormat", operation, error.Message);
+            StatusMessage = message;
+            TerminalIfOnUiThread?.WriteOutput(Encoding.UTF8.GetBytes($"\r\n\x1b[33m⚠ {message}\x1b[0m\r\n"));
+        }
     }
 
     [RelayCommand]
@@ -574,7 +589,7 @@ public partial class TerminalTabViewModel : ViewModelBase, IAsyncDisposable
         RemoteTitle = null;
         State = ConnectionState.Connecting;
         StatusMessage = null;
-        Terminal.WriteOutput(Encoding.UTF8.GetBytes($"\r\n\x1b[90m{Strings.Get("Main.Tab.Reconnecting")}\x1b[0m\r\n"));
+        TerminalIfOnUiThread?.WriteOutput(Encoding.UTF8.GetBytes($"\r\n\x1b[90m{Strings.Get("Main.Tab.Reconnecting")}\x1b[0m\r\n"));
     }
 
     public async ValueTask DisposeAsync()

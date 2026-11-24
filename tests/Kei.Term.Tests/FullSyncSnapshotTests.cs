@@ -57,7 +57,7 @@ public sealed partial class FullSyncSnapshotTests : IDisposable
             await settings.ReloadSynchronizedAsync();
             await profiles.ReloadSynchronizedAsync();
         };
-        return new(dir, db, vault, tree, settings, profiles, store, new(store, new AgeSyncPackage(), vault, id, vault));
+        return new(dir, db, vault, tree, settings, profiles, store, new(store, new AgeSyncPackage(10), vault, id, vault));
     }
 
     private async Task SyncAsync(Device device)
@@ -231,7 +231,7 @@ public sealed partial class FullSyncSnapshotTests : IDisposable
         await SyncAsync(b);
         await SyncAsync(a);
         Assert.True((await a.Tree.GetNodeByIdAsync(folder.Id))!.IsExpanded);
-        var bytes = new AgeSyncPackage().Decrypt((await Location.ReadAsync())!.Content, Passphrase);
+        var bytes = new AgeSyncPackage(10).Decrypt((await Location.ReadAsync())!.Content, Passphrase);
         string plain = Encoding.UTF8.GetString(bytes);
         Assert.DoesNotContain("local-a-secret", plain);
         Assert.DoesNotContain("local-b-secret", plain);
@@ -416,7 +416,7 @@ public sealed partial class FullSyncSnapshotTests : IDisposable
         await SyncAsync(a);
         await SyncAsync(b);
         // 模拟更高版本写入未知设置、未知 profiles 偏好以及带新增列的数据库实体。
-        var remotePackage = new AgeSyncPackage();
+        var remotePackage = new AgeSyncPackage(10);
         var remoteSnapshot = JsonSerializer.Deserialize<SyncSnapshot>(
             remotePackage.Decrypt((await Location.ReadAsync())!.Content, Passphrase.AsSpan()))!;
         DateTime futureTime = DateTime.UtcNow.AddMinutes(5);

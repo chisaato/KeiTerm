@@ -93,6 +93,11 @@ public partial class ProxySettingsPage : ViewModelBase
     private Task Delete() => RunAsync(async () =>
     {
         if (SelectedRow == null) return;
+        int refCount = _sessions().Count(s => s.ProxyProfileId == SelectedRow.Id);
+        string message = refCount > 0
+            ? Strings.Format("Settings.Proxy.DeleteReferencedConfirm", SelectedRow.Name, refCount)
+            : Strings.Format("Settings.Proxy.DeleteConfirm", SelectedRow.Name);
+        if (!await Interaction.ConfirmDeleteAsync(message)) return;
         await _repository.DeleteAsync(SelectedRow.Id);
         await ReloadAsync();
     });
@@ -118,7 +123,7 @@ public partial class ProxySettingsPage : ViewModelBase
                 port = socks.Port.ToString();
                 break;
             case HttpProxyConfig http:
-                type = Strings.Get("Proxy.Type.Http");
+                type = Strings.Get("Proxy.Type.HttpUnsupported");
                 host = http.Host;
                 port = http.Port.ToString();
                 break;

@@ -7,12 +7,7 @@
              x:Class="Kei.Term.App.Views.Settings.HashAlgorithmsSubPageView"
              x:DataType="settings:HashAlgorithmsSubPage">
 
-    <Grid>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" MaxWidth="{StaticResource Kei.Settings.ContentMaxWidth}"/>
-            <ColumnDefinition Width="0.001*"/>
-        </Grid.ColumnDefinitions>
-        <StackPanel Grid.Column="0" Spacing="16">
+    <StackPanel Spacing="16">
         <Border Classes="settingsCard">
             <StackPanel Spacing="12">
                 <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.FileTransfer.HashAlgorithmOrder}"/>
@@ -67,6 +62,5 @@
                 </Grid>
             </StackPanel>
         </Border>
-        </StackPanel>
-    </Grid>
+    </StackPanel>
 </UserControl>

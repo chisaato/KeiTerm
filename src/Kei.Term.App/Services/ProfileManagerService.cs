@@ -481,6 +481,14 @@ public class ProfileManagerService
         var app = Application.Current;
         if (app == null) return;
 
+        if (Avalonia.Media.Color.TryParse(profile.WindowBackground, out var bgColor))
+        {
+            double luma = (0.2126 * bgColor.R + 0.7152 * bgColor.G + 0.0722 * bgColor.B) / 255.0;
+            app.RequestedThemeVariant = luma < 0.5
+                ? Avalonia.Styling.ThemeVariant.Dark
+                : Avalonia.Styling.ThemeVariant.Light;
+        }
+
         UpdateBrush(app, "Kei.Bg.Window", profile.WindowBackground);
         UpdateBrush(app, "Kei.Bg.Panel", profile.PanelBackground);
         UpdateBrush(app, "Kei.Bg.PanelAlt", profile.PanelAltBackground);

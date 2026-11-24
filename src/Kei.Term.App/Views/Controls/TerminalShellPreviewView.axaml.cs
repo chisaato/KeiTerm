@@ -6,6 +6,7 @@ using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
 using Avalonia.Media;
 using Avalonia.Threading;
+using Kei.Term.App.Helpers;
 using Kei.Term.App.Models;
 using Kei.Term.App.Services;
 using Kei.Term.App.Terminals;
@@ -172,7 +173,7 @@ public partial class TerminalShellPreviewView : UserControl
             {
                 if (!TerminalThemeAdapter.TryReapplySelectionOverride(_terminalControl, Profile))
                 {
-                    ShowError("终端选区透明度恢复失败：Renderer 尚未初始化就绪");
+                    ShowError(Strings.Get("Settings.Preview.RenderFailed"));
                     return;
                 }
 
@@ -180,7 +181,8 @@ public partial class TerminalShellPreviewView : UserControl
             }
             catch (Exception ex)
             {
-                ShowError($"终端挂载恢复选区色异常: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"终端挂载恢复选区色异常: {ex}");
+                ShowError(Strings.Get("Settings.Preview.RenderFailed"));
                 return;
             }
         }
@@ -256,7 +258,8 @@ public partial class TerminalShellPreviewView : UserControl
         }
         catch (Exception ex)
         {
-            ShowError($"样本内容渲染异常: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"样本内容渲染异常: {ex}");
+            ShowError(Strings.Get("Settings.Preview.RenderFailed"));
         }
     }
 
@@ -281,7 +284,8 @@ public partial class TerminalShellPreviewView : UserControl
             }
             catch (Exception ex)
             {
-                ShowError($"终端主题适配异常: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"终端主题适配异常: {ex}");
+                ShowError(Strings.Get("Settings.Preview.RenderFailed"));
                 return;
             }
         }

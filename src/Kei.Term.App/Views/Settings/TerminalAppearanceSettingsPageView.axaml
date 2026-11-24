@@ -53,7 +53,7 @@
                                       Command="{Binding ImportKonsoleFontCommand}">
                                 <MenuItem.Icon>
                                     <Viewbox Width="16" Height="16"><Grid Width="24" Height="24">
-                                        <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Compose}"/>
+                                        <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Font}"/>
                                     </Grid></Viewbox>
                                 </MenuItem.Icon>
                             </MenuItem>
@@ -77,9 +77,9 @@
                     <!-- 1. 终端配色方案档案卡片 -->
                     <Border Classes="settingsCard" DataContext="{Binding Appearance}">
                         <StackPanel Spacing="10">
-                            <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.Appearance.TerminalProfile}"/>
+                            <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.TerminalAppearance.SchemeSection}"/>
 
-                            <scontrols:SettingRow Title="{loc:KeiString Settings.Appearance.TerminalProfile}"
+                            <scontrols:SettingRow Title="{loc:KeiString Settings.TerminalAppearance.CurrentScheme}"
                                                  Description="{loc:KeiString Settings.Appearance.TerminalProfileTip}">
                                 <ComboBox MinWidth="200"
                                           HorizontalAlignment="Right"

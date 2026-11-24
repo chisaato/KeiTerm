@@ -14,6 +14,16 @@ public sealed class AgeSyncPackage : ISyncPackage
     public const int MaximumWorkFactor = 18;
     private const int ChunkSize = 65536;
     private const string Version = "age-encryption.org/v1";
+    private readonly int _workFactor;
+
+    public AgeSyncPackage() : this(DefaultWorkFactor) { }
+
+    internal AgeSyncPackage(int workFactor)
+    {
+        if (workFactor is < 1 or > MaximumWorkFactor)
+            throw new ArgumentOutOfRangeException(nameof(workFactor));
+        _workFactor = workFactor;
+    }
 
     public byte[] Encrypt(ReadOnlySpan<byte> plaintext, ReadOnlySpan<char> passphrase)
     {
@@ -25,13 +35,13 @@ public sealed class AgeSyncPackage : ISyncPackage
         byte[] payloadKey = [];
         try
         {
-            wrapKey = DeriveWrapKey(passphrase, salt, DefaultWorkFactor);
+            wrapKey = DeriveWrapKey(passphrase, salt, _workFactor);
             headerKey = Derive(fileKey, [], "header"u8);
             payloadKey = Derive(fileKey, nonce, "payload"u8);
             byte[] wrapped = new byte[32];
             using (var aead = new ChaCha20Poly1305(wrapKey))
                 aead.Encrypt(new byte[12], fileKey, wrapped.AsSpan(0, 16), wrapped.AsSpan(16));
-            string prefix = $"{Version}\n-> scrypt {Base64(salt)} {DefaultWorkFactor}\n{Base64(wrapped)}\n---";
+            string prefix = $"{Version}\n-> scrypt {Base64(salt)} {_workFactor}\n{Base64(wrapped)}\n---";
             byte[] mac = HMACSHA256.HashData(headerKey, Encoding.ASCII.GetBytes(prefix));
             byte[] header = Encoding.ASCII.GetBytes($"{prefix} {Base64(mac)}\n");
             int chunks = Math.Max(1, (int)(((long)plaintext.Length + ChunkSize - 1) / ChunkSize));

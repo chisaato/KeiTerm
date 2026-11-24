@@ -238,6 +238,9 @@ public class SettingsSecurityAndDialogBehaviorTests
                 }
                 Button delete = context.Window.GetVisualDescendants().OfType<Button>().Single(b => b.Name == "DeleteProxyButton");
                 SettingsHeadlessTestContext.Click(context.Window, delete);
+                Window confirmDelete = context.Dialog<Window>();
+                Button confirmButton = confirmDelete.GetVisualDescendants().OfType<Button>().Single(b => b.IsDefault);
+                SettingsHeadlessTestContext.Click(confirmDelete, confirmButton);
                 await page.DeleteCommand.ExecutionTask!;
                 Assert.Empty(await context.Proxies.GetAllAsync());
                 Assert.Empty(page.Rows);

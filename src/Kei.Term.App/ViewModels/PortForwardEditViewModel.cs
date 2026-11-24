@@ -70,14 +70,41 @@ public partial class PortForwardEditViewModel : ObservableObject
         _ => "Local"
     };
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasValidationError))]
+    private string? _validationError;
+
+    public bool HasValidationError => !string.IsNullOrWhiteSpace(ValidationError);
+
+    partial void OnDestinationHostChanged(string value) => ValidationError = null;
+    partial void OnListenPortChanged(int value) => ValidationError = null;
+    partial void OnDestinationPortChanged(int value) => ValidationError = null;
+
     [RelayCommand]
     private void Save()
     {
+        if (ListenPort is < 1 or > 65535)
+        {
+            ValidationError = Strings.Get("PortForward.Validation.ListenPortRange");
+            return;
+        }
+        if (NeedsDestination && string.IsNullOrWhiteSpace(DestinationHost))
+        {
+            ValidationError = Strings.Get("PortForward.Validation.DestinationHostRequired");
+            return;
+        }
+        if (NeedsDestination && DestinationPort is < 1 or > 65535)
+        {
+            ValidationError = Strings.Get("PortForward.Validation.DestinationPortRange");
+            return;
+        }
         if (Build() == null)
         {
+            ValidationError = Strings.Get("PortForward.Validation.InvalidConfig");
             return;
         }
 
+        ValidationError = null;
         IsConfirmed = true;
         RequestClose?.Invoke();
     }

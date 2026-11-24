@@ -106,7 +106,7 @@
                                 <NumericUpDown x:Name="RetryCountInput"
                                                IsEnabled="{Binding AutoRetryEnabled}"
                                                Value="{Binding RetryCount}"
-                                               Minimum="0" Maximum="100"
+                                               Minimum="1" Maximum="100"
                                                FormatString="0"
                                                MinWidth="160"
                                                HorizontalAlignment="Right"/>

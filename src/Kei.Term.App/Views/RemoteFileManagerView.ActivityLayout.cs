@@ -23,8 +23,8 @@ public partial class RemoteFileManagerView
 
     private void UpdateActivityPanelLayout()
     {
-        RowDefinition row = FileManagerLayout.RowDefinitions[4];
-        FileManagerLayout.RowDefinitions[2].MinHeight = 96;
+        RowDefinition row = FileManagerLayout.RowDefinitions[5];
+        FileManagerLayout.RowDefinitions[3].MinHeight = 96;
         // 自动布局最多占一半；手动拖动可扩大，仍给文件列表留出可操作空间。
         double maximumHeight = ActivityMaximumHeight(_activityResizing || _activityUserHeight != null);
         row.MaxHeight = maximumHeight;
@@ -49,7 +49,7 @@ public partial class RemoteFileManagerView
     {
         _activityResizing = false;
         if (_activityOwner?.IsActivityPanelOpen != true) return;
-        RowDefinition row = FileManagerLayout.RowDefinitions[4];
+        RowDefinition row = FileManagerLayout.RowDefinitions[5];
         _activityUserHeight = row.Height.IsAbsolute ? row.Height.Value : row.ActualHeight;
         UpdateActivityPanelLayout();
     }
@@ -58,7 +58,7 @@ public partial class RemoteFileManagerView
     {
         _activityResizing = true;
         double maximumHeight = ActivityMaximumHeight(manual: true);
-        FileManagerLayout.RowDefinitions[4].MaxHeight = maximumHeight;
+        FileManagerLayout.RowDefinitions[5].MaxHeight = maximumHeight;
         FileActivityPanel.MaxHeight = maximumHeight;
     }
 
@@ -66,8 +66,11 @@ public partial class RemoteFileManagerView
     {
         if (!manual) return Math.Max(64, Bounds.Height * 0.5);
         double surroundingHeight = FileManagerLayout.RowDefinitions[0].ActualHeight
-            + FileManagerLayout.RowDefinitions[1].ActualHeight + FileManagerLayout.RowDefinitions[3].ActualHeight
-            + FileManagerLayout.RowDefinitions[5].ActualHeight;
+            + FileManagerLayout.RowDefinitions[1].ActualHeight
+            + FileManagerLayout.RowDefinitions[2].ActualHeight
+            + FileManagerLayout.RowDefinitions[4].ActualHeight
+            + FileManagerLayout.RowDefinitions[6].ActualHeight
+            + FileManagerLayout.RowDefinitions[7].ActualHeight;
         return Math.Max(64, Bounds.Height - surroundingHeight - 96);
     }
 }

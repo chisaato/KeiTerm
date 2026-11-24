@@ -85,7 +85,7 @@
                                             Margin="0,0,0,8">
                                         <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="8">
                                             <!-- 第一行：序号、字族与变体信息、字重选择、操作按钮 -->
-                                            <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                                            <Grid Grid.Row="0" ColumnDefinitions="Auto,*,*" ColumnSpacing="12">
                                                 <!-- 优先级序号 -->
                                                 <Border Grid.Column="0"
                                                         Background="{DynamicResource Kei.Bg.Input}"
@@ -94,12 +94,12 @@
                                                         CornerRadius="{DynamicResource Kei.Radius.Control}"
                                                         Width="24" Height="24"
                                                         VerticalAlignment="Center">
-                                                    <!-- 序号指示图标：通过 Viewbox 承载 24x24 画布与 kei-icon -->
+                                                    <!-- 字体图标：通过 Viewbox 承载 24x24 画布与 kei-icon -->
                                                     <Viewbox Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
                                                         <Grid Width="24" Height="24">
                                                             <Path Classes="kei-icon" Width="24" Height="24" Stretch="None"
                                                                   Stroke="{DynamicResource Kei.Text.Muted}"
-                                                                  Data="{StaticResource Kei.Icon.Terminal}"/>
+                                                                  Data="{StaticResource Kei.Icon.Font}"/>
                                                         </Grid>
                                                     </Viewbox>
                                                 </Border>

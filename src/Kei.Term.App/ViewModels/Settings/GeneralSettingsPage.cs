@@ -84,37 +84,39 @@ public partial class GeneralSettingsPage : ViewModelBase
     [ObservableProperty]
     private string _selectedWatcherMode = "Auto";
 
-    // 界面与面板显隐配置 (常开/常关/保持上次)
-    public IReadOnlyList<string> VisibilityModes { get; } = ["常开 (Always Visible)", "常关 (Always Hidden)", "保持上次状态 (Remember Last)"];
+    // 界面与面板显隐配置
+    public IReadOnlyList<string> VisibilityModes { get; } =
+    [
+        Strings.Get("Settings.General.Visibility.AlwaysVisible"),
+        Strings.Get("Settings.General.Visibility.AlwaysHidden"),
+        Strings.Get("Settings.General.Visibility.RememberLast")
+    ];
 
     [ObservableProperty]
-    private string _selectedSessionManagerMode = "保持上次状态 (Remember Last)";
+    private string _selectedSessionManagerMode = Strings.Get("Settings.General.Visibility.RememberLast");
 
     [ObservableProperty]
     private bool _sessionManagerPinned = true;
 
     [ObservableProperty]
-    private string _selectedComposeBarMode = "保持上次状态 (Remember Last)";
+    private string _selectedComposeBarMode = Strings.Get("Settings.General.Visibility.RememberLast");
 
     [RelayCommand]
     private async Task ClearCacheDirectoryAsync()
     {
-        if (string.IsNullOrWhiteSpace(CacheDirectory) || !Directory.Exists(CacheDirectory)) return;
-        try
+        string targetDir = FileManagerSettingsPage.ResolveEffectiveCacheDirectory(CacheDirectory);
+        if (!Directory.Exists(targetDir)) return;
+        await Task.Run(() =>
         {
-            await Task.Run(() =>
+            foreach (var dir in Directory.GetDirectories(targetDir))
             {
-                foreach (var dir in Directory.GetDirectories(CacheDirectory))
-                {
-                    try { Directory.Delete(dir, true); } catch { }
-                }
-                foreach (var file in Directory.GetFiles(CacheDirectory))
-                {
-                    try { File.Delete(file); } catch { }
-                }
-            });
-        }
-        catch { }
+                Directory.Delete(dir, true);
+            }
+            foreach (var file in Directory.GetFiles(targetDir))
+            {
+                File.Delete(file);
+            }
+        });
     }
 
     public void SetTreeSortMode(string? mode)
@@ -142,9 +144,9 @@ public partial class GeneralSettingsPage : ViewModelBase
             };
             Process.Start(psi);
         }
-        catch
+        catch (Exception ex)
         {
-            // 打开失败不打断设置窗口
+            System.Diagnostics.Debug.WriteLine($"打开数据目录失败: {ex}");
         }
         await Task.CompletedTask;
     }

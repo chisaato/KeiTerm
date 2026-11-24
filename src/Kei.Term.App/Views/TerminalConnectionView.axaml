@@ -106,7 +106,7 @@
                                     ToolTip.Tip="{loc:KeiString Terminal.Menu.Clear}" AutomationProperties.Name="{loc:KeiString Terminal.Menu.Clear}">
                                 <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
                                     <Grid Width="24" Height="24">
-                                        <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Delete}"/>
+                                        <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Clear}"/>
                                     </Grid>
                                 </Viewbox>
                             </Button>
@@ -116,7 +116,7 @@
                                     ToolTip.Tip="{Binding FileManagerToggleToolTip}" AutomationProperties.Name="{Binding FileManagerToggleToolTip}">
                                 <Viewbox Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
                                     <Grid Width="24" Height="24">
-                                        <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.FileManager}"/>
+                                        <Path Classes="kei-icon" Width="24" Height="24" Stretch="None" Data="{StaticResource Kei.Icon.Folder}"/>
                                     </Grid>
                                 </Viewbox>
                             </Button>

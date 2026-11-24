@@ -51,7 +51,7 @@
                              SelectedItem="{Binding Parent.SelectedUiFallbackFont}">
                         <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="x:String">
-                                <TextBlock Text="{Binding}" FontFamily="{Binding}" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Text="{Binding}" FontFamily="{Binding}" FontSize="12" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding}"/>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>

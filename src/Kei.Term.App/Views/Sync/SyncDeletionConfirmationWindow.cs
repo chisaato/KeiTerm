@@ -49,7 +49,7 @@ public sealed class SyncDeletionConfirmationWindow : Window
             RowDefinitions = new RowDefinitions("Auto,Auto"),
         };
 
-        var delLabel = new TextBlock { Text = "待删除实体数：", FontSize = 12 };
+        var delLabel = new TextBlock { Text = Strings.Get("Settings.Sync.Deletion.PendingLabel"), FontSize = 12 };
         delLabel.Bind(TextBlock.ForegroundProperty, delLabel.GetResourceObservable("Kei.Text.Secondary"));
         Grid.SetRow(delLabel, 0);
         Grid.SetColumn(delLabel, 0);
@@ -60,7 +60,7 @@ public sealed class SyncDeletionConfirmationWindow : Window
         Grid.SetRow(delVal, 0);
         Grid.SetColumn(delVal, 1);
 
-        var liveLabel = new TextBlock { Text = "本机存活实体数：", FontSize = 12 };
+        var liveLabel = new TextBlock { Text = Strings.Get("Settings.Sync.Deletion.LocalLiveLabel"), FontSize = 12 };
         liveLabel.Bind(TextBlock.ForegroundProperty, liveLabel.GetResourceObservable("Kei.Text.Secondary"));
         Grid.SetRow(liveLabel, 1);
         Grid.SetColumn(liveLabel, 0);

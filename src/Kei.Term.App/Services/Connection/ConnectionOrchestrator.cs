@@ -554,7 +554,7 @@ public sealed partial class ConnectionOrchestrator
                     ProxyPasswordRead secret = await ReadProxyPasswordAsync(proxyId, !attempt.Automatic);
                     if (secret.Cancelled || secret.Error != null)
                     {
-                        throw new JumpChainException(secret.Error ?? "保管库已锁定");
+                        throw new JumpChainException(secret.Error ?? Strings.Get("Connection.ProxyPassword.VaultLocked"));
                     }
 
                     result.Add(hop with
@@ -618,7 +618,11 @@ public sealed partial class ConnectionOrchestrator
         catch (Exception ex)
         {
             _logger.LogWarning("读取代理口令失败 类型={Type}", ex.GetType().Name);
-            return new ProxyPasswordRead(null, false, "保管库已锁定");
+            bool isLocked = ex.GetType().Name.Contains("Locked", StringComparison.OrdinalIgnoreCase)
+                || ex.Message.Contains("lock", StringComparison.OrdinalIgnoreCase);
+            return new ProxyPasswordRead(null, false, isLocked
+                ? Strings.Get("Connection.ProxyPassword.VaultLocked")
+                : Strings.Get("Connection.ProxyPassword.ReadFailed"));
         }
     }
 
@@ -667,5 +671,7 @@ public sealed partial class ConnectionOrchestrator
         => ex.GetType().Name.Contains("Authentication", StringComparison.Ordinal);
 
     private static string DescribeFailure(Exception ex)
-        => string.IsNullOrWhiteSpace(ex.Message) ? Strings.Get("Status.Auth.Failed") : ex.Message;
+        => string.IsNullOrWhiteSpace(ex.Message)
+            ? (IsAuthenticationFailure(ex) ? Strings.Get("Status.Auth.Failed") : Strings.Get("Connection.Error.Generic"))
+            : ex.Message;
 }

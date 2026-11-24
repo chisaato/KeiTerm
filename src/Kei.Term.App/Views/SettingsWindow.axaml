@@ -174,6 +174,11 @@
                             HorizontalAlignment="Right"
                             Spacing="12"
                             IsEnabled="{Binding !IsBusy}">
+                    <TextBlock Text="{loc:KeiString Settings.UnsavedChanges}"
+                               IsVisible="{Binding HasUnsavedChanges}"
+                               Foreground="{DynamicResource Kei.Text.Muted}"
+                               FontSize="12"
+                               VerticalAlignment="Center"/>
                     <Button Content="{loc:KeiString Common.Cancel}" MinWidth="88" HorizontalContentAlignment="Center" Command="{Binding CancelCommand}"/>
                     <Button Content="{loc:KeiString Common.Apply}" MinWidth="88" HorizontalContentAlignment="Center" Command="{Binding ApplyCommand}"/>
                     <Button Content="{loc:KeiString Common.Confirm}" MinWidth="88" HorizontalContentAlignment="Center"

@@ -53,7 +53,10 @@ public partial class TerminalSettingsPage : ViewModelBase
     public IReadOnlyList<CwdFollowOption> CwdFollowModes => SessionBehaviorOptions.CwdFollowModes;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsDirectoryFollowEnabled))]
     private CwdFollowOption? _selectedCwdFollow = SessionBehaviorOptions.CwdFollowModes[0];
+
+    public bool IsDirectoryFollowEnabled => SelectedCwdFollow?.Mode != CwdFollowMode.Off;
 
     public void SetCwdFollow(CwdFollowMode mode)
         => SelectedCwdFollow = CwdFollowModes.FirstOrDefault(o => o.Mode == mode) ?? CwdFollowModes[0];

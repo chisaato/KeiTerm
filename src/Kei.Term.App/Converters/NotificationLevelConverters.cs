@@ -27,16 +27,16 @@ public static class NotificationLevelConverters
         });
 
     public static readonly IValueConverter LevelToGeometry =
-        new FuncValueConverter<NotificationLevel, StreamGeometry?>(level =>
+        new FuncValueConverter<NotificationLevel, Geometry?>(level =>
         {
             string key = level switch
             {
                 NotificationLevel.Success => "Kei.Icon.Check",
                 NotificationLevel.Warning => "Kei.Icon.Warning",
                 NotificationLevel.Error => "Kei.Icon.Close",
-                _ => "Kei.Icon.Terminal",
+                _ => "Kei.Icon.Info",
             };
-            if (Avalonia.Application.Current?.TryFindResource(key, out object? resource) == true && resource is StreamGeometry geo)
+            if (Avalonia.Application.Current?.TryFindResource(key, out object? resource) == true && resource is Geometry geo)
             {
                 return geo;
             }

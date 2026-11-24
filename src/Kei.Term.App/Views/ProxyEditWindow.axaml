@@ -14,7 +14,7 @@
         Background="{DynamicResource Kei.Bg.Window}"
         FontFamily="{DynamicResource Kei.Font.UI}" FontSize="13">
     <Grid RowDefinitions="Auto, Auto, Auto" Margin="18" RowSpacing="12">
-        <Grid ColumnDefinitions="100, *" RowDefinitions="Auto, Auto, Auto, Auto, Auto, Auto, Auto, Auto" RowSpacing="8" ColumnSpacing="12">
+        <Grid ColumnDefinitions="100, *" RowDefinitions="Auto, Auto, Auto, Auto, Auto, Auto" RowSpacing="8" ColumnSpacing="12">
             <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:KeiString Proxy.Name}" VerticalAlignment="Center"
                        Foreground="{DynamicResource Kei.Text.Secondary}"/>
             <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Name}"/>
@@ -45,26 +45,33 @@
                        Foreground="{DynamicResource Kei.Text.Secondary}" VerticalAlignment="Center"
                        FontSize="12" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding SessionDisplay}"/>
 
-            <TextBlock Grid.Row="4" Grid.Column="0" Text="{loc:KeiString Proxy.Username}" VerticalAlignment="Center"
-                       Foreground="{DynamicResource Kei.Text.Secondary}" IsVisible="{Binding IsSocks5}"/>
-            <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding Username}" IsVisible="{Binding IsSocks5}"/>
+            <StackPanel Grid.Row="4" Grid.ColumnSpan="2" Spacing="8" IsVisible="{Binding IsSocks5}">
+                <Grid ColumnDefinitions="100, *" ColumnSpacing="12">
+                    <TextBlock Grid.Column="0" Text="{loc:KeiString Proxy.Username}" VerticalAlignment="Center"
+                               Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                    <TextBox Grid.Column="1" Text="{Binding Username}"/>
+                </Grid>
+                <Grid ColumnDefinitions="100, *" ColumnSpacing="12">
+                    <TextBlock Grid.Column="0" Text="{loc:KeiString Proxy.Password}" VerticalAlignment="Center"
+                               Foreground="{DynamicResource Kei.Text.Secondary}"/>
+                    <TextBox Grid.Column="1" Text="{Binding Password}" PasswordChar="•"
+                             PlaceholderText="{Binding PasswordPlaceholder}"/>
+                </Grid>
+                <Grid ColumnDefinitions="100, *" ColumnSpacing="12" IsVisible="{Binding ShowClearPassword}">
+                    <CheckBox Grid.Column="1" Content="{loc:KeiString Proxy.ClearPassword}"
+                              IsChecked="{Binding ClearSavedPassword}" MinHeight="28"/>
+                </Grid>
+            </StackPanel>
 
-            <TextBlock Grid.Row="5" Grid.Column="0" Text="{loc:KeiString Proxy.Password}" VerticalAlignment="Center"
-                       Foreground="{DynamicResource Kei.Text.Secondary}" IsVisible="{Binding IsSocks5}"/>
-            <TextBox Grid.Row="5" Grid.Column="1" Text="{Binding Password}" PasswordChar="•"
-                     PlaceholderText="{Binding PasswordPlaceholder}" IsVisible="{Binding IsSocks5}"/>
-
-            <CheckBox Grid.Row="6" Grid.Column="1" Content="{loc:KeiString Proxy.ClearPassword}"
-                      IsChecked="{Binding ClearSavedPassword}" IsVisible="{Binding ShowClearPassword}" MinHeight="28"/>
-
-            <TextBlock Grid.Row="7" Grid.Column="1" Text="{Binding TypeNotice}"
-                       Foreground="{DynamicResource Kei.Text.Secondary}" FontSize="12" TextWrapping="Wrap"/>
+            <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding TypeNotice}"
+                       IsVisible="{Binding TypeNotice, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                       Foreground="{DynamicResource Kei.Status.Warning}" FontSize="12" TextWrapping="Wrap"/>
         </Grid>
         <SelectableTextBlock Grid.Row="1" Text="{Binding ErrorMessage}" IsVisible="{Binding HasError}"
                              FontSize="12" Foreground="{DynamicResource Kei.Status.Error}" TextWrapping="Wrap"/>
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
             <Button x:Name="CancelButton" Content="{loc:KeiString Common.Cancel}" Command="{Binding CancelCommand}" MinWidth="76" IsCancel="True"/>
-            <Button x:Name="SaveButton" Content="{loc:KeiString Common.Save}" Command="{Binding SaveCommand}" MinWidth="76" Classes="accent" IsDefault="True"/>
+            <Button x:Name="SaveButton" Content="{loc:KeiString Common.Save}" Command="{Binding SaveCommand}" IsEnabled="{Binding CanSave}" MinWidth="76" Classes="accent" IsDefault="True"/>
         </StackPanel>
     </Grid>
 </Window>

@@ -376,6 +376,7 @@
                     </StackPanel>
                     <TextBlock Grid.Column="2"
                                Text="{TemplateBinding Summary}"
+                               ToolTip.Tip="{TemplateBinding Summary}"
                                FontSize="12"
                                Foreground="{DynamicResource Kei.Text.Secondary}"
                                VerticalAlignment="Center"

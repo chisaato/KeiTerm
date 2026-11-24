@@ -5,39 +5,53 @@ using System.Text.RegularExpressions;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Kei.Term.App.Helpers;
+using Kei.Term.Core.Abstractions;
 using Kei.Term.Core.Models;
 
 namespace Kei.Term.App.ViewModels;
 
-public sealed record DuplicateSessionResult(string Name, string Hostname, int Port);
+public sealed record DuplicateSessionResult(string Name, string Hostname, int Port, string? SerialPortName = null);
 
 public partial class DuplicateSessionViewModel : ViewModelBase
 {
+    public bool IsSerialSession { get; }
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanConfirm))]
+    [NotifyCanExecuteChangedFor(nameof(ConfirmCommand))]
     private string _name = string.Empty;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanConfirm))]
+    [NotifyCanExecuteChangedFor(nameof(ConfirmCommand))]
     private string _hostname = string.Empty;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanConfirm))]
+    [NotifyCanExecuteChangedFor(nameof(ConfirmCommand))]
     private int _port = 22;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanConfirm))]
+    [NotifyCanExecuteChangedFor(nameof(ConfirmCommand))]
+    private string _serialPortName = string.Empty;
 
     public bool IsConfirmed { get; private set; }
 
     public bool CanConfirm => !string.IsNullOrWhiteSpace(Name) &&
-                              !string.IsNullOrWhiteSpace(Hostname) &&
-                              Port is >= 1 and <= 65535;
+                              (IsSerialSession
+                                  ? true
+                                  : !string.IsNullOrWhiteSpace(Hostname) && Port is >= 1 and <= 65535);
 
     public event Action? RequestClose;
 
     public DuplicateSessionViewModel(SessionNode source, IEnumerable<TreeNodeBase> siblings)
     {
         ArgumentNullException.ThrowIfNull(source);
+        IsSerialSession = string.Equals(source.Protocol, SessionProtocols.Serial, StringComparison.OrdinalIgnoreCase);
         _hostname = source.Host;
         _port = source.Port ?? 22;
+        _serialPortName = source.Overrides.Serial?.PortName ?? string.Empty;
         _name = GenerateDefaultName(source.Name, siblings.Select(s => s.Name));
     }
 
@@ -77,5 +91,7 @@ public partial class DuplicateSessionViewModel : ViewModelBase
         RequestClose?.Invoke();
     }
 
-    public DuplicateSessionResult ToResult() => new(Name.Trim(), Hostname.Trim(), Port);
+    public DuplicateSessionResult ToResult() => IsSerialSession
+        ? new(Name.Trim(), Hostname.Trim(), Port, string.IsNullOrWhiteSpace(SerialPortName) ? null : SerialPortName.Trim())
+        : new(Name.Trim(), Hostname.Trim(), Port);
 }

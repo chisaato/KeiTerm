@@ -16,8 +16,7 @@
                                      Title="{loc:KeiString Settings.Categories.Appearance}"
                                      Description="{loc:KeiString Settings.Categories.AppearanceDesc}"
                                      SubPageTitle="{Binding SubPageTitle}"
-                                     BackCommand="{Binding NavigateBackCommand}"
-                                     Margin="0,0,0,16"/>
+                                     BackCommand="{Binding NavigateBackCommand}"/>
 
         <Panel Grid.Row="1">
             <!-- 主内容区：未在子页时显示 -->
@@ -51,26 +50,10 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- 2. 主题与界面外观档案卡片 -->
+                    <!-- 2. 界面外观档案卡片 -->
                     <Border Classes="settingsCard">
                         <StackPanel Spacing="10">
                             <TextBlock Classes="settingsSectionTitle" Text="{loc:KeiString Settings.Appearance.ThemeSection}"/>
-
-                            <controls:SettingRow Title="{loc:KeiString Settings.Appearance.ThemeMode}"
-                                                 Description="{loc:KeiString Settings.Appearance.ThemeModeTip}">
-                                <ComboBox MinWidth="200"
-                                          HorizontalAlignment="Right"
-                                          ItemsSource="{Binding ThemeOptions}"
-                                          SelectedItem="{Binding SelectedTheme}">
-                                    <ComboBox.ItemTemplate>
-                                        <DataTemplate x:DataType="settings:ThemeOption">
-                                            <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis"/>
-                                        </DataTemplate>
-                                    </ComboBox.ItemTemplate>
-                                </ComboBox>
-                            </controls:SettingRow>
-
-                            <Border Classes="settingRowDivider"/>
 
                             <controls:SettingRow Title="{loc:KeiString Settings.Appearance.GuiProfile}"
                                                  Description="{loc:KeiString Settings.Appearance.GuiProfileTip}">
@@ -152,7 +135,7 @@
                                        FontFamily="{Binding UiPreviewFontFamily}" Foreground="{DynamicResource Kei.Text.Primary}"/>
                             <TextBlock Text="筛选会话、选择编辑器与保存配置" FontSize="12" TextWrapping="Wrap"
                                        FontFamily="{Binding UiPreviewFontFamily}" Foreground="{DynamicResource Kei.Text.Secondary}"/>
-                            <TextBlock Text="主机：192.168.1.100 / 端口：22" FontSize="12" TextWrapping="Wrap"
+                            <TextBlock Text="{loc:KeiString Settings.Appearance.PreviewHostSample}" FontSize="12" TextWrapping="Wrap"
                                        FontFamily="{Binding UiPreviewFontFamily}" Foreground="{DynamicResource Kei.Text.Secondary}"/>
                             <Border Height="1" Background="{DynamicResource Kei.Border.Subtle}" Margin="0,4"/>
                             <TextBlock Text="已连接 · root@server" FontSize="12" TextWrapping="Wrap"

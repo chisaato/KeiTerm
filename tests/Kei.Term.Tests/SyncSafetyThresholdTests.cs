@@ -29,7 +29,7 @@ public sealed class SyncSafetyThresholdTests : IDisposable
         await vault.SetMasterPasswordAsync("master-password");
         await vault.SavePassphraseAsync("sync-password".AsMemory());
         var store = new SqliteSyncSnapshotStore(db, vault);
-        return new(store, tree, vault, new(store, new AgeSyncPackage(), vault, id, vault));
+        return new(store, tree, vault, new(store, new AgeSyncPackage(10), vault, id, vault));
     }
 
     private async Task ConfirmJoinAsync(Device d)

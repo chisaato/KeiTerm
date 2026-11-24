@@ -44,6 +44,7 @@
 
             <!-- 校验失败提示 -->
             <TextBlock Text="{Binding ErrorMessage}" FontSize="12" Foreground="{DynamicResource Kei.Status.Error}"
+                       TextWrapping="Wrap"
                        IsVisible="{Binding ErrorMessage, Converter={x:Static ObjectConverters.IsNotNull}}"/>
         </StackPanel>
 

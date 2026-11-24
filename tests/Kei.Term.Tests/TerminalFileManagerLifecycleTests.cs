@@ -51,7 +51,7 @@ public class TerminalFileManagerLifecycleTests
     });
 
     [Fact]
-    public Task ClosingDuringInitialization_DrainsAndDisposesTheLateManager() => HeadlessAvalonia.RunAsync(async () =>
+    public async Task ClosingDuringInitialization_DrainsAndDisposesTheLateManager()
     {
         TerminalTabViewModel tab = new("closing", "monospace", 14);
         tab.AttachSession(new IdleSession());
@@ -68,10 +68,10 @@ public class TerminalFileManagerLifecycleTests
         Assert.Null(tab.FileManager);
         Assert.Equal(1, fileSystem.DisposeCount);
         Assert.Equal(1, tracker.DisposeCount);
-    });
+    }
 
     [Fact]
-    public Task LateFileSystemFromPreviousSession_IsDisposedWithoutReplacingTheNewManager() => HeadlessAvalonia.RunAsync(async () =>
+    public async Task LateFileSystemFromPreviousSession_IsDisposedWithoutReplacingTheNewManager()
     {
         TerminalTabViewModel tab = new("reconnected", "monospace", 14);
         IdleSession oldSession = new();
@@ -92,10 +92,10 @@ public class TerminalFileManagerLifecycleTests
         Assert.Equal(1, lateTracker.DisposeCount);
         Assert.Equal(0, currentFileSystem.DisposeCount);
         await tab.DisposeAsync();
-    });
+    }
 
     [Fact]
-    public Task CancelledOldConnection_DoesNotDetachTheReplacementSession() => HeadlessAvalonia.RunAsync(async () =>
+    public async Task CancelledOldConnection_DoesNotDetachTheReplacementSession()
     {
         TerminalTabViewModel tab = new("replacement", "monospace", 14);
         IdleSession oldSession = new();
@@ -109,10 +109,10 @@ public class TerminalFileManagerLifecycleTests
 
         Assert.Equal(1, replacement.SentCommands);
         await tab.DisposeAsync();
-    });
+    }
 
     [Fact]
-    public Task CancelledResetWaitingForOldDisposal_CannotOverwriteAManualReconnect() => HeadlessAvalonia.RunAsync(async () =>
+    public async Task CancelledResetWaitingForOldDisposal_CannotOverwriteAManualReconnect()
     {
         TerminalTabViewModel tab = new("reset", "monospace", 14);
         GatedDisposalSession oldSession = new();
@@ -141,10 +141,10 @@ public class TerminalFileManagerLifecycleTests
         await tab.SendCommandAsync("echo new");
         Assert.Equal(1, replacement.SentCommands);
         await tab.DisposeAsync();
-    });
+    }
 
     [Fact]
-    public Task OverlappingInitialization_DoesNotCloseTheNewerTransferEndpoint() => HeadlessAvalonia.RunAsync(async () =>
+    public async Task OverlappingInitialization_DoesNotCloseTheNewerTransferEndpoint()
     {
         TerminalTabViewModel tab = new("overlap", "monospace", 14);
         tab.AttachSession(new IdleSession());
@@ -163,10 +163,10 @@ public class TerminalFileManagerLifecycleTests
         Assert.NotNull(tab.FileManager);
         await tab.DisposeAsync();
         Assert.Equal(1, second.Disposes);
-    });
+    }
 
     [Fact]
-    public Task LateSession_DisposesIncomingTransferEndpoint() => HeadlessAvalonia.RunAsync(async () =>
+    public async Task LateSession_DisposesIncomingTransferEndpoint()
     {
         TerminalTabViewModel tab = new("late-transfer", "monospace", 14);
         IdleSession oldSession = new();
@@ -177,10 +177,10 @@ public class TerminalFileManagerLifecycleTests
         await tab.InitializeFileManagerAsync(new RecordingFileSystem(), new RecordingTracker(), new FixedSettingsService(), expectedSession: oldSession, transfers: late);
         Assert.Equal(1, late.Disposes);
         await tab.DisposeAsync();
-    });
+    }
 
     [Fact]
-    public Task MissingTransferEndpoint_DoesNotUseBrowseFileSystem() => HeadlessAvalonia.RunAsync(async () =>
+    public async Task MissingTransferEndpoint_DoesNotUseBrowseFileSystem()
     {
         TerminalTabViewModel tab = new("no-fallback", "monospace", 14);
         tab.AttachSession(new IdleSession());
@@ -202,7 +202,7 @@ public class TerminalFileManagerLifecycleTests
             Directory.Delete(directory, true);
             await tab.DisposeAsync();
         }
-    });
+    }
 
     private sealed class TrackingEndpoint : ITransferEndpoint
     {

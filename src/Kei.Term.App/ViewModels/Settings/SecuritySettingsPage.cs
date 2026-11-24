@@ -30,6 +30,9 @@ public partial class SecuritySettingsPage : ViewModelBase
     [NotifyCanExecuteChangedFor(nameof(RemoveMasterPasswordCommand))]
     private bool _canRemoveMasterPassword;
 
+    [ObservableProperty]
+    private bool _isVaultLocked;
+
     public bool HasVault => _vault != null;
 
     public Func<IInteractionService>? Interaction { get; set; }
@@ -50,17 +53,44 @@ public partial class SecuritySettingsPage : ViewModelBase
             MasterPasswordStatus = string.Empty;
             PasswordButtonText = string.Empty;
             CanRemoveMasterPassword = false;
+            IsVaultLocked = false;
             return;
         }
 
         bool plain = _vault.IsPlainMode;
-        MasterPasswordStatus = Strings.Get(plain
-            ? "Settings.Security.NoMasterPassword"
-            : "Settings.Security.HasMasterPassword");
+        IsVaultLocked = !plain && !_vault.IsUnlocked;
+        MasterPasswordStatus = plain
+            ? Strings.Get("Settings.Security.NoMasterPassword")
+            : IsVaultLocked
+                ? Strings.Get("Settings.Security.HasMasterPasswordLocked")
+                : Strings.Get("Settings.Security.HasMasterPassword");
         PasswordButtonText = Strings.Get(plain
             ? "Settings.Security.SetMasterPassword"
             : "Settings.Security.ChangeMasterPassword");
         CanRemoveMasterPassword = !plain;
+    }
+
+    [RelayCommand]
+    private async Task UnlockVaultAsync()
+    {
+        if (_vault == null || Interaction == null || _vault.IsPlainMode || _vault.IsUnlocked) return;
+        string? error = null;
+        while (!_vault.IsUnlocked)
+        {
+            string? password = await Interaction().PromptMasterPasswordAsync(error);
+            if (string.IsNullOrEmpty(password)) break;
+            try
+            {
+                await _vault.UnlockAsync(password, rememberOnThisDevice: false);
+                RefreshVaultState();
+                if (QuickUnlock != null) await QuickUnlock.RefreshAsync();
+                return;
+            }
+            catch (Exception)
+            {
+                error = Strings.Get("Vault.WrongPassword");
+            }
+        }
     }
 
     [RelayCommand]

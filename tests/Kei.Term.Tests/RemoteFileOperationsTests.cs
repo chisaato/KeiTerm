@@ -339,7 +339,7 @@ public class RemoteFileOperationsTests
     });
 
     [Fact]
-    public Task Delete_DisposeCancelsAndCompletes() => HeadlessAvalonia.RunAsync(async () =>
+    public async Task Delete_DisposeCancelsAndCompletes()
     {
         MemoryFileSystem fs = new();
         RemoteFileItem item = Item("/alpha");
@@ -358,7 +358,7 @@ public class RemoteFileOperationsTests
         await vm.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(2));
         await deleting.WaitAsync(TimeSpan.FromSeconds(2));
         Assert.True(fs.Entries.ContainsKey(item.FullPath));
-    });
+    }
 
     [Fact]
     public async Task Delete_DisposeDuringConfirmation_IsDrainedAndDoesNotDelete()

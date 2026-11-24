@@ -94,19 +94,32 @@ public partial class SshSettingsPage : ViewModelBase
             return;
         }
 
-        var list = await _identityRepo.GetAllAsync();
-        var options = new ObservableCollection<IdentityOption>
+        try
         {
-            new(null, Strings.Get("Settings.Ssh.IdentityNone"))
-        };
-        foreach (var identity in list)
-        {
-            options.Add(new IdentityOption(identity.Id, identity.Name));
-        }
-        Identities = options;
+            var list = await _identityRepo.GetAllAsync();
+            var options = new ObservableCollection<IdentityOption>
+            {
+                new(null, Strings.Get("Settings.Ssh.IdentityNone"))
+            };
+            foreach (var identity in list)
+            {
+                options.Add(new IdentityOption(identity.Id, identity.Name));
+            }
+            Identities = options;
 
-        // 按已选 Id 恢复选中项，找不到则回落到首项「无」
-        SelectedIdentity = options.FirstOrDefault(o => o.Id == SelectedIdentityId) ?? options[0];
+            // 按已选 Id 恢复选中项，找不到则回落到首项「无」
+            SelectedIdentity = options.FirstOrDefault(o => o.Id == SelectedIdentityId) ?? options[0];
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"加载默认身份列表失败: {ex}");
+            var fallback = new ObservableCollection<IdentityOption>
+            {
+                new(null, Strings.Get("Settings.Ssh.IdentityNone"))
+            };
+            Identities = fallback;
+            SelectedIdentity = fallback[0];
+        }
     }
 
     // 下拉选中项变化时同步 Id，保存时直接取用

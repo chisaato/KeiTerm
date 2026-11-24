@@ -132,7 +132,7 @@
     <value>Proxy</value>
   </data>
   <data name="Settings.Categories.ProxyDesc" xml:space="preserve">
-    <value>SOCKS5 and HTTP proxy profiles</value>
+    <value>SOCKS5 and jump-session proxy profiles</value>
   </data>
   <data name="Settings.Categories.Security" xml:space="preserve">
     <value>Security</value>
@@ -698,16 +698,19 @@
     <value>Select the underlying core implementation for session establishment and streaming data</value>
   </data>
   <data name="Settings.Transport.Engine.BuiltIn" xml:space="preserve">
-    <value>Managed Native (.NET)</value>
+    <value>Default Engine (.NET)</value>
   </data>
   <data name="Settings.Transport.Engine.BuiltInDesc" xml:space="preserve">
-    <value>In-process .NET engine with SSH/SFTP via SSH.NET, plus Telnet and serial connections.</value>
+    <value>Built-in .NET engine with stable SSH, SFTP, Telnet, and serial support, plus hardware security keys via system ssh-agent.</value>
   </data>
   <data name="Settings.Transport.Engine.GoCore" xml:space="preserve">
-    <value>Go Core Engine (Experimental)</value>
+    <value>Go Core Engine</value>
   </data>
   <data name="Settings.Transport.Engine.GoCoreDesc" xml:space="preserve">
-    <value>Out-of-process Go engine for SSH/SFTP, Telnet, and serial connections. Direct FIDO2 key support is not implemented.</value>
+    <value>Out-of-process Go engine with concurrent SFTP chunked transfers, SSH/SFTP, Telnet, and serial support; hardware security keys are not yet supported.</value>
+  </data>
+  <data name="Settings.Transport.Engine.ExperimentalTag" xml:space="preserve">
+    <value>Experimental</value>
   </data>
   <data name="Settings.Transport.FeaturesSection" xml:space="preserve">
     <value>Engine Features</value>
@@ -739,11 +742,26 @@
   <data name="Settings.Transport.Status.Planned" xml:space="preserve">
     <value>Planned</value>
   </data>
+  <data name="Settings.Transport.Status.Unsupported" xml:space="preserve">
+    <value>Not Supported</value>
+  </data>
   <data name="Settings.Transport.Status.Supported" xml:space="preserve">
     <value>Supported</value>
   </data>
   <data name="Settings.Transport.Status.Standard" xml:space="preserve">
     <value>Standard Single Channel</value>
+  </data>
+  <data name="Settings.Transport.Note.SshSftp" xml:space="preserve">
+    <value>Terminal sessions and SFTP file transfers</value>
+  </data>
+  <data name="Settings.Transport.Note.ConcurrentChunk" xml:space="preserve">
+    <value>Faster large-file transfers over high-latency links</value>
+  </data>
+  <data name="Settings.Transport.Note.Fido2" xml:space="preserve">
+    <value>ed25519-sk / ecdsa-sk</value>
+  </data>
+  <data name="Settings.Transport.Note.ExtendedProtocols" xml:space="preserve">
+    <value>Telnet / Serial</value>
   </data>
   <data name="SessionEdit.TransportEngine" xml:space="preserve">
     <value>Transport Engine:</value>
@@ -898,4 +916,130 @@
   <data name="SessionEdit.Serial.LowerRtsConflict" xml:space="preserve">
     <value>A lower configuration level sets manual RTS, conflicting with the effective RTS/CTS hardware flow control in this scope. Please clear the lower-level manual RTS setting to avoid hardware conflicts.</value>
   </data>
+  <data name="Common.ViewArrow" xml:space="preserve">
+    <value>View ›</value>
+  </data>
+  <data name="Common.ClearFilter" xml:space="preserve"><value>Clear Filter</value></data>
+  <data name="Common.OperationFailedTitle" xml:space="preserve"><value>{0} Failed</value></data>
+  <data name="Common.OperationFailedFallback" xml:space="preserve"><value>Check permissions or settings and try again.</value></data>
+  <data name="Enum.SftpChannelMode.Auto" xml:space="preserve"><value>Auto</value></data>
+  <data name="Enum.SftpChannelMode.Subsystem" xml:space="preserve"><value>SFTP Subsystem</value></data>
+  <data name="Enum.SftpChannelMode.Dedicated" xml:space="preserve"><value>Dedicated Channel</value></data>
+  <data name="Enum.PortForwardMode.Local" xml:space="preserve"><value>Local</value></data>
+  <data name="Enum.PortForwardMode.Remote" xml:space="preserve"><value>Remote</value></data>
+  <data name="Enum.PortForwardMode.Dynamic" xml:space="preserve"><value>Dynamic (SOCKS5)</value></data>
+  <data name="Enum.SerialParity.Odd" xml:space="preserve"><value>Odd</value></data>
+  <data name="Enum.SerialParity.Even" xml:space="preserve"><value>Even</value></data>
+  <data name="Enum.SerialParity.Mark" xml:space="preserve"><value>Mark</value></data>
+  <data name="Enum.SerialParity.Space" xml:space="preserve"><value>Space</value></data>
+  <data name="Enum.WatchMode.Auto" xml:space="preserve"><value>Auto</value></data>
+  <data name="Enum.WatchMode.OSNative" xml:space="preserve"><value>OS Native</value></data>
+  <data name="Enum.WatchMode.Polling" xml:space="preserve"><value>Polling</value></data>
+  <data name="Enum.Platform.Any" xml:space="preserve"><value>All Platforms</value></data>
+  <data name="Settings.UnsavedChanges" xml:space="preserve"><value>Unsaved changes</value></data>
+  <data name="Settings.General.DataStorageSection" xml:space="preserve"><value>Data Storage</value></data>
+  <data name="Settings.General.Visibility.AlwaysVisible" xml:space="preserve"><value>Always visible</value></data>
+  <data name="Settings.General.Visibility.AlwaysHidden" xml:space="preserve"><value>Always hidden</value></data>
+  <data name="Settings.General.Visibility.RememberLast" xml:space="preserve"><value>Remember last state</value></data>
+  <data name="Settings.Proxy.ListSection" xml:space="preserve"><value>Proxy List</value></data>
+  <data name="Settings.Proxy.Empty" xml:space="preserve"><value>No proxy profiles configured yet</value></data>
+  <data name="Settings.Proxy.DeleteReferencedConfirm" xml:space="preserve"><value>Proxy "{0}" is referenced by {1} session(s). Deleting it will prevent those sessions from connecting through it. Delete anyway?</value></data>
+  <data name="Settings.Proxy.DeleteConfirm" xml:space="preserve"><value>Delete proxy "{0}"?</value></data>
+  <data name="Proxy.Type.HttpUnsupported" xml:space="preserve"><value>HTTP (Unsupported)</value></data>
+  <data name="Proxy.UnsupportedLabelFormat" xml:space="preserve"><value>{0} (Unsupported)</value></data>
+  <data name="Settings.TabBar.TitleCardSection" xml:space="preserve"><value>Tab Title</value></data>
+  <data name="Settings.TabBar.TemplateLabel" xml:space="preserve"><value>Naming Template</value></data>
+  <data name="Settings.TabBar.SaveBlockedTitle" xml:space="preserve"><value>Cannot Save Settings</value></data>
+  <data name="Settings.TabBar.SaveBlockedMessage" xml:space="preserve"><value>Tab title template format is invalid. Fix it before saving.</value></data>
+  <data name="Settings.TerminalAppearance.SchemeSection" xml:space="preserve"><value>Color Scheme</value></data>
+  <data name="Settings.TerminalAppearance.CurrentScheme" xml:space="preserve"><value>Current Scheme</value></data>
+  <data name="Settings.TerminalProfile.DeleteReferencedTarget" xml:space="preserve"><value>{0} (referenced by {1} session(s); they will fall back to the default color scheme)</value></data>
+  <data name="Settings.Appearance.PreviewHostSample" xml:space="preserve"><value>Host: 192.0.2.10 / Port: 22</value></data>
+  <data name="Settings.Preview.RenderFailed" xml:space="preserve"><value>Unable to display terminal preview. Reopen Settings to try again.</value></data>
+  <data name="Settings.Transport.BinaryMissingWarning" xml:space="preserve"><value>Go engine binary was not found in this environment. New connections using Go will fail to start; keep the default .NET engine.</value></data>
+  <data name="Settings.Transport.Col.DotNetEngine" xml:space="preserve"><value>.NET Engine</value></data>
+  <data name="Settings.Transport.Col.GoEngine" xml:space="preserve"><value>Go Engine</value></data>
+  <data name="Settings.Transport.Col.Notes" xml:space="preserve"><value>Notes</value></data>
+  <data name="Settings.FileTransfer.AddEditorFirstHint" xml:space="preserve"><value>Add an external editor before configuring file associations</value></data>
+  <data name="Settings.FileTransfer.AddExternalEditor" xml:space="preserve"><value>Add External Editor</value></data>
+  <data name="Settings.FileTransfer.CacheEmpty" xml:space="preserve"><value>Cache directory is empty.</value></data>
+  <data name="Settings.FileTransfer.CacheCleared" xml:space="preserve"><value>Cleared {0} cache item(s).</value></data>
+  <data name="Settings.FileTransfer.CacheClearPermissionDenied" xml:space="preserve"><value>Failed to clear cache: permission denied.</value></data>
+  <data name="Settings.FileTransfer.CacheClearFailed" xml:space="preserve"><value>Failed to clear cache. Make sure no cached file is in use by an external editor and try again.</value></data>
+  <data name="Settings.FileTransfer.DeleteEditorReferencedConfirm" xml:space="preserve"><value>External editor "{0}" is referenced by {1} file association rule(s). Deleting it will invalidate those rules. Delete anyway?</value></data>
+  <data name="Settings.FileTransfer.DeleteEditorConfirm" xml:space="preserve"><value>Delete external editor "{0}"?</value></data>
+  <data name="Settings.Security.UnlockVault" xml:space="preserve"><value>Unlock Vault</value></data>
+  <data name="Settings.Security.HasMasterPasswordLocked" xml:space="preserve"><value>Master password is set (locked; unlock to change or remove)</value></data>
+  <data name="Settings.SaveFailedMessage" xml:space="preserve"><value>Failed to save settings. Check configuration directory permissions and try again.</value></data>
+  <data name="Settings.SaveFailedRollbackPartialMessage" xml:space="preserve"><value>Failed to save settings and could not fully revert changes. Reopen Settings.</value></data>
+  <data name="Settings.RollbackFailedTitle" xml:space="preserve"><value>Could Not Revert Changes</value></data>
+  <data name="Settings.RollbackFailedMessage" xml:space="preserve"><value>Close and reopen the Settings window.</value></data>
+  <data name="Settings.Categories.Sync" xml:space="preserve"><value>Sync</value></data>
+  <data name="Settings.Categories.SyncDesc" xml:space="preserve"><value>End-to-end encrypted multi-device sync</value></data>
+  <data name="Settings.Sync.LocalDirPlaceholder" xml:space="preserve"><value>Choose or enter local sync directory path</value></data>
+  <data name="Settings.Sync.PasswordLabel" xml:space="preserve"><value>Password</value></data>
+  <data name="Settings.Sync.PasswordKeepHint" xml:space="preserve"><value>Leave blank to keep the password saved in the vault</value></data>
+  <data name="Settings.Sync.ConflictCheckLabel" xml:space="preserve"><value>Conflict check</value></data>
+  <data name="Settings.Sync.WebDavConflictCheckDesc" xml:space="preserve"><value>Verify remote version before writing to prevent concurrent overwrites</value></data>
+  <data name="Settings.Sync.S3SecretKeepHint" xml:space="preserve"><value>Leave blank to keep the secret saved in the vault</value></data>
+  <data name="Settings.Sync.S3ConflictCheckDesc" xml:space="preserve"><value>Verify remote version before writing; disabled by default for Aliyun OSS and Tencent COS compatibility</value></data>
+  <data name="Settings.Sync.RequireMasterPasswordHint" xml:space="preserve"><value>Set a master password before enabling or joining sync. The sync passphrase is stored in the local vault for end-to-end encryption.</value></data>
+  <data name="Settings.Sync.AutoSyncScheduleHint" xml:space="preserve"><value>Auto-sync schedule: on startup, 30s after local changes, and every 5 minutes while running</value></data>
+  <data name="Settings.Sync.RecoverySection" xml:space="preserve"><value>Snapshots &amp; History Recovery</value></data>
+  <data name="Settings.Sync.RefreshRecovery" xml:space="preserve"><value>Refresh Recovery List</value></data>
+  <data name="Settings.Sync.SnapshotTimeFormat" xml:space="preserve"><value>Snapshot time: {0:yyyy-MM-dd HH:mm:ss} (UTC)</value></data>
+  <data name="Settings.Sync.LocalSnapshotEmpty" xml:space="preserve"><value>No local snapshots</value></data>
+  <data name="Settings.Sync.RemoteHistoryTitle" xml:space="preserve"><value>Remote History (last 5 revisions)</value></data>
+  <data name="Settings.Sync.WrittenTimeFormat" xml:space="preserve"><value>Written at: {0:yyyy-MM-dd HH:mm:ss} (UTC)</value></data>
+  <data name="Settings.Sync.RemoteHistoryEmpty" xml:space="preserve"><value>No remote revisions (click "Refresh Recovery List" to fetch)</value></data>
+  <data name="Settings.Sync.Status.SnapshotDeleted" xml:space="preserve"><value>Local sync snapshot deleted</value></data>
+  <data name="Settings.Sync.Status.StateReadFailed" xml:space="preserve"><value>Unable to read sync state file.</value></data>
+  <data name="Settings.Sync.Status.ConfigCorrupted" xml:space="preserve"><value>Sync target configuration is corrupted or unreadable. Reconfigure it.</value></data>
+  <data name="Settings.Sync.Status.ConnectionSuccess" xml:space="preserve"><value>Sync target connection succeeded</value></data>
+  <data name="Settings.Sync.Status.AlreadyJoinedUseChangePassphrase" xml:space="preserve"><value>Already joined sync; use Change Passphrase. Enter updates from other devices during Sync Now.</value></data>
+  <data name="Settings.Sync.Status.PassphraseSaved" xml:space="preserve"><value>Sync passphrase saved to vault</value></data>
+  <data name="Settings.Sync.Deletion.PendingLabel" xml:space="preserve"><value>Pending deletions:</value></data>
+  <data name="Settings.Sync.Deletion.LocalLiveLabel" xml:space="preserve"><value>Local items:</value></data>
+  <data name="Settings.Sync.Join.SummaryFormat" xml:space="preserve"><value>Remote sync package detected. Local configuration has {0} item(s). Choose how to merge on first join:</value></data>
+  <data name="IdentityManager.Empty" xml:space="preserve"><value>No identities added yet</value></data>
+  <data name="KnownHosts.Empty" xml:space="preserve"><value>No known host keys recorded</value></data>
+  <data name="KnownHosts.FilterEmpty" xml:space="preserve"><value>No matching host keys</value></data>
+  <data name="KnownHosts.Error.LoadFailed" xml:space="preserve"><value>Failed to load known hosts: {0}</value></data>
+  <data name="KnownHosts.Error.DeleteFailed" xml:space="preserve"><value>Failed to delete host record: {0}</value></data>
+  <data name="KnownHosts.Error.UpdateStatusFailed" xml:space="preserve"><value>Failed to update host status: {0}</value></data>
+  <data name="KnownHosts.Error.ImportFailed" xml:space="preserve"><value>Failed to import host keys: {0}</value></data>
+  <data name="KnownHosts.Error.ExportFailed" xml:space="preserve"><value>Failed to export host keys: {0}</value></data>
+  <data name="Tree.FilterEmpty" xml:space="preserve"><value>No matching sessions</value></data>
+  <data name="PortForward.Validation.ListenPortRange" xml:space="preserve"><value>Listen port must be between 1 and 65535.</value></data>
+  <data name="PortForward.Validation.DestinationHostRequired" xml:space="preserve"><value>Enter a destination host.</value></data>
+  <data name="PortForward.Validation.DestinationPortRange" xml:space="preserve"><value>Destination port must be between 1 and 65535.</value></data>
+  <data name="PortForward.Validation.InvalidConfig" xml:space="preserve"><value>Check the port forwarding configuration.</value></data>
+  <data name="SessionEdit.Validation.HostRequired" xml:space="preserve"><value>Enter a host address.</value></data>
+  <data name="SessionEdit.Validation.SerialPortRequired" xml:space="preserve"><value>Enter or select a serial port path.</value></data>
+  <data name="SessionEdit.Serial.DiscoveryError" xml:space="preserve"><value>Failed to list available serial ports. Enter the port path manually.</value></data>
+  <data name="Connection.ProxyPassword.VaultLocked" xml:space="preserve"><value>Vault is locked</value></data>
+  <data name="Connection.ProxyPassword.ReadFailed" xml:space="preserve"><value>Failed to read proxy password; check vault status</value></data>
+  <data name="Connection.Error.Generic" xml:space="preserve"><value>Connection failed. Check network or host settings.</value></data>
+  <data name="Terminal.Serial.ControlFailedFormat" xml:space="preserve"><value>{0} failed: {1}</value></data>
+  <data name="FileActivity.ClearFinishedTip" xml:space="preserve"><value>Clear completed, failed, or canceled tasks</value></data>
+  <data name="FileActivity.ClearFinishedName" xml:space="preserve"><value>Clear finished tasks</value></data>
+  <data name="FileManager.StopWatchingTip" xml:space="preserve"><value>Stop watching this file</value></data>
+  <data name="FileManager.Error.CopyPathFailed" xml:space="preserve"><value>Failed to copy path</value></data>
+  <data name="FileManager.Error.OpenItemFailed" xml:space="preserve"><value>Failed to open {0}</value></data>
+  <data name="FileManager.Error.StopWatchingFailed" xml:space="preserve"><value>Failed to stop watching</value></data>
+  <data name="FileManager.Error.WritebackFailed" xml:space="preserve"><value>Failed to write back {0}</value></data>
+  <data name="FileManager.Error.OpenDirectoryFailed" xml:space="preserve"><value>Failed to open directory {0}</value></data>
+  <data name="FileManager.Error.RefreshFailed" xml:space="preserve"><value>Refresh failed</value></data>
+  <data name="FileManager.Error.RefreshTreeFailed" xml:space="preserve"><value>Failed to refresh directory tree</value></data>
+  <data name="FileManager.Error.OperationFailedPrefix" xml:space="preserve"><value>File operation failed</value></data>
+  <data name="FileManager.Error.TransferChannelUnavailable" xml:space="preserve"><value>Transfer channel unavailable</value></data>
+  <data name="FileManager.Error.ConnectFailed" xml:space="preserve"><value>Failed to connect file manager</value></data>
+  <data name="FileManager.Error.ExpandDirectoryFailed" xml:space="preserve"><value>Failed to expand directory {0}</value></data>
+  <data name="FileManager.Error.Reason.PermissionDenied" xml:space="preserve"><value>Permission denied</value></data>
+  <data name="FileManager.Error.Reason.NotFound" xml:space="preserve"><value>Target file or directory not found</value></data>
+  <data name="FileManager.Error.Reason.DirectoryNotFound" xml:space="preserve"><value>Target directory not found</value></data>
+  <data name="FileManager.Error.Reason.IoError" xml:space="preserve"><value>Network or file I/O error</value></data>
+  <data name="FileManager.Error.Reason.Timeout" xml:space="preserve"><value>Operation timed out</value></data>
+  <data name="FileManager.Error.Reason.Generic" xml:space="preserve"><value>Check connection or permissions and try again</value></data>
+  <data name="FileManager.Error.Format" xml:space="preserve"><value>{0}: {1}</value></data>
 </root>

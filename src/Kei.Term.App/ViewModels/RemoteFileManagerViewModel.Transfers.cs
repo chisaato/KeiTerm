@@ -36,21 +36,21 @@ public partial class RemoteFileManagerViewModel
         }
 
         _transferUnavailableReason = reason;
-        if (!string.IsNullOrWhiteSpace(reason)) TransferStatusMessage = reason;
+        if (!string.IsNullOrWhiteSpace(reason)) ReportOperationError(reason);
     }
 
     private bool EnsureTransfers()
     {
         if (TransferBoard != null) return true;
-        TransferStatusMessage = _transferUnavailableReason ?? "传输通道不可用";
+        ReportOperationError(_transferUnavailableReason ?? Strings.Get("FileManager.Error.TransferChannelUnavailable"));
         return false;
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanOperateOnLoadedItems))]
     public Task DownloadAsync(RemoteFileItem? singleItem)
         => DownloadToAsync(singleItem, ResolveDownloadDirectory());
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanOperateOnLoadedItems))]
     public async Task DownloadToAsync(RemoteFileItem? singleItem)
     {
         string? directory = await (_interaction ?? NullInteractionService.Instance).PickFolderAsync(Strings.Get("FileManager.DownloadToDialogTitle"));
@@ -72,7 +72,7 @@ public partial class RemoteFileManagerViewModel
 
     private Task DownloadToAsync(RemoteFileItem? singleItem, string directory)
     {
-        if (_disposed || string.IsNullOrWhiteSpace(directory) || !EnsureTransfers()) return Task.CompletedTask;
+        if (_disposed || !CanOperateOnLoadedItems() || string.IsNullOrWhiteSpace(directory) || !EnsureTransfers()) return Task.CompletedTask;
         List<RemoteFileItem> targets = SelectedItems.Count > 0
             ? SelectedItems.Where(item => item.Name != "..").ToList()
             : singleItem is { Name: not ".." } ? [singleItem] : [];

@@ -344,19 +344,41 @@ public partial class SessionEditViewModel : ViewModelBase
     {
         _allCategories =
         [
-            new SettingsCategoryItem(Strings.Get("SessionEdit.Category.Connection"), null, "Connection", SettingsIcons.Ssh, Strings.Get("SessionEdit.Category.Connection")),
+            new SettingsCategoryItem(Strings.Get("SessionEdit.Category.Connection"), null, "Connection", SettingsIcons.Transport, Strings.Get("SessionEdit.Category.Connection")),
             new SettingsCategoryItem(Strings.Get("SessionEdit.Category.Terminal"), null, "Terminal", SettingsIcons.Terminal, Strings.Get("SessionEdit.Category.Terminal")),
             new SettingsCategoryItem(Strings.Get("SessionEdit.Category.FileTransfer"), null, "FileTransfer", SettingsIcons.FileTransfer, Strings.Get("SessionEdit.Category.FileTransfer")),
             new SettingsCategoryItem(Strings.Get("SessionEdit.Category.Behavior"), null, "Behavior", SettingsIcons.General, Strings.Get("SessionEdit.Category.Behavior")),
-            new SettingsCategoryItem(Strings.Get("SessionEdit.Category.Ports"), null, "Ports", SettingsIcons.Ssh, Strings.Get("SessionEdit.Category.Ports"))
+            new SettingsCategoryItem(Strings.Get("SessionEdit.Category.Ports"), null, "Ports", SettingsIcons.Ports, Strings.Get("SessionEdit.Category.Ports"))
         ];
         Categories = new ObservableCollection<SettingsCategoryItem>(_allCategories);
         SelectedCategory = Categories[0];
     }
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasValidationError))]
+    private string? _validationError;
+
+    public bool HasValidationError => !string.IsNullOrWhiteSpace(ValidationError);
+
+    partial void OnHostChanged(string value) => ValidationError = null;
+    partial void OnSerialGenericPortChanged(string value) => ValidationError = null;
+
     [RelayCommand]
     private void Save()
     {
+        if (!IsSerialProtocol && string.IsNullOrWhiteSpace(Host))
+        {
+            ValidationError = Strings.Get("SessionEdit.Validation.HostRequired");
+            return;
+        }
+
+        if (IsSerialProtocol && string.IsNullOrWhiteSpace(EffectiveSerialPortName))
+        {
+            ValidationError = Strings.Get("SessionEdit.Validation.SerialPortRequired");
+            return;
+        }
+
+        ValidationError = null;
         if (string.IsNullOrWhiteSpace(Name))
         {
             string fallback = IsSerialProtocol
@@ -407,6 +429,14 @@ public partial class SessionEditViewModel : ViewModelBase
         FirewallOptions.Add(new FirewallOption(FirewallChoiceKind.None, null, Strings.Get("SessionEdit.FirewallNone")));
         foreach (ProxyProfile proxy in _proxies.OrderBy(p => p.SortOrder).ThenBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase))
         {
+            if (proxy.Config is HttpProxyConfig)
+            {
+                if (existing?.ProxyProfileId == proxy.Id)
+                {
+                    FirewallOptions.Add(new FirewallOption(FirewallChoiceKind.Proxy, proxy.Id, Strings.Format("Proxy.UnsupportedLabelFormat", proxy.Name)));
+                }
+                continue;
+            }
             FirewallOptions.Add(new FirewallOption(FirewallChoiceKind.Proxy, proxy.Id, proxy.Name));
         }
 

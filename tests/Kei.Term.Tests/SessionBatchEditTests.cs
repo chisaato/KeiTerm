@@ -191,7 +191,7 @@ public class BatchSessionEditViewModelTests
         Assert.Equal("root", _web.Username);
         Assert.Equal("keep-me", _test.Username);
         Assert.Equal(2, vm.ChangedCount);
-        Assert.Equal(new TreeNodeBase[] { _web, _dbMaster }.OrderBy(n => n.Name), Assert.Single(_saved).OrderBy(n => n.Name));
+        Assert.Equal(new[] { _web.Id, _dbMaster.Id }.Order(), Assert.Single(_saved).Select(n => n.Id).Order());
     }
 
     [Fact]

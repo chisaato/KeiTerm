@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Kei.Term.App.ViewModels"
+        xmlns:conv="using:Kei.Term.App.Converters"
         xmlns:loc="using:Kei.Term.App.Helpers"
         x:Class="Kei.Term.App.Views.ExternalEditorEditWindow"
         x:DataType="vm:ExternalEditorEditViewModel"
@@ -16,7 +17,13 @@
 
             <TextBlock Grid.Row="1" Text="操作系统" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
             <ComboBox x:Name="EditorOsComboBox" Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch"
-                      ItemsSource="{Binding SupportedOsList}" SelectedItem="{Binding SelectedOs}"/>
+                      ItemsSource="{Binding SupportedOsList}" SelectedItem="{Binding SelectedOs}">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="x:String">
+                        <TextBlock Text="{Binding Converter={x:Static conv:LocalizedEnumDisplayConverter.Instance}}"/>
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
 
             <TextBlock Grid.Row="2" Text="命令 / 路径" VerticalAlignment="Center" Foreground="{DynamicResource Kei.Text.Secondary}"/>
             <Grid Grid.Row="2" Grid.Column="1" ColumnDefinitions="*,Auto" ColumnSpacing="8">

@@ -213,34 +213,6 @@ public sealed class MainWindowLayoutModeTests
     });
 
     [Fact]
-    public Task Classic_RendersAndCapturesScreenshot() => HeadlessAvalonia.RunAsync(() =>
-    {
-        UiDesignSystemService.Apply();
-        AppSettings settings = new() { LayoutMode = LayoutMode.Classic };
-        MainViewModel model = CreateModel(settings);
-        MainWindow window = new() { DataContext = model, Width = 1100, Height = 750 };
-
-        try
-        {
-            window.Show();
-            HeadlessAvalonia.Pump(20);
-
-            string outputDir = "/tmp/opencode/kei-toolbar-before-or-after";
-            Directory.CreateDirectory(outputDir);
-
-            using var classicFrame = window.CaptureRenderedFrame();
-            if (classicFrame != null)
-            {
-                classicFrame.Save(Path.Combine(outputDir, "classic-window.png"), PngBitmapEncoderOptions.Default);
-            }
-        }
-        finally
-        {
-            window.Close();
-        }
-    });
-
-    [Fact]
     public Task ModernHamburgerMenu_OpensContextMenu_WithAllNativeCommands() => HeadlessAvalonia.RunAsync(() =>
     {
         UiDesignSystemService.Apply();

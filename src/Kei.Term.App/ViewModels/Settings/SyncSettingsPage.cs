@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Kei.Term.App.Helpers;
 using Kei.Term.App.Services;
 using Kei.Term.Core.Sync;
 using Kei.Term.Infrastructure.Sync;
@@ -49,28 +50,72 @@ public partial class SyncSettingsPage : ViewModelBase
         CustomProvider,
     ];
 
-    [ObservableProperty] private SyncLocationKindOption _selectedKind = LocalKind;
-    [ObservableProperty] private string _directoryPath = "";
-    [ObservableProperty] private string _webDavUrl = "";
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(TestConnectionCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SyncNowCommand))]
+    private SyncLocationKindOption _selectedKind = LocalKind;
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(TestConnectionCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SyncNowCommand))]
+    private string _directoryPath = "";
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(TestConnectionCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SyncNowCommand))]
+    private string _webDavUrl = "";
     [ObservableProperty] private string _webDavUser = "";
     [ObservableProperty] private string _webDavPassword = "";
     [ObservableProperty] private bool _webDavConditionalWrites = true;
     [ObservableProperty] private S3ProviderOption _selectedS3Provider = CustomProvider;
     [ObservableProperty] private string _s3Endpoint = "";
     [ObservableProperty] private string _s3Region = "";
-    [ObservableProperty] private string _s3Bucket = "";
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(TestConnectionCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SyncNowCommand))]
+    private string _s3Bucket = "";
     [ObservableProperty] private string _s3Prefix = "";
     [ObservableProperty] private string _s3AccessKeyId = "";
     [ObservableProperty] private string _s3SecretKey = "";
     [ObservableProperty] private bool _s3PathStyle = true;
     [ObservableProperty] private bool _s3ConditionalWrites = true;
-    [ObservableProperty] private string _passphrase = "";
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SavePassphraseCommand))]
+    private string _passphrase = "";
     [ObservableProperty] private string _status = "尚未同步";
-    [ObservableProperty] private bool _isBusy;
+    [ObservableProperty] private bool _isStatusError;
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(TestConnectionCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SavePassphraseCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SyncNowCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RefreshRecoveryCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DeleteLocalBackupsCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RestoreLocalCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RestoreHistoryCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ChangePassphraseCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ResumePassphraseChangeCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DisableCommand))]
+    private bool _isBusy;
 
     public bool IsLocalFolder => SelectedKind.Id == SyncLocationKinds.LocalFolder;
     public bool IsWebDav => SelectedKind.Id == SyncLocationKinds.WebDav;
     public bool IsS3 => SelectedKind.Id == SyncLocationKinds.S3;
+
+    private bool HasLocationConfigured => IsLocalFolder
+        ? !string.IsNullOrWhiteSpace(DirectoryPath)
+        : IsWebDav
+            ? !string.IsNullOrWhiteSpace(WebDavUrl)
+            : !string.IsNullOrWhiteSpace(S3Bucket);
+
+    private bool CanTestConnection() => !IsBusy && HasLocationConfigured;
+    private bool CanSavePassphrase() => !IsBusy && !string.IsNullOrWhiteSpace(Passphrase);
+    private bool CanSyncNow() => !IsBusy && HasLocationConfigured;
+    private bool CanUseCoordinator() => !IsBusy && _coordinator != null;
+    private bool CanDeleteLocalBackups() => !IsBusy && _secrets is ISyncSafetyStore && LocalBackups.Count > 0;
+
+    private void SetStatus(string message, bool isError = false)
+    {
+        IsStatusError = isError;
+        Status = message;
+    }
 
     public SyncSettingsPage(string dataDirectory, SyncScheduler scheduler, ISyncPassphraseStore secrets, ISyncLocationCredentialStore credentials, SyncCoordinator? coordinator = null)
     {
@@ -80,12 +125,17 @@ public partial class SyncSettingsPage : ViewModelBase
         _secrets = secrets;
         _credentials = credentials;
         _coordinator = coordinator;
-        if (File.Exists(_statusPath)) Status = File.ReadAllText(_statusPath);
+        if (File.Exists(_statusPath))
+        {
+            try { Status = File.ReadAllText(_statusPath); }
+            catch (Exception ex) when (IsSyncFailure(ex)) { SetStatus(Strings.Get("Settings.Sync.Status.StateReadFailed"), isError: true); }
+        }
         try { Apply(SyncLocationSettingsStore.Load(dataDirectory)); }
         catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
-        { Status = "同步位置配置无法读取：" + ex.Message; }
+        { SetStatus(Strings.Get("Settings.Sync.Status.ConfigCorrupted"), isError: true); }
         scheduler.StatusChanged += ApplyStatus;
         scheduler.Synchronized += OnSynchronizedAsync;
+        _ = CheckPendingPassphraseChangeAsync();
     }
 
     private void ApplyStatus(string status)
@@ -136,7 +186,7 @@ public partial class SyncSettingsPage : ViewModelBase
         if (path != null) DirectoryPath = path;
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanTestConnection))]
     private async Task TestConnectionAsync()
     {
         if (IsBusy) return;
@@ -146,9 +196,9 @@ public partial class SyncSettingsPage : ViewModelBase
         {
             location = await OpenLocationAsync();
             await location.TestConnectionAsync();
-            Status = "同步位置连接成功";
+            SetStatus(Strings.Get("Settings.Sync.Status.ConnectionSuccess"));
         }
-        catch (Exception ex) when (IsSyncFailure(ex)) { Status = ex.Message; }
+        catch (Exception ex) when (IsSyncFailure(ex)) { SetStatus(ex.Message, isError: true); }
         finally
         {
             Release(location);
@@ -156,7 +206,7 @@ public partial class SyncSettingsPage : ViewModelBase
         }
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanSavePassphrase))]
     private async Task SavePassphraseAsync()
     {
         if (IsBusy) return;
@@ -168,19 +218,22 @@ public partial class SyncSettingsPage : ViewModelBase
                 await safety.EnsureSyncMasterPasswordAsync();
                 if (await safety.HasJoinedAsync())
                 {
-                    Status = "已加入同步，请使用更换同步口令；其他设备口令更新请在立即同步时输入";
+                    SetStatus(Strings.Get("Settings.Sync.Status.AlreadyJoinedUseChangePassphrase"));
                     return;
                 }
             }
             await _secrets.SavePassphraseAsync(Passphrase.AsMemory());
             Passphrase = "";
-            Status = "同步口令已保存到保险库";
+            SetStatus(Strings.Get("Settings.Sync.Status.PassphraseSaved"));
         }
-        catch (Exception ex) when (ex is InvalidOperationException or ArgumentException) { Status = ex.Message; }
+        catch (Exception ex) when (ex is InvalidOperationException or ArgumentException or IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
+        {
+            SetStatus(ex.Message, isError: true);
+        }
         finally { IsBusy = false; }
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanSyncNow))]
     private async Task SyncNowAsync()
     {
         if (IsBusy) return;
@@ -192,9 +245,10 @@ public partial class SyncSettingsPage : ViewModelBase
             location = await OpenLocationAsync();
             // 先保存位置，再交给调度器。正在进行的一轮不会并行，结束后再补一轮。
             var result = await _scheduler.SyncNowAsync();
-            Status = (await CompleteManualAsync(location, result)).Message;
+            var finalResult = await CompleteManualAsync(location, result);
+            SetStatus(finalResult.Message, isError: !finalResult.Success);
         }
-        catch (Exception ex) when (IsSyncFailure(ex)) { Status = ex.Message; }
+        catch (Exception ex) when (IsSyncFailure(ex)) { SetStatus(ex.Message, isError: true); }
         finally
         {
             Release(location);

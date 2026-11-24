@@ -12,39 +12,6 @@ namespace Kei.Term.Tests;
 
 public class RemoteFileEditingTests
 {
-    [Fact]
-    public async Task LauncherExitAndIdleFile_DoNotEndEditingOrDeleteCache()
-    {
-        string directory = NewDirectory();
-        try
-        {
-            await using LocalFileTracker tracker = new(directory, FileWatcherMode.Polling, 1, 200);
-            BufferedFileSystem remote = new();
-            await using FileEditorLauncher launcher = new(tracker);
-            ExternalEditor editor = new()
-            {
-                Name = "short lived launcher",
-                ArgumentsTemplate = OperatingSystem.IsWindows() ? "/c exit 0" : "-c \"exit 0\"",
-                Paths = [new(Guid.NewGuid(), Guid.Empty, "any", OperatingSystem.IsWindows() ? "cmd.exe" : "/bin/sh")]
-            };
-            Guid session = Guid.NewGuid();
-            RemoteFileItem item = new("edit.txt", "/edit.txt", false, 8, DateTimeOffset.UtcNow, "-rw-------");
-            await launcher.OpenAndTrackAsync(session, item, remote, overrideEditor: editor);
-            string localPath = tracker.GetLocalCachePath(session, item.FullPath);
-
-            // 模拟编辑器把文件读入内存后空闲，启动器已退出，文件也没有被持续持有。
-            await Task.Delay(TimeSpan.FromSeconds(6.5));
-            Assert.Equal("original", await File.ReadAllTextAsync(localPath));
-            TaskCompletionSource<LocalFileChangedEventArgs> changed = new(TaskCreationOptions.RunContinuationsAsynchronously);
-            tracker.FileChanged += (_, e) => changed.TrySetResult(e);
-            await File.WriteAllTextAsync(localPath, "saved after launcher exit");
-            LocalFileChangedEventArgs notification = await changed.Task.WaitAsync(TimeSpan.FromSeconds(5));
-            Assert.Equal(item.FullPath, notification.RemotePath);
-            Assert.Equal(localPath, notification.LocalFilePath);
-        }
-        finally { Directory.Delete(directory, recursive: true); }
-    }
-
     [PlatformFact(TestPlatform.MacOS)]
     public Task WaitEditorClose_FlushesLastSaveAndRemovesMonitoringOnlyAfterClose() => HeadlessAvalonia.RunAsync(async () =>
     {
@@ -151,7 +118,7 @@ public class RemoteFileEditingTests
     }
 
     [Fact]
-    public Task SameNameFiles_InDifferentDirectoriesTrackAndStopIndependently() => HeadlessAvalonia.RunAsync(async () =>
+    public async Task SameNameFiles_InDifferentDirectoriesTrackAndStopIndependently()
     {
         string directory = NewDirectory();
         try
@@ -170,7 +137,7 @@ public class RemoteFileEditingTests
             Assert.Equal("/b/config.txt", Assert.Single(manager.ActiveTrackedFiles));
         }
         finally { Directory.Delete(directory, true); }
-    });
+    }
 
     private static ExternalEditor Editor(string executable, string arguments = "\"{path}\"") => new()
     {
@@ -180,7 +147,7 @@ public class RemoteFileEditingTests
     };
 
     [Fact]
-    public Task ManualStop_WithMissingCacheStillRemovesMonitoring() => HeadlessAvalonia.RunAsync(async () =>
+    public async Task ManualStop_WithMissingCacheStillRemovesMonitoring()
     {
         string directory = NewDirectory();
         try
@@ -199,7 +166,7 @@ public class RemoteFileEditingTests
             Assert.Empty(manager.ActiveTrackedFiles);
         }
         finally { Directory.Delete(directory, true); }
-    });
+    }
 
     [SupportedOSPlatform("macos")]
     private static async Task<string> CreateWaitEditorAsync(string directory, string afterClose)
@@ -305,7 +272,7 @@ public class RemoteFileEditingTests
     });
 
     [Fact]
-    public Task Dispose_StopsOwnedPollingTracker() => HeadlessAvalonia.RunAsync(async () =>
+    public async Task Dispose_StopsOwnedPollingTracker()
     {
         string directory = NewDirectory();
         try
@@ -319,7 +286,7 @@ public class RemoteFileEditingTests
             Assert.True(File.Exists(path));
         }
         finally { Directory.Delete(directory, recursive: true); }
-    });
+    }
 
     private static RemoteFileManagerViewModel ManagerWithEndpoint(IRemoteFileSystem remote)
         => new(

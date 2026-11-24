@@ -410,6 +410,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         else if (ActiveWorkspaceTab is TerminalTabViewModel) ActiveWorkspaceTab = null;
         DisconnectCurrentTabCommand.NotifyCanExecuteChanged();
         OpenTerminalFindCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(CanToggleFileManager));
+        ToggleFileManagerCommand.NotifyCanExecuteChanged();
         if (_syncingFromWorkspace || _disposed != 0 || value == null)
         {
             return;
@@ -463,6 +465,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
 
     public async Task ReloadTreeAsync()
     {
+        Guid? selectedId = SelectedTreeNode?.Id;
         // 捕获当前树中所有已处于展开态的文件夹 ID，避免重查库/重构后展开态被重置
         var currentlyExpanded = _allNodesCache
             .OfType<FolderNode>()
@@ -484,7 +487,25 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
 
         _allNodesCache = fromDb;
         RefreshTreeFromCache();
+        if (selectedId != null && SelectedTreeNode == null)
+        {
+            SelectedTreeNode = FindNodeById(TreeNodes, selectedId.Value);
+        }
         RebindOpenTabsToSessions();
+    }
+
+    private static TreeNodeBase? FindNodeById(IEnumerable<TreeNodeBase> nodes, Guid id)
+    {
+        foreach (var node in nodes)
+        {
+            if (node.Id == id) return node;
+            if (node is FolderNode folder)
+            {
+                var found = FindNodeById(folder.Children, id);
+                if (found != null) return found;
+            }
+        }
+        return null;
     }
 
     /* 树节点重新加载后，将当前打开的标签重新挂接到最新会话节点实例，若会话已不存在则解除旧订阅 */
@@ -505,6 +526,15 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         }
     }
 
+    [ObservableProperty]
+    private bool _isTreeEmpty;
+
+    [ObservableProperty]
+    private bool _isFilterEmpty;
+
+    [RelayCommand]
+    private void ClearFilter() => FilterText = string.Empty;
+
     // 用缓存的扁平节点按过滤关键字重建树展示（命中节点 + 祖先链，不重复查库）
     private void RefreshTreeFromCache()
     {
@@ -512,6 +542,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         BuildTree(filtered);
         // 虚拟根恒存在，故按真实节点数判定空树（过滤结果可能为空）
         HasNodes = filtered.Count > 0;
+        IsTreeEmpty = _allNodesCache.Count == 0;
+        IsFilterEmpty = !IsTreeEmpty && filtered.Count == 0;
     }
 
     // 文件夹展开/折叠状态监听绑定与即时持久化
@@ -601,7 +633,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
             await _treeRepo.SaveNodeAsync(result);
             await ReloadTreeAsync();
         }
-    });
+    }, NotifySafeErrorAsync);
 
     [RelayCommand(CanExecute = nameof(CanUseSelectedNode))]
     private Task EditSelectedNodeAsync() => Safe.RunAsync(_logger, "编辑选中项", async () =>
@@ -658,7 +690,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         await _treeRepo.DeleteNodeAsync(SelectedTreeNode.Id);
         SelectedTreeNode = null;
         await ReloadTreeAsync();
-    });
+    }, NotifySafeErrorAsync);
 
     private bool CanUseSelectedNode() => SelectedTreeNode is not null and not VirtualRootNode;
 
@@ -828,7 +860,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         }
 
         await ReloadTreeAsync();
-    });
+    }, NotifySafeErrorAsync);
 
     [RelayCommand]
     private Task OpenIdentityManagerAsync() => Safe.RunAsync(_logger, "打开身份管理器", async () =>
@@ -854,6 +886,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         => Safe.RunAsync(_logger, "连接选中会话", () => OpenSessionAsync(SelectedTreeNode as SessionNode));
 
     private bool CanConnectSelectedSession() => SelectedTreeNode is SessionNode;
+
+    private Task NotifySafeErrorAsync(string operation, Exception ex)
+        => Interaction.NotifyAsync(Strings.Format("Common.OperationFailedTitle", operation),
+            string.IsNullOrWhiteSpace(ex.Message) ? Strings.Get("Common.OperationFailedFallback") : ex.Message,
+            NotificationLevel.Error);
 
     // 导入 ~/.ssh/config：具体 Host 别名 → 会话，IdentityFile → 身份，ProxyJump → 跳板链
     [RelayCommand]
@@ -886,7 +923,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
             importLevel = NotificationLevel.Warning;
         }
         await Interaction.NotifyAsync(Strings.Get("Menu.File.ImportOpenSshConfig"), message, importLevel);
-    });
+    }, NotifySafeErrorAsync);
 
     // 导入 ~/.ssh/known_hosts：与系统 ssh 共享已建立的主机信任（含哈希条目与 @revoked）
     [RelayCommand]
@@ -905,8 +942,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         await Interaction.NotifyAsync(
             Strings.Get("Menu.File.ImportKnownHosts"),
             $"导入 {count} 条主机密钥，跳过无法识别的行 {parsed.SkippedLines} 行。",
-            NotificationLevel.Success);
-    });
+            count == 0 || parsed.SkippedLines > 0 ? NotificationLevel.Warning : NotificationLevel.Success);
+    }, NotifySafeErrorAsync);
 
     // 导入 SecureCRT 会话：弹出目录选择框，提取层级目录与会话，并为用到的凭据建立占位 Profile
     [RelayCommand]
@@ -934,7 +971,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
             scrtLevel = NotificationLevel.Warning;
         }
         await Interaction.NotifyAsync("SecureCRT 导入完成", msg, scrtLevel);
-    });
+    }, NotifySafeErrorAsync);
 
     [RelayCommand]
     private Task ImportKonsoleAsync() => Safe.RunAsync(_logger, "导入 Konsole 配色方案", async () =>
@@ -970,7 +1007,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
             profileManager.RemoveCustomTerminalProfile(confirmed.Id);
             await Interaction.NotifyAsync(Strings.Get("TerminalProfileEdit.Title"), ex.Message, NotificationLevel.Error);
         }
-    });
+    }, NotifySafeErrorAsync);
 
     // 快速连接善后：按用户输入解析配置 → 可选保存会话 → 接入统一认证管线
     public Task ConnectQuickAsync(string host, int port, string? username, string? password, bool saveAsSession)
@@ -1085,7 +1122,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         }
     }
 
-    [RelayCommand]
+    public bool CanToggleFileManager => SelectedTab?.HasFileSystem == true;
+
+    [RelayCommand(CanExecute = nameof(CanToggleFileManager))]
     private void ToggleFileManager()
     {
         if (SelectedTab != null)

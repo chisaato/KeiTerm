@@ -11,6 +11,7 @@ using Avalonia.Input.Platform;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Kei.Term.App.Helpers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Kei.Term.App.Services;
@@ -44,15 +45,18 @@ public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposabl
     private string _currentPath = "/";
 
     [ObservableProperty]
+    private string _addressBarPath = "/";
+
+    partial void OnCurrentPathChanged(string value) => AddressBarPath = value;
+
+    [ObservableProperty]
     private bool _isLoading;
 
-    // 视图绑定的加载指示：IsLoading 持续 150ms 才亮起、亮起后至少 300ms，避免快速目录切换时闪烁。
-    [ObservableProperty]
-    private bool _isLoadingIndicatorVisible;
-
-    private readonly DelayedBusyIndicator _loadingIndicator;
-
-    partial void OnIsLoadingChanged(bool value) => _loadingIndicator.SetBusy(value);
+    partial void OnIsLoadingChanged(bool value)
+    {
+        _loadingIndicator.SetBusy(value);
+        NotifyItemActionCanExecuteChanged();
+    }
 
     [ObservableProperty]
     private bool _showHiddenFiles;
@@ -68,6 +72,59 @@ public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposabl
 
     [ObservableProperty]
     private string? _transferStatusMessage;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasOperationError))]
+    private string? _operationErrorMessage;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanRetryDirectoryLoad))]
+    [NotifyCanExecuteChangedFor(nameof(RetryDirectoryLoadCommand))]
+    private string? _retryTargetPath;
+
+    public bool HasOperationError => !string.IsNullOrWhiteSpace(OperationErrorMessage);
+    public bool CanRetryDirectoryLoad => !string.IsNullOrWhiteSpace(RetryTargetPath);
+
+    // 视图绑定的加载指示：IsLoading 持续 150ms 才亮起、亮起后至少 300ms，避免快速目录切换时闪烁。
+    [ObservableProperty]
+    private bool _isLoadingIndicatorVisible;
+
+    private readonly DelayedBusyIndicator _loadingIndicator;
+
+    [RelayCommand]
+    public void DismissOperationError() => ClearOperationError();
+
+    [RelayCommand(CanExecute = nameof(CanRetryDirectoryLoad))]
+    public Task RetryDirectoryLoadAsync()
+        => string.IsNullOrWhiteSpace(RetryTargetPath) ? Task.CompletedTask : NavigateToPathAsync(RetryTargetPath);
+
+    internal void ReportOperationError(string message, string? retryPath = null)
+    {
+        TransferStatusMessage = message;
+        OperationErrorMessage = message;
+        RetryTargetPath = retryPath;
+    }
+
+    internal void ClearOperationError()
+    {
+        OperationErrorMessage = null;
+        RetryTargetPath = null;
+    }
+
+    internal static string DescribeFileException(string action, Exception ex)
+    {
+        string detail = ex switch
+        {
+            UnauthorizedAccessException => Strings.Get("FileManager.Error.Reason.PermissionDenied"),
+            FileNotFoundException => Strings.Get("FileManager.Error.Reason.NotFound"),
+            DirectoryNotFoundException => Strings.Get("FileManager.Error.Reason.DirectoryNotFound"),
+            IOException => Strings.Get("FileManager.Error.Reason.IoError"),
+            TimeoutException => Strings.Get("FileManager.Error.Reason.Timeout"),
+            _ when !string.IsNullOrWhiteSpace(ex.Message) => ex.Message,
+            _ => Strings.Get("FileManager.Error.Reason.Generic")
+        };
+        return Strings.Format("FileManager.Error.Format", action, detail);
+    }
 
     // 当前传输进度百分比 (0-100)
     [ObservableProperty]
@@ -104,8 +161,7 @@ public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposabl
         if (_isInternalDirectoryNavigating) return;
         if (value != null && !string.IsNullOrWhiteSpace(value.FullPath))
         {
-            CurrentPath = value.FullPath;
-            _ = RefreshDirectoryAsync();
+            _ = NavigateToPathAsync(value.FullPath);
         }
     }
 
@@ -216,7 +272,7 @@ public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposabl
 
             // 初始化左侧目录树根节点 "/"
             DirectoryTreeRoots.Clear();
-            RemoteDirectoryNodeViewModel rootNode = new("/", "/", _fileSystem, () => ShowHiddenFiles, hasDummyChild: false);
+            RemoteDirectoryNodeViewModel rootNode = new("/", "/", _fileSystem, () => ShowHiddenFiles, hasDummyChild: false, onLoadFailed: OnDirectoryNodeLoadFailed);
             DirectoryTreeRoots.Add(rootNode);
 
             // 根节点先加载一级子目录
@@ -233,7 +289,7 @@ public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposabl
         catch (Exception ex)
         {
             _logger.LogError(ex, "初始化远程文件系统失败");
-            TransferStatusMessage = $"连接失败: {ex.Message}";
+            ReportOperationError(DescribeFileException(Strings.Get("FileManager.Error.ConnectFailed"), ex));
         }
         finally
         {
@@ -322,8 +378,16 @@ public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposabl
             parent = "/";
         }
 
-        CurrentPath = parent;
-        await RefreshDirectoryAsync();
+        await NavigateToPathAsync(parent);
+    }
+
+    private void OnDirectoryNodeLoadFailed(string path, Exception ex)
+    {
+        PostToUiThread(() =>
+        {
+            if (!_disposed)
+                ReportOperationError(DescribeFileException(Strings.Format("FileManager.Error.ExpandDirectoryFailed", path), ex));
+        });
     }
 
 }

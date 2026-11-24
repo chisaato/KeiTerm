@@ -27,6 +27,19 @@ public sealed class GoSidecarProcessManager : IAsyncDisposable
         internal Task Error = Task.CompletedTask;
         internal Task Monitor = Task.CompletedTask;
     }
+    public static bool IsBinaryAvailable()
+    {
+        try
+        {
+            _ = new GoSidecarProcessManager().FindBinary();
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     public GoSidecarProcessManager(string? binaryPath = null, Action<SidecarDiagnostic>? diagnostics = null)
     { _binaryPath = binaryPath; _diagnostics = diagnostics; }
 

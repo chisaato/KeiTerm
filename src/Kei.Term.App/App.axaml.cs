@@ -285,13 +285,8 @@ public partial class App : Application
             // 初始基线完成后再启动，避免同步与首次设置/Profile 加载交错。
             syncScheduler.Start();
 
-            // 按设置应用主题变体："System" 跟随系统，其余（"Dark"）固定深色
-            RequestedThemeVariant = string.Equals(
-                settingsService.Current.UiTheme,
-                "System",
-                StringComparison.OrdinalIgnoreCase)
-                ? ThemeVariant.Default
-                : ThemeVariant.Dark;
+            // 统一使用与当前深色/浅色设计令牌一致的主题变体，避免浅色系统下未覆写 Fluent 控件出现黑字深底
+            RequestedThemeVariant = ThemeVariant.Dark;
 
             // 挂载 Kei 专属紧凑桌面主题与设计令牌
             UiDesignSystemService.Apply();

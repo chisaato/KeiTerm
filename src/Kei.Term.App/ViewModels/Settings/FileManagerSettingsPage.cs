@@ -142,17 +142,59 @@ public partial class FileManagerSettingsPage : ViewModelBase
         AddAssociationCommand.NotifyCanExecuteChanged();
     }
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasCacheStatus))]
+    private string? _cacheStatusMessage;
+
+    [ObservableProperty]
+    private bool _isCacheStatusError;
+
+    public bool HasCacheStatus => !string.IsNullOrWhiteSpace(CacheStatusMessage);
+
+    internal static string ResolveEffectiveCacheDirectory(string? configured)
+    {
+        if (!string.IsNullOrWhiteSpace(configured)) return configured.Trim();
+        string appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        return Path.Combine(appData, "KeiTerm", "file-cache");
+    }
+
     [RelayCommand]
     private void ClearCacheDirectory()
     {
-        if (string.IsNullOrWhiteSpace(CacheDirectory) || !Directory.Exists(CacheDirectory)) return;
+        string targetDir = ResolveEffectiveCacheDirectory(CacheDirectory);
+        if (!Directory.Exists(targetDir))
+        {
+            IsCacheStatusError = false;
+            CacheStatusMessage = Strings.Get("Settings.FileTransfer.CacheEmpty");
+            return;
+        }
+
         try
         {
-            var dir = new DirectoryInfo(CacheDirectory);
-            foreach (var file in dir.GetFiles()) file.Delete();
-            foreach (var sub in dir.GetDirectories()) sub.Delete(true);
+            var dir = new DirectoryInfo(targetDir);
+            int removed = 0;
+            foreach (var file in dir.GetFiles())
+            {
+                file.Delete();
+                removed++;
+            }
+            foreach (var sub in dir.GetDirectories())
+            {
+                sub.Delete(true);
+                removed++;
+            }
+            IsCacheStatusError = false;
+            CacheStatusMessage = removed > 0
+                ? Strings.Format("Settings.FileTransfer.CacheCleared", removed)
+                : Strings.Get("Settings.FileTransfer.CacheEmpty");
         }
-        catch { }
+        catch (Exception ex)
+        {
+            IsCacheStatusError = true;
+            CacheStatusMessage = ex is UnauthorizedAccessException
+                ? Strings.Get("Settings.FileTransfer.CacheClearPermissionDenied")
+                : Strings.Get("Settings.FileTransfer.CacheClearFailed");
+        }
     }
 
     private bool HasSelectedEditor() => SelectedEditor != null;
@@ -187,6 +229,11 @@ public partial class FileManagerSettingsPage : ViewModelBase
     private async Task DeleteEditorAsync() => await RunAsync(async () =>
     {
         if (SelectedEditor == null || _editorRepo == null) return;
+        int refCount = Associations.Count(a => a.Model.EditorId == SelectedEditor.Id);
+        string message = refCount > 0
+            ? Strings.Format("Settings.FileTransfer.DeleteEditorReferencedConfirm", SelectedEditor.Name, refCount)
+            : Strings.Format("Settings.FileTransfer.DeleteEditorConfirm", SelectedEditor.Name);
+        if (!await Interaction.ConfirmDeleteAsync(message)) return;
         await _editorRepo.DeleteEditorAsync(SelectedEditor.Id);
         await ReloadAsync();
     });

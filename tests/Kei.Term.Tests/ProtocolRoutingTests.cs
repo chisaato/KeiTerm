@@ -88,7 +88,7 @@ public partial class ConnectionOrchestratorTests
         }
     }
     [Fact]
-    public Task ProtocolRouting_DisconnectDuringConnectCannotMarkOrReportOverNewAttempt() => HeadlessAvalonia.RunAsync(async () =>
+    public async Task ProtocolRouting_DisconnectDuringConnectCannotMarkOrReportOverNewAttempt()
     {
         var vault = new VaultSessionService(new PlainVault(), new PlainVault(), _settings, () => _ui);
         var collector = new AuthMaterialCollector(new InMemoryIdentities(), _settings, vault, () => _ui);
@@ -109,7 +109,7 @@ public partial class ConnectionOrchestratorTests
         Assert.DoesNotContain("old failed late", tab.StatusMessage ?? "");
         Assert.True(old.Disposed);
         await tab.DisposeAsync();
-    });
+    }
 
     private sealed class SingleDelayedConnectFactory(ITerminalSession first) : IProtocolSessionFactory
     {
@@ -132,7 +132,7 @@ public partial class ConnectionOrchestratorTests
         }
     }
     [Fact]
-    public Task ProtocolRouting_DisconnectAndNewAttemptRejectLateFactory() => HeadlessAvalonia.RunAsync(async () =>
+    public async Task ProtocolRouting_DisconnectAndNewAttemptRejectLateFactory()
     {
         var vault = new VaultSessionService(new PlainVault(), new PlainVault(), _settings, () => _ui);
         var collector = new AuthMaterialCollector(new InMemoryIdentities(), _settings, vault, () => _ui);
@@ -152,7 +152,7 @@ public partial class ConnectionOrchestratorTests
         Assert.True(sessions.Old.Disposed);
         Assert.False(sessions.Old.IsConnected);
         await tab.DisposeAsync();
-    });
+    }
 
     private sealed class DelayedRoutingSessions : IProtocolSessionFactory
     {

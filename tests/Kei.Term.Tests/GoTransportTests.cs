@@ -18,6 +18,8 @@ using Kei.Term.Transport.Go;
 using Kei.Term.Infrastructure.Storage;
 using Xunit;
 
+using Kei.Term.Core.Abstractions;
+using Kei.Term.Core.Vault;
 namespace Kei.Term.Tests;
 
 public class GoTransportTests
@@ -273,5 +275,26 @@ public class GoTransportTests
         payload.CopyTo(frame, 9);
         // 模拟短读，不能假设一次 Read 就取得完整帧头或 payload。
         foreach (byte value in frame) await stream.WriteAsync(new byte[] { value }, ct);
+    }
+}
+
+public class GoInteractiveAuthTests
+{
+    [Fact]
+    public async Task ExplicitInteractive_IsRejectedBeforeSendingIncompleteCredentials()
+    {
+        var factory = new GoSshSessionFactory(_ => throw new InvalidOperationException("Must not open IPC"), new UnusedVerifier());
+        var config = SessionConfigBuilder.Build(new SessionNode { Host = "example.test" }, new AppSettings());
+        await using var session = await factory.CreateSessionAsync(config,
+            [new(AuthMaterialKind.Password, new SecretPayload { Password = "pw" }), new(AuthMaterialKind.Interactive, null)]);
+        await Assert.ThrowsAsync<NotSupportedException>(() => session.ConnectAsync());
+    }
+
+    private sealed class UnusedVerifier : IHostKeyVerifier
+    {
+        public Task<IReadOnlyList<string>> GetKnownKeyTypesAsync(string host, int port, CancellationToken ct = default)
+            => throw new InvalidOperationException("Must not probe host");
+        public Task<HostKeyCheckOutcome> VerifyAsync(PresentedHostKey presented, CancellationToken ct = default)
+            => throw new InvalidOperationException("Must not probe host");
     }
 }

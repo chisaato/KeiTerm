@@ -65,6 +65,8 @@
     <SolidColorBrush x:Key="Kei.Session.Foreground" Color="{StaticResource Kei.Color.Session.Foreground}"/>
 
     <SolidColorBrush x:Key="Kei.Status.Connecting" Color="{StaticResource Kei.Color.Status.Connecting}"/>
+    <SolidColorBrush x:Key="Kei.Status.Warning" Color="{StaticResource Kei.Color.Status.Connecting}"/>
+    <SolidColorBrush x:Key="Kei.Bg.WarningSubtle" Color="{StaticResource Kei.Color.Status.Connecting}" Opacity="0.18"/>
     <SolidColorBrush x:Key="Kei.Status.Connected" Color="{StaticResource Kei.Color.Status.Connected}"/>
     <SolidColorBrush x:Key="Kei.Status.Disconnected" Color="{StaticResource Kei.Color.Status.Disconnected}"/>
     <SolidColorBrush x:Key="Kei.Status.Error" Color="{StaticResource Kei.Color.Status.Error}"/>

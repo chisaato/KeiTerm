@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Kei.Term.App.ViewModels"
         xmlns:models="using:Kei.Term.Core.Models"
+        xmlns:conv="using:Kei.Term.App.Converters"
         xmlns:loc="using:Kei.Term.App.Helpers"
         x:Class="Kei.Term.App.Views.PortForwardEditWindow"
         x:DataType="vm:PortForwardEditViewModel"
@@ -20,7 +21,13 @@
             <TextBlock Grid.Row="1" Text="{loc:KeiString PortForward.Mode}" VerticalAlignment="Center"
                        Foreground="{DynamicResource Kei.Text.Secondary}"/>
             <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding Modes}" SelectedItem="{Binding SelectedMode}"
-                      HorizontalAlignment="Stretch"/>
+                      HorizontalAlignment="Stretch">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="models:PortForwardMode">
+                        <TextBlock Text="{Binding Converter={x:Static conv:LocalizedEnumDisplayConverter.Instance}}"/>
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
 
             <TextBlock Grid.Row="2" Text="{loc:KeiString PortForward.Bind}" VerticalAlignment="Center"
                        Foreground="{DynamicResource Kei.Text.Secondary}"/>
@@ -40,9 +47,15 @@
             <NumericUpDown Grid.Row="5" Grid.Column="1" Value="{Binding DestinationPort}" Minimum="1" Maximum="65535"
                            FormatString="0" HorizontalAlignment="Left" MinWidth="140" IsVisible="{Binding NeedsDestination}"/>
         </Grid>
-        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-            <Button Content="{loc:KeiString Common.Cancel}" Command="{Binding CancelCommand}" MinWidth="84"/>
-            <Button Content="{loc:KeiString Common.Save}" Command="{Binding SaveCommand}" MinWidth="84"/>
-        </StackPanel>
+        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="12">
+            <TextBlock Grid.Column="0" Text="{Binding ValidationError}"
+                       IsVisible="{Binding HasValidationError}"
+                       Foreground="{DynamicResource Kei.Status.Error}" FontSize="12"
+                       TextWrapping="Wrap" VerticalAlignment="Center"/>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                <Button Content="{loc:KeiString Common.Cancel}" Command="{Binding CancelCommand}" MinWidth="84"/>
+                <Button Content="{loc:KeiString Common.Save}" Classes="accent" Command="{Binding SaveCommand}" MinWidth="84"/>
+            </StackPanel>
+        </Grid>
     </Grid>
 </Window>

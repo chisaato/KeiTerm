@@ -2,7 +2,7 @@
 
 KeiTerm uses the Lucide SVG assets from `@iconify-json/lucide` **1.2.141**. This is the same icon data used in the reviewed Lucide preview.
 
-The package URL and SHA-512 integrity are recorded in `manifest.json`. Only the 42 SVGs needed for the 39 `Kei.Icon.*` resources and seven settings categories are retained in `svg/`. The SVG bodies come from the Iconify package without changes; the enclosing SVG element supplies Lucide's standard 24×24 viewport and 2px round strokes. Icon aliases retain their requested names, such as `trash-2`.
+The package URL and SHA-512 integrity are recorded in `manifest.json`. Only the 49 SVGs needed for the 42 `Kei.Icon.*` resources and 14 settings categories are retained in `svg/`. The SVG bodies come from the Iconify package without changes; the enclosing SVG element supplies Lucide's standard 24×24 viewport and 2px round strokes. Icon aliases retain their requested names, such as `trash-2`.
 
 `generate.py` converts the SVG paths, circles and rounded rectangles to Avalonia centerline geometry. Regenerate the resources offline from the repository root:
 
