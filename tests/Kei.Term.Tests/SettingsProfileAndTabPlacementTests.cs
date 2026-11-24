@@ -188,6 +188,8 @@ public class SettingsProfileAndTabPlacementTests
 
             await HeadlessAvalonia.RunAsync(() =>
             {
+                // 设置页 XAML 引用 Kei.* 设计令牌，Headless 不执行启动流程，需手动挂载。
+                UiDesignSystemService.Apply();
                 SettingsViewModel vm = new(service, tempDir);
                 vm.SelectedCategory = vm.Categories.Single(c => c.Page is GeneralSettingsPage);
                 GeneralSettingsPage general = vm.Categories.Select(c => c.Page).OfType<GeneralSettingsPage>().Single();
