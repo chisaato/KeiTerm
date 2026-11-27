@@ -10,10 +10,8 @@ namespace Kei.Term.Tests;
 
 public sealed class FileTransferExecutorTests : IDisposable
 {
-    private readonly string _root = Path.Combine(Path.GetTempPath(), "keiterm-xfer-" + Guid.NewGuid().ToString("N"));
+    private readonly string _root = DirectoryArchiveTransfer.CreateTemporaryDirectory("keiterm-xfer-");
     private readonly FileTransferExecutor _executor = new();
-
-    public FileTransferExecutorTests() => Directory.CreateDirectory(_root);
 
     public void Dispose() => Directory.Delete(_root, recursive: true);
 

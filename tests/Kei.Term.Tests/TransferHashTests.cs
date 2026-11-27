@@ -8,9 +8,7 @@ namespace Kei.Term.Tests;
 
 public sealed class TransferHashTests : IDisposable
 {
-    private readonly string _root = Path.Combine(Path.GetTempPath(), "keiterm-hash-" + Guid.NewGuid().ToString("N"));
-
-    public TransferHashTests() => Directory.CreateDirectory(_root);
+    private readonly string _root = DirectoryArchiveTransfer.CreateTemporaryDirectory("keiterm-hash-");
 
     public void Dispose() => Directory.Delete(_root, recursive: true);
 

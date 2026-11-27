@@ -779,15 +779,14 @@ public sealed partial class TransferQueue : IAsyncDisposable
 
     private async Task<string> NextNameAsync(IRemoteFileSystem remote, string directory, string fileName, TransferDirection direction, CancellationToken ct)
     {
-        HashSet<string> present = direction == TransferDirection.Upload
+        HashSet<string>? remoteNames = direction == TransferDirection.Upload
             ? await RemoteNamesAsync(remote, directory, ct).ConfigureAwait(false)
-            : Directory.Exists(directory)
-                ? Directory.GetFileSystemEntries(directory).Select(Path.GetFileName).OfType<string>().ToHashSet(StringComparer.Ordinal)
-                : [];
+            : null;
         return AutoRename.NextAvailable(fileName, candidate =>
         {
-            if (present.Contains(candidate)) return true;
             string finalPath = FullName(directory, candidate, direction);
+            // 本地由目标卷实际查找名称，兼容同一系统挂载的大小写敏感和不敏感卷。
+            if (remoteNames?.Contains(candidate) ?? Path.Exists(finalPath)) return true;
             string partialPath = FullName(directory, PartialFileNames.ToPartial(candidate), direction);
             return _claims.Overlaps(ClaimKeys(finalPath, partialPath, direction));
         });
