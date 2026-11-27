@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -215,11 +216,15 @@ public sealed class TerminalThemeJsonImportWindowTests
     }
 
     [Theory]
-    [InlineData(640, 480)]
-    [InlineData(820, 640)]
-    public Task ValidAndInvalidDrafts_KeepEditorAndActionsReachable_AtMinimumAndDefaultSize(int width, int height)
+    [InlineData(640, 480, "zh-CN")]
+    [InlineData(640, 480, "en-US")]
+    [InlineData(820, 640, "zh-CN")]
+    [InlineData(820, 640, "en-US")]
+    public Task ValidAndInvalidDrafts_KeepEditorAndActionsReachable_AtMinimumAndDefaultSize(int width, int height, string culture)
         => HeadlessAvalonia.RunAsync(async () =>
     {
+        var previousCulture = CultureInfo.CurrentUICulture;
+        CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(culture);
         UiDesignSystemService.Apply();
         TerminalThemeJsonImportViewModel draft = new();
         Window owner = new();
@@ -231,7 +236,18 @@ public sealed class TerminalThemeJsonImportWindowTests
             draft.LoadExample();
             HeadlessAvalonia.Pump();
             AssertImportLayout(dialog);
-            await CapturePreviewAsync(dialog, $"{width}x{height}-valid.png");
+            await CapturePreviewAsync(dialog, $"{culture}-{width}x{height}-valid.png");
+
+            // 按下时 Fluent 会缩放按钮；变换期间右侧操作也必须留在工具栏内。
+            Button validate = dialog.FindControl<Button>("ValidateButton")!;
+            Point center = validate.TranslatePoint(new Point(validate.Bounds.Width / 2, validate.Bounds.Height / 2), dialog)!.Value;
+            dialog.MouseMove(center, RawInputModifiers.None);
+            dialog.MouseDown(center, MouseButton.Left, RawInputModifiers.None);
+            await Task.Delay(90);
+            HeadlessAvalonia.Pump();
+            AssertImportLayout(dialog);
+            dialog.MouseUp(center, MouseButton.Left, RawInputModifiers.None);
+            HeadlessAvalonia.Pump();
 
             dialog.FindControl<TextBox>("JsonEditor")!.Text = "{\"schemaVersion\":1,\"name\":\"Broken\",\"colors\":{\"background\":\"red\",\"extra\":true}}";
             HeadlessAvalonia.Pump();
@@ -239,12 +255,13 @@ public sealed class TerminalThemeJsonImportWindowTests
             Assert.True(dialog.FindControl<ItemsControl>("ValidationIssues")!.IsEffectivelyVisible);
             Assert.False(dialog.FindControl<Button>("ImportButton")!.IsEnabled);
             AssertImportLayout(dialog);
-            await CapturePreviewAsync(dialog, $"{width}x{height}-invalid.png");
+            await CapturePreviewAsync(dialog, $"{culture}-{width}x{height}-invalid.png");
         }
         finally
         {
             dialog.Close();
             owner.Close();
+            CultureInfo.CurrentUICulture = previousCulture;
         }
     });
 
@@ -255,11 +272,10 @@ public sealed class TerminalThemeJsonImportWindowTests
         {
             Control control = dialog.FindControl<Control>(name)!;
             Assert.True(control.IsEffectivelyVisible, $"{name} must remain visible");
-            Point origin = control.TranslatePoint(default, dialog)!.Value;
-            Assert.True(origin.X >= -0.1 && origin.Y >= -0.1 &&
-                        origin.X + control.Bounds.Width <= dialog.ClientSize.Width + 0.1 &&
-                        origin.Y + control.Bounds.Height <= dialog.ClientSize.Height + 0.1,
-                $"{name} falls outside the {dialog.ClientSize} client area: {origin} / {control.Bounds}");
+            Rect bounds = BoundsIn(control, dialog);
+            Assert.True(bounds.X >= -0.1 && bounds.Y >= -0.1 &&
+                        bounds.Right <= dialog.ClientSize.Width + 0.1 && bounds.Bottom <= dialog.ClientSize.Height + 0.1,
+                $"{name} falls outside the {dialog.ClientSize} client area: {bounds}");
         }
 
         // 名称与操作在最小窗口内都可见，编辑区不与校验结果及底栏重叠。
@@ -267,19 +283,20 @@ public sealed class TerminalThemeJsonImportWindowTests
         foreach (string name in new[] { "LoadExampleButton", "FormatButton", "ValidateButton" })
         {
             Button action = dialog.FindControl<Button>(name)!;
-            Point origin = action.TranslatePoint(default, toolbar)!.Value;
-            Assert.True(origin.X >= -0.1 && origin.X + action.Bounds.Width <= toolbar.Bounds.Width + 0.1,
-                $"{name} falls outside its toolbar");
+            Rect bounds = BoundsIn(action, toolbar);
+            Assert.True(bounds.X >= -0.1 && bounds.Right <= toolbar.Bounds.Width + 0.1,
+                $"{name} falls outside its {toolbar.Bounds.Width}-wide toolbar: {bounds}");
         }
 
         TextBox editor = dialog.FindControl<TextBox>("JsonEditor")!;
-        Point editorOrigin = editor.TranslatePoint(default, dialog)!.Value;
         TextBlock summary = dialog.FindControl<TextBlock>("ValidationSummaryText")!;
-        Point summaryOrigin = summary.TranslatePoint(default, dialog)!.Value;
-        Assert.True(editorOrigin.Y + editor.Bounds.Height < summaryOrigin.Y, "Editor and validation must not overlap");
+        Assert.True(BoundsIn(editor, dialog).Bottom < BoundsIn(summary, dialog).Top, "Editor and validation must not overlap");
         Assert.True(editor.Bounds.Width >= dialog.ClientSize.Width - 34, "JSON should use the dialog width");
         Assert.True(editor.Bounds.Height >= 160, "Validation errors must leave room to edit multiline JSON");
     }
+
+    private static Rect BoundsIn(Control control, Visual ancestor)
+        => new Rect(control.Bounds.Size).TransformToAABB(control.TransformToVisual(ancestor)!.Value);
 
     private static async Task CapturePreviewAsync(Window dialog, string fileName)
     {
