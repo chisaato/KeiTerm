@@ -478,7 +478,7 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
         await EnsureInitializedAsync(ct);
 
         var json = JsonSerializer.SerializeToUtf8Bytes(secrets);
-        var (blob, algorithm, nonce, tag) = EncryptItem(identityId, json);
+        var (blob, algorithm, nonce, tag) = EncryptIdentitySecrets(identityId, json);
 
         using var conn = await CreateConnectionAsync(ct);
         await CompletePendingCleanupAsync(conn, ct);
@@ -639,6 +639,23 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
         throw new NotSupportedException($"不支持的 Vault 条目算法: {algorithm}");
     }
 
+    private (byte[] Blob, string Algorithm, byte[]? Nonce, byte[]? Tag) EncryptIdentitySecrets(Guid id, byte[] json)
+    {
+        if (!_hasMasterPassword) EnsureNoPrivateKeys(json);
+        return EncryptItem(id, json);
+    }
+
+    private static void EnsureNoPrivateKeys(byte[] json)
+    {
+        using var document = JsonDocument.Parse(json);
+        foreach (var method in document.RootElement.EnumerateObject())
+        {
+            if (method.Value.TryGetProperty(nameof(SecretPayload.PrivateKeyContent), out var key)
+                && key.ValueKind != JsonValueKind.Null && !key.ValueEquals(""))
+                throw new InvalidOperationException("托管私钥需要主密码。请先设置主密码，或在移除主密码前移除托管私钥。");
+        }
+    }
+
     private (byte[] Blob, string Algorithm, byte[]? Nonce, byte[]? Tag) EncryptItem(Guid itemId, byte[] plaintext)
     {
         if (!_hasMasterPassword)
@@ -703,6 +720,13 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
         {
             using (SqliteTransaction tx = conn.BeginTransaction())
             {
+                // 已删除材料不参与同步导出；保留身份墓碑，无需解密其旧私钥。
+                using (var deleted = conn.CreateCommand())
+                {
+                    deleted.Transaction = tx;
+                    deleted.CommandText = "DELETE FROM identity_secrets WHERE deleted_at IS NOT NULL;";
+                    await deleted.ExecuteNonQueryAsync(ct);
+                }
                 await WritePlaintextAsync(conn, tx, vaultKey, "identity_secrets", "identity_id", ct);
                 await WritePlaintextAsync(conn, tx, vaultKey, "proxy_secrets", "proxy_id", ct);
                 await WritePlaintextAsync(conn, tx, vaultKey, "local_vault_secrets", "id", ct);
@@ -778,6 +802,7 @@ public partial class InternalVaultManager : IVaultManager, IVaultSecretStore, IP
             };
             try
             {
+                if (table == "identity_secrets") EnsureNoPrivateKeys(plaintext);
                 using SqliteCommand update = conn.CreateCommand();
                 update.Transaction = tx;
                 update.CommandText = $@"

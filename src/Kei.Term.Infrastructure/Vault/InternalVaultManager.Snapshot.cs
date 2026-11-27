@@ -45,7 +45,7 @@ public partial class InternalVaultManager
             lock (_keyStateLock)
             {
                 EnsureUnlocked();
-                encrypted = EncryptItem(Guid.Parse(id), plain);
+                encrypted = identity ? EncryptIdentitySecrets(Guid.Parse(id), plain) : EncryptItem(Guid.Parse(id), plain);
             }
             await conn.ExecuteAsync(new CommandDefinition($"""
                 INSERT INTO {table} ({key}, secrets_blob, encryption_algorithm, nonce, tag, deleted_at)

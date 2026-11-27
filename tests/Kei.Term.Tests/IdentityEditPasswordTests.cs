@@ -21,6 +21,36 @@ namespace Kei.Term.Tests;
 public class IdentityEditPasswordTests
 {
     [Fact]
+    public async Task StagedKeyRequiresMasterPasswordBeforeCreatingIdentityAndCanBeRetried()
+    {
+        using var fixture = await Fixture.CreateAsync();
+        await fixture.Vault.RemoveMasterPasswordAsync();
+        var editor = fixture.Editor();
+        editor.Name = "key";
+        editor.PersistVaultKeysAsync = fixture.Session.PersistVaultKeyImportsAsync;
+        editor.SelectedMethodType = editor.MethodTypes.Single(type => type.Key == "vault-key");
+        editor.AddMethodCommand.Execute(null);
+        var row = Assert.Single(editor.Methods);
+        string path = Path.GetTempFileName();
+        try
+        {
+            await File.WriteAllTextAsync(path, PrivateKeyFormatTests.PlainOpenSsh);
+            row.FilePicker = () => Task.FromResult<string?>(path);
+            await row.ImportVaultKeyCommand.ExecuteAsync(null);
+            await editor.ApplyCommand.ExecuteAsync(null);
+            Assert.NotNull(editor.ErrorMessage);
+            Assert.Empty(await fixture.Repository.GetAllAsync());
+            await fixture.Vault.SetMasterPasswordAsync(Fixture.MasterPassword);
+            await editor.ApplyCommand.ExecuteAsync(null);
+            Assert.Null(editor.ErrorMessage);
+            var stored = Assert.Single(await fixture.Repository.GetAllAsync());
+            Assert.Equal(PrivateKeyFormatTests.PlainOpenSsh,
+                (await fixture.Vault.GetSecretsAsync(stored.Id))[row.Model.Id.ToString()].PrivateKeyContent);
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
     public Task PasswordInput_ApplyEncryptsAndCanMaterializeForSsh_WithoutPuttingSecretInIdentity() => HeadlessAvalonia.RunAsync(async () =>
     {
         using Fixture fixture = await Fixture.CreateAsync();

@@ -446,7 +446,7 @@
     <value>主密码</value>
   </data>
   <data name="Settings.Security.NoMasterPassword" xml:space="preserve">
-    <value>尚未设置主密码。私钥和代理口令以明文保存在本机数据库中。</value>
+    <value>尚未设置主密码。已保存的口令以明文存储，导入私钥前须先设置主密码。</value>
   </data>
   <data name="Settings.Security.HasMasterPassword" xml:space="preserve">
     <value>已设置主密码。忘记后无法恢复已加密的内容。</value>
@@ -473,7 +473,7 @@
     <value>去掉主密码</value>
   </data>
   <data name="Settings.Security.RemoveConfirm" xml:space="preserve">
-    <value>主密码？私钥和代理口令会以明文保存在本机数据库中，任何能读取该文件的人都能看到。</value>
+    <value>主密码？已保存的口令会以明文存储在本机数据库中。请先移除托管私钥。</value>
   </data>
   <data name="Settings.Security.RemoveFailed" xml:space="preserve">
     <value>未能去掉主密码</value>
@@ -1573,7 +1573,7 @@
     <value>不加密存储（明文警示）</value>
   </data>
   <data name="VaultSetup.PlainDesc" xml:space="preserve">
-    <value>材料将以明文写入本地数据库，任何能读取该文件的人都能获取密钥，请谨慎选择。</value>
+    <value>口令会以明文存储在本机数据库中。托管私钥需要主密码。</value>
   </data>
   <data name="VaultSetup.Error.PasswordRequired" xml:space="preserve">
     <value>请输入主密码</value>
@@ -3144,7 +3144,7 @@ Latin: AaBb CcDd GgYy gypq
   <data name="Settings.Transport.Col.Notes" xml:space="preserve"><value>说明</value></data>
   <data name="Settings.FileTransfer.AddEditorFirstHint" xml:space="preserve"><value>请先添加外部编辑器，再配置文件类型关联</value></data>
   <data name="Settings.FileTransfer.AddExternalEditor" xml:space="preserve"><value>添加外部编辑器</value></data>
-  <data name="Settings.FileTransfer.CacheEmpty" xml:space="preserve"><value>缓存目录为空，无需清理。</value></data>
+  <data name="Settings.FileTransfer.CacheEmpty" xml:space="preserve"><value>没有可清理的已关闭文件缓存。</value></data>
   <data name="Settings.FileTransfer.CacheCleared" xml:space="preserve"><value>已清理 {0} 个缓存项。</value></data>
   <data name="Settings.FileTransfer.CacheClearPermissionDenied" xml:space="preserve"><value>清理缓存失败：目录权限不足。</value></data>
   <data name="Settings.FileTransfer.CacheClearFailed" xml:space="preserve"><value>清理缓存失败，请确认缓存文件未被外部编辑器占用后重试。</value></data>
@@ -3224,4 +3224,5 @@ Latin: AaBb CcDd GgYy gypq
   <data name="FileManager.Error.Reason.Timeout" xml:space="preserve"><value>操作超时</value></data>
   <data name="FileManager.Error.Reason.Generic" xml:space="preserve"><value>请检查连接或权限后重试</value></data>
   <data name="FileManager.Error.Format" xml:space="preserve"><value>{0}：{1}</value></data>
+  <data name="IdentityEdit.Error.PrivateKeyRequiresMasterPassword" xml:space="preserve"><value>请先为保险库设置主密码，再导入私钥。</value></data>
 </root>

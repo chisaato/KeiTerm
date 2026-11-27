@@ -54,11 +54,11 @@ public class VaultMaintenanceTests
         await using Fixture fixture = await Fixture.CreateAsync();
         // 保持连接打开，避免连接关闭触发的自动 checkpoint 掩盖实际清理行为。
         using SqliteConnection keeper = await fixture.Database.OpenAsync();
-        await fixture.SaveSecretsAsync();
+        await fixture.SeedLegacyPlainSecretsAsync();
         Guid deletedId = Guid.NewGuid();
         await new SqliteIdentityRepository(fixture.Database).SaveAsync(new Identity { Id = deletedId, Name = "deleted" });
         string oldSecret = "deleted-secret-marker-91d0f39d" + new string('x', 32_000);
-        await fixture.Vault.SaveSecretsAsync(deletedId, new Dictionary<string, SecretPayload>
+        await VaultTestDb.SeedPlainSecretsAsync(fixture.Database, deletedId, new Dictionary<string, SecretPayload>
         {
             ["old"] = new() { PrivateKeyContent = oldSecret }
         });
@@ -80,7 +80,7 @@ public class VaultMaintenanceTests
     public async Task BusyCleanup_ReportsCommittedPassword_AndRestartCompletesCleanup()
     {
         await using Fixture fixture = await Fixture.CreateAsync();
-        await fixture.SaveSecretsAsync();
+        await fixture.SeedLegacyPlainSecretsAsync();
         using SqliteConnection readerConnection = await fixture.Database.OpenAsync();
         using (SqliteTransaction readTransaction = readerConnection.BeginTransaction(deferred: true))
         {
@@ -109,7 +109,7 @@ public class VaultMaintenanceTests
     public async Task IdentityManager_CleanupFailureRefreshesEncryptedStateAndNotifiesUser()
     {
         await using Fixture fixture = await Fixture.CreateAsync();
-        await fixture.SaveSecretsAsync();
+        await fixture.SeedLegacyPlainSecretsAsync();
         ScriptedInteraction interaction = new();
         IdentityManagerViewModel model = new(new SqliteIdentityRepository(fixture.Database), fixture.Vault, fixture.Vault)
         {
@@ -162,25 +162,30 @@ public class VaultMaintenanceTests
     }
 
     [Fact]
-    public async Task RemoveMasterPassword_WritesPlaintext_AndRestartNoLongerNeedsPassword()
+    public async Task RemoveMasterPassword_RefusesPrivateKeysAndSucceedsAfterTheyAreRemoved()
     {
         await using Fixture fixture = await Fixture.CreateAsync();
         await fixture.Vault.SetMasterPasswordAsync("first-password");
         await fixture.SaveSecretsAsync();
 
+        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Vault.RemoveMasterPasswordAsync());
+        Assert.False(fixture.FilesContain(Fixture.PrivateKey));
+        Assert.False(fixture.Vault.IsPlainMode);
+        await fixture.AssertSecretsAsync(fixture.Vault);
+
+        await fixture.Vault.DeleteSecretsAsync(fixture.IdentityId);
         await fixture.Vault.RemoveMasterPasswordAsync();
 
         Assert.True(fixture.Vault.IsPlainMode);
         Assert.True(fixture.Vault.IsUnlocked);
-        await fixture.AssertSecretsAsync(fixture.Vault);
-        Assert.True(fixture.FilesContain(Fixture.Password));
-        Assert.True(fixture.FilesContain(Fixture.PrivateKey));
+        Assert.False(fixture.FilesContain(Fixture.PrivateKey));
         Assert.True(fixture.FilesContain(Fixture.ProxyPassword));
 
         InternalVaultManager restarted = VaultTestDb.CreateVault(fixture.Database);
-        Assert.True(restarted.IsPlainMode);
         Assert.True(await restarted.TryAutoUnlockAsync());
-        await fixture.AssertSecretsAsync(restarted);
+        Assert.True(restarted.IsPlainMode);
+        Assert.Empty(await restarted.GetSecretsAsync(fixture.IdentityId));
+        Assert.Equal(Fixture.ProxyPassword, await restarted.GetPasswordAsync(fixture.ProxyId));
         using SqliteConnection connection = await fixture.Database.OpenAsync();
         int sealedRows = await connection.ExecuteScalarAsync<int>(
             "SELECT COUNT(*) FROM identity_secrets WHERE encryption_algorithm <> 'PLAIN';");
@@ -246,13 +251,21 @@ public class VaultMaintenanceTests
             };
         }
 
+        private static Dictionary<string, SecretPayload> IdentitySecrets() => new()
+        {
+            ["password"] = new() { Password = Password },
+            ["private-key"] = new() { PrivateKeyContent = PrivateKey, Passphrase = "key-passphrase" }
+        };
+
+        public async Task SeedLegacyPlainSecretsAsync()
+        {
+            await VaultTestDb.SeedPlainSecretsAsync(Database, IdentityId, IdentitySecrets());
+            await Vault.SetPasswordAsync(ProxyId, ProxyPassword);
+        }
+
         public async Task SaveSecretsAsync()
         {
-            await Vault.SaveSecretsAsync(IdentityId, new Dictionary<string, SecretPayload>
-            {
-                ["password"] = new() { Password = Password },
-                ["private-key"] = new() { PrivateKeyContent = PrivateKey, Passphrase = "key-passphrase" }
-            });
+            await Vault.SaveSecretsAsync(IdentityId, IdentitySecrets());
             await Vault.SetPasswordAsync(ProxyId, ProxyPassword);
         }
 

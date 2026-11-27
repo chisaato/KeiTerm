@@ -190,8 +190,9 @@ public sealed partial class FullSyncSnapshotTests
     public async Task Safety_BackupsRetainTen_StayEncryptedAcrossVaultKeyRotation_ExplicitRemovalRequired()
     {
         var a = await SafetyDeviceAsync("a");
-        await PopulateAsync(a);
+        var content = await PopulateAsync(a);
         var entities = await a.Store.ExportAsync();
+        await a.Vault.DeleteSecretsAsync(content.Identity.Id);
         for (int i = 0; i < 12; i++) await a.Vault.SaveBackupAsync(entities);
         var backups = await a.Coordinator.ListBackupsAsync();
         Assert.Equal(10, backups.Count);
