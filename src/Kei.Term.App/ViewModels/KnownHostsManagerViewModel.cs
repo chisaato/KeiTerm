@@ -48,7 +48,7 @@ public partial class KnownHostsManagerViewModel : ViewModelBase
     // 导出目标由窗口层弹保存框提供；返回 null 表示取消
     public Func<Task<string?>>? PickExportPathAsync { get; set; }
 
-    public Func<string, Task<bool>>? ConfirmDeleteAsync { get; set; }
+    internal IInteractionService? Interaction { get; set; }
 
     [ObservableProperty]
     private bool _isEmpty;
@@ -100,19 +100,16 @@ public partial class KnownHostsManagerViewModel : ViewModelBase
     [RelayCommand(CanExecute = nameof(HasSelection))]
     private async Task DeleteAsync()
     {
-        if (SelectedEntry == null)
-        {
-            return;
-        }
-
-        if (ConfirmDeleteAsync != null && !await ConfirmDeleteAsync(SelectedEntry.HostDisplay))
+        var target = SelectedEntry;
+        if (target == null || Interaction == null)
         {
             return;
         }
 
         try
         {
-            await _repository.DeleteAsync(SelectedEntry.Entry.Id);
+            if (!await Interaction.ConfirmDeleteAsync(target.HostDisplay)) return;
+            await _repository.DeleteAsync(target.Entry.Id);
             await LoadAsync();
         }
         catch (Exception ex)

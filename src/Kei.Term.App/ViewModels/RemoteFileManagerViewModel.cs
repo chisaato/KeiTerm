@@ -372,13 +372,7 @@ public partial class RemoteFileManagerViewModel : ViewModelBase, IAsyncDisposabl
             return;
         }
 
-        string parent = Path.GetDirectoryName(CurrentPath.TrimEnd('/'))?.Replace('\\', '/') ?? "/";
-        if (string.IsNullOrWhiteSpace(parent))
-        {
-            parent = "/";
-        }
-
-        await NavigateToPathAsync(parent);
+        await NavigateToPathAsync(ParentDirectory(CurrentPath));
     }
 
     private void OnDirectoryNodeLoadFailed(string path, Exception ex)

@@ -35,6 +35,54 @@ public class RemoteFileOperationsTests
         => Assert.Equal(expected, RemoteFileManagerViewModel.JoinRemotePath(parent, "new"));
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task NavigateToDirectory_PreservesTrailingSpaceAndListsTheSelectedSibling(bool useAddressBar)
+    {
+        MemoryFileSystem fs = new();
+        var folder = Item("/reports ", directory: true);
+        fs.Entries[folder.FullPath] = folder;
+        fs.Entries["/reports"] = Item("/reports", directory: true);
+        fs.Entries["/reports /selected"] = Item("/reports /selected");
+        fs.Entries["/reports/other"] = Item("/reports/other");
+        await using RemoteFileManagerViewModel vm = new(Guid.NewGuid(), fs, new IdleTracker());
+        await vm.RefreshDirectoryAsync();
+        if (useAddressBar)
+        {
+            vm.AddressBarPath = folder.FullPath;
+            await vm.NavigateToAddressCommand.ExecuteAsync(null);
+        }
+        else
+        {
+            await vm.EnterOrOpenFileCommand.ExecuteAsync(vm.Items.Single(item => item.FullPath == folder.FullPath));
+        }
+        Assert.Equal(folder.FullPath, vm.CurrentPath);
+        Assert.Equal("selected", Assert.Single(vm.Items, item => item.Name != "..").Name);
+    }
+
+    [Fact]
+    public async Task RefreshDuringNavigation_KeepsTheRequestedDirectory()
+    {
+        MemoryFileSystem fs = new();
+        fs.Entries["/old/source"] = Item("/old/source");
+        fs.Entries["/new/destination"] = Item("/new/destination");
+        await using RemoteFileManagerViewModel vm = new(Guid.NewGuid(), fs, new IdleTracker());
+        await vm.NavigateToPathAsync("/old");
+        var allowListing = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        fs.BeforeList = (path, ct) => path == "/new" ? allowListing.Task.WaitAsync(ct) : Task.CompletedTask;
+
+        Task navigation = vm.NavigateToPathAsync("/new");
+        Assert.Equal("/old", vm.CurrentPath);
+        Task refresh = vm.RefreshDirectoryAsync();
+        Assert.False(refresh.IsCompleted);
+        allowListing.SetResult();
+        await Task.WhenAll(navigation, refresh);
+
+        Assert.Equal("/new", vm.CurrentPath);
+        Assert.Equal("destination", Assert.Single(vm.Items, item => item.Name != "..").Name);
+    }
+
+    [Theory]
     [InlineData(true)]
     [InlineData(false)]
     public async Task Create_UsesNormalizedPathAndRefreshes(bool directory)
@@ -453,6 +501,7 @@ public class RemoteFileOperationsTests
         public int Writes { get; private set; }
         public int Commits { get; private set; }
         public int Renames { get; private set; }
+        public Func<string, CancellationToken, Task>? BeforeList { get; set; }
         public Func<string, CancellationToken, Task>? BeforeDelete { get; set; }
         public string? FailPath { get; set; }
         public Action? OnGetItem { get; set; }
@@ -461,10 +510,11 @@ public class RemoteFileOperationsTests
         public bool IsConnected => true;
         public string WorkingDirectory => "/";
         public Task ConnectAsync(CancellationToken ct = default) => Task.CompletedTask;
-        public Task<IReadOnlyList<RemoteFileItem>> ListDirectoryAsync(string path, CancellationToken ct = default)
+        public async Task<IReadOnlyList<RemoteFileItem>> ListDirectoryAsync(string path, CancellationToken ct = default)
         {
+            if (BeforeList != null) await BeforeList(path, ct);
             ListCancelled.Add(ct.IsCancellationRequested);
-            return Task.FromResult<IReadOnlyList<RemoteFileItem>>(Entries.Values.Where(item => item.FullPath[..item.FullPath.LastIndexOf('/')] == path.TrimEnd('/')).ToArray());
+            return Entries.Values.Where(item => item.FullPath[..item.FullPath.LastIndexOf('/')] == path.TrimEnd('/')).ToArray();
         }
         public Task<Stream> OpenReadAsync(string path, CancellationToken ct = default) => Task.FromResult(Stream.Null);
         public Task<Stream> OpenWriteAsync(string path, CancellationToken ct = default)

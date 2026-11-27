@@ -156,6 +156,7 @@ public partial class MainWindow : Window
             knownHostsVm,
             logger ?? NullLogger.Instance);
         identityMgrVm.Interaction = vm.Interaction;
+        if (knownHostsVm != null) knownHostsVm.Interaction = vm.Interaction;
 
         // 身份管理器编辑器由管理器窗口自身以模态方式打开（保证 owner 正确）
         identityMgrVm.ConfirmDeleteAsync = _ => Task.FromResult(true);
@@ -570,9 +571,9 @@ public partial class MainWindow : Window
 
     private void OnExitMenuClick(object? sender, EventArgs e)
     {
-        if (OperatingSystem.IsMacOS() && Application.Current is App app)
+        if (OperatingSystem.IsMacOS() && _quitService is { } service)
         {
-            _ = Safe.RunAsync(_logger ?? NullLogger.Instance, "请求退出应用", app.RequestQuitAsync);
+            _ = Safe.RunAsync(_logger ?? NullLogger.Instance, "请求退出应用", () => service.RequestAsync());
             return;
         }
 

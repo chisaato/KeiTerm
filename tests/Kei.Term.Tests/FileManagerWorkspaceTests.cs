@@ -33,6 +33,25 @@ namespace Kei.Term.Tests;
 
 public partial class FileManagerWorkspaceTests
 {
+    [MonospaceFact]
+    public Task FileManagerRail_TracksTheSelectedSessionsFileCapability() => HeadlessAvalonia.RunAsync(async () =>
+    {
+        await using Host host = await Host.CreateAsync();
+        Button button = host.Window.FindControl<Button>("ModernFileManagerRailButton")!;
+        var connecting = new TerminalTabViewModel("Connecting", InstalledMonospace.Require(), 14);
+        host.Model.Workspace.AddTab(connecting);
+        HeadlessAvalonia.Pump();
+        Assert.False(button.IsEffectivelyEnabled);
+
+        var session = new RecordingSession();
+        connecting.AttachSession(session);
+        HeadlessAvalonia.Pump();
+        Assert.True(button.IsEffectivelyEnabled);
+        await connecting.DetachSessionAsync();
+        HeadlessAvalonia.Pump();
+        Assert.False(button.IsEffectivelyEnabled);
+    });
+
     [MonospaceTheory]
     [InlineData(false)]
     [InlineData(true)]
