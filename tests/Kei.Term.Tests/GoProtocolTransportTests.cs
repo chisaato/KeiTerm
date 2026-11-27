@@ -19,10 +19,9 @@ public sealed class GoProtocolTransportTests : IClassFixture<GoProtocolDaemonBin
     private static readonly TimeSpan Deadline = TimeSpan.FromSeconds(8);
     public GoProtocolTransportTests(GoProtocolDaemonBinary binary) => _binary = binary;
 
-    [Fact]
+    [PlatformFact(TestPlatform.Linux)]
     public async Task SerialCatalogQueriesRealDaemonAndMatchesLocalDeviceNames()
     {
-        if (!OperatingSystem.IsLinux()) return;
         await using var manager = new GoSidecarProcessManager(_binary.Path);
         var factory = new GoProtocolFactory(ct => manager.GetClientAsync(ct));
         var names = await factory.ListSerialPortsAsync();
@@ -257,10 +256,9 @@ public sealed class GoProtocolTransportTests : IClassFixture<GoProtocolDaemonBin
         Assert.True((await ping.WaitAsync(Deadline)).GetProperty("pong").GetBoolean());
     }
 
-    [Fact]
+    [PlatformFact(TestPlatform.Linux)]
     public async Task SerialPtyUsesSameIpcWithoutSshAndControlFailureDoesNotDisconnect()
     {
-        if (!OperatingSystem.IsLinux()) throw new PlatformNotSupportedException("此测试需要 Linux socat PTY，不替代真机验证。");
         await using var pty = await ProtocolPty.StartAsync();
         await using var manager = new GoSidecarProcessManager(_binary.Path);
         await using var session = new GoProtocolFactory(manager.GetClientAsync).CreateSerial(Guid.NewGuid(), new() { PortName = pty.First });
@@ -289,10 +287,9 @@ public sealed class GoProtocolTransportTests : IClassFixture<GoProtocolDaemonBin
         Assert.True((await (await manager.GetClientAsync()).CallAsync("daemon.ping")).GetProperty("pong").GetBoolean());
     }
 
-    [Fact]
+    [PlatformFact(TestPlatform.Linux)]
     public async Task SerialPtyCanReopenSamePortAfterCloseAndExchangeFreshBytes()
     {
-        if (!OperatingSystem.IsLinux()) throw new PlatformNotSupportedException("此测试需要 Linux socat PTY，不替代真机验证。");
         await using var pty = await ProtocolPty.StartAsync();
         await using var manager = new GoSidecarProcessManager(_binary.Path);
         var factory = new GoProtocolFactory(manager.GetClientAsync);
@@ -322,10 +319,9 @@ public sealed class GoProtocolTransportTests : IClassFixture<GoProtocolDaemonBin
         Assert.True((await (await manager.GetClientAsync()).CallAsync("daemon.ping")).GetProperty("pong").GetBoolean());
     }
 
-    [Fact]
+    [PlatformFact(TestPlatform.Linux)]
     public async Task SharedIpcEndDisconnectsConcurrentSerialAndTelnetExactlyOnce()
     {
-        if (!OperatingSystem.IsLinux()) throw new PlatformNotSupportedException("此测试需要 Linux socat PTY，不替代真机验证。");
         await using var pty = await ProtocolPty.StartAsync();
         await using var manager = new GoSidecarProcessManager(_binary.Path);
         await using var serial = new GoProtocolFactory(manager.GetClientAsync).CreateSerial(Guid.NewGuid(), new() { PortName = pty.First });
@@ -360,10 +356,9 @@ public sealed class GoProtocolTransportTests : IClassFixture<GoProtocolDaemonBin
         Assert.Equal(1, telnetCount);
     }
 
-    [Fact]
+    [PlatformFact(TestPlatform.Linux)]
     public async Task SerialPtyLossEndsOnlyItsConnectionWithError()
     {
-        if (!OperatingSystem.IsLinux()) throw new PlatformNotSupportedException("此测试需要 Linux socat PTY，不替代真机验证。");
         await using var pty = await ProtocolPty.StartAsync();
         await using var manager = new GoSidecarProcessManager(_binary.Path);
         await using var session = new GoProtocolFactory(manager.GetClientAsync).CreateSerial(Guid.NewGuid(), new() { PortName = pty.First, FlowControl = SerialFlowControl.RtsCts });
@@ -379,10 +374,9 @@ public sealed class GoProtocolTransportTests : IClassFixture<GoProtocolDaemonBin
         Assert.True((await (await manager.GetClientAsync()).CallAsync("daemon.ping")).GetProperty("pong").GetBoolean());
     }
 
-    [Fact]
+    [PlatformFact(TestPlatform.Linux)]
     public async Task SerialWriteBudgetFailureDisconnectsOnlySerialAndSiblingTcpKeepsWorking()
     {
-        if (!OperatingSystem.IsLinux()) throw new PlatformNotSupportedException("此测试需要 Linux socat PTY，不替代真机验证。");
         await using var pty = await ProtocolPty.StartAsync();
         await using var manager = new GoSidecarProcessManager(_binary.Path);
         await using var serial = new GoProtocolFactory(manager.GetClientAsync).CreateSerial(Guid.NewGuid(), new()
