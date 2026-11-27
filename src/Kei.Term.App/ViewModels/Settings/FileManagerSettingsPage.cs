@@ -3,7 +3,6 @@ namespace Kei.Term.App.ViewModels.Settings;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -151,38 +150,13 @@ public partial class FileManagerSettingsPage : ViewModelBase
 
     public bool HasCacheStatus => !string.IsNullOrWhiteSpace(CacheStatusMessage);
 
-    internal static string ResolveEffectiveCacheDirectory(string? configured)
-    {
-        if (!string.IsNullOrWhiteSpace(configured)) return configured.Trim();
-        string appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        return Path.Combine(appData, "KeiTerm", "file-cache");
-    }
-
     [RelayCommand]
-    private void ClearCacheDirectory()
+    private async Task ClearCacheDirectoryAsync()
     {
-        string targetDir = ResolveEffectiveCacheDirectory(CacheDirectory);
-        if (!Directory.Exists(targetDir))
-        {
-            IsCacheStatusError = false;
-            CacheStatusMessage = Strings.Get("Settings.FileTransfer.CacheEmpty");
-            return;
-        }
-
         try
         {
-            var dir = new DirectoryInfo(targetDir);
-            int removed = 0;
-            foreach (var file in dir.GetFiles())
-            {
-                file.Delete();
-                removed++;
-            }
-            foreach (var sub in dir.GetDirectories())
-            {
-                sub.Delete(true);
-                removed++;
-            }
+            string directory = CacheDirectory;
+            int removed = await Task.Run(() => Kei.Term.Core.Services.LocalFileTracker.ClearClosedCache(directory));
             IsCacheStatusError = false;
             CacheStatusMessage = removed > 0
                 ? Strings.Format("Settings.FileTransfer.CacheCleared", removed)

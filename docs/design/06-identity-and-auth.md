@@ -200,7 +200,7 @@ CREATE TABLE identities (
 );
 
 -- 每身份一个整包密钥材料 blob：内部为 { methodId: SecretPayload } 映射，整体 AES-256-GCM；
--- 明文模式下为原始 JSON 字节（UI 已警示不加密）。会话绑定身份后，身份删除 → 级联清材料。
+-- 无主密码时仅允许保存不含托管私钥的材料。旧明文私钥在设定主密码时一并加密。会话绑定身份后，身份删除 → 级联清材料。
 CREATE TABLE identity_secrets (
     identity_id TEXT PRIMARY KEY NOT NULL REFERENCES identities(id) ON DELETE CASCADE,
     secrets_blob BLOB NOT NULL,

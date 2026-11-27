@@ -36,17 +36,19 @@ public class DirectoryFollowTests
     [Fact]
     public Task ForeignHostSignal_CancelsPendingAutomaticNavigation() => HeadlessAvalonia.RunAsync(async () =>
     {
-        TerminalTabViewModel tab = await CreateTabAsync(CwdFollowMode.Always);
+        FileSystem fileSystem = new() { BlockSlowListing = true };
+        TerminalTabViewModel tab = await CreateTabAsync(CwdFollowMode.Always, fileSystem: fileSystem);
         try
         {
-            Report(tab, "/pending");
-            HeadlessAvalonia.WaitUntil(() => tab.FileManager!.HasTerminalDirectory);
+            Report(tab, "/slow");
+            HeadlessAvalonia.WaitUntil(() => fileSystem.SlowListingStarted.Task.IsCompleted);
             Report(tab, "/foreign", "other");
             HeadlessAvalonia.WaitUntil(() => !tab.FileManager!.HasTerminalDirectory);
-            await Task.Delay(400);
+            fileSystem.ResumeSlowListing.TrySetResult();
+            HeadlessAvalonia.WaitUntil(() => !tab.FileManager!.IsLoading);
             Assert.Equal("/", tab.FileManager!.CurrentPath);
         }
-        finally { await tab.DisposeAsync(); }
+        finally { fileSystem.ResumeSlowListing.TrySetResult(); await tab.DisposeAsync(); }
     });
 
     [Fact]
@@ -146,7 +148,8 @@ public class DirectoryFollowTests
     [Fact]
     public Task DisabledCompatibility_StillAcceptsNativeOsc7_AndClosingCancelsPendingFollow() => HeadlessAvalonia.RunAsync(async () =>
     {
-        TerminalTabViewModel tab = await CreateTabAsync(CwdFollowMode.Always, TerminalMultiplexerMode.Off);
+        FileSystem fileSystem = new() { BlockSlowListing = true };
+        TerminalTabViewModel tab = await CreateTabAsync(CwdFollowMode.Always, TerminalMultiplexerMode.Off, fileSystem);
         try
         {
             tab.Terminal.WriteOutput(Encoding.UTF8.GetBytes("\u001b]2;host:/ignored\u0007"));
@@ -154,13 +157,14 @@ public class DirectoryFollowTests
             Assert.False(tab.FileManager!.HasTerminalDirectory);
             Report(tab, "/native");
             HeadlessAvalonia.WaitUntil(() => tab.FileManager.CurrentPath == "/native");
-            Report(tab, "/cancelled");
-            HeadlessAvalonia.WaitUntil(() => tab.FileManager.TerminalDirectory == "/cancelled");
+            Report(tab, "/slow");
+            HeadlessAvalonia.WaitUntil(() => fileSystem.SlowListingStarted.Task.IsCompleted);
             tab.IsFileManagerVisible = false;
-            await Task.Delay(400);
+            fileSystem.ResumeSlowListing.TrySetResult();
+            HeadlessAvalonia.WaitUntil(() => !tab.FileManager.IsLoading);
             Assert.Equal("/native", tab.FileManager.CurrentPath);
         }
-        finally { await tab.DisposeAsync(); }
+        finally { fileSystem.ResumeSlowListing.TrySetResult(); await tab.DisposeAsync(); }
     });
 
     [Fact]

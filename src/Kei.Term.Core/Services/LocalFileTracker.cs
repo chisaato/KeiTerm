@@ -27,6 +27,7 @@ public interface ILocalFileTracker : IAsyncDisposable
     Task RegisterTrackedFileAsync(Guid sessionId, string remotePath, string localFilePath, CancellationToken ct = default);
     Task CheckForChangesAsync(string localFilePath, CancellationToken ct = default);
     Task UnregisterTrackedFileAsync(string localFilePath, CancellationToken ct = default);
+    void RecordCommittedContent(string localFilePath, byte[] hash) { }
 }
 
 // 健壮的多模式文件监视追踪服务
@@ -41,7 +42,7 @@ public class LocalFileTracker : ILocalFileTracker
         public SemaphoreSlim CheckGate { get; } = new(1, 1);
     }
 
-    private readonly string _cacheBaseDirectory;
+    private readonly EditorFileCache _cache;
     private readonly FileWatcherMode _configuredMode;
     private readonly TimeSpan _pollingInterval;
     private readonly TimeSpan _writeDebounce;
@@ -70,19 +71,11 @@ public class LocalFileTracker : ILocalFileTracker
         _pollingInterval = TimeSpan.FromSeconds(Math.Max(1, pollingIntervalSeconds));
         _writeDebounce = TimeSpan.FromMilliseconds(Math.Max(200, writeDebounceMilliseconds));
 
-        if (!string.IsNullOrWhiteSpace(cacheBaseDirectory))
-        {
-            _cacheBaseDirectory = cacheBaseDirectory;
-        }
-        else
-        {
-            string appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            _cacheBaseDirectory = Path.Combine(appData, "KeiTerm", "file-cache");
-        }
-
-        Directory.CreateDirectory(_cacheBaseDirectory);
+        string baseDirectory = ResolveCacheDirectory(cacheBaseDirectory);
+        _cache = new EditorFileCache(baseDirectory);
+        Directory.CreateDirectory(baseDirectory);
         _logger.LogInformation("File tracker started: Mode={Mode}, PollInterval={PollIntervalMs}ms, Debounce={DebounceMs}ms, Cache={CacheDirectory}",
-            _configuredMode, _pollingInterval.TotalMilliseconds, _writeDebounce.TotalMilliseconds, _cacheBaseDirectory);
+            _configuredMode, _pollingInterval.TotalMilliseconds, _writeDebounce.TotalMilliseconds, baseDirectory);
 
         // 如果启用轮询模式或智能模式，启动后台兜底轮询
         if (_configuredMode is FileWatcherMode.Auto or FileWatcherMode.Polling)
@@ -101,20 +94,32 @@ public class LocalFileTracker : ILocalFileTracker
     public Task CheckForChangesAsync(string localFilePath, CancellationToken ct = default)
         => ProcessFilePotentialChangeAsync(Path.GetFullPath(localFilePath), "final-check", ct);
 
+    public static string ResolveCacheDirectory(string? configured)
+        => !string.IsNullOrWhiteSpace(configured) ? Path.GetFullPath(configured.Trim())
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "KeiTerm", "file-cache");
+
+    public static int ClearClosedCache(string? configured) => EditorFileCache.ClearClosed(ResolveCacheDirectory(configured));
+
     public string GetLocalCachePath(Guid sessionId, string remotePath)
     {
-        // 计算远程路径 Hash 避免不同目录下的同名文件互相碰撞 (使用 XxHash3-64，快且低碰撞)
-        string sanitizedRemote = remotePath.Trim().Replace('\\', '/');
-        byte[] hashBytes = XxHash3.Hash(Encoding.UTF8.GetBytes(sanitizedRemote));
-        string hashPrefix = Convert.ToHexString(hashBytes)[..8].ToLowerInvariant();
-        string fileName = Path.GetFileName(sanitizedRemote);
-        if (string.IsNullOrWhiteSpace(fileName))
+        // 目录按原始 POSIX 路径区分；仅本机文件名按宿主系统规则转义。
+        string hash = Convert.ToHexStringLower(XxHash128.Hash(Encoding.UTF8.GetBytes(remotePath)));
+        string fileName = remotePath[(remotePath.LastIndexOf('/') + 1)..];
+        foreach (char invalid in Path.GetInvalidFileNameChars())
+            fileName = fileName.Replace(invalid, '_');
+        if (OperatingSystem.IsWindows())
         {
-            fileName = "unnamed_file";
+            fileName = fileName.TrimEnd(' ', '.');
+            string stem = fileName.Split('.', 2)[0].TrimEnd(' ').ToUpperInvariant();
+            if (stem is "CON" or "PRN" or "AUX" or "NUL" or "CONIN$" or "CONOUT$"
+                || stem.Length == 4 && (stem.StartsWith("COM") || stem.StartsWith("LPT"))
+                    && "123456789¹²³".Contains(stem[3]))
+                fileName = "_" + fileName;
         }
+        if (fileName is "" or "." or "..") fileName = "unnamed_file";
 
-        string sessionFolder = Path.Combine(_cacheBaseDirectory, sessionId.ToString("N"));
-        string targetFolder = Path.Combine(sessionFolder, hashPrefix);
+        string sessionFolder = Path.Combine(_cache.DirectoryPath, sessionId.ToString("N"));
+        string targetFolder = Path.Combine(sessionFolder, hash);
         Directory.CreateDirectory(targetFolder);
 
         return Path.Combine(targetFolder, fileName);
@@ -145,12 +150,21 @@ public class LocalFileTracker : ILocalFileTracker
         {
             ThrowIfDisposed();
             _trackedFiles[entry.LocalFilePath] = entry;
+            if (initialHash != null) _cache.RecordCleanContent(entry.LocalFilePath, initialHash);
 
             // 若使用原生或智能模式，挂载目录级 FileSystemWatcher
             if (_configuredMode is FileWatcherMode.Auto or FileWatcherMode.OSNative)
             {
                 EnsureWatcherForFile(entry.LocalFilePath);
             }
+        }
+    }
+
+    public void RecordCommittedContent(string localFilePath, byte[] hash)
+    {
+        lock (_lock)
+        {
+            if (!_isDisposed) _cache.RecordCleanContent(localFilePath, hash);
         }
     }
 
@@ -418,6 +432,11 @@ public class LocalFileTracker : ILocalFileTracker
             }
             _activeWatchers.Clear();
             _trackedFiles.Clear();
+            try { _cache.Close(); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger.LogWarning(ex, "Cannot publish cache manifest; preserving downloaded files");
+            }
         }
 
         _lifetimeCts.Cancel();

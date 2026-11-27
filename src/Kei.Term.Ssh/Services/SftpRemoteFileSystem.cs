@@ -244,13 +244,25 @@ public class SftpRemoteFileSystem : IRemoteFileSystem
         }, ct);
     }
 
+    public Task ChangeOwnershipAsync(string path, int userId, int groupId, CancellationToken ct = default)
+    {
+        EnsureReady();
+        return Task.Run(() =>
+        {
+            var attributes = _sftpClient.GetAttributes(path);
+            attributes.UserId = userId;
+            attributes.GroupId = groupId;
+            _sftpClient.SetAttributes(path, attributes);
+        }, ct);
+    }
+
     public Task ChangePermissionsAsync(string path, int octalPermissions, CancellationToken ct = default)
     {
         EnsureReady();
 
         return Task.Run(() =>
         {
-            short mode = (short)octalPermissions;
+            short mode = short.Parse(Convert.ToString(octalPermissions, 8), System.Globalization.CultureInfo.InvariantCulture);
             _sftpClient.ChangePermissions(path, mode);
         }, ct);
     }
@@ -418,13 +430,13 @@ public class SftpRemoteFileSystem : IRemoteFileSystem
         char type = file.IsDirectory ? 'd' : (file.IsSymbolicLink ? 'l' : '-');
         char r1 = file.OwnerCanRead ? 'r' : '-';
         char w1 = file.OwnerCanWrite ? 'w' : '-';
-        char x1 = file.OwnerCanExecute ? 'x' : '-';
+        char x1 = file.Attributes.IsUIDBitSet ? (file.OwnerCanExecute ? 's' : 'S') : (file.OwnerCanExecute ? 'x' : '-');
         char r2 = file.GroupCanRead ? 'r' : '-';
         char w2 = file.GroupCanWrite ? 'w' : '-';
-        char x2 = file.GroupCanExecute ? 'x' : '-';
+        char x2 = file.Attributes.IsGroupIDBitSet ? (file.GroupCanExecute ? 's' : 'S') : (file.GroupCanExecute ? 'x' : '-');
         char r3 = file.OthersCanRead ? 'r' : '-';
         char w3 = file.OthersCanWrite ? 'w' : '-';
-        char x3 = file.OthersCanExecute ? 'x' : '-';
+        char x3 = file.Attributes.IsStickyBitSet ? (file.OthersCanExecute ? 't' : 'T') : (file.OthersCanExecute ? 'x' : '-');
         return $"{type}{r1}{w1}{x1}{r2}{w2}{x2}{r3}{w3}{x3}";
     }
 

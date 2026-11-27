@@ -59,12 +59,35 @@ public class TransferQueueFixTests
         string directory = TempDir();
         try
         {
+            string second = Directory.CreateDirectory(Path.Combine(directory, "second")).FullName;
             queue.Enqueue(Upload(WriteFile(directory, "A", "one"), "/remote"));
-            queue.Enqueue(Upload(WriteFile(directory, "a", "two"), "/remote"));
+            queue.Enqueue(Upload(WriteFile(second, "a", "two"), "/remote"));
             await WaitUntilAsync(() => remote.Blocked == 2);
             Assert.Equal(2, remote.MaxBlocked);
             remote.Release(2);
             await WaitUntilAsync(() => queue.Tasks.All(task => task.State == QueuedTransferState.Completed));
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    [Fact]
+    public async Task AutoRename_UsesTheDestinationVolumesActualFileNames()
+    {
+        string directory = TempDir();
+        try
+        {
+            WriteFile(directory, "report.txt", "original");
+            string firstCopy = WriteFile(directory, "REPORT (1).TXT", "earlier copy");
+            bool caseInsensitive = File.Exists(Path.Combine(directory, "report (1).txt"));
+            MemoryRemote remote = new();
+            remote.Files["/report.txt"] = "new"u8.ToArray();
+            await using TransferQueue queue = new(new FileSystemTransferEndpoint(remote, FileTransferProtocol.Sftp, false),
+                () => new FileTransferSettings { DefaultConflictPolicy = TransferConflictPolicy.AutoRename });
+            QueuedTransfer task = queue.Enqueue(Download("/report.txt", "report.txt", directory, 3));
+            await WaitUntilAsync(() => !task.IsActive);
+            Assert.Equal(QueuedTransferState.Completed, task.State);
+            Assert.Equal("earlier copy", File.ReadAllText(firstCopy));
+            Assert.Equal("new", File.ReadAllText(Path.Combine(directory, caseInsensitive ? "report (2).txt" : "report (1).txt")));
         }
         finally { Directory.Delete(directory, true); }
     }
@@ -496,9 +519,7 @@ public class TransferQueueFixTests
 
     private static string TempDir()
     {
-        string directory = Path.Combine(Path.GetTempPath(), "keiterm-queue-fix-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(directory);
-        return directory;
+        return DirectoryArchiveTransfer.CreateTemporaryDirectory("keiterm-queue-fix-");
     }
 
     private static async Task WaitUntilAsync(Func<bool> condition)

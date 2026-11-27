@@ -12,13 +12,13 @@ public interface IVaultManager
 {
     bool IsUnlocked { get; }
 
-    // 无主密码（明文）模式：IsUnlocked 恒真，加密操作直通字节
+    // 无主密码模式下 IsUnlocked 恒真，只允许持久化非私钥凭据。
     bool IsPlainMode { get; }
 
     // 设置/更新主密码：派生 MEK 并写入 salt/verifier，随后 Vault 处于已解锁态
     Task SetMasterPasswordAsync(string masterPassword, CancellationToken ct = default);
 
-    // 去掉主密码：解密全部材料后以明文落库，并删除本机解锁登记。
+    // 去掉主密码前须移除托管私钥及同步恢复材料；成功后清除本机解锁登记。
     Task RemoveMasterPasswordAsync(CancellationToken ct = default);
 
     Task<bool> TryAutoUnlockAsync(CancellationToken ct = default);

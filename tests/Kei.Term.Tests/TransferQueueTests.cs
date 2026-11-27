@@ -263,9 +263,7 @@ public class TransferQueueTests
 
     private static string TempDir()
     {
-        string directory = Path.Combine(Path.GetTempPath(), "keiterm-queue-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(directory);
-        return directory;
+        return DirectoryArchiveTransfer.CreateTemporaryDirectory("keiterm-queue-");
     }
 
     private static async Task WhenTerminalAsync(IReadOnlyList<QueuedTransfer> tasks)

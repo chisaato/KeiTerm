@@ -60,6 +60,8 @@ public interface IRemoteFileSystem : IAsyncDisposable
         => throw new NotSupportedException("此文件系统不支持覆盖式改名");
 
     Task CreateDirectoryAsync(string path, CancellationToken ct = default);
+    Task ChangeOwnershipAsync(string path, int userId, int groupId, CancellationToken ct = default)
+        => throw new NotSupportedException("此文件系统不支持保留原文件的所有者和组");
     Task ChangePermissionsAsync(string path, int octalPermissions, CancellationToken ct = default);
 
     // 返回大小与 UTC 修改时间；路径不存在时返回 null。实现可以跟随符号链接以取得目标内容的事实。

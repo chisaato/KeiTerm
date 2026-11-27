@@ -43,6 +43,17 @@ internal static class VaultTestDb
         await identities.SaveAsync(new Identity { Id = identityId, Name = "Test" });
     }
 
+    // 直接构造旧版本可生成的明文行，用于验证升级已有保险库。
+    public static async Task SeedPlainSecretsAsync(SqliteConnectionFactory database, Guid identityId, Dictionary<string, SecretPayload> secrets)
+    {
+        using var conn = await database.OpenAsync();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "INSERT INTO identity_secrets(identity_id,secrets_blob,encryption_algorithm) VALUES ($id,$blob,'PLAIN');";
+        cmd.Parameters.AddWithValue("$id", identityId.ToString());
+        cmd.Parameters.Add("$blob", SqliteType.Blob).Value = JsonSerializer.SerializeToUtf8Bytes(secrets);
+        await cmd.ExecuteNonQueryAsync();
+    }
+
     public static async Task<(string algorithm, byte[] blob, bool hasNonce, bool hasTag)> ReadRawAsync(string connStr, Guid identityId)
     {
         using var conn = new SqliteConnection(connStr);
@@ -154,7 +165,7 @@ public class InternalVaultManagerTests
     };
 
     [Fact]
-    public async Task PlainMode_IsUnlocked_AndPassthroughBytes()
+    public async Task PlainMode_PreservesExistingPasswordWhenKeyImportIsRejected()
     {
         var path = VaultTestDb.NewPath();
         var connStr = $"Data Source={path}";
@@ -164,7 +175,8 @@ public class InternalVaultManagerTests
             await VaultTestDb.CreateAsync(connStr, identityId);
             var vault = VaultTestDb.CreateVault(connStr);
 
-            await vault.SaveSecretsAsync(identityId, Sample());
+            await vault.SaveSecretsAsync(identityId, new() { ["m1"] = new() { Password = "topsecret" } });
+            await Assert.ThrowsAsync<InvalidOperationException>(() => vault.SaveSecretsAsync(identityId, Sample()));
 
             Assert.True(vault.IsPlainMode);
             Assert.True(vault.IsUnlocked);
@@ -172,7 +184,7 @@ public class InternalVaultManagerTests
 
             var secrets = await vault.GetSecretsAsync(identityId);
             Assert.Equal("topsecret", secrets["m1"].Password);
-            Assert.Equal("pp", secrets["m2"].Passphrase);
+            Assert.False(secrets.ContainsKey("m2"));
 
             // 明文模式直通：algorithm=PLAIN，blob 即 JSON 明文
             var raw = await VaultTestDb.ReadRawAsync(connStr, identityId);
@@ -280,8 +292,7 @@ public class InternalVaultManagerTests
             await VaultTestDb.CreateAsync(connStr, identityId);
             var vault = VaultTestDb.CreateVault(connStr);
 
-            // 先在明文模式写入
-            await vault.SaveSecretsAsync(identityId, Sample());
+            await VaultTestDb.SeedPlainSecretsAsync(new SqliteConnectionFactory(connStr), identityId, Sample());
 
             // 再设置主密码：应无损升级为密文
             await vault.SetMasterPasswordAsync("pw");

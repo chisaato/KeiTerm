@@ -50,6 +50,8 @@ public sealed class VaultSessionService
     // 最近一次 Vault 访问时刻（UTC），空闲自动锁定以此为起点
     public DateTime LastAccessUtc { get; private set; } = DateTime.UtcNow;
 
+    public bool RequiresMasterPasswordForPrivateKeys => _vault.IsPlainMode;
+
     public void MarkAccessed(DateTime? nowUtc = null) => LastAccessUtc = nowUtc ?? DateTime.UtcNow;
 
     public void ConfigureQuickUnlock(VaultQuickUnlockService service) => _quickUnlock = service;

@@ -149,6 +149,10 @@ func (f *localFS) ListDir(p string) ([]os.FileInfo, error) {
 	return result, nil
 }
 func (f *localFS) Stat(p string) (os.FileInfo, error)     { return os.Stat(f.path(p)) }
+func (f *localFS) Lstat(p string) (os.FileInfo, error)    { return os.Lstat(f.path(p)) }
+func (f *localFS) Chown(p string, uid, gid int) error     { return os.Chown(f.path(p), uid, gid) }
+func (f *localFS) Chmod(p string, mode os.FileMode) error { return os.Chmod(f.path(p), mode) }
+func (f *localFS) RenameOverwrite(a, b string) error      { return os.Rename(f.path(a), f.path(b)) }
 func (f *localFS) Read(p string) (io.ReadCloser, error)   { return os.Open(f.path(p)) }
 func (f *localFS) Write(p string) (io.WriteCloser, error) { return os.Create(f.path(p)) }
 func (f *localFS) Mkdir(p string) error                   { return os.Mkdir(f.path(p), 0700) }
@@ -313,7 +317,15 @@ func TestUnixSocketRPCAndStreams(t *testing.T) {
 		t.Fatal("download corrupt")
 	}
 	rpc("sftp.rename", map[string]any{"sessionId": connected.SessionID, "oldPath": "dir/file", "newPath": "dir/renamed"})
-	rpc("sftp.remove", map[string]any{"sessionId": connected.SessionID, "path": "dir/renamed", "isDir": false})
+	if err := os.WriteFile(session.fs.path("dir/old"), []byte("original"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	rpc("sftp.chmod", map[string]any{"sessionId": connected.SessionID, "path": "dir/renamed", "mode": 0700})
+	rpc("sftp.posix_rename", map[string]any{"sessionId": connected.SessionID, "oldPath": "dir/renamed", "newPath": "dir/old"})
+	if err := json.Unmarshal(rpc("sftp.lstat", map[string]any{"sessionId": connected.SessionID, "path": "dir/old"}), &stat); err != nil || stat.Mode&0777 != 0700 || stat.Size != int64(len(binaryData)) {
+		t.Fatalf("published file: %+v, %v", stat, err)
+	}
+	rpc("sftp.remove", map[string]any{"sessionId": connected.SessionID, "path": "dir/old", "isDir": false})
 	rpc("sftp.remove", map[string]any{"sessionId": connected.SessionID, "path": "dir", "isDir": true})
 	write(Frame{StreamID: connected.StreamID, Type: Close})
 	f = read()

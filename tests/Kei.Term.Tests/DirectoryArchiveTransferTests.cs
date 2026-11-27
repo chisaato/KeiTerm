@@ -8,7 +8,30 @@ namespace Kei.Term.Tests;
 
 public sealed class DirectoryArchiveTransferTests : IDisposable
 {
-    private readonly string _root = Directory.CreateTempSubdirectory("keiterm-archive-execution-test-").FullName;
+    private readonly string _root = DirectoryArchiveTransfer.CreateTemporaryDirectory("keiterm-archive-execution-test-");
+
+    [UnixShellFact]
+    public async Task Download_UsesAPhysicalTemporaryDirectoryAndPublishesExtractedFiles()
+    {
+        (string source, string parent) = await CreateTreeAsync();
+        string workspace = Directory.CreateDirectory(Path.Combine(_root, "remote-workspace")).FullName;
+        // 远端归档已生成，本测试只验证客户端默认临时目录中的实际下载、解包和发布。
+        await LocalDirectoryArchive.PackAsync(source, Path.Combine(workspace, "archive"), TransferArchiveFormat.Tar);
+        var archive = new DirectoryArchiveTransfer(new FileTransferExecutor());
+        string destination = Path.Combine(parent, "tree");
+        await archive.ExecuteAsync(new(TransferDirection.Download, "tree", parent, source, true), destination, false,
+            TransferArchiveFormat.Tar, new LocalFiles(), new PreparedArchiveShell(workspace), PosixToolset.Instance,
+            Settings(), null, _ => { }, _ => { });
+        Assert.Equal("payload", await File.ReadAllTextAsync(Path.Combine(destination, "file")));
+        Assert.Equal("payload", await File.ReadAllTextAsync(Path.Combine(destination, "second")));
+    }
+
+    private sealed class PreparedArchiveShell(string workspace) : IRemoteShell
+    {
+        public Task<RemoteCommandResult> RunAsync(string command, CancellationToken cancellationToken = default)
+            => Task.FromResult(new RemoteCommandResult(command == PosixToolset.Instance.CreateTemporaryDirectoryCommand()
+                ? workspace : string.Empty, string.Empty, 0));
+    }
 
     [Theory]
     [InlineData(TransferConflictPolicy.Overwrite)]

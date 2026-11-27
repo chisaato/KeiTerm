@@ -126,7 +126,7 @@ public sealed class SerialProtocolTests
         Assert.NotEqual(Guid.Empty, generated.SessionId);
     }
 
-    [Fact]
+    [PlatformFact(TestPlatform.Linux)]
     public async Task Pty_ReadWrite_CloseAndReopen_AreBounded()
     {
         await using var pty = await PtyPair.StartAsync();
@@ -162,7 +162,7 @@ public sealed class SerialProtocolTests
         Assert.Equal(2, disconnected.Count);
     }
 
-    [Fact]
+    [PlatformFact(TestPlatform.Linux)]
     public async Task Pty_CancellationDoesNotDisconnect_AndIdleDisposeStopsReader()
     {
         await using var pty = await PtyPair.StartAsync();
@@ -179,7 +179,7 @@ public sealed class SerialProtocolTests
         await Assert.ThrowsAsync<ObjectDisposedException>(() => session.ConnectAsync());
     }
 
-    [Fact]
+    [PlatformFact(TestPlatform.Linux)]
     public async Task Pty_PeerLossNotifiesErrorExactlyOnce()
     {
         await using var pty = await PtyPair.StartAsync();
@@ -195,7 +195,7 @@ public sealed class SerialProtocolTests
         Assert.Equal(1, count);
     }
 
-    [Fact]
+    [PlatformFact(TestPlatform.Linux)]
     public async Task Pty_RtsCtsRejectsManualRts_AndUnsupportedDtrIsExplicit()
     {
         await using var pty = await PtyPair.StartAsync();
@@ -206,7 +206,7 @@ public sealed class SerialProtocolTests
         Assert.True(session.IsConnected);
     }
 
-    [Theory]
+    [PlatformTheory(TestPlatform.Linux)]
     [InlineData(SerialFlowControl.None)]
     [InlineData(SerialFlowControl.XonXoff)]
     [InlineData(SerialFlowControl.RtsCts)]
@@ -230,7 +230,7 @@ public sealed class SerialProtocolTests
         Assert.False(session.IsConnected);
     }
 
-    [Fact]
+    [PlatformFact(TestPlatform.Linux)]
     public async Task Pty_CancelInFlightWriteIsBoundedAndDoesNotReportTransportFailure()
     {
         await using var pty = await PtyPair.StartAsync();
@@ -246,7 +246,7 @@ public sealed class SerialProtocolTests
         await session.DisconnectAsync().WaitAsync(TimeSpan.FromSeconds(3));
     }
 
-    [Fact]
+    [PlatformFact(TestPlatform.Linux)]
     public async Task Pty_AlreadyOpenedPortReportsBusyWithoutDisturbingOwner()
     {
         await using var pty = await PtyPair.StartAsync();
@@ -259,7 +259,7 @@ public sealed class SerialProtocolTests
         Assert.False(second.IsConnected);
     }
 
-    [Fact]
+    [PlatformFact(TestPlatform.Linux)]
     public async Task Pty_WriteTimeoutDisconnectsExactlyOnce()
     {
         await using var pty = await PtyPair.StartAsync();
@@ -275,7 +275,7 @@ public sealed class SerialProtocolTests
         Assert.Equal(1, count);
     }
 
-    [Fact]
+    [PlatformFact(TestPlatform.Linux)]
     public async Task Pty_CloseDuringWriteIsBoundedAndRemainsNormal()
     {
         await using var pty = await PtyPair.StartAsync();
@@ -292,7 +292,7 @@ public sealed class SerialProtocolTests
         Assert.Null(await ended.Task);
     }
 
-    [Fact]
+    [PlatformFact(TestPlatform.Linux)]
     public async Task Pty_ManualRtsUnsupportedIsExplicit_AndBreakStateCanBeReleased()
     {
         await using var pty = await PtyPair.StartAsync();

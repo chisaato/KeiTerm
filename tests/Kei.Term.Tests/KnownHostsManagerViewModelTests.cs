@@ -2,9 +2,14 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Avalonia.Controls;
+using Kei.Term.App.Services;
 using Kei.Term.App.ViewModels;
+using Kei.Term.App.Views;
 using Kei.Term.Core.Security;
 using Kei.Term.Infrastructure.Storage;
+using Kei.Term.Infrastructure.Vault;
+using Kei.Term.Ssh.Services;
 using Microsoft.Data.Sqlite;
 using Xunit;
 
@@ -74,17 +79,64 @@ public class KnownHostsManagerViewModelTests : IDisposable
     }
 
     [Fact]
-    public async Task Delete_RemovesSelectedEntry()
+    public async Task Delete_RequiresConfirmationAndRemovesOnlyTheConfirmedHost()
     {
         var (repo, vm) = await CreateAsync();
         await vm.ImportCommand.ExecuteAsync(null);
 
         Assert.False(new KnownHostsManagerViewModel(repo).DeleteCommand.CanExecute(null));
-        vm.SelectedEntry = vm.Entries.First(r => r.HostDisplay == "web.example");
+        var target = vm.Entries.First(r => r.HostDisplay == "web.example");
+        vm.SelectedEntry = target;
         await vm.DeleteCommand.ExecuteAsync(null);
+        Assert.Equal(2, (await repo.GetAllAsync()).Count);
 
+        var interaction = new ScriptedInteraction();
+        vm.Interaction = interaction;
+        interaction.DeleteAnswers.Enqueue(false);
+        await vm.DeleteCommand.ExecuteAsync(null);
+        Assert.Equal(2, (await repo.GetAllAsync()).Count);
+
+        var answer = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        interaction.ConfirmDeleteHandler = _ => answer.Task;
+        Task delete = vm.DeleteCommand.ExecuteAsync(null);
+        vm.SelectedEntry = vm.Entries.Single(r => r.Entry.Id != target.Entry.Id);
+        answer.SetResult(true);
+        await delete;
+        Assert.Equal(new[] { "web.example", "web.example" }, interaction.DeletePrompts);
         Assert.Equal("db.example", Assert.Single(await repo.GetAllAsync()).Host);
     }
+
+    [Fact]
+    public Task DesktopDeletion_ShowsConfirmationOwnedByTheManager() => HeadlessAvalonia.RunAsync(async () =>
+    {
+        var (repo, vm) = await CreateAsync();
+        await vm.ImportCommand.ExecuteAsync(null);
+        string database = $"Data Source={Path.Combine(_dir, "k.db")}";
+        InternalVaultManager vault = new(database);
+        SqliteIdentityRepository identities = new(database);
+        FixedSettingsService settings = new();
+        await using MainViewModel main = new(new SqliteTreeRepository(database), identities, vault, vault, settings, new SshSessionFactory());
+        UiDesignSystemService.Apply();
+        MainWindow owner = new() { DataContext = main };
+        owner.WireDialogs(main, new IdentityManagerViewModel(identities, vault, vault), new SettingsViewModel(settings), knownHostsVm: vm);
+        var manager = new KnownHostsManagerWindow(vm);
+        try
+        {
+            owner.Show();
+            Task closed = manager.ShowDialog(owner);
+            vm.SelectedEntry = vm.Entries.First(row => row.HostDisplay == "web.example");
+            Task deletion = vm.DeleteCommand.ExecuteAsync(null);
+            HeadlessAvalonia.Pump();
+            Window confirmation = Assert.Single(manager.OwnedWindows);
+            Assert.True(confirmation.IsVisible);
+            confirmation.Close(false);
+            await deletion;
+            Assert.Equal(2, (await repo.GetAllAsync()).Count);
+            manager.Close();
+            await closed;
+        }
+        finally { owner.Close(); }
+    });
 
     [Fact]
     public async Task Export_WritesFileThatReimportsIdentically()

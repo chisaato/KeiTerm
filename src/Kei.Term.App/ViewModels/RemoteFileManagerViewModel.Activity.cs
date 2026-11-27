@@ -124,17 +124,12 @@ public partial class RemoteFileManagerViewModel
 
     private static string NormalizeDirectoryPath(string? path)
     {
-        if (string.IsNullOrWhiteSpace(path)) return "/";
-        string trimmed = path.Trim().Replace('\\', '/').TrimEnd('/');
+        if (string.IsNullOrEmpty(path)) return "/";
+        string trimmed = path.TrimEnd('/');
         return string.IsNullOrEmpty(trimmed) ? "/" : trimmed;
     }
 
-    private async Task NavigateToDirectoryFromTransferAsync(string targetPath)
-    {
-        if (_disposed || string.IsNullOrWhiteSpace(targetPath)) return;
-        CurrentPath = targetPath;
-        await RefreshDirectoryAsync();
-    }
+    private Task NavigateToDirectoryFromTransferAsync(string targetPath) => NavigateToPathAsync(targetPath);
 
     private void UpdateFileActivities(NotifyCollectionChangedEventArgs args, int tab)
     {

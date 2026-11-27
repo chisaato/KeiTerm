@@ -3,6 +3,7 @@ namespace Kei.Term.App.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -371,6 +372,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         }
 
         WeakReferenceMessenger.Default.UnregisterAll(this);
+        if (SelectedTab != null) SelectedTab.PropertyChanged -= OnSelectedTabPropertyChanged;
         Workspace.AllItems.CollectionChanged -= OnWorkspaceItemsChanged;
         Workspace.Dispose();
         return ValueTask.CompletedTask;
@@ -399,25 +401,37 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable, IConnectio
         }
     }
 
-    partial void OnSelectedTabChanged(TerminalTabViewModel? value)
+    partial void OnSelectedTabChanged(TerminalTabViewModel? oldValue, TerminalTabViewModel? newValue)
     {
+        if (oldValue != null) oldValue.PropertyChanged -= OnSelectedTabPropertyChanged;
+        if (newValue != null) newValue.PropertyChanged += OnSelectedTabPropertyChanged;
         // IsSelected 只表示全局活动连接，不决定其他分屏组是否可见。
         foreach (var tab in Tabs)
         {
-            tab.IsSelected = ReferenceEquals(tab, value);
+            tab.IsSelected = ReferenceEquals(tab, newValue);
         }
-        if (value != null && !(ActiveWorkspaceTab is FileManagerTabViewModel files && ReferenceEquals(files.Owner, value))) ActiveWorkspaceTab = value;
+        if (newValue != null && !(ActiveWorkspaceTab is FileManagerTabViewModel files && ReferenceEquals(files.Owner, newValue))) ActiveWorkspaceTab = newValue;
         else if (ActiveWorkspaceTab is TerminalTabViewModel) ActiveWorkspaceTab = null;
         DisconnectCurrentTabCommand.NotifyCanExecuteChanged();
         OpenTerminalFindCommand.NotifyCanExecuteChanged();
-        OnPropertyChanged(nameof(CanToggleFileManager));
-        ToggleFileManagerCommand.NotifyCanExecuteChanged();
-        if (_syncingFromWorkspace || _disposed != 0 || value == null)
+        NotifyFileManagerAvailabilityChanged();
+        if (_syncingFromWorkspace || _disposed != 0 || newValue == null)
         {
             return;
         }
 
-        Workspace.Activate(ActiveWorkspaceTab ?? value);
+        Workspace.Activate(ActiveWorkspaceTab ?? newValue);
+    }
+
+    private void OnSelectedTabPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(TerminalTabViewModel.HasFileSystem)) NotifyFileManagerAvailabilityChanged();
+    }
+
+    private void NotifyFileManagerAvailabilityChanged()
+    {
+        OnPropertyChanged(nameof(CanToggleFileManager));
+        ToggleFileManagerCommand.NotifyCanExecuteChanged();
     }
 
     [RelayCommand(CanExecute = nameof(CanOpenTerminalFind))]

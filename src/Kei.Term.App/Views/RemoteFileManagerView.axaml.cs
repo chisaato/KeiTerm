@@ -161,8 +161,7 @@ public partial class RemoteFileManagerView : UserControl
     {
         if (DataContext is RemoteFileManagerViewModel vm && vm.SelectedDirectoryNode != null)
         {
-            vm.CurrentPath = vm.SelectedDirectoryNode.FullPath;
-            _ = vm.RefreshDirectoryAsync();
+            _ = vm.NavigateToPathAsync(vm.SelectedDirectoryNode.FullPath);
         }
     }
 

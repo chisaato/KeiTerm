@@ -19,7 +19,7 @@
 - **多级跳板机（ProxyJump）**：跳板本身即普通会话，逐跳独立身份认证；文件通道复用跳板链。
 - **OpenSSH 生态互通**：一键导入 `~/.ssh/config`（Host / IdentityFile / ProxyJump / Include）。
 - **多 Key 与凭据库 (Vault)**：
-  - 凭据与主机解耦，支持密码、私钥明文、本地文件路径及 Agent 映射。
+  - 凭据与主机解耦，支持密码、本地私钥文件及 Agent 映射。设置主密码后，也可将私钥导入 Vault 加密保存。
   - 可选主密码保护（PBKDF2-SHA512 + AES-256-GCM，KDF 已版本化，可平滑切换 Argon2id）。
   - OS 原生密钥环静默解锁、外部凭据源（1Password、Bitwarden、OpenBao 等）（规划中）。
 - **E2EE 云同步（规划中）**：

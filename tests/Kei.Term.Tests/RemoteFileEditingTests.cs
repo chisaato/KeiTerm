@@ -227,6 +227,32 @@ public class RemoteFileEditingTests
         finally { Directory.Delete(directory, recursive: true); }
     });
 
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public Task EditorSave_PublishesWholeContentsWithOriginalModeOrPreservesOriginal(bool failCommit, bool failPublish)
+        => HeadlessAvalonia.RunAsync(async () =>
+    {
+        string directory = NewDirectory();
+        var remote = new BufferedFileSystem { FailCommit = failCommit, FailPublish = failPublish };
+        ManualTracker tracker = new();
+        await using RemoteFileManagerViewModel manager = new(Guid.NewGuid(), remote, tracker);
+        try
+        {
+            string file = Path.Combine(directory, "edit.txt");
+            await File.WriteAllTextAsync(file, "new contents");
+            tracker.NotifyChange(file, "/edit.txt");
+            await WaitUntilAsync(() => manager.FailedWritebacks.Count == 1 || remote.Contents == "new contents");
+            Assert.Equal(failCommit || failPublish ? "original" : "new contents", remote.Contents);
+            Assert.Equal(failCommit || failPublish ? "-rwxr-x---" : "750", (await remote.GetItemAsync("/edit.txt"))!.Permissions);
+            Assert.Empty(remote.StagingPaths);
+            if (!(failCommit || failPublish))
+                Assert.Equal(System.IO.Hashing.XxHash128.Hash("new contents"u8), tracker.CommittedHash);
+        }
+        finally { Directory.Delete(directory, true); }
+    });
+
     [Fact]
     public Task Dispose_DrainsActiveWritebackAndUnsubscribesTracker() => HeadlessAvalonia.RunAsync(async () =>
     {
@@ -255,7 +281,8 @@ public class RemoteFileEditingTests
             await manager.DisposeAsync();
             Assert.Equal(1, tracker.Disposals);
             Assert.Equal(1, remote.Disposals);
-            Assert.Equal("edited remotely", remote.Contents);
+            // 连接关闭在提交暂存内容期间取消了发布，原文件必须完整保留。
+            Assert.Equal("original", remote.Contents);
             Assert.True(File.Exists(localPath));
 
             tracker.NotifyChange(localPath, "/edit.txt");
@@ -321,7 +348,15 @@ public class RemoteFileEditingTests
         public bool FailCommit { get; init; }
         public int Disposals { get; private set; }
         public int OpenWrites { get; private set; }
-        private bool _committed;
+        public bool FailPublish { get; init; }
+        private readonly Dictionary<string, (string Text, string Mode)> _files = new()
+        {
+            ["/edit.txt"] = ("original", "-rwxr-x---"),
+            ["/etc/edit with spaces.txt"] = ("original", "-rwxr-x---"),
+        };
+        private readonly HashSet<string> _directories = [];
+        private readonly Dictionary<Stream, string> _writes = [];
+        public IEnumerable<string> StagingPaths => _directories.Concat(_files.Keys).Where(path => path.Contains("/.keiterm-edit-"));
         public TaskCompletionSource CommitStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource AllowCommit { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public bool IsConnected => Disposals == 0;
@@ -334,7 +369,11 @@ public class RemoteFileEditingTests
         public Task<Stream> OpenWriteAsync(string path, CancellationToken ct = default)
         {
             OpenWrites++;
-            return Task.FromResult<Stream>(new MemoryStream());
+            Stream stream = new MemoryStream();
+            _writes.Add(stream, path);
+            _files[path] = ("", _files.GetValueOrDefault(path, ("", "-rw-r--r--")).Item2);
+            if (path == "/edit.txt") Contents = "";
+            return Task.FromResult(stream);
         }
         public async Task CommitWriteAsync(Stream stream, CancellationToken ct = default)
         {
@@ -343,18 +382,42 @@ public class RemoteFileEditingTests
             if (PauseCommit) await AllowCommit.Task;
             if (FailCommit) throw new IOException("commit denied");
             Assert.Equal(0, Disposals);
-            Contents = Encoding.UTF8.GetString(((MemoryStream)stream).ToArray());
-            _committed = true;
+            string path = _writes[stream];
+            _files[path] = (Encoding.UTF8.GetString(((MemoryStream)stream).ToArray()), _files[path].Mode);
+            if (path == "/edit.txt") Contents = _files[path].Text;
         }
-        public Task DeleteAsync(string path, bool isDirectory, CancellationToken ct = default) => Task.CompletedTask;
-        public Task RenameAsync(string oldPath, string newPath, CancellationToken ct = default) => Task.CompletedTask;
-        public Task CreateDirectoryAsync(string path, CancellationToken ct = default) => Task.CompletedTask;
-        public Task ChangePermissionsAsync(string path, int octalPermissions, CancellationToken ct = default) => Task.CompletedTask;
+        public Task DeleteAsync(string path, bool isDirectory, CancellationToken ct = default)
+        {
+            if (isDirectory) _directories.Remove(path);
+            else _files.Remove(path);
+            return Task.CompletedTask;
+        }
+        public Task RenameAsync(string oldPath, string newPath, CancellationToken ct = default)
+            => RenameOverwriteAsync(oldPath, newPath, ct);
+        public Task CreateDirectoryAsync(string path, CancellationToken ct = default)
+        {
+            _directories.Add(path);
+            return Task.CompletedTask;
+        }
+        public Task ChangePermissionsAsync(string path, int octalPermissions, CancellationToken ct = default)
+        {
+            if (!_directories.Contains(path))
+                _files[path] = (_files[path].Text, Convert.ToString(octalPermissions, 8));
+            return Task.CompletedTask;
+        }
         public Task<RemoteFileItem?> GetItemAsync(string path, CancellationToken ct = default)
-            => Task.FromResult<RemoteFileItem?>(_committed
-                ? new RemoteFileItem(System.IO.Path.GetFileName(path), path, false, Encoding.UTF8.GetByteCount(Contents), DateTimeOffset.UtcNow, "")
+            => Task.FromResult<RemoteFileItem?>(_files.TryGetValue(path, out var file)
+                ? new RemoteFileItem(System.IO.Path.GetFileName(path), path, false, Encoding.UTF8.GetByteCount(file.Text), DateTimeOffset.UnixEpoch, file.Mode)
                 : null);
-        public Task RenameOverwriteAsync(string oldPath, string newPath, CancellationToken ct = default) => Task.CompletedTask;
+        public Task RenameOverwriteAsync(string oldPath, string newPath, CancellationToken ct = default)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (FailPublish) throw new IOException("publish denied");
+            _files[newPath] = _files[oldPath];
+            _files.Remove(oldPath);
+            Contents = _files[newPath].Text;
+            return Task.CompletedTask;
+        }
         public Task SetLastWriteTimeUtcAsync(string path, DateTime lastWriteTimeUtc, CancellationToken ct = default) => Task.CompletedTask;
         public ValueTask DisposeAsync() { Disposals++; return ValueTask.CompletedTask; }
     }
@@ -364,6 +427,8 @@ public class RemoteFileEditingTests
         private EventHandler<LocalFileChangedEventArgs>? _changed;
         private EventHandler<string>? _untracked;
         public int Disposals { get; private set; }
+        public byte[]? CommittedHash { get; private set; }
+        public void RecordCommittedContent(string localFilePath, byte[] hash) => CommittedHash = hash;
         public int Subscribers => (_changed?.GetInvocationList().Length ?? 0) + (_untracked?.GetInvocationList().Length ?? 0);
         public event EventHandler<LocalFileChangedEventArgs>? FileChanged { add => _changed += value; remove => _changed -= value; }
         public event EventHandler<string>? FileUntracked { add => _untracked += value; remove => _untracked -= value; }

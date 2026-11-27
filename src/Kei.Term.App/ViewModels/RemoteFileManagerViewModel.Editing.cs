@@ -19,6 +19,7 @@ using Kei.Term.Core.Models;
 using Kei.Term.Core.Services;
 using Kei.Term.Core.Settings;
 using Kei.Term.Core.Storage;
+using Kei.Term.Core.Transfers;
 
 public sealed class TrackedWritebackFailure
 {
@@ -208,10 +209,9 @@ public partial class RemoteFileManagerViewModel
             TransferStatusMessage = $"检测到修改，正在回写: {fileName}...";
             _logger.LogInformation("File writeback started: Remote={RemotePath}, Local={LocalPath}", e.RemotePath, e.LocalFilePath);
             await using (FileStream localStream = new(e.LocalFilePath, FileMode.Open, FileAccess.Read, FileShare.Read))
-            await using (Stream remoteStream = await _fileSystem.OpenWriteAsync(e.RemotePath, ct))
             {
-                await localStream.CopyToAsync(remoteStream, ct);
-                await _fileSystem.CommitWriteAsync(remoteStream, ct);
+                byte[] hash = await TrackedFileWriteback.PublishAsync(_fileSystem, e.RemotePath, localStream, _logger, ct);
+                _fileTracker.RecordCommittedContent(e.LocalFilePath, hash);
             }
             _logger.LogInformation("File writeback committed: Remote={RemotePath}", e.RemotePath);
 

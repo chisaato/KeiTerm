@@ -285,6 +285,13 @@ public partial class IdentityEditViewModel : ViewModelBase
 
         try
         {
+            var imports = CollectVaultKeyImports();
+            if (VaultSession?.RequiresMasterPasswordForPrivateKeys == true && imports.Any(import => !import.Remove))
+            {
+                ErrorMessage = Strings.Get("IdentityEdit.Error.PrivateKeyRequiresMasterPassword");
+                return false;
+            }
+
             IReadOnlyDictionary<Guid, string?> passwordChanges = CollectVaultPasswordChanges();
             if (passwordChanges.Count > 0)
             {
@@ -312,7 +319,6 @@ public partial class IdentityEditViewModel : ViewModelBase
             IsExisting = true;
             Title = Strings.Get("IdentityEdit.Title.Edit");
 
-            var imports = CollectVaultKeyImports();
             if (imports.Count > 0 && PersistVaultKeysAsync != null)
             {
                 if (!await PersistVaultKeysAsync(model.Id, imports))

@@ -12,12 +12,33 @@ public sealed class DirectoryArchiveTransfer
     private readonly Func<string> _createLocalTemporaryDirectory;
 
     public DirectoryArchiveTransfer(FileTransferExecutor executor)
-        : this(executor, () => Directory.CreateTempSubdirectory("keiterm-archive-").FullName) { }
+        : this(executor, () => CreateTemporaryDirectory("keiterm-archive-")) { }
 
     internal DirectoryArchiveTransfer(FileTransferExecutor executor, Func<string> createLocalTemporaryDirectory)
     {
         _executor = executor;
         _createLocalTemporaryDirectory = createLocalTemporaryDirectory;
+    }
+
+    // TMPDIR 可以经过平台别名（例如 macOS 的 /var）。只解析应用自己选定的临时根，
+    // 新建的私有目录和用户提供的目标仍经过原有的逐级链接检查。
+    internal static string CreateTemporaryDirectory(string prefix)
+    {
+        DirectoryInfo workspace = Directory.CreateTempSubdirectory(prefix);
+        try { return Path.Combine(ResolveDirectory(workspace.Parent!), workspace.Name); }
+        catch
+        {
+            workspace.Delete();
+            throw;
+        }
+
+        static string ResolveDirectory(DirectoryInfo directory)
+        {
+            if (directory.Parent is not { } parent) return directory.FullName;
+            var physical = new DirectoryInfo(Path.Combine(ResolveDirectory(parent), directory.Name));
+            return physical.LinkTarget == null ? physical.FullName
+                : ResolveDirectory((DirectoryInfo)physical.ResolveLinkTarget(true)!);
+        }
     }
 
     public async Task ExecuteAsync(

@@ -962,7 +962,7 @@
   <data name="Settings.Transport.Col.Notes" xml:space="preserve"><value>Notes</value></data>
   <data name="Settings.FileTransfer.AddEditorFirstHint" xml:space="preserve"><value>Add an external editor before configuring file associations</value></data>
   <data name="Settings.FileTransfer.AddExternalEditor" xml:space="preserve"><value>Add External Editor</value></data>
-  <data name="Settings.FileTransfer.CacheEmpty" xml:space="preserve"><value>Cache directory is empty.</value></data>
+  <data name="Settings.FileTransfer.CacheEmpty" xml:space="preserve"><value>No closed cached files are ready to clear.</value></data>
   <data name="Settings.FileTransfer.CacheCleared" xml:space="preserve"><value>Cleared {0} cache item(s).</value></data>
   <data name="Settings.FileTransfer.CacheClearPermissionDenied" xml:space="preserve"><value>Failed to clear cache: permission denied.</value></data>
   <data name="Settings.FileTransfer.CacheClearFailed" xml:space="preserve"><value>Failed to clear cache. Make sure no cached file is in use by an external editor and try again.</value></data>
@@ -1042,4 +1042,8 @@
   <data name="FileManager.Error.Reason.Timeout" xml:space="preserve"><value>Operation timed out</value></data>
   <data name="FileManager.Error.Reason.Generic" xml:space="preserve"><value>Check connection or permissions and try again</value></data>
   <data name="FileManager.Error.Format" xml:space="preserve"><value>{0}: {1}</value></data>
+  <data name="IdentityEdit.Error.PrivateKeyRequiresMasterPassword" xml:space="preserve"><value>Set a vault master password before importing a private key.</value></data>
+  <data name="Settings.Security.NoMasterPassword" xml:space="preserve"><value>Saved passwords are stored unencrypted. Set a master password before importing private keys.</value></data>
+  <data name="Settings.Security.RemoveConfirm" xml:space="preserve"><value>the master password? Saved passwords will be stored unencrypted in the local database. Remove stored private keys first.</value></data>
+  <data name="VaultSetup.PlainDesc" xml:space="preserve"><value>Passwords will be stored unencrypted in the local database. Storing private keys requires a master password.</value></data>
 </root>

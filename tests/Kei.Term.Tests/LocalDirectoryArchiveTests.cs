@@ -5,7 +5,7 @@ namespace Kei.Term.Tests;
 
 public sealed class LocalDirectoryArchiveTests : IDisposable
 {
-    private readonly string _root = Directory.CreateTempSubdirectory("keiterm-archive-test-").FullName;
+    private readonly string _root = DirectoryArchiveTransfer.CreateTemporaryDirectory("keiterm-archive-test-");
 
     [Theory]
     [InlineData(TransferArchiveFormat.Tar)]

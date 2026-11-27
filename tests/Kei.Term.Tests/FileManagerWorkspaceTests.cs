@@ -33,6 +33,25 @@ namespace Kei.Term.Tests;
 
 public partial class FileManagerWorkspaceTests
 {
+    [MonospaceFact]
+    public Task FileManagerRail_TracksTheSelectedSessionsFileCapability() => HeadlessAvalonia.RunAsync(async () =>
+    {
+        await using Host host = await Host.CreateAsync();
+        Button button = host.Window.FindControl<Button>("ModernFileManagerRailButton")!;
+        var connecting = new TerminalTabViewModel("Connecting", InstalledMonospace.Require(), 14);
+        host.Model.Workspace.AddTab(connecting);
+        HeadlessAvalonia.Pump();
+        Assert.False(button.IsEffectivelyEnabled);
+
+        var session = new RecordingSession();
+        connecting.AttachSession(session);
+        HeadlessAvalonia.Pump();
+        Assert.True(button.IsEffectivelyEnabled);
+        await connecting.DetachSessionAsync();
+        HeadlessAvalonia.Pump();
+        Assert.False(button.IsEffectivelyEnabled);
+    });
+
     [MonospaceTheory]
     [InlineData(false)]
     [InlineData(true)]
@@ -88,10 +107,14 @@ public partial class FileManagerWorkspaceTests
         Assert.Equal(0, host.FileSystem.DisposeCount);
     });
 
-    [MonospaceFact]
-    public Task FullScreenFiles_SwitchesDocumentsAndTitles_ThenRestoresSplitWithoutReplacingConnection() => HeadlessAvalonia.RunAsync(async () =>
+    [MonospaceTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public Task FullScreenFiles_SwitchesDocumentsAndTitles_ThenRestoresSplitWithoutReplacingConnection(bool onLeft) => HeadlessAvalonia.RunAsync(async () =>
     {
         await using Host host = await Host.CreateAsync();
+        host.Terminal.IsFileManagerOnLeft = onLeft;
+        HeadlessAvalonia.Pump();
         TerminalConnectionView connection = host.Window.GetVisualDescendants().OfType<TerminalConnectionView>().Single(view => view.IsEffectivelyVisible);
         double sidebarWidth = connection.FindControl<Border>("SftpHost")!.Bounds.Width;
         Assert.False(VisibleFiles(host).FindControl<Button>("FileManagerShowShellButton")!.IsEffectivelyVisible);
@@ -107,6 +130,8 @@ public partial class FileManagerWorkspaceTests
         Assert.True(host.Terminal.IsShellVisible);
         Assert.False(host.Terminal.IsFileManagerVisible);
         Assert.Equal("LAN", host.Terminal.Title);
+        Assert.False(connection.FindControl<Border>("SftpHost")!.IsVisible);
+        Assert.Equal(0, connection.FindControl<Grid>("ConnectionLayout")!.ColumnDefinitions[onLeft ? 0 : 2].ActualWidth);
         Assert.Same(host.Terminal.Terminal, host.Window.FocusManager!.GetFocusedElement());
         Click(host.Window, connection.FindControl<Button>("FullScreenFilesButton")!);
         Assert.False(host.Terminal.IsShellVisible);

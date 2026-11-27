@@ -13,10 +13,16 @@ public partial class RemoteFileManagerViewModel
 {
     private CancellationTokenSource? _directoryRefreshCancellation;
     private string? _loadedDirectoryPath;
-    private string? _pendingNavigationPath;
+    private Task _navigation = Task.CompletedTask;
+
+    private static string ParentDirectory(string path)
+    {
+        int separator = path.TrimEnd('/').LastIndexOf('/');
+        return separator > 0 ? path[..separator] : "/";
+    }
 
     internal bool CanOperateOnLoadedItems()
-        => !IsLoading && _pendingNavigationPath == null && (_loadedDirectoryPath == null || _loadedDirectoryPath == CurrentPath);
+        => !IsLoading && (_loadedDirectoryPath == null || _loadedDirectoryPath == CurrentPath);
 
     private void NotifyItemActionCanExecuteChanged()
     {
@@ -30,22 +36,21 @@ public partial class RemoteFileManagerViewModel
     [RelayCommand]
     public Task NavigateToAddressAsync()
     {
-        string target = string.IsNullOrWhiteSpace(AddressBarPath) ? "/" : AddressBarPath.Trim();
+        string target = string.IsNullOrEmpty(AddressBarPath) ? "/" : AddressBarPath;
         return NavigateToPathAsync(target);
     }
 
     public Task NavigateToPathAsync(string targetPath, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(targetPath)) return Task.CompletedTask;
-        string normalized = targetPath.Trim();
+        if (string.IsNullOrEmpty(targetPath)) return Task.CompletedTask;
         lock (_operationLock)
         {
             if (_disposed) return Task.CompletedTask;
             _directoryRefreshCancellation?.Cancel();
             CancellationTokenSource cancellation = CancellationTokenSource.CreateLinkedTokenSource(ct, _lifetimeCts.Token);
             _directoryRefreshCancellation = cancellation;
-            _pendingNavigationPath = normalized;
-            Task operation = RefreshDirectoryCoreAsync(normalized, cancellation, commitPathOnSuccess: true);
+            Task operation = RefreshDirectoryCoreAsync(targetPath, cancellation, commitPathOnSuccess: true);
+            _navigation = operation;
             _operations.Add(operation);
             _ = ObserveOperationAsync(operation);
             return operation;
@@ -57,11 +62,12 @@ public partial class RemoteFileManagerViewModel
     {
         lock (_operationLock)
         {
+            // 切换目录正在列出目标路径，旧目录的上传或回写完成不能中断它。
             if (_disposed) return Task.CompletedTask;
+            if (!_navigation.IsCompleted) return _navigation.WaitAsync(ct);
             _directoryRefreshCancellation?.Cancel();
             CancellationTokenSource cancellation = CancellationTokenSource.CreateLinkedTokenSource(ct, _lifetimeCts.Token);
             _directoryRefreshCancellation = cancellation;
-            _pendingNavigationPath = null;
             Task operation = RefreshDirectoryCoreAsync(CurrentPath, cancellation, commitPathOnSuccess: false);
             // 关闭时也排空列目录请求，保证文件通道不会在请求执行中被释放。
             _operations.Add(operation);
@@ -83,7 +89,6 @@ public partial class RemoteFileManagerViewModel
 
             if (commitPathOnSuccess)
             {
-                _pendingNavigationPath = null;
                 CurrentPath = path;
                 AddressBarPath = path;
             }
@@ -91,9 +96,7 @@ public partial class RemoteFileManagerViewModel
             Items.Clear();
             if (path != "/")
             {
-                int separator = path.TrimEnd('/').LastIndexOf('/');
-                string parent = separator > 0 ? path[..separator] : "/";
-                Items.Add(new RemoteFileItem("..", parent, true, 0, DateTimeOffset.MinValue, "drwxr-xr-x"));
+                Items.Add(new RemoteFileItem("..", ParentDirectory(path), true, 0, DateTimeOffset.MinValue, "drwxr-xr-x"));
             }
 
             var sorted = list.Where(item => ShowHiddenFiles || !item.Name.StartsWith('.'))
@@ -137,7 +140,6 @@ public partial class RemoteFileManagerViewModel
             if (ReferenceEquals(_directoryRefreshCancellation, cancellation))
             {
                 _directoryRefreshCancellation = null;
-                _pendingNavigationPath = null;
                 IsLoading = false;
             }
             cancellation.Dispose();

@@ -59,6 +59,7 @@ public sealed class GoSshIntegrationTests(GoProtocolDaemonBinary binary, SshdFix
         await using var fs = await factory.CreateFileSystemAsync(sshd.Config("go-sftp"), sshd.KeyAuth(), ct: timeout.Token);
         await fs.ConnectAsync(timeout.Token);
         Assert.True(fs.IsConnected);
+        await FileTransferExecutorSshIntegrationTests.VerifyEditorSaveAsync(fs, sshd.Directory);
         string directory = Path.Combine(sshd.Directory, "go-sftp-" + Guid.NewGuid().ToString("N"));
         string original = directory + "/payload.bin";
         string renamed = directory + "/renamed.bin";

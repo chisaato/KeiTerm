@@ -87,7 +87,7 @@ public sealed class BuiltInProtocolSessionFactoryTests
         Assert.False(session.IsConnected);
     }
 
-    [Fact]
+    [PlatformFact(TestPlatform.Linux)]
     public async Task GoSerialUsesSameBindingAndResolutionBeforeAnyProviderIsStarted()
     {
         await using var fixture = await Fixture.CreateAsync();
@@ -151,7 +151,7 @@ public sealed class BuiltInProtocolSessionFactoryTests
         Assert.Equal(new byte[] { 255, 255, 13, 0 }, bytes);
     }
 
-    [Theory]
+    [PlatformTheory(TestPlatform.Linux)]
     [InlineData(false)]
     [InlineData(true)]
     public async Task SerialConfirmationDoesNotOpenPortAndCancellationNeverPersists(bool cancelToken)
@@ -179,7 +179,7 @@ public sealed class BuiltInProtocolSessionFactoryTests
         Assert.Empty(await fixture.Devices.GetOverridesAsync(fixture.Config.SessionId, "serial"));
     }
 
-    [Fact]
+    [PlatformFact(TestPlatform.Linux)]
     public async Task SerialConfirmationPreservesExplicitFieldsAndNextConnectionNeedsNoPrompt()
     {
         await using var fixture = await Fixture.CreateAsync();

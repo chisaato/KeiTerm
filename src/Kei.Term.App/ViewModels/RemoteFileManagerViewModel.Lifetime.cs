@@ -77,7 +77,6 @@ public partial class RemoteFileManagerViewModel
             if (_owningFileView == null)
             {
                 await _editorLauncher.DisposeAsync().ConfigureAwait(false);
-                await _fileTracker.DisposeAsync().ConfigureAwait(false);
             }
         }
         finally
@@ -90,7 +89,12 @@ public partial class RemoteFileManagerViewModel
             {
                 try
                 {
-                    if (_owningFileView == null) await _fileSystem.DisposeAsync().ConfigureAwait(false);
+                    if (_owningFileView == null)
+                    {
+                        // 等待已启动的写入结束，最后一次成功回写的摘要才能进入缓存清单。
+                        try { await _fileTracker.DisposeAsync().ConfigureAwait(false); }
+                        finally { await _fileSystem.DisposeAsync().ConfigureAwait(false); }
+                    }
                 }
                 finally
                 {
