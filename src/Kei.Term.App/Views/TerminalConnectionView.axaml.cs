@@ -144,7 +144,8 @@ public partial class TerminalConnectionView : UserControl
             && (ReferenceEquals(focus, SftpHost) || focus.GetVisualAncestors().Contains(SftpHost)))
             tab.Terminal.Focus();
 
-        if (!_fileManagerPresentationInitialized || moved)
+        // 全屏模式切换的是整份文档，立即释放旧列，让新文档上的按钮在按下与松开之间保持原位。
+        if (!_fileManagerPresentationInitialized || moved || tab.IsFileManagerMaximized)
         {
             _fileManagerTransition.SetImmediate(visible);
             SftpHost.IsVisible = visible;
