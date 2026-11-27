@@ -174,6 +174,16 @@ internal sealed class ScpShellFileSystem(Func<string, CancellationToken, Task<Re
     public Task CreateDirectoryAsync(string path, CancellationToken ct)
         => ExecuteCheckedAsync($"mkdir -p -- {ScpRemoteFileSystem.ShellQuote(path)}", ct);
 
+    public Task ChangeOwnershipAsync(string path, int userId, int groupId, CancellationToken ct)
+    {
+        string operand = path.StartsWith('-') ? "./" + path : path;
+        return ExecuteCheckedAsync(FormattableString.Invariant($"chown {unchecked((uint)userId)}:{unchecked((uint)groupId)} {ScpRemoteFileSystem.ShellQuote(operand)}"), ct);
+    }
+
     public Task ChangePermissionsAsync(string path, int permissions, CancellationToken ct)
-        => ExecuteCheckedAsync($"chmod {Convert.ToString(permissions, 8)} -- {ScpRemoteFileSystem.ShellQuote(path)}", ct);
+    {
+        // BSD chmod 将 mode 后的 -- 视为文件名。给相对路径加 ./，避免前导短横线被当作选项。
+        string operand = path.StartsWith('-') ? "./" + path : path;
+        return ExecuteCheckedAsync($"chmod {Convert.ToString(permissions, 8)} {ScpRemoteFileSystem.ShellQuote(operand)}", ct);
+    }
 }

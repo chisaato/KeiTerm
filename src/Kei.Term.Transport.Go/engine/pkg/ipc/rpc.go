@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/keiterm/transport-engine/pkg/transport"
+	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -67,11 +68,15 @@ type Shell interface {
 type FileSystem interface {
 	ListDir(string) ([]os.FileInfo, error)
 	Stat(string) (os.FileInfo, error)
+	Lstat(string) (os.FileInfo, error)
+	Chmod(string, os.FileMode) error
+	Chown(string, int, int) error
 	Read(string) (io.ReadCloser, error)
 	Write(string) (io.WriteCloser, error)
 	Mkdir(string) error
 	Remove(string) error
 	Rename(string, string) error
+	RenameOverwrite(string, string) error
 	Close() error
 }
 type Session interface {
@@ -164,10 +169,16 @@ type FileInfo struct {
 	Mode  uint32 `json:"mode"`
 	IsDir bool   `json:"isDir"`
 	Mtime int64  `json:"mtime"`
+	UID   uint32 `json:"uid"`
+	GID   uint32 `json:"gid"`
 }
 
 func fileInfo(f os.FileInfo) FileInfo {
-	return FileInfo{f.Name(), f.Size(), uint32(f.Mode()), f.IsDir(), f.ModTime().Unix()}
+	info := FileInfo{Name: f.Name(), Size: f.Size(), Mode: uint32(f.Mode()), IsDir: f.IsDir(), Mtime: f.ModTime().Unix()}
+	if stat, ok := f.Sys().(*sftp.FileStat); ok {
+		info.UID, info.GID = stat.UID, stat.GID
+	}
+	return info
 }
 
 // Router is scoped to one authenticated local IPC connection. Session IDs and
@@ -439,11 +450,14 @@ func (r *Router) call(p *peer, req Request) (any, func(), error) {
 		OldPath   string `json:"oldPath"`
 		NewPath   string `json:"newPath"`
 		IsDir     bool   `json:"isDir"`
+		Mode      uint32 `json:"mode"`
+		UID       uint32 `json:"uid"`
+		GID       uint32 `json:"gid"`
 		Cols      int    `json:"cols"`
 		Rows      int    `json:"rows"`
 	}
 	switch req.Method {
-	case "session.resize", "session.disconnect", "sftp.open", "sftp.list", "sftp.stat", "sftp.mkdir", "sftp.remove", "sftp.rename", "sftp.upload_stream", "sftp.download_stream":
+	case "session.resize", "session.disconnect", "sftp.open", "sftp.list", "sftp.stat", "sftp.lstat", "sftp.chown", "sftp.chmod", "sftp.posix_rename", "sftp.mkdir", "sftp.remove", "sftp.rename", "sftp.upload_stream", "sftp.download_stream":
 	default:
 		return nil, nil, &RPCError{-32601, "Method not found"}
 	}
@@ -498,6 +512,34 @@ func (r *Router) call(p *peer, req Request) (any, func(), error) {
 			return nil, nil, err
 		}
 		return fileInfo(f), nil, nil
+	case "sftp.lstat":
+		f, err := fs.Lstat(args.Path)
+		if errors.Is(err, os.ErrNotExist) {
+			return (*FileInfo)(nil), nil, nil
+		}
+		if err != nil {
+			return nil, nil, err
+		}
+		return fileInfo(f), nil, nil
+	case "sftp.chown":
+		return true, nil, fs.Chown(args.Path, int(args.UID), int(args.GID))
+	case "sftp.chmod":
+		if args.Mode > 07777 {
+			return nil, nil, &RPCError{-32602, "Invalid POSIX mode"}
+		}
+		mode := os.FileMode(args.Mode & 0777)
+		if args.Mode&04000 != 0 {
+			mode |= os.ModeSetuid
+		}
+		if args.Mode&02000 != 0 {
+			mode |= os.ModeSetgid
+		}
+		if args.Mode&01000 != 0 {
+			mode |= os.ModeSticky
+		}
+		return true, nil, fs.Chmod(args.Path, mode)
+	case "sftp.posix_rename":
+		return true, nil, fs.RenameOverwrite(args.OldPath, args.NewPath)
 	case "sftp.mkdir":
 		return true, nil, fs.Mkdir(args.Path)
 	case "sftp.remove":

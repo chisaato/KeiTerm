@@ -1,5 +1,7 @@
 using Kei.Term.Core.Abstractions;
 using Kei.Term.Core.Settings;
+using Kei.Term.Core.Models;
+using Microsoft.Extensions.Logging.Abstractions;
 using Kei.Term.Core.Transfers;
 using Kei.Term.Ssh.Services;
 
@@ -7,6 +9,33 @@ namespace Kei.Term.Tests;
 
 public sealed class FileTransferExecutorSshIntegrationTests(SshdFixture sshd) : IClassFixture<SshdFixture>
 {
+    [SshdFact]
+    public async Task TrackedEditorSave_PublishesContentAndPermissionsOverSftpAndScp()
+    {
+        foreach (var protocol in new[] { FileTransferProtocol.Sftp, FileTransferProtocol.Scp })
+        {
+            var config = sshd.Config() with { FileTransferProtocol = protocol };
+            await using IRemoteFileSystem remote = await new SshSessionFactory().CreateFileSystemAsync(config, sshd.KeyAuth());
+            await remote.ConnectAsync();
+            await VerifyEditorSaveAsync(remote, sshd.Directory);
+        }
+    }
+
+    internal static async Task VerifyEditorSaveAsync(IRemoteFileSystem remote, string parent)
+    {
+        if (!OperatingSystem.IsLinux()) throw new PlatformNotSupportedException();
+        string directory = Directory.CreateDirectory(Path.Combine(parent, "editor-" + Guid.NewGuid().ToString("N"))).FullName;
+        string target = Path.Combine(directory, "server's script.sh");
+        await File.WriteAllTextAsync(target, "old script");
+        const UnixFileMode mode = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute | UnixFileMode.GroupExecute;
+        File.SetUnixFileMode(target, mode);
+        using MemoryStream source = new("replacement script"u8.ToArray());
+        await TrackedFileWriteback.PublishAsync(remote, target, source, NullLogger.Instance, CancellationToken.None);
+        Assert.Equal("replacement script", await File.ReadAllTextAsync(target));
+        Assert.Equal(mode, File.GetUnixFileMode(target));
+        Assert.Equal(target, Assert.Single(Directory.EnumerateFileSystemEntries(directory)));
+    }
+
     [SshdFact]
     public async Task DirectoryRoundTrip_PreservesContentAndModifiedTime_AndClassifiesSymlinks()
     {

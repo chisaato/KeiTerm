@@ -181,6 +181,13 @@ public partial class ScpRemoteFileSystem : IRemoteFileSystem, IRemoteShell
         await _shell.CreateDirectoryAsync(path, ct);
     }
 
+    public Task ChangeOwnershipAsync(string path, int userId, int groupId, CancellationToken ct = default)
+    {
+        ThrowIfDisposed();
+        EnsureConnected();
+        return _shell.ChangeOwnershipAsync(path, userId, groupId, ct);
+    }
+
     public async Task ChangePermissionsAsync(string path, int octalPermissions, CancellationToken ct = default)
     {
         ThrowIfDisposed();

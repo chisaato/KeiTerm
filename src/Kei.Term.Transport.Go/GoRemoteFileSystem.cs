@@ -33,15 +33,24 @@ public sealed class GoRemoteFileSystem : IRemoteFileSystem
     private static RemoteFileItem Map(JsonElement item, string path)
     {
         uint mode = item.GetProperty("mode").GetUInt32();
+        long permissions = mode & 0x1ff;
+        if ((mode & (1u << 23)) != 0) permissions |= 0x800;
+        if ((mode & (1u << 22)) != 0) permissions |= 0x400;
+        if ((mode & (1u << 20)) != 0) permissions |= 0x200;
         return new(item.GetProperty("name").GetString()!, path, item.GetProperty("isDir").GetBoolean(),
             item.GetProperty("size").GetInt64(), DateTimeOffset.FromUnixTimeSeconds(item.GetProperty("mtime").GetInt64()),
-            Convert.ToString(mode & 0x1ff, 8), IsSymbolicLink: (mode & (1u << 27)) != 0);
+            Convert.ToString(permissions, 8),
+            item.TryGetProperty("uid", out var uid) ? unchecked((int)uid.GetUInt32()) : 0,
+            item.TryGetProperty("gid", out var gid) ? unchecked((int)gid.GetUInt32()) : 0,
+            IsSymbolicLink: (mode & (1u << 27)) != 0);
     }
     public async Task<RemoteFileItem?> GetItemAsync(string path, CancellationToken ct = default)
         => Map(await CallAsync("sftp.stat", new { sessionId = _session.RemoteId, path }, ct), path);
-    // Go stat 会跟随链接，不能冒充安全清理所需的 lstat。
-    public Task<RemoteFileItem?> GetAttributesAsync(string path, CancellationToken ct = default)
-        => throw new NotSupportedException("Go IPC 尚未提供不跟随链接的 lstat");
+    public async Task<RemoteFileItem?> GetAttributesAsync(string path, CancellationToken ct = default)
+    {
+        var result = await CallAsync("sftp.lstat", new { sessionId = _session.RemoteId, path }, ct);
+        return result.ValueKind == JsonValueKind.Null ? null : Map(result, path);
+    }
     public Task<RemoteFileItem?> GetFileAttributesAsync(string path, CancellationToken ct = default) => GetItemAsync(path, ct);
     public Task CreateDirectoryAsync(string path, CancellationToken ct = default)
         => CallAsync("sftp.mkdir", new { sessionId = _session.RemoteId, path }, ct);
@@ -55,8 +64,12 @@ public sealed class GoRemoteFileSystem : IRemoteFileSystem
         => isDirectory ? DeleteDirectoryAsync(path, ct) : DeleteFileAsync(path, ct);
     public Task RenameAsync(string oldPath, string newPath, CancellationToken ct = default)
         => CallAsync("sftp.rename", new { sessionId = _session.RemoteId, oldPath, newPath }, ct);
+    public Task RenameOverwriteAsync(string oldPath, string newPath, CancellationToken ct = default)
+        => CallAsync("sftp.posix_rename", new { sessionId = _session.RemoteId, oldPath, newPath }, ct);
+    public Task ChangeOwnershipAsync(string path, int userId, int groupId, CancellationToken ct = default)
+        => CallAsync("sftp.chown", new { sessionId = _session.RemoteId, path, uid = unchecked((uint)userId), gid = unchecked((uint)groupId) }, ct);
     public Task ChangePermissionsAsync(string path, int octalPermissions, CancellationToken ct = default)
-        => throw new NotSupportedException("Go IPC 尚未提供 chmod");
+        => CallAsync("sftp.chmod", new { sessionId = _session.RemoteId, path, mode = octalPermissions }, ct);
     public Task<Stream> OpenReadAsync(string path, CancellationToken ct = default) => OpenAsync(path, false, ct);
     public Task<Stream> OpenWriteAsync(string path, CancellationToken ct = default) => OpenAsync(path, true, ct);
     public Task<Stream> OpenReadAsync(string path, long offset, CancellationToken ct = default)
