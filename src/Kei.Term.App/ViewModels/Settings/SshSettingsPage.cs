@@ -105,20 +105,16 @@ public partial class SshSettingsPage : ViewModelBase
             {
                 options.Add(new IdentityOption(identity.Id, identity.Name));
             }
+            var selected = options.FirstOrDefault(o => o.Id == SelectedIdentityId) ?? options[0];
             Identities = options;
 
             // 按已选 Id 恢复选中项，找不到则回落到首项「无」
-            SelectedIdentity = options.FirstOrDefault(o => o.Id == SelectedIdentityId) ?? options[0];
+            SelectedIdentity = selected;
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"加载默认身份列表失败: {ex}");
-            var fallback = new ObservableCollection<IdentityOption>
-            {
-                new(null, Strings.Get("Settings.Ssh.IdentityNone"))
-            };
-            Identities = fallback;
-            SelectedIdentity = fallback[0];
+            // 列表读取失败时保留已有选择与 ID，下次加载可按原 ID 恢复。
         }
     }
 

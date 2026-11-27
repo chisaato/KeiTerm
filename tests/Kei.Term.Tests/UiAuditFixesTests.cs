@@ -27,6 +27,32 @@ namespace Kei.Term.Tests;
 public class UiAuditFixesTests
 {
     [Fact]
+    public async Task FailedIdentityListPreservesDefaultWhenApplyingAndRetryingSettings()
+    {
+        string directory = Directory.CreateTempSubdirectory("keiterm_identity_retry_").FullName;
+        try
+        {
+            var repository = new SqliteIdentityRepository($"Data Source={Path.Combine(directory, "db")};Pooling=False");
+            var identity = new Kei.Term.Core.Vault.Identity { Name = "ops" };
+            var settings = new JsonSettingsService(Path.Combine(directory, "settings.json"));
+            settings.Current.DefaultIdentityId = identity.Id;
+            var vm = new SettingsViewModel(settings, directory, repository);
+            var ssh = vm.Categories.Select(category => category.Page).OfType<SshSettingsPage>().Single();
+            // 尚未迁移的测试数据库使 GetAllAsync 失败；其他设置仍可保存。
+            await ssh.LoadIdentitiesAsync();
+            ssh.DefaultUsername = "other-user";
+            await vm.ApplyCommand.ExecuteAsync(null);
+            Assert.Equal(identity.Id, settings.Current.DefaultIdentityId);
+            Assert.Equal("other-user", settings.Current.DefaultUsername);
+            await repository.InitializeAsync();
+            await repository.SaveAsync(identity);
+            await ssh.LoadIdentitiesAsync();
+            Assert.Equal(identity.Id, ssh.SelectedIdentity?.Id);
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    [Fact]
     public async Task RemoteDirectoryNode_LoadFailure_KeepsExpandable_SetsError_AndAllowsRetry()
     {
         var fs = new StubFileSystem { FailNextList = true };
@@ -165,7 +191,7 @@ public class UiAuditFixesTests
     }
 
     [Fact]
-    public Task FileManagerSettingsPageView_ClearCacheDoesNotOverlap_AndBlankDirResolvesStandardPath() => HeadlessAvalonia.RunAsync(() =>
+    public Task FileManagerSettingsPageView_ClearCacheDoesNotOverlap_AndBlankDirResolvesStandardPath() => HeadlessAvalonia.RunAsync(async () =>
     {
         UiDesignSystemService.Apply();
         var page = new FileManagerSettingsPage { CacheDirectory = "   " };
@@ -186,7 +212,10 @@ public class UiAuditFixesTests
             Assert.True(dirBox.Bounds.Right <= clearBtn.Bounds.Left + 1,
                 $"缓存路径框 ({dirBox.Bounds}) 与清理按钮 ({clearBtn.Bounds}) 重叠");
 
-            page.ClearCacheDirectoryCommand.Execute(null);
+            Assert.Equal(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "KeiTerm", "file-cache"), Kei.Term.Core.Services.LocalFileTracker.ResolveCacheDirectory(page.CacheDirectory));
+            page.CacheDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+            await page.ClearCacheDirectoryCommand.ExecuteAsync(null);
             Assert.True(page.HasCacheStatus);
             Assert.False(page.IsCacheStatusError);
             Assert.False(string.IsNullOrWhiteSpace(page.CacheStatusMessage));
@@ -195,8 +224,6 @@ public class UiAuditFixesTests
         {
             window.Close();
         }
-
-        return Task.CompletedTask;
     });
 
     [Fact]

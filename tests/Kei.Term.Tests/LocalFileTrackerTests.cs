@@ -8,6 +8,96 @@ namespace Kei.Term.Tests;
 
 public class LocalFileTrackerTests
 {
+    [Theory]
+    [InlineData("/a", "/a ")]
+    [InlineData(@"/a\b", "/a/b")]
+    public async Task DistinctPosixNamesHaveIndependentEditableCopies(string first, string second)
+    {
+        string directory = Directory.CreateTempSubdirectory("keiterm_posix_names_").FullName;
+        try
+        {
+            await using var tracker = new LocalFileTracker(directory, FileWatcherMode.Polling, 60);
+            Guid session = Guid.NewGuid();
+            string a = tracker.GetLocalCachePath(session, first);
+            string b = tracker.GetLocalCachePath(session, second);
+            await File.WriteAllTextAsync(a, "first");
+            await File.WriteAllTextAsync(b, "second");
+            Assert.Equal("first", await File.ReadAllTextAsync(a));
+            Assert.Equal("second", await File.ReadAllTextAsync(b));
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task InterruptedCleanupPreservesBothStagedEditsAndAnyNewSave(bool editorSavedAgain)
+    {
+        string directory = Directory.CreateTempSubdirectory("keiterm_cache_recovery_").FullName;
+        try
+        {
+            await using var tracker = new LocalFileTracker(directory, FileWatcherMode.Polling, 60);
+            Guid session = Guid.NewGuid();
+            string cached = tracker.GetLocalCachePath(session, "/remote.txt");
+            await File.WriteAllTextAsync(cached, "downloaded");
+            await tracker.RegisterTrackedFileAsync(session, "/remote.txt", cached);
+            await tracker.DisposeAsync();
+
+            // 构造进程退出时已移动、尚未验证的文件，包含编辑器刚原子替换的修改。
+            var folder = new FileInfo(cached).Directory!;
+            var recovery = Directory.CreateDirectory(Path.Combine(folder.Parent!.FullName, "Recovered edits-" + folder.Name));
+            string staged = Path.Combine(recovery.FullName, Path.GetFileName(cached));
+            await File.WriteAllTextAsync(cached, "first uncommitted edit");
+            File.Move(cached, staged);
+            if (editorSavedAgain) await File.WriteAllTextAsync(cached, "second uncommitted edit");
+
+            Assert.Equal(0, LocalFileTracker.ClearClosedCache(directory));
+            Assert.Equal("first uncommitted edit", await File.ReadAllTextAsync(editorSavedAgain ? staged : cached));
+            if (editorSavedAgain) Assert.Equal("second uncommitted edit", await File.ReadAllTextAsync(cached));
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    [Fact]
+    public async Task CleanupRemovesOnlyClosedUnmodifiedDownloads()
+    {
+        string directory = Directory.CreateTempSubdirectory("keiterm_cache_").FullName;
+        try
+        {
+            string unrelated = Path.Combine(directory, "notes.txt");
+            await File.WriteAllTextAsync(unrelated, "personal file");
+            await using LocalFileTracker tracker = new(directory, FileWatcherMode.Polling, 60);
+            Guid session = Guid.NewGuid();
+            string clean = tracker.GetLocalCachePath(session, "/original");
+            string pending = tracker.GetLocalCachePath(session, "/pending");
+            await File.WriteAllTextAsync(clean, "original");
+            await File.WriteAllTextAsync(pending, "download");
+            await tracker.RegisterTrackedFileAsync(session, "/original", clean);
+            await tracker.RegisterTrackedFileAsync(session, "/pending", pending);
+            string committed = tracker.GetLocalCachePath(session, "/committed");
+            await File.WriteAllTextAsync(committed, "download");
+            await tracker.RegisterTrackedFileAsync(session, "/committed", committed);
+            await File.WriteAllTextAsync(committed, "published edit");
+            tracker.RecordCommittedContent(committed, System.IO.Hashing.XxHash128.Hash(await File.ReadAllBytesAsync(committed)));
+            Assert.Equal(0, LocalFileTracker.ClearClosedCache(directory));
+            await File.WriteAllTextAsync(pending, "unsent changes");
+            await tracker.UnregisterTrackedFileAsync(pending);
+            await tracker.DisposeAsync();
+
+            string damaged = Directory.CreateDirectory(Path.Combine(directory, "KeiTerm-editor-" + Guid.NewGuid().ToString("N"))).FullName;
+            string brokenManifest = Path.Combine(damaged, ".keiterm-cache.json");
+            await File.WriteAllTextAsync(brokenManifest, "{ damaged");
+            Assert.Equal(2, LocalFileTracker.ClearClosedCache(directory));
+            Assert.Equal("{ damaged", await File.ReadAllTextAsync(brokenManifest));
+            Assert.False(File.Exists(committed));
+            Assert.False(File.Exists(clean));
+            Assert.Equal(0, LocalFileTracker.ClearClosedCache(directory));
+            Assert.Equal("unsent changes", await File.ReadAllTextAsync(pending));
+            Assert.Equal("personal file", await File.ReadAllTextAsync(unrelated));
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
     [Fact]
     public async Task Polling_DetectsSameLengthEditWithPreservedTimestamp()
     {

@@ -104,19 +104,8 @@ public partial class GeneralSettingsPage : ViewModelBase
     [RelayCommand]
     private async Task ClearCacheDirectoryAsync()
     {
-        string targetDir = FileManagerSettingsPage.ResolveEffectiveCacheDirectory(CacheDirectory);
-        if (!Directory.Exists(targetDir)) return;
-        await Task.Run(() =>
-        {
-            foreach (var dir in Directory.GetDirectories(targetDir))
-            {
-                Directory.Delete(dir, true);
-            }
-            foreach (var file in Directory.GetFiles(targetDir))
-            {
-                File.Delete(file);
-            }
-        });
+        string directory = CacheDirectory;
+        await Task.Run(() => Kei.Term.Core.Services.LocalFileTracker.ClearClosedCache(directory));
     }
 
     public void SetTreeSortMode(string? mode)
